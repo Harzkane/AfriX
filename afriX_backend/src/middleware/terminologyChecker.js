@@ -1,0 +1,1 @@
+// terminologyChecker.js

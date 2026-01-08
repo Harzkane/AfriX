@@ -4,6 +4,7 @@ import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAgentStore } from "@/stores/slices/agentSlice";
+import { formatDate } from "@/utils/format";
 
 type KycStatus = "not_submitted" | "under_review" | "approved" | "rejected";
 
@@ -113,7 +114,7 @@ export default function KycStatusScreen() {
                     <Text style={styles.statusDescription}>{config.description}</Text>
                     {status !== "not_submitted" && (
                         <Text style={styles.submittedDate}>
-                            Submitted on {submittedAt.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}
+                            Submitted on {formatDate(submittedAt)}
                         </Text>
                     )}
                 </View>

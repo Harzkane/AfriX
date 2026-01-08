@@ -16,12 +16,75 @@ import { useFocusEffect } from "@react-navigation/native";
 import { useAuthStore, useWalletStore, useMintRequestStore, useAgentStore } from "@/stores";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
+import { formatDate } from "@/utils/format";
 
 export default function DashboardScreen() {
   const { user, isAuthenticated } = useAuthStore();
   const { wallets, fetchWallets, loading, exchangeRates, fetchExchangeRates } = useWalletStore();
   const { currentRequest, checkStatus, fetchCurrentRequest } = useMintRequestStore();
-  // const { pendingReviewsCount } = useAgentStore(); // Removed as it doesn't exist on AgentState
+  const { fetchAgentStats } = useAgentStore();
+
+  const getInitials = (name?: string) => {
+    if (!name) return "U";
+    return name
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2);
+  };
+
+  const DashboardAvatar = () => {
+    const { agentStatus } = useAgentStore();
+    const isAgent = user?.role?.toLowerCase() === "agent" ||
+      user?.role?.toLowerCase() === "admin" ||
+      agentStatus === "active";
+    const isVerified = user?.email_verified;
+    const verificationLevel = user?.verification_level || 0;
+    const hasActiveRequest = currentRequest && ["pending", "proof_submitted"].includes(currentRequest.status.toLowerCase());
+
+    return (
+      <TouchableOpacity
+        style={styles.avatarContainer}
+        onPress={() => router.push("/(tabs)/profile")}
+      >
+        {/* Agent Gold Ring (Outermost) */}
+        {isAgent && <View style={styles.agentRing} />}
+
+        <View style={styles.avatarMain}>
+          {/* Progress Ring Track */}
+          <View style={styles.progressTrack} />
+
+          {/* Dynamic Progress Ring (High Contrast White) */}
+          <View style={[
+            styles.progressRing,
+            { borderRightColor: verificationLevel >= 1 ? "#FFFFFF" : "transparent" },
+            { borderTopColor: verificationLevel >= 2 ? "#FFFFFF" : "transparent" },
+            { borderLeftColor: verificationLevel >= 3 ? "#FFFFFF" : "transparent" },
+            { borderBottomColor: verificationLevel >= 4 ? "#FFFFFF" : "transparent" },
+          ]} />
+
+          {/* Glassmorphism Avatar */}
+          <View style={styles.avatarInner}>
+            <Text style={styles.avatarInitials}>{getInitials(user?.full_name)}</Text>
+          </View>
+        </View>
+
+        {/* Verified Badge */}
+        {isVerified && (
+          <View style={styles.verifiedBadge}>
+            <Ionicons name="checkmark-circle" size={14} color="#00B14F" />
+          </View>
+        )}
+
+        {/* Notification Dot */}
+        {hasActiveRequest && (
+          <View style={styles.notificationDot} />
+        )}
+      </TouchableOpacity>
+    );
+  };
+
   const router = useRouter();
   const [recentTransactions, setRecentTransactions] = useState<any[]>([]);
   const [refreshing, setRefreshing] = useState(false);
@@ -44,6 +107,8 @@ export default function DashboardScreen() {
       console.log("📊 Fetching wallets for user:", user.email);
       fetchWallets();
       fetchRecentTransactions();
+      fetchAgentStats();
+      fetchCurrentRequest();
     }
   }, [isAuthenticated, user]);
 
@@ -54,6 +119,8 @@ export default function DashboardScreen() {
         console.log("👁️  Dashboard focused, refreshing");
         fetchWallets();
         fetchRecentTransactions();
+        fetchAgentStats();
+        fetchCurrentRequest();
         if (currentRequest) {
           checkStatus(currentRequest.id);
         }
@@ -65,6 +132,7 @@ export default function DashboardScreen() {
     if (isAuthenticated) {
       fetchWallets();
       fetchRecentTransactions();
+      fetchAgentStats();
       if (currentRequest) {
         checkStatus(currentRequest.id);
       }
@@ -117,14 +185,93 @@ export default function DashboardScreen() {
                   {user?.full_name || user?.email?.split("@")[0] || "User"}
                 </Text>
               </View>
-              <TouchableOpacity style={styles.avatar}>
-                <Ionicons name="person-outline" size={24} color="#FFFFFF" />
-              </TouchableOpacity>
+              <DashboardAvatar />
             </View>
           </SafeAreaView>
         </View>
 
         <View style={styles.contentContainer}>
+
+          {/* Quick Actions Grid - Moved to top for prominence */}
+          <View style={styles.actionsSection}>
+            <View style={styles.actionsGrid}>
+              {/* Row 1 - Primary Actions */}
+              <TouchableOpacity
+                style={styles.primaryActionCard}
+                onPress={() => router.push("/modals/buy-tokens")}
+                activeOpacity={0.8}
+              >
+                <LinearGradient
+                  colors={["#00B14F", "#008F40"]}
+                  style={styles.primaryActionGradient}
+                >
+                  <Ionicons name="add-circle" size={28} color="#FFFFFF" />
+                </LinearGradient>
+                <Text style={styles.primaryActionLabel}>Buy Tokens</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.primaryActionCard}
+                onPress={() => router.push("/(tabs)/sell-tokens")}
+                activeOpacity={0.8}
+              >
+                <LinearGradient
+                  colors={["#F59E0B", "#D97706"]}
+                  style={styles.primaryActionGradient}
+                >
+                  <Ionicons name="arrow-down-circle" size={28} color="#FFFFFF" />
+                </LinearGradient>
+                <Text style={styles.primaryActionLabel}>Sell Tokens</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Row 2 - Secondary Actions */}
+            <View style={styles.secondaryActionsRow}>
+              <TouchableOpacity
+                style={styles.secondaryActionCard}
+                onPress={() => router.push("/modals/send-tokens")}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.secondaryActionIcon, styles.sendIcon]}>
+                  <Ionicons name="send" size={22} color="#3B82F6" />
+                </View>
+                <Text style={styles.secondaryActionLabel}>Send</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.secondaryActionCard}
+                onPress={() => router.push("/modals/receive-tokens")}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.secondaryActionIcon, styles.receiveIcon]}>
+                  <Ionicons name="download" size={22} color="#10B981" />
+                </View>
+                <Text style={styles.secondaryActionLabel}>Receive</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.secondaryActionCard}
+                onPress={() => router.push("/modals/swap-tokens")}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.secondaryActionIcon, styles.swapIcon]}>
+                  <Ionicons name="swap-horizontal" size={22} color="#8B5CF6" />
+                </View>
+                <Text style={styles.secondaryActionLabel}>Swap</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.secondaryActionCard}
+                onPress={() => router.push("/modals/request-tokens")}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.secondaryActionIcon, styles.requestIcon]}>
+                  <Ionicons name="hand-left" size={22} color="#EC4899" />
+                </View>
+                <Text style={styles.secondaryActionLabel}>Request</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
 
           {/* Active Mint Alert */}
           {currentRequest &&
@@ -268,83 +415,120 @@ export default function DashboardScreen() {
             )}
           </View>
 
-          {/* Quick Actions Grid */}
-          <View style={styles.actionsSection}>
-            <Text style={styles.sectionTitle}>Quick Actions</Text>
+          {/* Getting Started Card - Show for new users */}
+          {recentTransactions.length === 0 && wallets.length > 0 && (
+            <View style={styles.gettingStartedSection}>
+              <View style={styles.gettingStartedCard}>
+                <LinearGradient
+                  colors={["#EFF6FF", "#DBEAFE"]}
+                  style={styles.gettingStartedGradient}
+                >
+                  <View style={styles.gettingStartedHeader}>
+                    <View style={styles.gettingStartedIcon}>
+                      <Ionicons name="rocket-outline" size={32} color="#3B82F6" />
+                    </View>
+                    <View style={styles.gettingStartedText}>
+                      <Text style={styles.gettingStartedTitle}>Get Started</Text>
+                      <Text style={styles.gettingStartedSubtitle}>
+                        Welcome to AfriX! Here's how to begin
+                      </Text>
+                    </View>
+                  </View>
 
-            <View style={styles.actionsGrid}>
-              {/* Row 1 */}
-              <TouchableOpacity
-                style={styles.actionCard}
-                onPress={() => router.push("/modals/buy-tokens")}
-                activeOpacity={0.7}
-              >
-                <View style={[styles.actionIcon, styles.buyIcon]}>
-                  <Ionicons name="add-circle-outline" size={24} color="#00B14F" />
-                </View>
-                <Text style={styles.actionLabel}>Buy</Text>
-              </TouchableOpacity>
+                  <View style={styles.stepsContainer}>
+                    <TouchableOpacity
+                      style={styles.stepItem}
+                      onPress={() => router.push("/modals/buy-tokens")}
+                      activeOpacity={0.7}
+                    >
+                      <View style={styles.stepNumber}>
+                        <Text style={styles.stepNumberText}>1</Text>
+                      </View>
+                      <View style={styles.stepContent}>
+                        <Text style={styles.stepTitle}>Buy Your First Tokens</Text>
+                        <Text style={styles.stepDescription}>
+                          Select an agent and purchase NT or CT tokens
+                        </Text>
+                      </View>
+                      <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+                    </TouchableOpacity>
 
-              <TouchableOpacity
-                style={styles.actionCard}
-                onPress={() => router.push("/(tabs)/sell-tokens")}
-                activeOpacity={0.7}
-              >
-                <View style={[styles.actionIcon, styles.sellIcon]}>
-                  <Ionicons name="arrow-down-circle-outline" size={24} color="#F59E0B" />
-                </View>
-                <Text style={styles.actionLabel}>Sell</Text>
-              </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.stepItem}
+                      onPress={() => router.push("/education")}
+                      activeOpacity={0.7}
+                    >
+                      <View style={[styles.stepNumber, styles.stepNumberComplete]}>
+                        <Ionicons name="checkmark" size={16} color="#FFFFFF" />
+                      </View>
+                      <View style={styles.stepContent}>
+                        <Text style={styles.stepTitle}>Learn the Basics</Text>
+                        <Text style={styles.stepDescription}>
+                          Complete education modules to understand tokens
+                        </Text>
+                      </View>
+                      <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+                    </TouchableOpacity>
 
-              <TouchableOpacity
-                style={styles.actionCard}
-                onPress={() => router.push("/modals/receive-tokens")}
-                activeOpacity={0.7}
-              >
-                <View style={[styles.actionIcon, styles.receiveIcon]}>
-                  <Ionicons name="download-outline" size={24} color="#10B981" />
-                </View>
-                <Text style={styles.actionLabel}>Receive</Text>
-              </TouchableOpacity>
-
-              {/* Row 2 */}
-              <TouchableOpacity
-                style={styles.actionCard}
-                onPress={() => router.push("/modals/send-tokens")}
-                activeOpacity={0.7}
-              >
-                <View style={[styles.actionIcon, styles.sendIcon]}>
-                  <Ionicons name="send-outline" size={24} color="#3B82F6" />
-                </View>
-                <Text style={styles.actionLabel}>Send</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.actionCard}
-                onPress={() => router.push("/modals/swap-tokens")}
-                activeOpacity={0.7}
-              >
-                <View style={[styles.actionIcon, styles.swapIcon]}>
-                  <Ionicons name="swap-horizontal-outline" size={24} color="#8B5CF6" />
-                </View>
-                <Text style={styles.actionLabel}>Swap</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.actionCard}
-                onPress={() => router.push("/modals/request-tokens")}
-                activeOpacity={0.7}
-              >
-                <View style={[styles.actionIcon, styles.requestIcon]}>
-                  <Ionicons name="hand-left-outline" size={24} color="#EC4899" />
-                </View>
-                <Text style={styles.actionLabel}>Request</Text>
-              </TouchableOpacity>
+                    <View style={styles.stepItem}>
+                      <View style={[styles.stepNumber, styles.stepNumberInactive]}>
+                        <Text style={styles.stepNumberTextInactive}>3</Text>
+                      </View>
+                      <View style={styles.stepContent}>
+                        <Text style={[styles.stepTitle, styles.stepTitleInactive]}>
+                          Explore Features
+                        </Text>
+                        <Text style={styles.stepDescription}>
+                          Send, receive, swap, and manage your tokens
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+                </LinearGradient>
+              </View>
             </View>
-          </View>
+          )}
+
+          {/* Quick Tips Section - Show for new users */}
+          {recentTransactions.length === 0 && (
+            <View style={styles.tipsSection}>
+              <Text style={styles.sectionTitle}>Quick Tips</Text>
+              <View style={styles.tipsGrid}>
+                <View style={styles.tipCard}>
+                  <View style={[styles.tipIcon, { backgroundColor: "#F0FDF4" }]}>
+                    <Ionicons name="shield-checkmark" size={20} color="#00B14F" />
+                  </View>
+                  <Text style={styles.tipTitle}>Secure</Text>
+                  <Text style={styles.tipDescription}>
+                    All transactions are protected with escrow
+                  </Text>
+                </View>
+
+                <View style={styles.tipCard}>
+                  <View style={[styles.tipIcon, { backgroundColor: "#EFF6FF" }]}>
+                    <Ionicons name="people" size={20} color="#3B82F6" />
+                  </View>
+                  <Text style={styles.tipTitle}>Trusted Agents</Text>
+                  <Text style={styles.tipDescription}>
+                    Verified agents ready to help you
+                  </Text>
+                </View>
+
+                <View style={styles.tipCard}>
+                  <View style={[styles.tipIcon, { backgroundColor: "#FAF5FF" }]}>
+                    <Ionicons name="flash" size={20} color="#8B5CF6" />
+                  </View>
+                  <Text style={styles.tipTitle}>Fast</Text>
+                  <Text style={styles.tipDescription}>
+                    Quick transactions, instant confirmations
+                  </Text>
+                </View>
+              </View>
+            </View>
+          )}
 
           {/* Recent Transactions */}
-          {recentTransactions.length > 0 && (
+          {recentTransactions.length > 0 ? (
             <View style={styles.transactionsSection}>
               <View style={styles.sectionHeader}>
                 <Text style={styles.sectionTitle}>Recent Transactions</Text>
@@ -387,10 +571,7 @@ export default function DashboardScreen() {
                         {tx.type.charAt(0).toUpperCase() + tx.type.slice(1)}
                       </Text>
                       <Text style={styles.transactionDate}>
-                        {new Date(tx.created_at).toLocaleDateString("en-US", {
-                          month: "short",
-                          day: "numeric",
-                        })}
+                        {formatDate(tx.created_at)}
                       </Text>
                     </View>
                   </View>
@@ -426,6 +607,33 @@ export default function DashboardScreen() {
                 </TouchableOpacity>
               ))}
             </View>
+          ) : (
+            // Empty State for Transactions
+            <View style={styles.transactionsSection}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>Activity</Text>
+              </View>
+              <View style={styles.emptyTransactionState}>
+                <View style={styles.emptyTransactionIcon}>
+                  <Ionicons name="receipt-outline" size={48} color="#D1D5DB" />
+                </View>
+                <Text style={styles.emptyTransactionTitle}>
+                  No transactions yet
+                </Text>
+                <Text style={styles.emptyTransactionText}>
+                  Start by buying or selling tokens to see your activity here
+                </Text>
+                <TouchableOpacity
+                  style={styles.emptyTransactionButton}
+                  onPress={() => router.push("/modals/buy-tokens")}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.emptyTransactionButtonText}>
+                    Get Started
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
           )}
 
           <View style={styles.bottomSpacer} />
@@ -456,19 +664,19 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
   headerWrapper: {
-    marginBottom: 20,
+    zIndex: 10,
+    elevation: 8,
+    backgroundColor: "#00B14F",
   },
   headerGradient: {
     position: "absolute",
     top: 0,
     left: 0,
     right: 0,
-    height: 160,
-    borderBottomLeftRadius: 30,
-    borderBottomRightRadius: 30,
+    height: 150,
   },
   headerContent: {
-    paddingHorizontal: 24,
+    paddingHorizontal: 20,
   },
   header: {
     flexDirection: "row",
@@ -479,28 +687,94 @@ const styles = StyleSheet.create({
   },
   greeting: {
     fontSize: 14,
-    color: "rgba(255,255,255,0.8)",
-    marginBottom: 4,
-    fontWeight: "500",
+    color: "rgba(255, 255, 255, 0.8)",
+    fontWeight: "600",
   },
   userName: {
-    fontSize: 28,
+    fontSize: 22,
     fontWeight: "700",
     color: "#FFFFFF",
-    letterSpacing: -0.5,
+    marginTop: 2,
   },
-  avatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: "rgba(255,255,255,0.2)",
-    alignItems: "center",
+  // Avatar Styles
+  avatarContainer: {
+    width: 60,
+    height: 60,
     justifyContent: "center",
+    alignItems: "center",
+    position: "relative",
+  },
+  agentRing: {
+    position: "absolute",
+    width: 58,
+    height: 58,
+    borderRadius: 29,
+    borderWidth: 2,
+    borderColor: "#F59E0B",
+  },
+  avatarMain: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    padding: 3,
+    justifyContent: "center",
+    alignItems: "center",
+    position: "relative",
+  },
+  progressTrack: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: 26,
+    borderWidth: 2,
+    borderColor: "rgba(255,255,255,0.15)",
+  },
+  progressRing: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: 26,
+    borderWidth: 2,
+    transform: [{ rotate: "45deg" }],
+  },
+  avatarInner: {
+    width: "100%",
+    height: "100%",
+    borderRadius: 21,
+    backgroundColor: "rgba(255,255,255,0.15)",
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.3)",
+    justifyContent: "center",
+    alignItems: "center",
+    overflow: "hidden",
+  },
+  avatarInitials: {
+    color: "#FFFFFF",
+    fontSize: 18,
+    fontWeight: "700",
+  },
+  verifiedBadge: {
+    position: "absolute",
+    bottom: 4,
+    right: 4,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 10,
+    width: 20,
+    height: 20,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: "#00B14F",
+  },
+  notificationDot: {
+    position: "absolute",
+    top: 6,
+    right: 6,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: "#EF4444",
+    borderWidth: 2,
+    borderColor: "#FFFFFF",
   },
   contentContainer: {
-    marginTop: -40,
+    paddingTop: 25,
   },
   alertCard: {
     marginHorizontal: 20,
@@ -727,31 +1001,85 @@ const styles = StyleSheet.create({
   actionsSection: {
     paddingHorizontal: 20,
     marginBottom: 24,
+    marginTop: 8,
   },
   actionsGrid: {
     flexDirection: "row",
-    flexWrap: "wrap",
     gap: 12,
+    marginBottom: 16,
   },
-  actionCard: {
+  // Primary Action Cards (Buy & Sell)
+  primaryActionCard: {
     flex: 1,
-    minWidth: "30%",
-    maxWidth: "32%",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
+    padding: 20,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  primaryActionGradient: {
+    width: 64,
+    height: 64,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 12,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  primaryActionLabel: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#111827",
+    textAlign: "center",
+    letterSpacing: -0.2,
+  },
+  // Secondary Actions Row (Send, Receive, Swap, Request)
+  secondaryActionsRow: {
+    flexDirection: "row",
+    gap: 10,
+    justifyContent: "space-between",
+  },
+  secondaryActionCard: {
+    flex: 1,
     backgroundColor: "#FFFFFF",
     borderRadius: 16,
-    padding: 16,
+    padding: 14,
     alignItems: "center",
     borderWidth: 1,
     borderColor: "#F3F4F6",
+    minWidth: 0,
   },
-  actionIcon: {
-    width: 48,
-    height: 48,
+  secondaryActionIcon: {
+    width: 44,
+    height: 44,
     borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 8,
   },
+  secondaryActionLabel: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#111827",
+    textAlign: "center",
+  },
+  // Icon background colors
   sendIcon: {
     backgroundColor: "#EFF6FF",
   },
@@ -761,25 +1089,197 @@ const styles = StyleSheet.create({
   swapIcon: {
     backgroundColor: "#FAF5FF",
   },
-  buyIcon: {
-    backgroundColor: "#F0FDF4",
-  },
-  sellIcon: {
-    backgroundColor: "#FFFBEB",
-  },
-  historyIcon: {
-    backgroundColor: "#F9FAFB",
-  },
   requestIcon: {
     backgroundColor: "#FCE7F3",
   },
-  actionLabel: {
+  bottomSpacer: {
+    height: 100,
+  },
+  // Getting Started Section
+  gettingStartedSection: {
+    paddingHorizontal: 20,
+    marginBottom: 24,
+  },
+  gettingStartedCard: {
+    borderRadius: 20,
+    overflow: "hidden",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 5,
+  },
+  gettingStartedGradient: {
+    padding: 20,
+  },
+  gettingStartedHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  gettingStartedIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 16,
+    backgroundColor: "#FFFFFF",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
+  },
+  gettingStartedText: {
+    flex: 1,
+  },
+  gettingStartedTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#111827",
+    marginBottom: 4,
+  },
+  gettingStartedSubtitle: {
     fontSize: 13,
+    color: "#6B7280",
+    fontWeight: "500",
+  },
+  stepsContainer: {
+    gap: 12,
+  },
+  stepItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+  },
+  stepNumber: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "#3B82F6",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
+  },
+  stepNumberComplete: {
+    backgroundColor: "#00B14F",
+  },
+  stepNumberInactive: {
+    backgroundColor: "#F3F4F6",
+  },
+  stepNumberText: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#FFFFFF",
+  },
+  stepNumberTextInactive: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#9CA3AF",
+  },
+  stepContent: {
+    flex: 1,
+  },
+  stepTitle: {
+    fontSize: 15,
     fontWeight: "600",
     color: "#111827",
+    marginBottom: 2,
+  },
+  stepTitleInactive: {
+    color: "#9CA3AF",
+  },
+  stepDescription: {
+    fontSize: 12,
+    color: "#6B7280",
+    lineHeight: 16,
+  },
+  // Quick Tips Section
+  tipsSection: {
+    paddingHorizontal: 20,
+    marginBottom: 24,
+  },
+  tipsGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 12,
+    marginTop: 12,
+  },
+  tipCard: {
+    flex: 1,
+    minWidth: "30%",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    padding: 16,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#F3F4F6",
+  },
+  tipIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 12,
+  },
+  tipTitle: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#111827",
+    marginBottom: 4,
     textAlign: "center",
   },
-  bottomSpacer: {
-    height: 40,
+  tipDescription: {
+    fontSize: 11,
+    color: "#6B7280",
+    textAlign: "center",
+    lineHeight: 16,
+  },
+  // Empty Transaction State
+  emptyTransactionState: {
+    alignItems: "center",
+    paddingVertical: 48,
+    paddingHorizontal: 32,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#F3F4F6",
+  },
+  emptyTransactionIcon: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: "#F9FAFB",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 16,
+  },
+  emptyTransactionTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#111827",
+    marginBottom: 8,
+  },
+  emptyTransactionText: {
+    fontSize: 14,
+    color: "#6B7280",
+    textAlign: "center",
+    marginBottom: 24,
+    lineHeight: 20,
+  },
+  emptyTransactionButton: {
+    backgroundColor: "#00B14F",
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  emptyTransactionButtonText: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#FFFFFF",
   },
 });

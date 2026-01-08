@@ -156,7 +156,7 @@ export default function SecurityScreen() {
                 <SafeAreaView edges={["top"]} style={styles.headerContent}>
                     <View style={styles.header}>
                         <TouchableOpacity
-                            onPress={() => router.back()}
+                            onPress={() => router.replace("/(tabs)/profile")}
                             style={styles.backButton}
                         >
                             <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
@@ -276,7 +276,9 @@ const styles = StyleSheet.create({
         paddingBottom: 40,
     },
     headerWrapper: {
-        marginBottom: 20,
+        zIndex: 10,
+        elevation: 8,
+        backgroundColor: "#00B14F",
     },
     headerGradient: {
         position: "absolute",
@@ -284,8 +286,6 @@ const styles = StyleSheet.create({
         left: 0,
         right: 0,
         height: 120,
-        borderBottomLeftRadius: 30,
-        borderBottomRightRadius: 30,
     },
     headerContent: {
         paddingHorizontal: 20,
@@ -312,7 +312,7 @@ const styles = StyleSheet.create({
     },
     content: {
         padding: 20,
-        marginTop: -10,
+        paddingTop: 40,
     },
     section: {
         marginBottom: 24,

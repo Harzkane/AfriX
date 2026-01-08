@@ -1,6 +1,7 @@
-import { useEffect } from "react";
+import React, { useEffect } from "react";
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { Surface } from "react-native-paper";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -31,17 +32,19 @@ export default function AgentDashboard() {
                 />
                 <SafeAreaView edges={["top"]} style={styles.headerContent}>
                     <View style={styles.header}>
-                        <View>
-                            <Text style={styles.greeting}>Agent Dashboard</Text>
-                            <Text style={styles.subGreeting}>Welcome back, {user?.full_name}</Text>
+                        <View style={styles.headerTop}>
+                            <View>
+                                <Text style={styles.greeting}>Agent Dashboard</Text>
+                                <Text style={styles.subGreeting}>Welcome back, {user?.full_name}</Text>
+                            </View>
+                            <TouchableOpacity
+                                style={styles.switchButton}
+                                onPress={() => router.replace("/(tabs)")}
+                            >
+                                <Ionicons name="swap-horizontal" size={18} color="#FFFFFF" />
+                                <Text style={styles.switchText}>Switch to User</Text>
+                            </TouchableOpacity>
                         </View>
-                        <TouchableOpacity
-                            style={styles.switchButton}
-                            onPress={() => router.replace("/(tabs)")}
-                        >
-                            <Ionicons name="person-outline" size={20} color="#FFFFFF" />
-                            <Text style={styles.switchText}>User View</Text>
-                        </TouchableOpacity>
                     </View>
                 </SafeAreaView>
             </View>
@@ -54,44 +57,60 @@ export default function AgentDashboard() {
 
                 {/* Stats Grid */}
                 <View style={styles.statsGrid}>
-                    <View style={styles.statCard}>
+                    <Surface style={styles.statCard}>
+                        <View style={[styles.statIcon, { backgroundColor: "#FFFBEB" }]}>
+                            <Ionicons name="time-outline" size={20} color="#F59E0B" />
+                        </View>
                         <Text style={styles.statLabel}>Pending Requests</Text>
                         <Text style={[styles.statValue, { color: "#F59E0B" }]}>
                             {stats?.pending_requests || 0}
                         </Text>
-                    </View>
-                    <View style={styles.statCard}>
+                    </Surface>
+                    <Surface style={styles.statCard}>
+                        <View style={[styles.statIcon, { backgroundColor: "#F0FDF4" }]}>
+                            <Ionicons name="wallet-outline" size={20} color="#00B14F" />
+                        </View>
                         <Text style={styles.statLabel}>Available Capacity</Text>
                         <Text style={styles.statValue}>
                             ${formatAmount(stats?.available_capacity || 0, "USDT")}
                         </Text>
-                    </View>
+                    </Surface>
                 </View>
 
                 {/* Stats Grid */}
                 <View style={styles.statsGrid}>
-                    <View style={styles.statCard}>
+                    <Surface style={styles.statCard}>
+                        <View style={[styles.statIcon, { backgroundColor: "#F0FDF4" }]}>
+                            <Ionicons name="cash-outline" size={20} color="#00B14F" />
+                        </View>
                         <Text style={styles.statLabel}>Total Earnings</Text>
                         <Text style={[styles.statValue, { color: "#00B14F" }]}>
                             ${formatAmount(stats?.total_earnings || 0, "USDT")}
                         </Text>
-                    </View>
-                    <View style={styles.statCard}>
+                    </Surface>
+                    <Surface style={styles.statCard}>
+                        <View style={[styles.statIcon, { backgroundColor: "#EFF6FF" }]}>
+                            <Ionicons name="arrow-up-circle-outline" size={20} color="#3B82F6" />
+                        </View>
                         <Text style={styles.statLabel}>Total Minted</Text>
                         <Text style={styles.statValue}>
                             {formatAmount(stats?.total_minted || 0, "NT")}
                         </Text>
-                    </View>
+                    </Surface>
                 </View>
 
-                {/* Stats Grid */}
+                {/* Single Stat Card */}
                 <View style={styles.statsGrid}>
-                    <View style={styles.statCard}>
+                    <Surface style={styles.statCard}>
+                        <View style={[styles.statIcon, { backgroundColor: "#FEF2F2" }]}>
+                            <Ionicons name="arrow-down-circle-outline" size={20} color="#EF4444" />
+                        </View>
                         <Text style={styles.statLabel}>Total Burned</Text>
                         <Text style={styles.statValue}>
                             {formatAmount(stats?.total_burned || 0, "NT")}
                         </Text>
-                    </View>
+                    </Surface>
+                    <View style={{ flex: 1 }} />
                 </View>
 
                 {/* Quick Actions */}
@@ -101,21 +120,27 @@ export default function AgentDashboard() {
                         <TouchableOpacity
                             style={styles.actionButton}
                             onPress={() => router.push("/agent/requests")}
+                            activeOpacity={0.7}
                         >
-                            <View style={[styles.actionIcon, { backgroundColor: "#F3E8FF" }]}>
-                                <Ionicons name="list" size={24} color="#7C3AED" />
-                            </View>
-                            <Text style={styles.actionText}>View Requests</Text>
+                            <Surface style={styles.actionSurface}>
+                                <View style={[styles.actionIcon, { backgroundColor: "#F5F3FF" }]}>
+                                    <Ionicons name="list" size={24} color="#7C3AED" />
+                                </View>
+                                <Text style={styles.actionText}>View Requests</Text>
+                            </Surface>
                         </TouchableOpacity>
 
                         <TouchableOpacity
                             style={styles.actionButton}
                             onPress={() => router.push("/agent/deposit")}
+                            activeOpacity={0.7}
                         >
-                            <View style={[styles.actionIcon, { backgroundColor: "#ECFDF5" }]}>
-                                <Ionicons name="wallet" size={24} color="#00B14F" />
-                            </View>
-                            <Text style={styles.actionText}>Deposit Funds</Text>
+                            <Surface style={styles.actionSurface}>
+                                <View style={[styles.actionIcon, { backgroundColor: "#F0FDF4" }]}>
+                                    <Ionicons name="wallet" size={24} color="#00B14F" />
+                                </View>
+                                <Text style={styles.actionText}>Deposit Funds</Text>
+                            </Surface>
                         </TouchableOpacity>
                     </View>
                 </View>
@@ -129,26 +154,31 @@ export default function AgentDashboard() {
                         </TouchableOpacity>
                     </View>
                     {dashboardData?.deposit_history && dashboardData.deposit_history.length > 0 ? (
-                        <View style={styles.depositList}>
-                            {dashboardData.deposit_history.map((deposit: any) => (
-                                <View key={deposit.id} style={styles.depositItem}>
-                                    <View style={styles.depositIcon}>
-                                        <Ionicons name="arrow-down" size={20} color="#00B14F" />
+                        <Surface style={styles.listCard}>
+                            {dashboardData.deposit_history.map((deposit: any, index: number) => (
+                                <View key={deposit.id}>
+                                    <View style={styles.listItem}>
+                                        <View style={[styles.listItemIcon, { backgroundColor: "#F0FDF4" }]}>
+                                            <Ionicons name="arrow-down" size={20} color="#00B14F" />
+                                        </View>
+                                        <View style={styles.listItemInfo}>
+                                            <Text style={styles.listItemAmount}>+{formatAmount(deposit.amount, "USDT")} USDT</Text>
+                                            <Text style={styles.listItemDate}>
+                                                {formatDate(deposit.created_at)}
+                                            </Text>
+                                        </View>
+                                        <View style={styles.depositStatus}>
+                                            <Text style={styles.depositStatusText}>Verified</Text>
+                                        </View>
                                     </View>
-                                    <View style={styles.depositInfo}>
-                                        <Text style={styles.depositAmount}>+{formatAmount(deposit.amount, "USDT")} USDT</Text>
-                                        <Text style={styles.depositDate}>
-                                            {formatDate(deposit.created_at)}
-                                        </Text>
-                                    </View>
-                                    <View style={styles.depositStatus}>
-                                        <Text style={styles.depositStatusText}>Verified</Text>
-                                    </View>
+                                    {index < dashboardData.deposit_history.length - 1 && <View style={styles.divider} />}
                                 </View>
                             ))}
-                        </View>
+                        </Surface>
                     ) : (
-                        <Text style={styles.emptyText}>No recent deposits</Text>
+                        <Surface style={styles.emptyCard}>
+                            <Text style={styles.emptyText}>No recent deposits</Text>
+                        </Surface>
                     )}
                 </View>
 
@@ -161,33 +191,39 @@ export default function AgentDashboard() {
                                 <Text style={styles.viewAllText}>View All</Text>
                             </TouchableOpacity>
                         </View>
-                        {withdrawalRequests.slice(0, 2).map((request: WithdrawalRequest) => (
-                            <View key={request.id} style={styles.withdrawalCard}>
-                                <View style={styles.withdrawalRow}>
-                                    <View>
-                                        <Text style={styles.withdrawalAmount}>${formatAmount(request.amount_usd, "USDT")}</Text>
-                                        <Text style={styles.withdrawalDate}>
-                                            {formatDate(request.created_at)}
-                                        </Text>
-                                    </View>
-                                    <View style={[styles.statusBadge, {
-                                        backgroundColor:
-                                            request.status === 'pending' ? '#FEF3C7' :
-                                                request.status === 'paid' ? '#DCFCE7' :
-                                                    request.status === 'rejected' ? '#FEE2E2' : '#DBEAFE'
-                                    }]}>
-                                        <Text style={[styles.statusText, {
-                                            color:
-                                                request.status === 'pending' ? '#D97706' :
-                                                    request.status === 'paid' ? '#00B14F' :
-                                                        request.status === 'rejected' ? '#EF4444' : '#3B82F6'
+                        <Surface style={styles.listCard}>
+                            {withdrawalRequests.slice(0, 2).map((request: WithdrawalRequest, index: number) => (
+                                <View key={request.id}>
+                                    <View style={styles.listItem}>
+                                        <View style={[styles.listItemIcon, { backgroundColor: "#FEF2F2" }]}>
+                                            <Ionicons name="arrow-up" size={20} color="#EF4444" />
+                                        </View>
+                                        <View style={styles.listItemInfo}>
+                                            <Text style={styles.listItemAmount}>${formatAmount(request.amount_usd, "USDT")}</Text>
+                                            <Text style={styles.listItemDate}>
+                                                {formatDate(request.created_at)}
+                                            </Text>
+                                        </View>
+                                        <View style={[styles.statusBadge, {
+                                            backgroundColor:
+                                                request.status === 'pending' ? '#FFFBEB' :
+                                                    request.status === 'paid' ? '#F0FDF4' :
+                                                        request.status === 'rejected' ? '#FEF2F2' : '#EFF6FF'
                                         }]}>
-                                            {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
-                                        </Text>
+                                            <Text style={[styles.statusText, {
+                                                color:
+                                                    request.status === 'pending' ? '#D97706' :
+                                                        request.status === 'paid' ? '#00B14F' :
+                                                            request.status === 'rejected' ? '#EF4444' : '#3B82F6'
+                                            }]}>
+                                                {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
+                                            </Text>
+                                        </View>
                                     </View>
+                                    {index < Math.min(withdrawalRequests.length, 2) - 1 && <View style={styles.divider} />}
                                 </View>
-                            </View>
-                        ))}
+                            ))}
+                        </Surface>
                     </View>
                 )}
 
@@ -196,38 +232,31 @@ export default function AgentDashboard() {
                     <View style={styles.sectionHeader}>
                         <Text style={styles.sectionTitle}>Performance Summary</Text>
                     </View>
-                    <View style={styles.performanceCard}>
+                    <Surface style={styles.performanceCard}>
                         <View style={styles.performanceRow}>
                             <View style={styles.performanceItem}>
-                                <Ionicons name="star" size={20} color="#F59E0B" />
+                                <View style={[styles.perfIconWrapper, { backgroundColor: "#FFFBEB" }]}>
+                                    <Ionicons name="star" size={20} color="#F59E0B" />
+                                </View>
                                 <Text style={styles.performanceLabel}>Rating</Text>
                                 <Text style={styles.performanceValue}>{dashboardData?.agent?.rating || "5.0"}</Text>
                             </View>
                             <View style={styles.performanceItem}>
-                                <Ionicons name="time" size={20} color="#7C3AED" />
+                                <View style={[styles.perfIconWrapper, { backgroundColor: "#F5F3FF" }]}>
+                                    <Ionicons name="time" size={20} color="#7C3AED" />
+                                </View>
                                 <Text style={styles.performanceLabel}>Avg Response</Text>
                                 <Text style={styles.performanceValue}>{dashboardData?.performance?.response_time || "5"} min</Text>
                             </View>
                             <View style={styles.performanceItem}>
-                                <Ionicons name="checkmark-circle" size={20} color="#00B14F" />
+                                <View style={[styles.perfIconWrapper, { backgroundColor: "#F0FDF4" }]}>
+                                    <Ionicons name="checkmark-circle" size={20} color="#00B14F" />
+                                </View>
                                 <Text style={styles.performanceLabel}>Success Rate</Text>
                                 <Text style={styles.performanceValue}>{dashboardData?.performance?.success_rate || "100%"}</Text>
                             </View>
                         </View>
-                        <View style={styles.performanceRow}>
-                            <View style={styles.performanceItem}>
-                                <Ionicons name="swap-horizontal" size={20} color="#3B82F6" />
-                                <Text style={styles.performanceLabel}>Transactions</Text>
-                                <Text style={styles.performanceValue}>{dashboardData?.performance?.total_transactions || "0"}</Text>
-                            </View>
-                            <View style={styles.performanceItem}>
-                                <Ionicons name="chatbubbles" size={20} color="#8B5CF6" />
-                                <Text style={styles.performanceLabel}>Reviews</Text>
-                                <Text style={styles.performanceValue}>{dashboardData?.performance?.total_reviews || "0"}</Text>
-                            </View>
-                            <View style={styles.performanceItem} />
-                        </View>
-                    </View>
+                    </Surface>
                 </View>
 
                 {/* Recent Transactions */}
@@ -239,39 +268,46 @@ export default function AgentDashboard() {
                         </TouchableOpacity>
                     </View>
                     {dashboardData?.recent_transactions && dashboardData.recent_transactions.length > 0 ? (
-                        <View style={styles.transactionList}>
-                            {dashboardData.recent_transactions.slice(0, 5).map((tx: any) => {
+                        <Surface style={styles.listCard}>
+                            {dashboardData.recent_transactions.slice(0, 5).map((tx: any, index: number) => {
                                 const isMint = tx.type === 'mint';
                                 const userName = isMint ? tx.toUser?.full_name : tx.fromUser?.full_name;
                                 const commission = (parseFloat(tx.amount) * 0.01).toFixed(2);
 
                                 return (
-                                    <View key={tx.id} style={styles.transactionItem}>
-                                        <View style={[styles.transactionIcon, { backgroundColor: isMint ? "#ECFDF5" : "#FEF3C7" }]}>
-                                            <Ionicons
-                                                name={isMint ? "arrow-up" : "arrow-down"}
-                                                size={20}
-                                                color={isMint ? "#00B14F" : "#F59E0B"}
-                                            />
+                                    <View key={tx.id}>
+                                        <View style={styles.listItem}>
+                                            <View style={[styles.listItemIcon, { backgroundColor: isMint ? "#F0FDF4" : "#FFFBEB" }]}>
+                                                <Ionicons
+                                                    name={isMint ? "arrow-up" : "arrow-down"}
+                                                    size={20}
+                                                    color={isMint ? "#00B14F" : "#F59E0B"}
+                                                />
+                                            </View>
+                                            <View style={styles.listItemInfo}>
+                                                <Text style={styles.listItemType}>{isMint ? "Mint" : "Burn"} - {userName}</Text>
+                                                <Text style={styles.listItemDate}>
+                                                    {formatDate(tx.created_at)}
+                                                </Text>
+                                            </View>
+                                            <View style={styles.listItemAmounts}>
+                                                <Text style={styles.listItemAmountValue}>{formatAmount(tx.amount, tx.token_type)} {tx.token_type}</Text>
+                                                <Text style={styles.transactionCommission}>+${formatAmount(commission, "USDT")} earned</Text>
+                                            </View>
                                         </View>
-                                        <View style={styles.transactionInfo}>
-                                            <Text style={styles.transactionType}>{isMint ? "Mint" : "Burn"} - {userName}</Text>
-                                            <Text style={styles.transactionDate}>
-                                                {formatDate(tx.created_at)}
-                                            </Text>
-                                        </View>
-                                        <View style={styles.transactionAmounts}>
-                                            <Text style={styles.transactionAmount}>{formatAmount(tx.amount, tx.token_type)} {tx.token_type}</Text>
-                                            <Text style={styles.transactionCommission}>+${formatAmount(commission, "USDT")} earned</Text>
-                                        </View>
+                                        {index < Math.min(dashboardData.recent_transactions.length, 5) - 1 && <View style={styles.divider} />}
                                     </View>
                                 );
                             })}
-                        </View>
+                        </Surface>
                     ) : (
-                        <Text style={styles.emptyText}>No recent transactions</Text>
+                        <Surface style={styles.emptyCard}>
+                            <Text style={styles.emptyText}>No recent transactions</Text>
+                        </Surface>
                     )}
                 </View>
+
+                <View style={styles.bottomSpacer} />
             </ScrollView>
         </View>
     );
@@ -280,57 +316,61 @@ export default function AgentDashboard() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: "#F3F4F6",
+        backgroundColor: "#F9FAFB",
     },
     headerWrapper: {
-        // marginBottom: 20,
+        zIndex: 10,
+        elevation: 8,
+        backgroundColor: "#00B14F",
     },
     headerGradient: {
         position: "absolute",
         top: 0,
         left: 0,
         right: 0,
-        height: 140,
-        // borderBottomLeftRadius: 30,
-        // borderBottomRightRadius: 30,
+        height: 150,
     },
     headerContent: {
-        paddingHorizontal: 16,
+        paddingHorizontal: 20,
     },
     header: {
+        paddingBottom: 20,
+    },
+    headerTop: {
         flexDirection: "row",
         justifyContent: "space-between",
         alignItems: "center",
-        paddingBottom: 20,
         marginTop: 10,
     },
     greeting: {
         fontSize: 24,
-        fontWeight: "bold",
+        fontWeight: "700",
         color: "#FFFFFF",
+        letterSpacing: -0.5,
     },
     subGreeting: {
         fontSize: 14,
-        color: "rgba(255,255,255,0.8)",
+        color: "rgba(255, 255, 255, 0.9)",
+        fontWeight: "500",
+        marginTop: 2,
     },
     switchButton: {
         flexDirection: "row",
         alignItems: "center",
-        backgroundColor: "rgba(255,255,255,0.2)",
+        backgroundColor: "rgba(255, 255, 255, 0.2)",
         paddingHorizontal: 12,
         paddingVertical: 8,
-        borderRadius: 20,
+        borderRadius: 12,
         gap: 6,
-        marginTop: 30,
-
     },
     switchText: {
-        fontSize: 14,
+        fontSize: 13,
         fontWeight: "600",
         color: "#FFFFFF",
     },
     content: {
-        padding: 16,
+        padding: 20,
+        paddingTop: 40,
     },
     statsGrid: {
         flexDirection: "row",
@@ -339,29 +379,34 @@ const styles = StyleSheet.create({
     },
     statCard: {
         flex: 1,
-        backgroundColor: "white",
+        backgroundColor: "#FFFFFF",
         padding: 16,
-        borderRadius: 16,
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.05,
-        shadowRadius: 2,
-        elevation: 2,
+        borderRadius: 20,
+        borderWidth: 1,
+        borderColor: "#F3F4F6",
+    },
+    statIcon: {
+        width: 36,
+        height: 36,
+        borderRadius: 10,
+        alignItems: "center",
+        justifyContent: "center",
+        marginBottom: 12,
     },
     statLabel: {
         fontSize: 12,
         color: "#6B7280",
-        marginBottom: 8,
-        fontWeight: "500",
+        fontWeight: "600",
+        marginBottom: 4,
     },
     statValue: {
         fontSize: 20,
-        fontWeight: "bold",
+        fontWeight: "700",
         color: "#111827",
     },
     section: {
-        marginTop: 24,
-        paddingHorizontal: 16,
+        marginTop: 12,
+        marginBottom: 20,
     },
     sectionHeader: {
         flexDirection: "row",
@@ -371,47 +416,14 @@ const styles = StyleSheet.create({
     },
     sectionTitle: {
         fontSize: 18,
-        fontWeight: "bold",
+        fontWeight: "700",
         color: "#111827",
+        letterSpacing: -0.3,
     },
     viewAllText: {
         fontSize: 14,
-        color: "#7C3AED",
+        color: "#00B14F",
         fontWeight: "600",
-    },
-    withdrawalCard: {
-        backgroundColor: "white",
-        padding: 16,
-        borderRadius: 12,
-        marginBottom: 8,
-        borderWidth: 1,
-        borderColor: "#E5E7EB",
-    },
-    withdrawalRow: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        alignItems: "center",
-    },
-    withdrawalAmount: {
-        fontSize: 16,
-        fontWeight: "bold",
-        color: "#111827",
-    },
-    withdrawalDate: {
-        fontSize: 12,
-        color: "#6B7280",
-        marginTop: 2,
-    },
-    statusBadge: {
-        backgroundColor: "#FEF3C7",
-        paddingHorizontal: 8,
-        paddingVertical: 4,
-        borderRadius: 12,
-    },
-    statusText: {
-        fontSize: 12,
-        fontWeight: "600",
-        color: "#D97706",
     },
     actionGrid: {
         flexDirection: "row",
@@ -419,15 +431,14 @@ const styles = StyleSheet.create({
     },
     actionButton: {
         flex: 1,
-        backgroundColor: "white",
+    },
+    actionSurface: {
+        backgroundColor: "#FFFFFF",
         padding: 16,
-        borderRadius: 16,
+        borderRadius: 20,
         alignItems: "center",
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.05,
-        shadowRadius: 2,
-        elevation: 2,
+        borderWidth: 1,
+        borderColor: "#F3F4F6",
     },
     actionIcon: {
         width: 48,
@@ -440,76 +451,110 @@ const styles = StyleSheet.create({
     actionText: {
         fontSize: 14,
         fontWeight: "600",
-        color: "#374151",
+        color: "#111827",
     },
-    transactionList: {
-        gap: 12,
+    listCard: {
+        backgroundColor: "#FFFFFF",
+        borderRadius: 20,
+        borderWidth: 1,
+        borderColor: "#F3F4F6",
+        overflow: "hidden",
     },
-    transactionItem: {
+    listItem: {
         flexDirection: "row",
         alignItems: "center",
-        backgroundColor: "white",
-        padding: 12,
-        borderRadius: 12,
+        padding: 16,
         gap: 12,
     },
-    transactionIcon: {
+    listItemIcon: {
         width: 40,
         height: 40,
         borderRadius: 20,
         alignItems: "center",
         justifyContent: "center",
     },
-    transactionInfo: {
+    listItemInfo: {
         flex: 1,
     },
-    transactionType: {
-        fontSize: 14,
-        fontWeight: "600",
+    listItemAmount: {
+        fontSize: 15,
+        fontWeight: "700",
         color: "#111827",
-        marginBottom: 4,
+        marginBottom: 2,
     },
-    transactionDate: {
+    listItemType: {
+        fontSize: 15,
+        fontWeight: "700",
+        color: "#111827",
+        marginBottom: 2,
+    },
+    listItemDate: {
         fontSize: 12,
         color: "#6B7280",
+        fontWeight: "500",
     },
-    transactionAmounts: {
+    listItemAmounts: {
         alignItems: "flex-end",
     },
-    transactionAmount: {
-        fontSize: 14,
-        fontWeight: "600",
+    listItemAmountValue: {
+        fontSize: 15,
+        fontWeight: "700",
         color: "#111827",
-        marginBottom: 4,
+        marginBottom: 2,
     },
     transactionCommission: {
         fontSize: 12,
         color: "#00B14F",
-        fontWeight: "500",
+        fontWeight: "600",
+    },
+    depositStatus: {
+        backgroundColor: "#F0FDF4",
+        paddingHorizontal: 10,
+        paddingVertical: 4,
+        borderRadius: 8,
+    },
+    depositStatusText: {
+        fontSize: 11,
+        color: "#00B14F",
+        fontWeight: "700",
+    },
+    statusBadge: {
+        paddingHorizontal: 10,
+        paddingVertical: 4,
+        borderRadius: 8,
+    },
+    statusText: {
+        fontSize: 11,
+        fontWeight: "700",
     },
     performanceCard: {
-        backgroundColor: "white",
-        borderRadius: 16,
-        padding: 16,
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.05,
-        shadowRadius: 2,
-        elevation: 2,
+        backgroundColor: "#FFFFFF",
+        borderRadius: 20,
+        borderWidth: 1,
+        borderColor: "#F3F4F6",
+        padding: 20,
     },
     performanceRow: {
         flexDirection: "row",
         justifyContent: "space-between",
-        marginBottom: 16,
     },
     performanceItem: {
         flex: 1,
         alignItems: "center",
         gap: 8,
     },
+    perfIconWrapper: {
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        alignItems: "center",
+        justifyContent: "center",
+        marginBottom: 4,
+    },
     performanceLabel: {
         fontSize: 12,
         color: "#6B7280",
+        fontWeight: "500",
         textAlign: "center",
     },
     performanceValue: {
@@ -517,64 +562,25 @@ const styles = StyleSheet.create({
         fontWeight: "700",
         color: "#111827",
     },
-    // sectionHeader: {
-    //     flexDirection: "row",
-    //     justifyContent: "space-between",
-    //     alignItems: "center",
-    //     marginBottom: 16,
-    // },
-    // viewAllText: {
-    //     fontSize: 14,
-    //     color: "#7C3AED",
-    //     fontWeight: "600",
-    // },
-    depositList: {
-        gap: 12,
+    divider: {
+        height: 1,
+        backgroundColor: "#F3F4F6",
+        marginHorizontal: 16,
     },
-    depositItem: {
-        flexDirection: "row",
-        alignItems: "center",
-        backgroundColor: "white",
-        padding: 12,
-        borderRadius: 12,
-        gap: 12,
-    },
-    depositIcon: {
-        width: 40,
-        height: 40,
+    emptyCard: {
+        backgroundColor: "#FFFFFF",
+        padding: 30,
         borderRadius: 20,
-        backgroundColor: "#ECFDF5",
         alignItems: "center",
-        justifyContent: "center",
-    },
-    depositInfo: {
-        flex: 1,
-    },
-    depositAmount: {
-        fontSize: 14,
-        fontWeight: "600",
-        color: "#111827",
-        marginBottom: 4,
-    },
-    depositDate: {
-        fontSize: 12,
-        color: "#6B7280",
-    },
-    depositStatus: {
-        backgroundColor: "#ECFDF5",
-        paddingHorizontal: 8,
-        paddingVertical: 4,
-        borderRadius: 12,
-    },
-    depositStatusText: {
-        fontSize: 12,
-        color: "#00B14F",
-        fontWeight: "600",
+        borderWidth: 1,
+        borderColor: "#F3F4F6",
     },
     emptyText: {
         fontSize: 14,
         color: "#9CA3AF",
-        textAlign: "center",
-        paddingVertical: 24,
+        fontWeight: "500",
+    },
+    bottomSpacer: {
+        height: 100,
     },
 });

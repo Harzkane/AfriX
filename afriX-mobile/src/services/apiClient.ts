@@ -3,7 +3,7 @@ import axios from "axios";
 import Constants from "expo-constants";
 import * as SecureStore from "expo-secure-store";
 
-const API_URL = Constants.expoConfig?.extra?.apiUrl || "http://192.169.1.109:5001/api/v1";
+const API_URL = Constants.expoConfig?.extra?.apiUrl || "http://192.168.1.144:5001/api/v1";
 
 const apiClient = axios.create({
   baseURL: API_URL,

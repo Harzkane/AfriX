@@ -8,6 +8,7 @@ import {
     TouchableOpacity,
     ActivityIndicator,
     Linking,
+    Platform,
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -15,6 +16,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import apiClient from "@/services/apiClient";
 import { API_ENDPOINTS } from "@/constants/api";
+import { formatDate } from "@/utils/format";
 
 interface AgentProfile {
     id: string;
@@ -113,14 +115,6 @@ export default function AgentProfileScreen() {
         }
     };
 
-    const formatDate = (dateString: string) => {
-        const date = new Date(dateString);
-        return date.toLocaleDateString("en-US", {
-            month: "short",
-            day: "numeric",
-            year: "numeric",
-        });
-    };
 
     if (loading) {
         return (
@@ -609,6 +603,7 @@ const styles = StyleSheet.create({
         borderTopWidth: 1,
         borderTopColor: "#F3F4F6",
         gap: 12,
+        paddingBottom: Platform.OS === 'ios' ? 90 : 80, // Lift above floating tab bar
     },
     actionButton: {
         flex: 1,

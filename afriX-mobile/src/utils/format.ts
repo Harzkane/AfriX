@@ -17,12 +17,31 @@ export const formatAmount = (amount: string | number, currency: string = "USDT")
     });
 };
 
-export const formatDate = (dateString: string) => {
+export const formatDate = (dateString: string | Date, includeTime: boolean = false) => {
     if (!dateString) return "";
-    return new Date(dateString).toLocaleDateString('en-US', {
+    const date = typeof dateString === "string" ? new Date(dateString) : dateString;
+
+    if (includeTime) {
+        return date.toLocaleDateString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+        });
+    }
+
+    return date.toLocaleDateString('en-US', {
         month: 'short',
         day: 'numeric',
         year: 'numeric',
+    });
+};
+
+export const formatTime = (dateString: string | Date) => {
+    if (!dateString) return "";
+    const date = typeof dateString === "string" ? new Date(dateString) : dateString;
+    return date.toLocaleTimeString('en-US', {
         hour: '2-digit',
         minute: '2-digit',
     });

@@ -161,7 +161,16 @@ export default function AgentsScreen() {
                 />
                 <SafeAreaView edges={["top"]} style={styles.headerContent}>
                     <View style={styles.headerTop}>
-                        <Text style={styles.title}>Agents</Text>
+                        <View style={styles.headerTitleRow}>
+                            <TouchableOpacity
+                                onPress={() => router.back()}
+                                style={styles.backButton}
+                            >
+                                <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
+                            </TouchableOpacity>
+                            <Text style={styles.title}>Agents</Text>
+                            <View style={{ width: 40 }} />
+                        </View>
                         <Text style={styles.subtitle}>
                             Find trusted agents in your country
                         </Text>
@@ -232,16 +241,31 @@ const styles = StyleSheet.create({
         paddingBottom: 20,
         marginTop: 10,
     },
+    headerTitleRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+        marginBottom: 4,
+    },
+    backButton: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: "rgba(255,255,255,0.2)",
+        alignItems: "center",
+        justifyContent: "center",
+    },
     title: {
-        fontSize: 28,
+        fontSize: 24,
         fontWeight: "700",
         color: "#FFFFFF",
-        marginBottom: 4,
     },
     subtitle: {
         fontSize: 14,
         color: "#FFFFFF",
         opacity: 0.9,
+        marginLeft: 0,
+        marginTop: 4,
     },
     loadingContainer: {
         flex: 1,

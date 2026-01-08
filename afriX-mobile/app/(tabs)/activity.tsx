@@ -14,6 +14,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import apiClient from "@/services/apiClient";
 import { API_ENDPOINTS } from "@/constants/api";
+import { formatDate } from "@/utils/format";
 
 interface Transaction {
     id: string;
@@ -152,15 +153,6 @@ export default function TransactionHistoryScreen() {
         }
     };
 
-    const formatDate = (dateString: string) => {
-        const date = new Date(dateString);
-        return date.toLocaleDateString("en-US", {
-            month: "short",
-            day: "numeric",
-            hour: "2-digit",
-            minute: "2-digit",
-        });
-    };
 
     const handleTransactionPress = (tx: Transaction) => {
         if (tx.type === "mint") {
@@ -235,13 +227,131 @@ export default function TransactionHistoryScreen() {
             <ScrollView
                 style={styles.list}
                 refreshControl={
-                    <RefreshControl refreshing={loading} onRefresh={fetchTransactions} />
+                    <RefreshControl refreshing={loading} onRefresh={fetchTransactions} tintColor="#00B14F" />
                 }
             >
                 {filteredTransactions.length === 0 ? (
-                    <View style={styles.emptyState}>
-                        <Ionicons name="receipt-outline" size={64} color="#D1D5DB" />
-                        <Text style={styles.emptyText}>No transactions yet</Text>
+                    <View style={styles.emptyStateContainer}>
+                        {/* Empty State Card */}
+                        <View style={styles.emptyStateCard}>
+                            <View style={styles.emptyStateIconContainer}>
+                                <View style={styles.emptyStateIconBg}>
+                                    <Ionicons name="receipt-outline" size={64} color="#00B14F" />
+                                </View>
+                            </View>
+
+                            <Text style={styles.emptyStateTitle}>
+                                {filter === "all"
+                                    ? "No Activity Yet"
+                                    : filter === "mint"
+                                        ? "No Mint Transactions"
+                                        : "No Burn Transactions"}
+                            </Text>
+
+                            <Text style={styles.emptyStateDescription}>
+                                {filter === "all"
+                                    ? "Your transaction history will appear here once you start buying, selling, or transferring tokens."
+                                    : filter === "mint"
+                                        ? "You haven't purchased any tokens yet. Start by buying your first tokens from a trusted agent."
+                                        : "You haven't sold any tokens yet. Start by selling tokens to convert them to fiat currency."}
+                            </Text>
+
+                            {/* Quick Actions */}
+                            <View style={styles.emptyStateActions}>
+                                {filter === "all" || filter === "mint" ? (
+                                    <TouchableOpacity
+                                        style={styles.emptyStateButton}
+                                        onPress={() => router.push("/modals/buy-tokens")}
+                                        activeOpacity={0.8}
+                                    >
+                                        <LinearGradient
+                                            colors={["#00B14F", "#008F40"]}
+                                            style={styles.emptyStateButtonGradient}
+                                        >
+                                            <Ionicons name="add-circle" size={20} color="#FFFFFF" />
+                                            <Text style={styles.emptyStateButtonText}>
+                                                Buy Tokens
+                                            </Text>
+                                        </LinearGradient>
+                                    </TouchableOpacity>
+                                ) : null}
+
+                                {filter === "all" || filter === "burn" ? (
+                                    <TouchableOpacity
+                                        style={[styles.emptyStateButton, styles.emptyStateButtonSecondary]}
+                                        onPress={() => router.push("/(tabs)/sell-tokens")}
+                                        activeOpacity={0.8}
+                                    >
+                                        <View style={styles.emptyStateButtonSecondaryContent}>
+                                            <Ionicons name="arrow-down-circle" size={20} color="#F59E0B" />
+                                            <Text style={styles.emptyStateButtonTextSecondary}>
+                                                Sell Tokens
+                                            </Text>
+                                        </View>
+                                    </TouchableOpacity>
+                                ) : null}
+                            </View>
+
+                            {/* Info Section */}
+                            <View style={styles.emptyStateInfo}>
+                                <View style={styles.infoItem}>
+                                    <View style={styles.infoIcon}>
+                                        <Ionicons name="checkmark-circle" size={16} color="#00B14F" />
+                                    </View>
+                                    <Text style={styles.infoText}>
+                                        All transactions are secure and protected
+                                    </Text>
+                                </View>
+                                <View style={styles.infoItem}>
+                                    <View style={styles.infoIcon}>
+                                        <Ionicons name="time-outline" size={16} color="#6B7280" />
+                                    </View>
+                                    <Text style={styles.infoText}>
+                                        Track your mint and burn requests in real-time
+                                    </Text>
+                                </View>
+                            </View>
+                        </View>
+
+                        {/* What You'll See Section */}
+                        <View style={styles.whatYoullSeeCard}>
+                            <Text style={styles.whatYoullSeeTitle}>What you'll see here</Text>
+                            <View style={styles.whatYoullSeeList}>
+                                <View style={styles.whatYoullSeeItem}>
+                                    <View style={[styles.whatYoullSeeIcon, { backgroundColor: "#F0FDF4" }]}>
+                                        <Ionicons name="add-circle" size={18} color="#00B14F" />
+                                    </View>
+                                    <View style={styles.whatYoullSeeContent}>
+                                        <Text style={styles.whatYoullSeeItemTitle}>Mint Transactions</Text>
+                                        <Text style={styles.whatYoullSeeItemDescription}>
+                                            When you buy tokens from agents
+                                        </Text>
+                                    </View>
+                                </View>
+                                <View style={styles.whatYoullSeeItem}>
+                                    <View style={[styles.whatYoullSeeIcon, { backgroundColor: "#FEF3C7" }]}>
+                                        <Ionicons name="remove-circle" size={18} color="#F59E0B" />
+                                    </View>
+                                    <View style={styles.whatYoullSeeContent}>
+                                        <Text style={styles.whatYoullSeeItemTitle}>Burn Transactions</Text>
+                                        <Text style={styles.whatYoullSeeItemDescription}>
+                                            When you sell tokens to agents
+                                        </Text>
+                                    </View>
+                                </View>
+                                <View style={styles.whatYoullSeeItem}>
+                                    <View style={[styles.whatYoullSeeIcon, { backgroundColor: "#EFF6FF" }]}>
+                                        <Ionicons name="swap-horizontal" size={18} color="#3B82F6" />
+                                    </View>
+                                    <View style={styles.whatYoullSeeContent}>
+                                        <Text style={styles.whatYoullSeeItemTitle}>Transfers</Text>
+                                        <Text style={styles.whatYoullSeeItemDescription}>
+                                            When you send or receive tokens
+                                        </Text>
+                                    </View>
+                                </View>
+                            </View>
+                        </View>
                     </View>
                 ) : (
                     filteredTransactions.map((tx) => (
@@ -273,7 +383,7 @@ export default function TransactionHistoryScreen() {
                                             {tx.type.charAt(0).toUpperCase() + tx.type.slice(1)}
                                         </Text>
                                         <Text style={styles.transactionDate}>
-                                            {formatDate(tx.created_at)}
+                                            {formatDate(tx.created_at, true)}
                                         </Text>
                                     </View>
                                 </View>
@@ -415,15 +525,166 @@ const styles = StyleSheet.create({
     list: {
         flex: 1,
     },
-    emptyState: {
+    emptyStateContainer: {
+        paddingHorizontal: 20,
+        paddingTop: 20,
+        paddingBottom: 40,
+    },
+    emptyStateCard: {
+        backgroundColor: "#FFFFFF",
+        borderRadius: 20,
+        padding: 24,
+        alignItems: "center",
+        marginBottom: 16,
+        borderWidth: 1,
+        borderColor: "#F3F4F6",
+        shadowColor: "#000",
+        shadowOffset: {
+            width: 0,
+            height: 2,
+        },
+        shadowOpacity: 0.08,
+        shadowRadius: 8,
+        elevation: 3,
+    },
+    emptyStateIconContainer: {
+        marginBottom: 20,
+    },
+    emptyStateIconBg: {
+        width: 120,
+        height: 120,
+        borderRadius: 60,
+        backgroundColor: "#F0FDF4",
         alignItems: "center",
         justifyContent: "center",
-        paddingVertical: 80,
+        borderWidth: 3,
+        borderColor: "#D1FAE5",
     },
-    emptyText: {
+    emptyStateTitle: {
+        fontSize: 22,
+        fontWeight: "700",
+        color: "#111827",
+        marginBottom: 8,
+        textAlign: "center",
+    },
+    emptyStateDescription: {
+        fontSize: 14,
+        color: "#6B7280",
+        textAlign: "center",
+        lineHeight: 20,
+        marginBottom: 24,
+        paddingHorizontal: 8,
+    },
+    emptyStateActions: {
+        width: "100%",
+        gap: 12,
+        marginBottom: 24,
+    },
+    emptyStateButton: {
+        borderRadius: 12,
+        overflow: "hidden",
+        shadowColor: "#000",
+        shadowOffset: {
+            width: 0,
+            height: 2,
+        },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 3,
+    },
+    emptyStateButtonGradient: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
+        paddingVertical: 14,
+        gap: 8,
+    },
+    emptyStateButtonText: {
         fontSize: 16,
-        color: "#9CA3AF",
-        marginTop: 16,
+        fontWeight: "600",
+        color: "#FFFFFF",
+    },
+    emptyStateButtonSecondary: {
+        borderRadius: 12,
+        borderWidth: 2,
+        borderColor: "#F59E0B",
+        backgroundColor: "#FFFFFF",
+    },
+    emptyStateButtonSecondaryContent: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
+        paddingVertical: 12,
+        gap: 8,
+    },
+    emptyStateButtonTextSecondary: {
+        fontSize: 16,
+        fontWeight: "600",
+        color: "#F59E0B",
+    },
+    emptyStateInfo: {
+        width: "100%",
+        gap: 12,
+        paddingTop: 20,
+        borderTopWidth: 1,
+        borderTopColor: "#F3F4F6",
+    },
+    infoItem: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 10,
+    },
+    infoIcon: {
+        width: 24,
+        alignItems: "center",
+    },
+    infoText: {
+        flex: 1,
+        fontSize: 13,
+        color: "#6B7280",
+        lineHeight: 18,
+    },
+    whatYoullSeeCard: {
+        backgroundColor: "#FFFFFF",
+        borderRadius: 16,
+        padding: 20,
+        borderWidth: 1,
+        borderColor: "#F3F4F6",
+    },
+    whatYoullSeeTitle: {
+        fontSize: 16,
+        fontWeight: "700",
+        color: "#111827",
+        marginBottom: 16,
+    },
+    whatYoullSeeList: {
+        gap: 16,
+    },
+    whatYoullSeeItem: {
+        flexDirection: "row",
+        alignItems: "flex-start",
+        gap: 12,
+    },
+    whatYoullSeeIcon: {
+        width: 36,
+        height: 36,
+        borderRadius: 10,
+        alignItems: "center",
+        justifyContent: "center",
+    },
+    whatYoullSeeContent: {
+        flex: 1,
+    },
+    whatYoullSeeItemTitle: {
+        fontSize: 14,
+        fontWeight: "600",
+        color: "#111827",
+        marginBottom: 2,
+    },
+    whatYoullSeeItemDescription: {
+        fontSize: 12,
+        color: "#6B7280",
+        lineHeight: 16,
     },
     transactionCard: {
         marginHorizontal: 20,
@@ -526,6 +787,6 @@ const styles = StyleSheet.create({
         color: "#8B5CF6",
     },
     bottomSpacer: {
-        height: 40,
+        height: 100,
     },
 });

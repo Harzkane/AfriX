@@ -1,11 +1,16 @@
 import React, { useEffect, useState } from "react";
-import { View, StyleSheet, ScrollView, RefreshControl, Modal, TextInput, TouchableOpacity, Alert, KeyboardAvoidingView, Platform } from "react-native";
-import { Text, Button, ActivityIndicator, Card } from "react-native-paper";
+import { View, StyleSheet, ScrollView, RefreshControl, Modal, TextInput, TouchableOpacity, Alert, KeyboardAvoidingView, Platform, Dimensions } from "react-native";
+import { Text, Button, ActivityIndicator, Card, Surface } from "react-native-paper";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useMintRequestStore, useWalletStore } from "@/stores";
 import { StatusTracker } from "@/components/ui/StatusTracker";
 import { TimerComponent } from "@/components/ui/TimerComponent";
 import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { formatDate } from "@/utils/format";
+
+const { width } = Dimensions.get("window");
 
 export default function MintStatusScreen() {
   const { requestId } = useLocalSearchParams<{ requestId: string }>();
@@ -86,268 +91,246 @@ export default function MintStatusScreen() {
     );
   }
 
-  const isCompleted = currentRequest.status === "CONFIRMED".toLocaleLowerCase();
-  const isExpired = currentRequest.status === "EXPIRED".toLocaleLowerCase();
-  const isCancelled = currentRequest.status === "CANCELLED".toLocaleLowerCase();
+  const isCompleted = currentRequest.status === "confirmed" || currentRequest.status === "CONFIRMED";
+  const isExpired = currentRequest.status === "expired" || currentRequest.status === "EXPIRED";
+  const isCancelled = currentRequest.status === "cancelled" || currentRequest.status === "CANCELLED";
   const isRejected = currentRequest.status.toLowerCase() === "rejected";
   const isDisputed = currentRequest.status.toLowerCase() === "disputed";
   const isFailed = isExpired || isCancelled || isRejected || isDisputed;
 
+  const getStatusColor = (status: string) => {
+    switch (status.toLowerCase()) {
+      case "confirmed":
+        return "#00B14F";
+      case "pending":
+      case "proof_submitted":
+        return "#FFB800";
+      case "expired":
+      case "cancelled":
+      case "rejected":
+        return "#EF4444";
+      case "disputed":
+        return "#F59E0B";
+      default:
+        return "#6B7280";
+    }
+  };
+
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.content}
-      refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-      }
-    >
-      <Text style={styles.title}>Request Status</Text>
-      <Text style={styles.subtitle}>
-        Transaction Reference: {currentRequest.id.slice(0, 8)}...
-      </Text>
-
-      {/* Timer - only show if not in terminal state */}
-      {!isTerminalStatus(currentRequest.status) && (
-        <TimerComponent
-          expiresAt={currentRequest.expires_at}
-          onExpire={() => checkStatus(requestId)}
+    <View style={styles.container}>
+      {/* Header Section */}
+      <View style={styles.headerWrapper}>
+        <LinearGradient
+          colors={["#00B14F", "#008F40"]}
+          style={styles.headerGradient}
         />
-      )}
-
-      {/* Status Tracker */}
-      <Card style={styles.card}>
-        <Card.Content>
-          <StatusTracker currentStatus={currentRequest.status} />
-        </Card.Content>
-      </Card>
-
-      {/* Request Details */}
-      <Card style={styles.card}>
-        <Card.Content>
-          <Text style={styles.cardTitle}>Request Details</Text>
-          <View style={styles.detail}>
-            <Text style={styles.detailLabel}>Amount:</Text>
-            <Text style={styles.detailValue}>
-              {parseFloat(currentRequest.amount).toLocaleString()}{" "}
-              {currentRequest.token_type}
-            </Text>
-          </View>
-          <View style={styles.detail}>
-            <Text style={styles.detailLabel}>Status:</Text>
-            <Text
-              style={[
-                styles.detailValue,
-                styles[
-                `status_${currentRequest.status.toUpperCase()} ` as keyof typeof styles
-                ],
-              ]}
+        <SafeAreaView edges={["top"]} style={styles.headerContent}>
+          <View style={styles.header}>
+            <TouchableOpacity
+              onPress={() => router.navigate("/(tabs)/activity")}
+              style={styles.backButton}
             >
-              {currentRequest.status.replace("_", " ").toUpperCase()}
-            </Text>
+              <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>Request Status</Text>
+            <View style={{ width: 40 }} />
           </View>
-          <View style={styles.detail}>
-            <Text style={styles.detailLabel}>Created:</Text>
-            <Text style={styles.detailValue}>
-              {new Date(currentRequest.created_at).toLocaleString()}
-            </Text>
-          </View>
-        </Card.Content>
-      </Card>
-
-      {/* Status Messages */}
-      {currentRequest.status === "PENDING" && (
-        <Card style={styles.infoCard}>
-          <Card.Content>
-            <Text style={styles.infoText}>
-              ⏳ Waiting for payment proof upload...
-            </Text>
-            <Button
-              mode="contained"
-              onPress={() =>
-                router.push({
-                  pathname: "/modals/buy-tokens/upload-proof",
-                  params: { requestId: currentRequest.id },
-                })
-              }
-              style={{ marginTop: 12, borderRadius: 8 }}
-              buttonColor="#00B14F"
-            >
-              Upload Proof
-            </Button>
-          </Card.Content>
-        </Card>
-      )}
-
-      {currentRequest.status === "PROOF_SUBMITTED" && (
-        <Card style={[styles.infoCard, styles.warningCard]}>
-          <Card.Content>
-            <Text style={styles.infoText}>
-              🔍 Agent is reviewing your payment proof. This usually takes 5-15
-              minutes.
-            </Text>
-          </Card.Content>
-        </Card>
-      )}
-
-      {isCompleted && (
-        <Card style={[styles.infoCard, styles.successCard]}>
-          <Card.Content>
-            <Text style={styles.successTitle}>✅ Tokens Minted!</Text>
-            <Text style={styles.successText}>
-              Your {currentRequest.amount} {currentRequest.token_type} tokens
-              have been successfully minted and added to your wallet.
-            </Text>
-          </Card.Content>
-        </Card>
-      )}
-
-      {isExpired && (
-        <Card style={[styles.infoCard, styles.errorCard]}>
-          <Card.Content>
-            <Text style={styles.errorTitle}>⏰ Request Expired</Text>
-            <Text style={styles.errorText}>
-              This request has expired. Please create a new request to buy
-              tokens.
-            </Text>
-          </Card.Content>
-        </Card>
-      )}
-
-      {isCancelled && (
-        <Card style={[styles.infoCard, styles.errorCard]}>
-          <Card.Content>
-            <Text style={styles.errorTitle}>🚫 Request Cancelled</Text>
-            <Text style={styles.errorText}>
-              This request has been cancelled. You can create a new request if
-              you&apos;d like to try again.
-            </Text>
-          </Card.Content>
-        </Card>
-      )}
-
-      {isRejected && (
-        <Card style={[styles.infoCard, styles.errorCard]}>
-          <Card.Content>
-            <Text style={styles.errorTitle}>❌ Request Rejected</Text>
-            <Text style={styles.errorText}>
-              Your payment proof was rejected by the agent. If you believe this is a mistake, you can open a dispute.
-            </Text>
-            <Button
-              mode="outlined"
-              onPress={handleOpenDispute}
-              style={{ marginTop: 12, borderRadius: 8, borderColor: "#DC2626" }}
-              textColor="#DC2626"
-            >
-              Open Dispute
-            </Button>
-          </Card.Content>
-        </Card>
-      )}
-
-      {isDisputed && (
-        <Card style={[styles.infoCard, styles.warningCard]}>
-          <Card.Content>
-            <Text style={[styles.errorTitle, { color: "#F59E0B" }]}>⚠️ Dispute in Progress</Text>
-            <Text style={styles.infoText}>
-              This request is currently under dispute. Our support team is reviewing the case. You will be notified once a decision is made.
-            </Text>
-          </Card.Content>
-        </Card>
-      )}
-
-      {/* Action Buttons */}
-      {isCompleted ? (
-        <Button
-          mode="contained"
-          onPress={async () => {
-            // Need to fetch the transaction ID for this mint request
-            // The transaction data is not included in the mint request response
-            try {
-              // Fetch user's transactions and find the one matching this mint request
-              const { data } = await require("@/services/apiClient").default.get(
-                "/transactions"
-              );
-
-              // Find the transaction that matches this mint request
-              const transaction = data.data.transactions?.find(
-                (tx: any) =>
-                  tx.agent_id === currentRequest.agent_id &&
-                  parseFloat(tx.amount) === parseFloat(currentRequest.amount) &&
-                  tx.token_type === currentRequest.token_type &&
-                  tx.type === "mint" &&
-                  tx.status === "completed"
-              );
-
-              if (transaction) {
-                router.replace({
-                  pathname: "/modals/buy-tokens/rate-agent",
-                  params: { transactionId: transaction.id },
-                });
-              } else {
-                // Fallback: use request ID if transaction not found
-                console.warn("Transaction not found, using request ID");
-                router.replace({
-                  pathname: "/modals/buy-tokens/rate-agent",
-                  params: { transactionId: currentRequest.id },
-                });
-              }
-            } catch (error) {
-              console.error("Error fetching transaction:", error);
-              // Fallback to request ID
-              router.push({
-                pathname: "/modals/buy-tokens/rate-agent",
-                params: { transactionId: currentRequest.id },
-              });
-            }
-          }}
-          style={styles.btn}
-          contentStyle={styles.btnContent}
-        >
-          Rate Agent
-        </Button>
-      ) : isFailed ? (
-        <Button
-          mode="contained"
-          onPress={handleCreateNew}
-          style={styles.btn}
-          contentStyle={styles.btnContent}
-        >
-          Create New Request
-        </Button>
-      ) : (
-        <>
-          <Button
-            mode="outlined"
-            onPress={handleGoHome}
-            icon="home"
-            style={[styles.btn, { marginBottom: 0 }]}
-            contentStyle={styles.btnContent}
-          >
-            Back to Dashboard
-          </Button>
-          <Button
-            mode="outlined"
-            onPress={onRefresh}
-            icon="refresh"
-            style={styles.btn}
-            contentStyle={styles.btnContent}
-          >
-            Refresh Status
-          </Button>
-        </>
-      )}
-
-      {/* Help Section */}
-      <View style={styles.helpSection}>
-        <Text style={styles.helpTitle}>Need Help?</Text>
-        <Text style={styles.helpText}>
-          If your request is taking longer than expected, please contact support
-          or try again.
-        </Text>
-        <Button mode="text" onPress={() => router.push("/(tabs)/profile")}>
-          Contact Support
-        </Button>
+        </SafeAreaView>
       </View>
+
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#00B14F" />
+        }
+      >
+        <View style={styles.mainContent}>
+          {/* Status Header Chip */}
+          <View style={styles.statusChipContainer}>
+            <View style={[styles.statusBadge, { backgroundColor: getStatusColor(currentRequest.status) + "20" }]}>
+              <Text style={[styles.statusBadgeText, { color: getStatusColor(currentRequest.status) }]}>
+                {currentRequest.status.replace("_", " ").toUpperCase()}
+              </Text>
+            </View>
+            <Text style={styles.refText}>Ref: {currentRequest.id.split('-')[0].toUpperCase()}</Text>
+          </View>
+
+          {/* Timer - only show if not in terminal state */}
+          {!isTerminalStatus(currentRequest.status) && (
+            <Surface style={styles.timerCard} elevation={0}>
+              <TimerComponent
+                expiresAt={currentRequest.expires_at}
+                onExpire={() => checkStatus(requestId)}
+              />
+            </Surface>
+          )}
+
+          {/* Status Tracker */}
+          <Surface style={styles.card} elevation={0}>
+            <Text style={styles.cardTitle}>Tracking Progress</Text>
+            <StatusTracker currentStatus={currentRequest.status} />
+          </Surface>
+
+          {/* Request Details */}
+          <Surface style={styles.card} elevation={0}>
+            <Text style={styles.cardTitle}>Transaction Details</Text>
+
+            <View style={styles.detail}>
+              <Text style={styles.detailLabel}>Amount to Buy</Text>
+              <Text style={styles.detailValue}>
+                {parseFloat(currentRequest.amount).toLocaleString()}{" "}
+                <Text style={styles.tokenSymbol}>{currentRequest.token_type}</Text>
+              </Text>
+            </View>
+
+            <View style={styles.divider} />
+
+            <View style={styles.detail}>
+              <Text style={styles.detailLabel}>Date Created</Text>
+              <Text style={styles.detailText}>
+                {formatDate(currentRequest.created_at, true)}
+              </Text>
+            </View>
+          </Surface>
+
+          {/* Status Specific Message Cards */}
+          {currentRequest.status.toLowerCase() === "pending" && (
+            <Surface style={[styles.messageCard, styles.pendingMessage]} elevation={0}>
+              <Ionicons name="information-circle" size={20} color="#FFB800" />
+              <View style={styles.messageContent}>
+                <Text style={styles.messageTitle}>Needs Action</Text>
+                <Text style={styles.messageText}>Please upload your payment proof so the agent can confirm your receipt.</Text>
+                <TouchableOpacity
+                  style={styles.actionButton}
+                  onPress={() =>
+                    router.push({
+                      pathname: "/modals/buy-tokens/upload-proof",
+                      params: { requestId: currentRequest.id },
+                    })
+                  }
+                >
+                  <Text style={styles.actionButtonText}>Upload Proof Now</Text>
+                  <Ionicons name="arrow-forward" size={16} color="#FFFFFF" />
+                </TouchableOpacity>
+              </View>
+            </Surface>
+          )}
+
+          {currentRequest.status.toLowerCase() === "proof_submitted" && (
+            <Surface style={[styles.messageCard, styles.warningMessage]} elevation={0}>
+              <Ionicons name="search" size={20} color="#3B82F6" />
+              <View style={styles.messageContent}>
+                <Text style={[styles.messageTitle, { color: "#1E40AF" }]}>Pending Review</Text>
+                <Text style={[styles.messageText, { color: "#1E3A8A" }]}>
+                  The agent is currently verifying your payment. You will be notified once it's complete.
+                </Text>
+              </View>
+            </Surface>
+          )}
+
+          {isCompleted && (
+            <Surface style={[styles.messageCard, styles.successMessage]} elevation={0}>
+              <Ionicons name="checkmark-circle" size={24} color="#00B14F" />
+              <View style={styles.messageContent}>
+                <Text style={styles.successTitle}>Successfully Minted!</Text>
+                <Text style={styles.successText}>
+                  Your {parseFloat(currentRequest.amount).toLocaleString()} {currentRequest.token_type} tokens are now available in your wallet.
+                </Text>
+              </View>
+            </Surface>
+          )}
+
+          {(isExpired || isCancelled || isRejected) && (
+            <Surface style={[styles.messageCard, styles.errorMessage]} elevation={0}>
+              <Ionicons name="close-circle" size={24} color="#EF4444" />
+              <View style={styles.messageContent}>
+                <Text style={styles.errorTitle}>
+                  {isExpired ? "Request Expired" : isCancelled ? "Request Cancelled" : "Payment Rejected"}
+                </Text>
+                <Text style={styles.errorText}>
+                  {isRejected
+                    ? "Your payment proof was rejected. If you have any concerns, you can open a dispute."
+                    : "This transaction was not completed within the time limit or was manually cancelled."}
+                </Text>
+                {isRejected && (
+                  <TouchableOpacity
+                    style={[styles.actionButton, { backgroundColor: "#EF4444", marginTop: 12 }]}
+                    onPress={handleOpenDispute}
+                  >
+                    <Text style={styles.actionButtonText}>Open Dispute</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            </Surface>
+          )}
+
+          {isDisputed && (
+            <Surface style={[styles.messageCard, styles.disputeMessage]} elevation={0}>
+              <Ionicons name="alert-circle" size={24} color="#F59E0B" />
+              <View style={styles.messageContent}>
+                <Text style={[styles.messageTitle, { color: "#92400E" }]}>Dispute Opened</Text>
+                <Text style={[styles.messageText, { color: "#92400E" }]}>
+                  Our support team is investigating this transaction. We will reach out to you via email soon.
+                </Text>
+              </View>
+            </Surface>
+          )}
+
+          {/* Action Buttons */}
+          <View style={styles.footerActions}>
+            {isCompleted ? (
+              <TouchableOpacity
+                style={styles.primaryBtn}
+                onPress={async () => {
+                  try {
+                    const { data } = await require("@/services/apiClient").default.get("/transactions");
+                    const transaction = data.data.transactions?.find((tx: any) =>
+                      tx.agent_id === currentRequest.agent_id &&
+                      parseFloat(tx.amount) === parseFloat(currentRequest.amount) &&
+                      tx.token_type === currentRequest.token_type &&
+                      tx.type === "mint"
+                    );
+
+                    router.replace({
+                      pathname: "/modals/buy-tokens/rate-agent",
+                      params: { transactionId: transaction?.id || currentRequest.id },
+                    });
+                  } catch (e) {
+                    router.replace({
+                      pathname: "/modals/buy-tokens/rate-agent",
+                      params: { transactionId: currentRequest.id },
+                    });
+                  }
+                }}
+              >
+                <Text style={styles.primaryBtnText}>Rate Experience</Text>
+                <Ionicons name="star" size={20} color="#FFFFFF" />
+              </TouchableOpacity>
+            ) : isFailed ? (
+              <TouchableOpacity style={styles.primaryBtn} onPress={handleCreateNew}>
+                <Text style={styles.primaryBtnText}>Try Again</Text>
+                <Ionicons name="refresh" size={20} color="#FFFFFF" />
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity style={styles.secondaryBtn} onPress={handleGoHome}>
+                <Ionicons name="home-outline" size={20} color="#6B7280" />
+                <Text style={styles.secondaryBtnText}>Dashboard</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {/* Help Support Link */}
+          <TouchableOpacity
+            style={styles.helpLink}
+            onPress={() => router.push("/settings")}
+          >
+            <Text style={styles.helpLinkText}>Need help with this request?</Text>
+            <Text style={styles.supportText}>Contact Support</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
 
       {/* Dispute Modal */}
       <Modal
@@ -394,214 +377,338 @@ export default function MintStatusScreen() {
 
             <View style={styles.modalButtons}>
               <TouchableOpacity
-                style={[styles.modalButton, styles.cancelButton]}
+                style={[styles.modalButton, styles.cancelBtn]}
                 onPress={() => setShowDisputeModal(false)}
               >
-                <Text style={styles.cancelButtonText}>Cancel</Text>
+                <Text style={styles.cancelBtnText}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.modalButton, styles.submitButton]}
+                style={[styles.modalButton, styles.submitBtn]}
                 onPress={handleSubmitDispute}
               >
-                <Text style={styles.submitButtonText}>Submit Dispute</Text>
+                <Text style={styles.submitBtnText}>Submit Dispute</Text>
               </TouchableOpacity>
             </View>
           </View>
         </KeyboardAvoidingView>
       </Modal>
-    </ScrollView >
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F5F7FA",
+    backgroundColor: "#F3F4F6",
   },
-  content: {
-    padding: 24,
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: 40,
+  },
+  headerWrapper: {
+    marginBottom: 0,
+  },
+  headerGradient: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 140,
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
+  },
+  headerContent: {
+    paddingHorizontal: 20,
+  },
+  header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingBottom: 20,
+    marginTop: 10,
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#FFFFFF",
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(255,255,255,0.2)",
+    alignItems: "center",
+    justifyContent: "center",
   },
   loading: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+    backgroundColor: "#FFFFFF",
   },
   loadingText: {
     marginTop: 12,
     fontSize: 14,
-    color: "#6B7280",
+    color: "#9CA3AF",
+    fontWeight: "500",
   },
-  title: {
-    fontSize: 28,
+  mainContent: {
+    paddingHorizontal: 20,
+    marginTop: 40,
+  },
+  statusChipContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  statusBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+  },
+  statusBadgeText: {
+    fontSize: 12,
     fontWeight: "700",
-    color: "#1A1A1A",
-    marginBottom: 4,
+    letterSpacing: 0.5,
   },
-  subtitle: {
-    fontSize: 13,
+  refText: {
+    fontSize: 12,
     color: "#6B7280",
-    marginBottom: 24,
-    fontFamily: "monospace",
+    fontWeight: "600",
+    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+  },
+  timerCard: {
+    borderRadius: 16,
+    padding: 16,
+    backgroundColor: "#FFFFFF",
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
   },
   card: {
-    color: "#00C851",
-    marginVertical: 12,
-    elevation: 2,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "#F3F4F6",
   },
   cardTitle: {
     fontSize: 16,
-    fontWeight: "600",
-    color: "#6B7280",
+    fontWeight: "700",
+    color: "#111827",
     marginBottom: 16,
   },
   detail: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 12,
   },
   detailLabel: {
     fontSize: 14,
     color: "#6B7280",
+    fontWeight: "500",
   },
   detailValue: {
+    fontSize: 18,
+    fontWeight: "800",
+    color: "#111827",
+  },
+  detailText: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#00C851",
+    color: "#374151",
   },
-  status_pending: {
-    color: "#FFB800",
+  tokenSymbol: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#6B7280",
   },
-  status_proof_submitted: {
-    color: "#33B5E5",
-  },
-  status_confirmed: {
-    color: "#00C851",
-  },
-  status_expired: {
-    color: "#FF4444",
-  },
-  status_cancelled: {
-    color: "#FF4444",
-  },
-  status_rejected: {
-    color: "#FF4444",
-  },
-  status_disputed: {
-    color: "#F59E0B",
-  },
-  infoCard: {
+  divider: {
+    height: 1,
+    backgroundColor: "#F3F4F6",
     marginVertical: 12,
-    backgroundColor: "#E8F9F0",
   },
-  warningCard: {
-    backgroundColor: "#FFF9E6",
+  messageCard: {
+    flexDirection: "row",
+    padding: 16,
+    borderRadius: 16,
+    marginBottom: 20,
+    gap: 12,
+    borderWidth: 1,
   },
-  successCard: {
-    backgroundColor: "#E8F9F0",
+  messageContent: {
+    flex: 1,
   },
-  errorCard: {
-    backgroundColor: "#FFE6E6",
+  messageTitle: {
+    fontSize: 15,
+    fontWeight: "700",
+    marginBottom: 4,
   },
-  infoText: {
+  messageText: {
     fontSize: 14,
-    color: "#1A1A1A",
     lineHeight: 20,
   },
+  pendingMessage: {
+    backgroundColor: "#FFFBEB",
+    borderColor: "#FEF3C7",
+  },
+  warningMessage: {
+    backgroundColor: "#EFF6FF",
+    borderColor: "#DBEAFE",
+  },
+  successMessage: {
+    backgroundColor: "#F0FDF4",
+    borderColor: "#DCFCE7",
+  },
+  errorMessage: {
+    backgroundColor: "#FEF2F2",
+    borderColor: "#FEE2E2",
+  },
+  disputeMessage: {
+    backgroundColor: "#FFFBEB",
+    borderColor: "#FEF3C7",
+  },
   successTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#00B14F",
-    marginBottom: 8,
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#166534",
+    marginBottom: 4,
   },
   successText: {
     fontSize: 14,
-    color: "#1A1A1A",
+    color: "#15803D",
     lineHeight: 20,
   },
   errorTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#FF4444",
-    marginBottom: 8,
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#991B1B",
+    marginBottom: 4,
   },
   errorText: {
     fontSize: 14,
-    color: "#1A1A1A",
+    color: "#B91C1C",
     lineHeight: 20,
   },
-  btn: {
-    marginVertical: 12,
-    borderRadius: 8,
-  },
-  btnContent: {
-    height: 50,
-  },
-  helpSection: {
-    marginTop: 24,
-    padding: 16,
-    backgroundColor: "#FFF",
+  actionButton: {
+    backgroundColor: "#00B14F",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 12,
     borderRadius: 12,
+    marginTop: 16,
+    gap: 8,
   },
-  helpTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#1A1A1A",
-    marginBottom: 8,
-  },
-  helpText: {
+  actionButtonText: {
+    color: "#FFFFFF",
     fontSize: 14,
+    fontWeight: "700",
+  },
+  footerActions: {
+    gap: 12,
+    marginTop: 10,
+  },
+  primaryBtn: {
+    backgroundColor: "#00B14F",
+    flexDirection: "row",
+    height: 56,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    shadowColor: "#00B14F",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  primaryBtnText: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "700",
+  },
+  secondaryBtn: {
+    backgroundColor: "#FFFFFF",
+    flexDirection: "row",
+    height: 56,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+  },
+  secondaryBtnText: {
+    color: "#374151",
+    fontSize: 16,
+    fontWeight: "700",
+  },
+  helpLink: {
+    alignItems: "center",
+    marginTop: 30,
+    gap: 4,
+  },
+  helpLinkText: {
+    fontSize: 13,
     color: "#6B7280",
-    lineHeight: 20,
-    marginBottom: 8,
+  },
+  supportText: {
+    fontSize: 14,
+    color: "#00B14F",
+    fontWeight: "700",
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    backgroundColor: "rgba(0, 0, 0, 0.4)",
     justifyContent: "flex-end",
   },
   modalContent: {
-    backgroundColor: "#FFF",
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    backgroundColor: "#FFFFFF",
+    borderTopLeftRadius: 30,
+    borderTopRightRadius: 30,
     padding: 24,
-    maxHeight: "80%",
+    paddingBottom: Platform.OS === 'ios' ? 40 : 24,
   },
   modalHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 16,
+    marginBottom: 20,
   },
   modalTitle: {
-    fontSize: 20,
-    fontWeight: "600",
+    fontSize: 22,
+    fontWeight: "800",
     color: "#111827",
   },
   modalDescription: {
     fontSize: 14,
     color: "#6B7280",
-    marginBottom: 20,
-    lineHeight: 20,
+    lineHeight: 22,
+    marginBottom: 24,
   },
   inputLabel: {
     fontSize: 14,
-    fontWeight: "500",
+    fontWeight: "700",
     color: "#374151",
     marginBottom: 8,
   },
   input: {
+    backgroundColor: "#F9FAFB",
     borderWidth: 1,
-    borderColor: "#D1D5DB",
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 14,
+    borderColor: "#E5E7EB",
+    borderRadius: 12,
+    padding: 14,
+    fontSize: 15,
     color: "#111827",
     marginBottom: 16,
-    backgroundColor: "#F9FAFB",
   },
   textArea: {
-    height: 100,
+    height: 120,
     textAlignVertical: "top",
   },
   modalButtons: {
@@ -611,24 +718,25 @@ const styles = StyleSheet.create({
   },
   modalButton: {
     flex: 1,
-    paddingVertical: 14,
-    borderRadius: 8,
+    height: 54,
+    borderRadius: 12,
     alignItems: "center",
+    justifyContent: "center",
   },
-  cancelButton: {
+  cancelBtn: {
     backgroundColor: "#F3F4F6",
   },
-  cancelButtonText: {
-    color: "#374151",
+  cancelBtnText: {
+    color: "#4B5563",
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: "700",
   },
-  submitButton: {
-    backgroundColor: "#DC2626",
+  submitBtn: {
+    backgroundColor: "#EF4444",
   },
-  submitButtonText: {
-    color: "#FFF",
+  submitBtnText: {
+    color: "#FFFFFF",
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: "700",
   },
 });

@@ -1,5 +1,6 @@
-import { useEffect } from "react";
+import React, { useEffect } from "react";
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl } from "react-native";
+import { Surface } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -64,14 +65,16 @@ export default function AgentProfile() {
                 />
                 <SafeAreaView edges={["top"]} style={styles.headerContent}>
                     <View style={styles.header}>
-                        <Text style={styles.title}>Agent Profile</Text>
-                        <TouchableOpacity
-                            style={styles.switchButton}
-                            onPress={() => router.replace("/(tabs)")}
-                        >
-                            <Ionicons name="person-outline" size={20} color="#FFFFFF" />
-                            <Text style={styles.switchText}>User View</Text>
-                        </TouchableOpacity>
+                        <View style={styles.headerTop}>
+                            <Text style={styles.title}>Agent Profile</Text>
+                            <TouchableOpacity
+                                style={styles.switchButton}
+                                onPress={() => router.replace("/(tabs)")}
+                            >
+                                <Ionicons name="swap-horizontal" size={18} color="#FFFFFF" />
+                                <Text style={styles.switchText}>Switch to User</Text>
+                            </TouchableOpacity>
+                        </View>
                     </View>
                 </SafeAreaView>
             </View>
@@ -83,9 +86,9 @@ export default function AgentProfile() {
             >
 
                 {/* Profile Header Card */}
-                <View style={styles.profileCard}>
+                <Surface style={styles.profileCard}>
                     <View style={styles.avatarContainer}>
-                        <View style={styles.avatar}>
+                        <View style={[styles.avatar, { backgroundColor: "#F5F3FF" }]}>
                             <Ionicons name="person" size={40} color="#7C3AED" />
                         </View>
                         <View style={styles.profileInfo}>
@@ -101,27 +104,29 @@ export default function AgentProfile() {
                         </View>
                     </View>
                     <View style={styles.badges}>
-                        <View style={[styles.badge, { backgroundColor: getTierColor(dashboardData?.agent?.tier) + '20' }]}>
+                        <View style={[styles.badge, { backgroundColor: getTierColor(dashboardData?.agent?.tier) + '15' }]}>
                             <Ionicons name="trophy" size={14} color={getTierColor(dashboardData?.agent?.tier)} />
                             <Text style={[styles.badgeText, { color: getTierColor(dashboardData?.agent?.tier) }]}>
                                 {dashboardData?.agent?.tier || "Bronze"}
                             </Text>
                         </View>
-                        <View style={[styles.badge, { backgroundColor: getStatusColor(dashboardData?.agent?.status) + '20' }]}>
+                        <View style={[styles.badge, { backgroundColor: getStatusColor(dashboardData?.agent?.status) + '15' }]}>
                             <View style={[styles.statusDot, { backgroundColor: getStatusColor(dashboardData?.agent?.status) }]} />
                             <Text style={[styles.badgeText, { color: getStatusColor(dashboardData?.agent?.status) }]}>
                                 {dashboardData?.agent?.status || "Pending"}
                             </Text>
                         </View>
                     </View>
-                </View>
+                </Surface>
 
                 {/* Personal Information */}
                 <View style={styles.section}>
                     <Text style={styles.sectionTitle}>Personal Information</Text>
-                    <View style={styles.card}>
+                    <Surface style={styles.card}>
                         <View style={styles.infoRow}>
-                            <Ionicons name="person-outline" size={20} color="#6B7280" />
+                            <View style={[styles.infoIcon, { backgroundColor: "#F3F4F6" }]}>
+                                <Ionicons name="person-outline" size={20} color="#6B7280" />
+                            </View>
                             <View style={styles.infoContent}>
                                 <Text style={styles.infoLabel}>Full Name</Text>
                                 <Text style={styles.infoValue}>{user?.full_name || "N/A"}</Text>
@@ -129,7 +134,9 @@ export default function AgentProfile() {
                         </View>
                         <View style={styles.divider} />
                         <View style={styles.infoRow}>
-                            <Ionicons name="mail-outline" size={20} color="#6B7280" />
+                            <View style={[styles.infoIcon, { backgroundColor: "#F3F4F6" }]}>
+                                <Ionicons name="mail-outline" size={20} color="#6B7280" />
+                            </View>
                             <View style={styles.infoContent}>
                                 <Text style={styles.infoLabel}>Email</Text>
                                 <Text style={styles.infoValue}>{user?.email || "N/A"}</Text>
@@ -137,7 +144,9 @@ export default function AgentProfile() {
                         </View>
                         <View style={styles.divider} />
                         <View style={styles.infoRow}>
-                            <Ionicons name="call-outline" size={20} color="#6B7280" />
+                            <View style={[styles.infoIcon, { backgroundColor: "#F3F4F6" }]}>
+                                <Ionicons name="call-outline" size={20} color="#6B7280" />
+                            </View>
                             <View style={styles.infoContent}>
                                 <Text style={styles.infoLabel}>Phone Number</Text>
                                 <Text style={styles.infoValue}>{user?.phone_number || "N/A"}</Text>
@@ -145,7 +154,9 @@ export default function AgentProfile() {
                         </View>
                         <View style={styles.divider} />
                         <View style={styles.infoRow}>
-                            <Ionicons name="logo-whatsapp" size={20} color="#6B7280" />
+                            <View style={[styles.infoIcon, { backgroundColor: "#F3F4F6" }]}>
+                                <Ionicons name="logo-whatsapp" size={20} color="#6B7280" />
+                            </View>
                             <View style={styles.infoContent}>
                                 <Text style={styles.infoLabel}>WhatsApp</Text>
                                 <Text style={styles.infoValue}>{(user as any)?.whatsapp_number || user?.phone_number || "N/A"}</Text>
@@ -153,21 +164,25 @@ export default function AgentProfile() {
                         </View>
                         <View style={styles.divider} />
                         <View style={styles.infoRow}>
-                            <Ionicons name="location-outline" size={20} color="#6B7280" />
+                            <View style={[styles.infoIcon, { backgroundColor: "#F3F4F6" }]}>
+                                <Ionicons name="location-outline" size={20} color="#6B7280" />
+                            </View>
                             <View style={styles.infoContent}>
                                 <Text style={styles.infoLabel}>Country</Text>
                                 <Text style={styles.infoValue}>{user?.country_code || "N/A"}</Text>
                             </View>
                         </View>
-                    </View>
+                    </Surface>
                 </View>
 
                 {/* Business Details */}
                 <View style={styles.section}>
                     <Text style={styles.sectionTitle}>Business Details</Text>
-                    <View style={styles.card}>
+                    <Surface style={styles.card}>
                         <View style={styles.infoRow}>
-                            <Ionicons name="business-outline" size={20} color="#6B7280" />
+                            <View style={[styles.infoIcon, { backgroundColor: "#FDF2F8" }]}>
+                                <Ionicons name="business-outline" size={20} color="#DB2777" />
+                            </View>
                             <View style={styles.infoContent}>
                                 <Text style={styles.infoLabel}>Bank Name</Text>
                                 <Text style={styles.infoValue}>{(user as any)?.bank_name || "Not set"}</Text>
@@ -175,7 +190,9 @@ export default function AgentProfile() {
                         </View>
                         <View style={styles.divider} />
                         <View style={styles.infoRow}>
-                            <Ionicons name="card-outline" size={20} color="#6B7280" />
+                            <View style={[styles.infoIcon, { backgroundColor: "#F3F4F6" }]}>
+                                <Ionicons name="card-outline" size={20} color="#6B7280" />
+                            </View>
                             <View style={styles.infoContent}>
                                 <Text style={styles.infoLabel}>Account Number</Text>
                                 <Text style={styles.infoValue}>{(user as any)?.account_number || "Not set"}</Text>
@@ -183,7 +200,9 @@ export default function AgentProfile() {
                         </View>
                         <View style={styles.divider} />
                         <View style={styles.infoRow}>
-                            <Ionicons name="person-circle-outline" size={20} color="#6B7280" />
+                            <View style={[styles.infoIcon, { backgroundColor: "#F3F4F6" }]}>
+                                <Ionicons name="person-circle-outline" size={20} color="#6B7280" />
+                            </View>
                             <View style={styles.infoContent}>
                                 <Text style={styles.infoLabel}>Account Name</Text>
                                 <Text style={styles.infoValue}>{(user as any)?.account_name || "Not set"}</Text>
@@ -191,7 +210,9 @@ export default function AgentProfile() {
                         </View>
                         <View style={styles.divider} />
                         <View style={styles.infoRow}>
-                            <Ionicons name="wallet-outline" size={20} color="#6B7280" />
+                            <View style={[styles.infoIcon, { backgroundColor: "#F5F3FF" }]}>
+                                <Ionicons name="wallet-outline" size={20} color="#7C3AED" />
+                            </View>
                             <View style={styles.infoContent}>
                                 <Text style={styles.infoLabel}>Withdrawal Address</Text>
                                 <Text style={[styles.infoValue, styles.addressText]} numberOfLines={1}>
@@ -201,7 +222,9 @@ export default function AgentProfile() {
                         </View>
                         <View style={styles.divider} />
                         <View style={styles.infoRow}>
-                            <Ionicons name="shield-checkmark-outline" size={20} color="#6B7280" />
+                            <View style={[styles.infoIcon, { backgroundColor: "#F0FDF4" }]}>
+                                <Ionicons name="shield-checkmark-outline" size={20} color="#00B14F" />
+                            </View>
                             <View style={styles.infoContent}>
                                 <Text style={styles.infoLabel}>Verification Status</Text>
                                 <View style={styles.verificationBadge}>
@@ -211,13 +234,13 @@ export default function AgentProfile() {
                                 </View>
                             </View>
                         </View>
-                    </View>
+                    </Surface>
                 </View>
 
                 {/* Financial Summary */}
                 <View style={styles.section}>
                     <Text style={styles.sectionTitle}>Financial Summary</Text>
-                    <View style={styles.card}>
+                    <Surface style={styles.card}>
                         <View style={styles.financialGrid}>
                             <View style={styles.financialItem}>
                                 <Text style={styles.financialLabel}>Total Deposit</Text>
@@ -262,16 +285,16 @@ export default function AgentProfile() {
                                 </Text>
                             </View>
                         </View>
-                    </View>
+                    </Surface>
                 </View>
 
                 {/* Performance Metrics */}
                 <View style={styles.section}>
                     <Text style={styles.sectionTitle}>Performance Metrics</Text>
-                    <View style={styles.card}>
+                    <Surface style={styles.card}>
                         <View style={styles.performanceGrid}>
                             <View style={styles.performanceItem}>
-                                <View style={[styles.performanceIcon, { backgroundColor: "#F3E8FF" }]}>
+                                <View style={[styles.performanceIcon, { backgroundColor: "#F5F3FF" }]}>
                                     <Ionicons name="swap-horizontal" size={24} color="#7C3AED" />
                                 </View>
                                 <Text style={styles.performanceLabel}>Total Transactions</Text>
@@ -280,7 +303,7 @@ export default function AgentProfile() {
                                 </Text>
                             </View>
                             <View style={styles.performanceItem}>
-                                <View style={[styles.performanceIcon, { backgroundColor: "#FEF3C7" }]}>
+                                <View style={[styles.performanceIcon, { backgroundColor: "#FFFBEB" }]}>
                                     <Ionicons name="chatbubbles" size={24} color="#F59E0B" />
                                 </View>
                                 <Text style={styles.performanceLabel}>Total Reviews</Text>
@@ -291,7 +314,7 @@ export default function AgentProfile() {
                         </View>
                         <View style={styles.performanceGrid}>
                             <View style={styles.performanceItem}>
-                                <View style={[styles.performanceIcon, { backgroundColor: "#ECFDF5" }]}>
+                                <View style={[styles.performanceIcon, { backgroundColor: "#F0FDF4" }]}>
                                     <Ionicons name="checkmark-circle" size={24} color="#00B14F" />
                                 </View>
                                 <Text style={styles.performanceLabel}>Success Rate</Text>
@@ -300,7 +323,7 @@ export default function AgentProfile() {
                                 </Text>
                             </View>
                             <View style={styles.performanceItem}>
-                                <View style={[styles.performanceIcon, { backgroundColor: "#DBEAFE" }]}>
+                                <View style={[styles.performanceIcon, { backgroundColor: "#EFF6FF" }]}>
                                     <Ionicons name="time" size={24} color="#3B82F6" />
                                 </View>
                                 <Text style={styles.performanceLabel}>Avg Response</Text>
@@ -309,74 +332,89 @@ export default function AgentProfile() {
                                 </Text>
                             </View>
                         </View>
-                    </View>
+                    </Surface>
                 </View>
 
                 {/* Reviews Section */}
                 <View style={styles.section}>
                     <Text style={styles.sectionTitle}>Reviews</Text>
-                    <View style={styles.card}>
+                    <Surface style={styles.card}>
                         <TouchableOpacity
                             style={styles.settingRow}
                             onPress={() => router.push("/agent/reviews")}
+                            activeOpacity={0.7}
                         >
                             <View style={styles.settingLeft}>
-                                <Ionicons name="star-outline" size={20} color="#F59E0B" />
+                                <View style={[styles.settingIcon, { backgroundColor: "#FFFBEB" }]}>
+                                    <Ionicons name="star" size={20} color="#F59E0B" />
+                                </View>
                                 <Text style={styles.settingText}>
                                     View Reviews ({stats?.total_reviews || 0})
                                 </Text>
                             </View>
-                            <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+                            <Ionicons name="chevron-forward" size={18} color="#9CA3AF" />
                         </TouchableOpacity>
-                    </View>
+                    </Surface>
                 </View>
 
                 {/* Account Settings */}
                 <View style={styles.section}>
                     <Text style={styles.sectionTitle}>Account Settings</Text>
-                    <View style={styles.card}>
+                    <Surface style={styles.card}>
                         <TouchableOpacity
                             style={styles.settingRow}
                             onPress={() => router.push("/modals/agent/edit-profile")}
+                            activeOpacity={0.7}
                         >
                             <View style={styles.settingLeft}>
-                                <Ionicons name="create-outline" size={20} color="#7C3AED" />
+                                <View style={[styles.settingIcon, { backgroundColor: "#F5F3FF" }]}>
+                                    <Ionicons name="create-outline" size={20} color="#7C3AED" />
+                                </View>
                                 <Text style={styles.settingText}>Edit Profile</Text>
                             </View>
-                            <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+                            <Ionicons name="chevron-forward" size={18} color="#9CA3AF" />
                         </TouchableOpacity>
                         <View style={styles.divider} />
                         <TouchableOpacity
                             style={styles.settingRow}
                             onPress={() => router.push("/modals/agent/edit-bank-details")}
+                            activeOpacity={0.7}
                         >
                             <View style={styles.settingLeft}>
-                                <Ionicons name="card-outline" size={20} color="#7C3AED" />
+                                <View style={[styles.settingIcon, { backgroundColor: "#FDF2F8" }]}>
+                                    <Ionicons name="card-outline" size={20} color="#DB2777" />
+                                </View>
                                 <Text style={styles.settingText}>Update Bank Details</Text>
                             </View>
-                            <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+                            <Ionicons name="chevron-forward" size={18} color="#9CA3AF" />
                         </TouchableOpacity>
                         <View style={styles.divider} />
                         <TouchableOpacity
                             style={styles.settingRow}
                             onPress={() => router.push("/modals/agent/withdrawal-request")}
+                            activeOpacity={0.7}
                         >
                             <View style={styles.settingLeft}>
-                                <Ionicons name="cash-outline" size={20} color="#7C3AED" />
+                                <View style={[styles.settingIcon, { backgroundColor: "#F0FDF4" }]}>
+                                    <Ionicons name="cash-outline" size={20} color="#00B14F" />
+                                </View>
                                 <Text style={styles.settingText}>Request Withdrawal</Text>
                             </View>
-                            <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+                            <Ionicons name="chevron-forward" size={18} color="#9CA3AF" />
                         </TouchableOpacity>
                         <View style={styles.divider} />
                         <TouchableOpacity
                             style={styles.settingRow}
                             onPress={() => router.push("/modals/agent-kyc/status")}
+                            activeOpacity={0.7}
                         >
                             <View style={styles.settingLeft}>
-                                <Ionicons name="shield-checkmark-outline" size={20} color="#7C3AED" />
+                                <View style={[styles.settingIcon, { backgroundColor: "#EFF6FF" }]}>
+                                    <Ionicons name="shield-checkmark-outline" size={20} color="#3B82F6" />
+                                </View>
                                 <Text style={styles.settingText}>View KYC Status</Text>
                             </View>
-                            <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+                            <Ionicons name="chevron-forward" size={18} color="#9CA3AF" />
                         </TouchableOpacity>
                         <View style={styles.divider} />
                         <TouchableOpacity
@@ -385,15 +423,20 @@ export default function AgentProfile() {
                                 useAuthStore.getState().logout();
                                 router.replace("/(auth)/login");
                             }}
+                            activeOpacity={0.7}
                         >
                             <View style={styles.settingLeft}>
-                                <Ionicons name="log-out-outline" size={20} color="#EF4444" />
+                                <View style={[styles.settingIcon, { backgroundColor: "#FEF2F2" }]}>
+                                    <Ionicons name="log-out-outline" size={20} color="#EF4444" />
+                                </View>
                                 <Text style={[styles.settingText, { color: "#EF4444" }]}>Logout</Text>
                             </View>
-                            <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+                            <Ionicons name="chevron-forward" size={18} color="#9CA3AF" />
                         </TouchableOpacity>
-                    </View>
+                    </Surface>
                 </View>
+
+                <View style={styles.bottomSpacer} />
             </ScrollView>
         </View>
     );
@@ -402,10 +445,12 @@ export default function AgentProfile() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: "#F3F4F6",
+        backgroundColor: "#F9FAFB",
     },
     headerWrapper: {
-        // marginBottom: 20,
+        zIndex: 10,
+        elevation: 8,
+        backgroundColor: "#00B14F",
     },
     headerGradient: {
         position: "absolute",
@@ -413,23 +458,24 @@ const styles = StyleSheet.create({
         left: 0,
         right: 0,
         height: 140,
-        // borderBottomLeftRadius: 30,
-        // borderBottomRightRadius: 30,
     },
     headerContent: {
         paddingHorizontal: 16,
     },
     header: {
+        paddingBottom: 20,
+        marginTop: 10,
+    },
+    headerTop: {
         flexDirection: "row",
         justifyContent: "space-between",
         alignItems: "center",
-        paddingBottom: 20,
-        marginTop: 0,
     },
     title: {
         fontSize: 24,
-        fontWeight: "bold",
+        fontWeight: "700",
         color: "#FFFFFF",
+        letterSpacing: -0.5,
     },
     switchButton: {
         flexDirection: "row",
@@ -441,34 +487,33 @@ const styles = StyleSheet.create({
         gap: 6,
     },
     switchText: {
-        fontSize: 14,
+        fontSize: 13,
         fontWeight: "600",
         color: "#FFFFFF",
     },
     content: {
         padding: 16,
+        paddingBottom: 100,
+        paddingTop: 40,
     },
     profileCard: {
-        backgroundColor: "white",
-        borderRadius: 16,
+        backgroundColor: "#FFFFFF",
+        borderRadius: 24,
         padding: 20,
         marginBottom: 24,
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.05,
-        shadowRadius: 4,
-        elevation: 2,
+        marginTop: 10,
+        borderWidth: 1,
+        borderColor: "#F3F4F6",
     },
     avatarContainer: {
         flexDirection: "row",
         alignItems: "center",
-        marginBottom: 16,
+        marginBottom: 20,
     },
     avatar: {
-        width: 80,
-        height: 80,
-        borderRadius: 40,
-        backgroundColor: "#F3E8FF",
+        width: 72,
+        height: 72,
+        borderRadius: 36,
         alignItems: "center",
         justifyContent: "center",
         marginRight: 16,
@@ -477,10 +522,10 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     profileName: {
-        fontSize: 20,
-        fontWeight: "bold",
+        fontSize: 22,
+        fontWeight: "800",
         color: "#111827",
-        marginBottom: 8,
+        marginBottom: 6,
     },
     ratingContainer: {
         flexDirection: "row",
@@ -493,25 +538,29 @@ const styles = StyleSheet.create({
     },
     ratingText: {
         fontSize: 14,
-        fontWeight: "600",
-        color: "#6B7280",
+        fontWeight: "700",
+        color: "#F59E0B",
     },
     badges: {
         flexDirection: "row",
         gap: 12,
+        paddingTop: 16,
+        borderTopWidth: 1,
+        borderTopColor: "#F3F4F6",
     },
     badge: {
         flexDirection: "row",
         alignItems: "center",
         paddingHorizontal: 12,
-        paddingVertical: 6,
+        paddingVertical: 8,
         borderRadius: 12,
         gap: 6,
     },
     badgeText: {
         fontSize: 12,
-        fontWeight: "600",
-        textTransform: "capitalize",
+        fontWeight: "700",
+        textTransform: "uppercase",
+        letterSpacing: 0.5,
     },
     statusDot: {
         width: 8,
@@ -522,121 +571,148 @@ const styles = StyleSheet.create({
         marginBottom: 24,
     },
     sectionTitle: {
-        fontSize: 18,
-        fontWeight: "bold",
-        color: "#111827",
+        fontSize: 16,
+        fontWeight: "700",
+        color: "#6B7280",
         marginBottom: 12,
+        marginLeft: 4,
+        textTransform: "uppercase",
+        letterSpacing: 1,
     },
     card: {
-        backgroundColor: "white",
-        borderRadius: 16,
-        padding: 16,
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.05,
-        shadowRadius: 2,
-        elevation: 2,
+        backgroundColor: "#FFFFFF",
+        borderRadius: 20,
+        padding: 12,
+        borderWidth: 1,
+        borderColor: "#F3F4F6",
     },
     infoRow: {
         flexDirection: "row",
         alignItems: "center",
         gap: 12,
-        paddingVertical: 8,
+        paddingVertical: 10,
+    },
+    infoIcon: {
+        width: 40,
+        height: 40,
+        borderRadius: 12,
+        alignItems: "center",
+        justifyContent: "center",
     },
     infoContent: {
         flex: 1,
     },
     infoLabel: {
         fontSize: 12,
-        color: "#6B7280",
-        marginBottom: 4,
+        color: "#9CA3AF",
+        marginBottom: 2,
+        fontWeight: "500",
     },
     infoValue: {
-        fontSize: 14,
+        fontSize: 15,
         fontWeight: "600",
         color: "#111827",
     },
     addressText: {
-        fontFamily: "monospace",
-        fontSize: 12,
+        fontSize: 13,
+        color: "#6B7280",
     },
     verificationBadge: {
         alignSelf: "flex-start",
-        backgroundColor: "#ECFDF5",
+        backgroundColor: "#F0FDF4",
         paddingHorizontal: 8,
-        paddingVertical: 4,
-        borderRadius: 8,
+        paddingVertical: 2,
+        borderRadius: 6,
+        marginTop: 4,
     },
     verificationText: {
-        fontSize: 12,
-        fontWeight: "600",
+        fontSize: 11,
+        fontWeight: "700",
         color: "#00B14F",
     },
     divider: {
         height: 1,
-        backgroundColor: "#E5E7EB",
-        marginVertical: 8,
+        backgroundColor: "#F9FAFB",
+        marginLeft: 52,
     },
     financialGrid: {
         flexDirection: "row",
         gap: 16,
-        paddingVertical: 8,
+        paddingVertical: 12,
     },
     financialItem: {
         flex: 1,
     },
     financialLabel: {
-        fontSize: 12,
+        fontSize: 13,
         color: "#6B7280",
-        marginBottom: 8,
+        marginBottom: 6,
+        fontWeight: "500",
     },
     financialValue: {
         fontSize: 18,
-        fontWeight: "bold",
+        fontWeight: "800",
         color: "#111827",
     },
     performanceGrid: {
         flexDirection: "row",
-        gap: 16,
-        marginBottom: 16,
+        gap: 12,
+        marginBottom: 12,
     },
     performanceItem: {
         flex: 1,
         alignItems: "center",
+        backgroundColor: "#F9FAFB",
+        paddingVertical: 16,
+        borderRadius: 16,
+        borderWidth: 1,
+        borderColor: "#F3F4F6",
     },
     performanceIcon: {
-        width: 56,
-        height: 56,
-        borderRadius: 28,
+        width: 48,
+        height: 48,
+        borderRadius: 24,
         alignItems: "center",
         justifyContent: "center",
-        marginBottom: 12,
+        marginBottom: 10,
     },
     performanceLabel: {
-        fontSize: 12,
+        fontSize: 11,
         color: "#6B7280",
         textAlign: "center",
-        marginBottom: 8,
+        marginBottom: 4,
+        fontWeight: "600",
+        paddingHorizontal: 8,
     },
     performanceValue: {
         fontSize: 16,
-        fontWeight: "bold",
+        fontWeight: "800",
         color: "#111827",
     },
     settingRow: {
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "space-between",
-        paddingVertical: 12,
+        paddingVertical: 10,
     },
     settingLeft: {
         flexDirection: "row",
         alignItems: "center",
         gap: 12,
     },
+    settingIcon: {
+        width: 40,
+        height: 40,
+        borderRadius: 12,
+        alignItems: "center",
+        justifyContent: "center",
+    },
     settingText: {
-        fontSize: 14,
+        fontSize: 15,
         fontWeight: "600",
         color: "#111827",
+    },
+    bottomSpacer: {
+        height: 40,
     },
 });

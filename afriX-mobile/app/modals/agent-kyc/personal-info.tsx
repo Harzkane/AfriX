@@ -3,6 +3,7 @@ import { useRouter } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { SafeAreaView } from "react-native-safe-area-context";
 import DateTimePicker from "@react-native-community/datetimepicker";
+import { formatDate } from "@/utils/format";
 
 import {
     View,
@@ -72,13 +73,6 @@ export default function PersonalInfoScreen() {
         }
     };
 
-    const formatDate = (date: Date): string => {
-        return date.toLocaleDateString("en-US", {
-            year: "numeric",
-            month: "long",
-            day: "numeric",
-        });
-    };
 
     const validate = (): boolean => {
         const newErrors: { [key: string]: string } = {};

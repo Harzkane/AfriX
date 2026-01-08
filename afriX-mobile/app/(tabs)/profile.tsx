@@ -16,6 +16,7 @@ import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { formatDate } from "@/utils/format";
 
 export default function ProfileScreen() {
   const { user, logout } = useAuthStore();
@@ -157,7 +158,7 @@ export default function ProfileScreen() {
               <View style={styles.divider} />
               <InfoRow
                 label="Member Since"
-                value={new Date(user.created_at).toLocaleDateString()}
+                value={formatDate(user.created_at)}
                 icon="calendar"
                 color="#8B5CF6"
               />
@@ -257,10 +258,13 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+    backgroundColor: "#FFFFFF",
   },
   loadingText: {
     marginTop: 12,
-    color: "#6B7280",
+    fontSize: 14,
+    color: "#9CA3AF",
+    fontWeight: "500",
   },
   scrollContent: {
     flexGrow: 1,
@@ -273,7 +277,7 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    height: 200,
+    height: 220,
     borderBottomLeftRadius: 30,
     borderBottomRightRadius: 30,
   },
@@ -289,7 +293,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 24,
-    fontWeight: "700",
+    fontWeight: "800",
     color: "#FFFFFF",
   },
   editButton: {
@@ -305,61 +309,66 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     padding: 24,
     alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 5,
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 2,
   },
   avatarContainer: {
     position: "relative",
     marginBottom: 16,
   },
   avatar: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: "#F0FDF4",
+    width: 86,
+    height: 86,
+    borderRadius: 43,
+    backgroundColor: "#ECFDF5",
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 4,
-    borderColor: "#F0FDF4",
+    borderColor: "#FFFFFF",
   },
   avatarText: {
-    fontSize: 32,
-    fontWeight: "700",
+    fontSize: 34,
+    fontWeight: "800",
     color: "#00B14F",
   },
   verificationBadge: {
     position: "absolute",
-    bottom: 0,
-    right: 0,
+    bottom: 2,
+    right: 2,
     backgroundColor: "#FFFFFF",
     borderRadius: 12,
-    borderWidth: 2,
-    borderColor: "#FFFFFF",
+    padding: 2,
   },
   userName: {
-    fontSize: 20,
-    fontWeight: "700",
+    fontSize: 22,
+    fontWeight: "800",
     color: "#111827",
     marginBottom: 4,
   },
   userEmail: {
     fontSize: 14,
     color: "#6B7280",
+    fontWeight: "500",
     marginBottom: 12,
   },
   roleTag: {
     backgroundColor: "#F3F4F6",
-    paddingHorizontal: 12,
-    paddingVertical: 4,
+    paddingHorizontal: 16,
+    paddingVertical: 6,
     borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
   },
   roleText: {
-    fontSize: 12,
-    fontWeight: "600",
+    fontSize: 11,
+    fontWeight: "700",
     color: "#4B5563",
+    letterSpacing: 0.5,
   },
   contentContainer: {
     paddingHorizontal: 20,
@@ -369,16 +378,13 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
     borderRadius: 20,
     padding: 20,
-    marginBottom: 20,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
   },
   sectionTitle: {
     fontSize: 16,
-    fontWeight: "700",
+    fontWeight: "800",
     color: "#111827",
     marginBottom: 16,
   },
@@ -388,12 +394,12 @@ const styles = StyleSheet.create({
   infoRow: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 8,
+    paddingVertical: 10,
   },
   iconBox: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
+    width: 40,
+    height: 40,
+    borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
     marginRight: 12,
@@ -403,12 +409,14 @@ const styles = StyleSheet.create({
   },
   infoLabel: {
     fontSize: 12,
-    color: "#6B7280",
+    color: "#9CA3AF",
+    fontWeight: "600",
+    textTransform: "uppercase",
     marginBottom: 2,
   },
   infoValue: {
-    fontSize: 14,
-    fontWeight: "600",
+    fontSize: 15,
+    fontWeight: "700",
     color: "#111827",
   },
   actionItem: {
@@ -422,25 +430,28 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
-    marginRight: 12,
+    marginRight: 14,
   },
   actionLabel: {
     flex: 1,
-    fontSize: 15,
-    fontWeight: "500",
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#374151",
   },
   divider: {
     height: 1,
     backgroundColor: "#F3F4F6",
-    marginVertical: 8,
+    marginVertical: 10,
   },
   versionText: {
     textAlign: "center",
     color: "#9CA3AF",
     fontSize: 12,
+    fontWeight: "500",
+    marginTop: 10,
     marginBottom: 20,
   },
   bottomSpacer: {
-    height: 40,
+    height: 100, // Extra space for lifted tab bar
   },
 });

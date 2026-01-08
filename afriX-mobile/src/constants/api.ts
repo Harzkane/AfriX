@@ -2,7 +2,7 @@
 import Constants from "expo-constants";
 
 const API_URL =
-  Constants.expoConfig?.extra?.apiUrl || "http://192.168.1.109:5001/api/v1";
+  Constants.expoConfig?.extra?.apiUrl || "http://192.168.1.144:5001/api/v1";
 
 export const API_ENDPOINTS = {
   AUTH: {

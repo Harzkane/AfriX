@@ -13,6 +13,8 @@ import { useMintRequestStore, useAgentStore } from "@/stores";
 import * as Clipboard from "expo-clipboard";
 import { Ionicons } from "@expo/vector-icons";
 import apiClient from "@/services/apiClient";
+import { LinearGradient } from "expo-linear-gradient";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function PaymentInstructionsScreen() {
   const { tokenType, amount, agentId, agentName } = useLocalSearchParams<{
@@ -82,225 +84,271 @@ export default function PaymentInstructionsScreen() {
   };
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      <View style={styles.headerSpacer} />
-      <View style={styles.header}>
-        <Text style={styles.title}>Payment Instructions</Text>
-        <Text style={styles.subtitle}>
-          Send payment to agent and upload proof
-        </Text>
+    <View style={styles.container}>
+      {/* Gradient Header */}
+      <View style={styles.headerWrapper}>
+        <LinearGradient
+          colors={["#00B14F", "#008F40"]}
+          style={styles.headerGradient}
+        />
+        <SafeAreaView edges={["top"]} style={styles.headerContent}>
+          <View style={styles.headerTop}>
+            <TouchableOpacity
+              onPress={() => router.back()}
+              style={styles.backButton}
+            >
+              <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
+            </TouchableOpacity>
+            <View style={styles.headerText}>
+              <Text style={styles.title}>Payment Instructions</Text>
+              <Text style={styles.subtitle}>
+                Send payment to agent and upload proof
+              </Text>
+            </View>
+          </View>
+        </SafeAreaView>
       </View>
 
-      {fetchingAgent ? (
-        <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>Loading agent details...</Text>
-        </View>
-      ) : !selectedAgent ? (
-        <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>Agent information not available</Text>
-        </View>
-      ) : (
-        <>
-          {/* Agent Details Card */}
-          <View style={styles.card}>
-            <View style={styles.cardHeader}>
-              <Ionicons name="person-circle-outline" size={24} color="#00B14F" />
-              <Text style={styles.cardTitle}>Agent Details</Text>
-            </View>
-            <View style={styles.cardContent}>
-              <View style={styles.row}>
-                <Text style={styles.rowLabel}>Tier</Text>
-                <View style={styles.tierBadge}>
-                  <Text style={styles.tierText}>
-                    {selectedAgent?.tier.toUpperCase()}
-                  </Text>
-                </View>
+      <ScrollView style={styles.list} showsVerticalScrollIndicator={false}>
+        {fetchingAgent ? (
+          <View style={styles.loadingContainer}>
+            <Text style={styles.loadingText}>Loading agent details...</Text>
+          </View>
+        ) : !selectedAgent ? (
+          <View style={styles.errorContainer}>
+            <Text style={styles.errorText}>Agent information not available</Text>
+          </View>
+        ) : (
+          <>
+            {/* Agent Details Card */}
+            <View style={styles.card}>
+              <View style={styles.cardHeader}>
+                <Ionicons name="person-circle-outline" size={24} color="#00B14F" />
+                <Text style={styles.cardTitle}>Agent Details</Text>
               </View>
-
-              <View style={styles.row}>
-                <Text style={styles.rowLabel}>Rating</Text>
-                <View style={styles.ratingRow}>
-                  <Ionicons name="star" size={16} color="#FFB800" />
-                  <Text style={styles.rowValue}>
-                    {selectedAgent?.rating.toFixed(1)}
-                  </Text>
-                </View>
-              </View>
-
-              {selectedAgent?.phone_number && (
+              <View style={styles.cardContent}>
                 <View style={styles.row}>
-                  <Text style={styles.rowLabel}>Phone</Text>
+                  <Text style={styles.rowLabel}>Tier</Text>
+                  <View style={styles.tierBadge}>
+                    <Text style={styles.tierText}>
+                      {selectedAgent?.tier.toUpperCase()}
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.row}>
+                  <Text style={styles.rowLabel}>Rating</Text>
+                  <View style={styles.ratingRow}>
+                    <Ionicons name="star" size={16} color="#FFB800" />
+                    <Text style={styles.rowValue}>
+                      {selectedAgent?.rating.toFixed(1)}
+                    </Text>
+                  </View>
+                </View>
+
+                {selectedAgent?.phone_number && (
+                  <View style={styles.row}>
+                    <Text style={styles.rowLabel}>Phone</Text>
+                    <TouchableOpacity
+                      style={styles.phoneRow}
+                      onPress={handleCopyAccount}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={styles.phoneNumber}>
+                        {selectedAgent.phone_number}
+                      </Text>
+                      <Ionicons name="copy-outline" size={16} color="#00B14F" />
+                    </TouchableOpacity>
+                  </View>
+                )}
+
+                {/* Bank Details Section */}
+                <View style={styles.divider} />
+
+                <View style={styles.row}>
+                  <Text style={styles.rowLabel}>Bank Name</Text>
+                  <Text style={styles.rowValue}>{selectedAgent?.bank_name || "N/A"}</Text>
+                </View>
+
+                <View style={styles.row}>
+                  <Text style={styles.rowLabel}>Account Name</Text>
+                  <Text style={styles.rowValue}>{selectedAgent?.account_name || "N/A"}</Text>
+                </View>
+
+                <View style={styles.row}>
+                  <Text style={styles.rowLabel}>Account Number</Text>
                   <TouchableOpacity
                     style={styles.phoneRow}
-                    onPress={handleCopyAccount}
+                    onPress={async () => {
+                      if (selectedAgent?.account_number) {
+                        await Clipboard.setStringAsync(selectedAgent.account_number);
+                        Alert.alert("Copied", "Account number copied to clipboard");
+                      }
+                    }}
                     activeOpacity={0.7}
                   >
                     <Text style={styles.phoneNumber}>
-                      {selectedAgent.phone_number}
+                      {selectedAgent?.account_number || "N/A"}
                     </Text>
                     <Ionicons name="copy-outline" size={16} color="#00B14F" />
                   </TouchableOpacity>
                 </View>
-              )}
-
-              {/* Bank Details Section */}
-              <View style={styles.divider} />
-
-              <View style={styles.row}>
-                <Text style={styles.rowLabel}>Bank Name</Text>
-                <Text style={styles.rowValue}>{selectedAgent?.bank_name || "N/A"}</Text>
               </View>
+            </View>
 
-              <View style={styles.row}>
-                <Text style={styles.rowLabel}>Account Name</Text>
-                <Text style={styles.rowValue}>{selectedAgent?.account_name || "N/A"}</Text>
+            {/* Payment Details Card */}
+            <View style={styles.card}>
+              <View style={styles.cardHeader}>
+                <Ionicons name="wallet-outline" size={24} color="#00B14F" />
+                <Text style={styles.cardTitle}>Payment Details</Text>
               </View>
-
-              <View style={styles.row}>
-                <Text style={styles.rowLabel}>Account Number</Text>
-                <TouchableOpacity
-                  style={styles.phoneRow}
-                  onPress={async () => {
-                    if (selectedAgent?.account_number) {
-                      await Clipboard.setStringAsync(selectedAgent.account_number);
-                      Alert.alert("Copied", "Account number copied to clipboard");
-                    }
-                  }}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.phoneNumber}>
-                    {selectedAgent?.account_number || "N/A"}
+              <View style={styles.cardContent}>
+                <View style={styles.row}>
+                  <Text style={styles.rowLabel}>Amount</Text>
+                  <Text style={styles.amount}>
+                    {tokenType === "NT" ? "₦" : "XOF "}
+                    {parseFloat(amount).toLocaleString()}
                   </Text>
-                  <Ionicons name="copy-outline" size={16} color="#00B14F" />
-                </TouchableOpacity>
-              </View>
-            </View>
-          </View>
+                </View>
 
-          {/* Payment Details Card */}
-          <View style={styles.card}>
-            <View style={styles.cardHeader}>
-              <Ionicons name="wallet-outline" size={24} color="#00B14F" />
-              <Text style={styles.cardTitle}>Payment Details</Text>
-            </View>
-            <View style={styles.cardContent}>
-              <View style={styles.row}>
-                <Text style={styles.rowLabel}>Amount</Text>
-                <Text style={styles.amount}>
-                  {tokenType === "NT" ? "₦" : "XOF "}
-                  {parseFloat(amount).toLocaleString()}
-                </Text>
-              </View>
-
-              <View style={styles.row}>
-                <Text style={styles.rowLabel}>Token Type</Text>
-                <View style={styles.tokenBadge}>
-                  <Text style={styles.tokenBadgeText}>{tokenType}</Text>
+                <View style={styles.row}>
+                  <Text style={styles.rowLabel}>Token Type</Text>
+                  <View style={styles.tokenBadge}>
+                    <Text style={styles.tokenBadgeText}>{tokenType}</Text>
+                  </View>
                 </View>
               </View>
             </View>
-          </View>
 
-          {/* Instructions Card */}
-          <View style={styles.instructionsCard}>
-            <View style={styles.instructionsHeader}>
-              <Ionicons name="information-circle" size={24} color="#00B14F" />
-              <Text style={styles.instructionsTitle}>How to Pay</Text>
+            {/* Instructions Card */}
+            <View style={styles.instructionsCard}>
+              <View style={styles.instructionsHeader}>
+                <Ionicons name="information-circle" size={24} color="#00B14F" />
+                <Text style={styles.instructionsTitle}>How to Pay</Text>
+              </View>
+              <View style={styles.steps}>
+                <View style={styles.step}>
+                  <View style={styles.stepNumber}>
+                    <Text style={styles.stepNumberText}>1</Text>
+                  </View>
+                  <Text style={styles.stepText}>Transfer exact amount to agent</Text>
+                </View>
+
+                <View style={styles.step}>
+                  <View style={styles.stepNumber}>
+                    <Text style={styles.stepNumberText}>2</Text>
+                  </View>
+                  <Text style={styles.stepText}>Save payment receipt/screenshot</Text>
+                </View>
+
+                <View style={styles.step}>
+                  <View style={styles.stepNumber}>
+                    <Text style={styles.stepNumberText}>3</Text>
+                  </View>
+                  <Text style={styles.stepText}>Upload proof in next step</Text>
+                </View>
+
+                <View style={styles.step}>
+                  <View style={styles.stepNumber}>
+                    <Text style={styles.stepNumberText}>4</Text>
+                  </View>
+                  <Text style={styles.stepText}>
+                    Wait for confirmation (~5-15 min)
+                  </Text>
+                </View>
+              </View>
             </View>
-            <View style={styles.steps}>
-              <View style={styles.step}>
-                <View style={styles.stepNumber}>
-                  <Text style={styles.stepNumberText}>1</Text>
-                </View>
-                <Text style={styles.stepText}>Transfer exact amount to agent</Text>
-              </View>
 
-              <View style={styles.step}>
-                <View style={styles.stepNumber}>
-                  <Text style={styles.stepNumberText}>2</Text>
-                </View>
-                <Text style={styles.stepText}>Save payment receipt/screenshot</Text>
-              </View>
-
-              <View style={styles.step}>
-                <View style={styles.stepNumber}>
-                  <Text style={styles.stepNumberText}>3</Text>
-                </View>
-                <Text style={styles.stepText}>Upload proof in next step</Text>
-              </View>
-
-              <View style={styles.step}>
-                <View style={styles.stepNumber}>
-                  <Text style={styles.stepNumberText}>4</Text>
-                </View>
-                <Text style={styles.stepText}>
-                  Wait for confirmation (~5-15 min)
-                </Text>
-              </View>
+            {/* Warning */}
+            <View style={styles.warning}>
+              <Ionicons name="warning-outline" size={20} color="#F59E0B" />
+              <Text style={styles.warningText}>
+                Only proceed after payment. Do not upload fake proof.
+              </Text>
             </View>
-          </View>
 
-          {/* Warning */}
-          <View style={styles.warning}>
-            <Ionicons name="warning-outline" size={20} color="#F59E0B" />
-            <Text style={styles.warningText}>
-              Only proceed after payment. Do not upload fake proof.
-            </Text>
-          </View>
+            {/* Buttons */}
+            <TouchableOpacity
+              style={styles.copyBtn}
+              onPress={handleCopyAccount}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="copy-outline" size={20} color="#00B14F" />
+              <Text style={styles.copyBtnText}>Copy Agent Contact</Text>
+            </TouchableOpacity>
 
-          {/* Buttons */}
-          <TouchableOpacity
-            style={styles.copyBtn}
-            onPress={handleCopyAccount}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="copy-outline" size={20} color="#00B14F" />
-            <Text style={styles.copyBtnText}>Copy Agent Contact</Text>
-          </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.proceedBtn, loading && styles.proceedBtnDisabled]}
+              onPress={handleProceed}
+              disabled={loading}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.proceedBtnText}>
+                {loading ? "Creating Request..." : "I've Made Payment - Upload Proof"}
+              </Text>
+              {!loading && (
+                <Ionicons name="arrow-forward" size={20} color="#FFFFFF" />
+              )}
+            </TouchableOpacity>
+          </>
+        )}
 
-          <TouchableOpacity
-            style={[styles.proceedBtn, loading && styles.proceedBtnDisabled]}
-            onPress={handleProceed}
-            disabled={loading}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.proceedBtnText}>
-              {loading ? "Creating Request..." : "I've Made Payment - Upload Proof"}
-            </Text>
-            {!loading && (
-              <Ionicons name="arrow-forward" size={20} color="#FFFFFF" />
-            )}
-          </TouchableOpacity>
-        </>
-      )}
-
-      <View style={styles.bottomSpacer} />
-    </ScrollView>
+        <View style={styles.bottomSpacer} />
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#F3F4F6",
   },
-  headerSpacer: {
-    height: 60,
+  headerWrapper: {
+    marginBottom: 20,
   },
-  header: {
+  headerGradient: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 140,
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
+  },
+  headerContent: {
     paddingHorizontal: 20,
-    paddingBottom: 24,
+  },
+  headerTop: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    paddingTop: 10,
+    paddingBottom: 20,
+  },
+  backButton: {
+    marginRight: 12,
+    marginTop: 4,
+    padding: 4,
+  },
+  headerText: {
+    marginTop: 40,
+
+    flex: 1,
   },
   title: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: "700",
-    color: "#111827",
+    color: "#FFFFFF",
     marginBottom: 4,
     letterSpacing: -0.5,
   },
   subtitle: {
     fontSize: 14,
-    color: "#9CA3AF",
+    color: "rgba(255, 255, 255, 0.9)",
+    fontWeight: "500",
+  },
+  list: {
+    flex: 1,
   },
   card: {
     marginHorizontal: 20,
@@ -492,6 +540,7 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderRadius: 12,
     backgroundColor: "#00B14F",
+    marginBottom: 20,
   },
   proceedBtnDisabled: {
     backgroundColor: "#E5E7EB",

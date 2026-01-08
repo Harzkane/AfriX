@@ -16,6 +16,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { useAuthStore } from "@/stores";
 import apiClient from "@/services/apiClient";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { LinearGradient } from "expo-linear-gradient";
+import { Surface } from "react-native-paper";
 
 export default function EditProfileScreen() {
     const router = useRouter();
@@ -56,67 +58,76 @@ export default function EditProfileScreen() {
 
     return (
         <View style={styles.container}>
-            <SafeAreaView style={styles.safeArea}>
-                <View style={styles.header}>
-                    <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-                        <Ionicons name="arrow-back" size={24} color="#111827" />
-                    </TouchableOpacity>
-                    <Text style={styles.headerTitle}>Edit Profile</Text>
-                    <View style={{ width: 40 }} />
-                </View>
+            <View style={styles.headerWrapper}>
+                <LinearGradient
+                    colors={["#00B14F", "#008F40"]}
+                    style={styles.headerGradient}
+                />
+                <SafeAreaView edges={["top"]} style={styles.headerContent}>
+                    <View style={styles.header}>
+                        <TouchableOpacity
+                            onPress={() => router.back()}
+                            style={styles.backButton}
+                        >
+                            <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
+                        </TouchableOpacity>
+                        <Text style={styles.headerTitle}>Edit Profile</Text>
+                        <View style={{ width: 40 }} />
+                    </View>
+                </SafeAreaView>
+            </View>
 
-                <KeyboardAvoidingView
-                    behavior={Platform.OS === "ios" ? "padding" : "height"}
-                    style={{ flex: 1 }}
-                >
-                    <ScrollView contentContainerStyle={styles.content}>
-                        <View style={styles.card}>
-                            <View style={styles.formGroup}>
-                                <Text style={styles.label}>Full Name</Text>
-                                <TextInput
-                                    style={styles.input}
-                                    value={fullName}
-                                    onChangeText={setFullName}
-                                    placeholder="Enter your full name"
-                                    placeholderTextColor="#9CA3AF"
-                                />
-                            </View>
+            <KeyboardAvoidingView
+                behavior={Platform.OS === "ios" ? "padding" : "height"}
+                style={{ flex: 1 }}
+            >
+                <ScrollView contentContainerStyle={styles.content}>
+                    <Surface style={styles.card}>
+                        <View style={styles.formGroup}>
+                            <Text style={styles.label}>Full Name</Text>
+                            <TextInput
+                                style={styles.input}
+                                value={fullName}
+                                onChangeText={setFullName}
+                                placeholder="Enter your full name"
+                                placeholderTextColor="#9CA3AF"
+                            />
+                        </View>
 
-                            <View style={styles.formGroup}>
-                                <Text style={styles.label}>Phone Number</Text>
-                                <TextInput
-                                    style={styles.input}
-                                    value={phoneNumber}
-                                    onChangeText={setPhoneNumber}
-                                    placeholder="+234..."
-                                    placeholderTextColor="#9CA3AF"
-                                    keyboardType="phone-pad"
-                                />
-                                <View style={styles.warningContainer}>
-                                    <Ionicons name="information-circle-outline" size={20} color="#F59E0B" />
-                                    <Text style={styles.warningText}>
-                                        Changing your phone number will require re-verification.
-                                    </Text>
-                                </View>
+                        <View style={styles.formGroup}>
+                            <Text style={styles.label}>Phone Number</Text>
+                            <TextInput
+                                style={styles.input}
+                                value={phoneNumber}
+                                onChangeText={setPhoneNumber}
+                                placeholder="+234..."
+                                placeholderTextColor="#9CA3AF"
+                                keyboardType="phone-pad"
+                            />
+                            <View style={styles.warningContainer}>
+                                <Ionicons name="information-circle-outline" size={20} color="#F59E0B" />
+                                <Text style={styles.warningText}>
+                                    Changing your phone number will require re-verification.
+                                </Text>
                             </View>
                         </View>
-                    </ScrollView>
+                    </Surface>
+                </ScrollView>
 
-                    <View style={styles.footer}>
-                        <TouchableOpacity
-                            style={[styles.saveButton, loading && styles.disabledButton]}
-                            onPress={handleSave}
-                            disabled={loading}
-                        >
-                            {loading ? (
-                                <ActivityIndicator color="#FFFFFF" />
-                            ) : (
-                                <Text style={styles.saveButtonText}>Save Changes</Text>
-                            )}
-                        </TouchableOpacity>
-                    </View>
-                </KeyboardAvoidingView>
-            </SafeAreaView>
+                <View style={styles.footer}>
+                    <TouchableOpacity
+                        style={[styles.saveButton, loading && styles.disabledButton]}
+                        onPress={handleSave}
+                        disabled={loading}
+                    >
+                        {loading ? (
+                            <ActivityIndicator color="#FFFFFF" />
+                        ) : (
+                            <Text style={styles.saveButtonText}>Save Changes</Text>
+                        )}
+                    </TouchableOpacity>
+                </View>
+            </KeyboardAvoidingView>
         </View>
     );
 }
@@ -124,20 +135,29 @@ export default function EditProfileScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: "#F3F4F6",
+        backgroundColor: "#F9FAFB",
     },
-    safeArea: {
-        flex: 1,
+    headerWrapper: {
+        zIndex: 10,
+        elevation: 8,
+        backgroundColor: "#00B14F",
+    },
+    headerGradient: {
+        position: "absolute",
+        top: 0,
+        left: 0,
+        right: 0,
+        height: 120,
+    },
+    headerContent: {
+        paddingHorizontal: 20,
     },
     header: {
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "space-between",
-        paddingHorizontal: 20,
-        paddingVertical: 16,
-        backgroundColor: "#FFFFFF",
-        borderBottomWidth: 1,
-        borderBottomColor: "#F3F4F6",
+        paddingBottom: 20,
+        marginTop: 10,
     },
     backButton: {
         width: 40,
@@ -145,34 +165,34 @@ const styles = StyleSheet.create({
         alignItems: "center",
         justifyContent: "center",
         borderRadius: 20,
-        backgroundColor: "#F9FAFB",
+        backgroundColor: "rgba(255,255,255,0.2)",
     },
     headerTitle: {
-        fontSize: 18,
-        fontWeight: "600",
-        color: "#111827",
+        fontSize: 20,
+        fontWeight: "700",
+        color: "#FFFFFF",
     },
     content: {
         padding: 20,
+        paddingTop: 40,
     },
     card: {
         backgroundColor: "#FFFFFF",
-        borderRadius: 16,
+        borderRadius: 20,
         padding: 20,
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.05,
-        shadowRadius: 8,
-        elevation: 2,
+        borderWidth: 1,
+        borderColor: "#F3F4F6",
     },
     formGroup: {
         marginBottom: 24,
     },
     label: {
         fontSize: 14,
-        fontWeight: "600",
-        color: "#374151",
+        fontWeight: "700",
+        color: "#6B7280",
         marginBottom: 8,
+        textTransform: "uppercase",
+        letterSpacing: 0.5,
     },
     input: {
         backgroundColor: "#F9FAFB",
@@ -183,6 +203,7 @@ const styles = StyleSheet.create({
         paddingVertical: 14,
         fontSize: 16,
         color: "#111827",
+        fontWeight: "500",
     },
     warningContainer: {
         flexDirection: "row",
@@ -200,9 +221,11 @@ const styles = StyleSheet.create({
         color: "#B45309",
         flex: 1,
         lineHeight: 18,
+        fontWeight: "500",
     },
     footer: {
         padding: 20,
+        paddingBottom: Platform.OS === "ios" ? 110 : 90,
         backgroundColor: "#FFFFFF",
         borderTopWidth: 1,
         borderTopColor: "#F3F4F6",
@@ -210,22 +233,16 @@ const styles = StyleSheet.create({
     saveButton: {
         backgroundColor: "#00B14F",
         paddingVertical: 16,
-        borderRadius: 12,
+        borderRadius: 16,
         alignItems: "center",
-        shadowColor: "#00B14F",
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.2,
-        shadowRadius: 8,
-        elevation: 4,
     },
     disabledButton: {
         opacity: 0.7,
         backgroundColor: "#9CA3AF",
-        shadowOpacity: 0,
     },
     saveButtonText: {
         color: "#FFFFFF",
         fontSize: 16,
-        fontWeight: "600",
+        fontWeight: "700",
     },
 });

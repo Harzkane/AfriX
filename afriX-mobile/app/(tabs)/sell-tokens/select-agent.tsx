@@ -8,12 +8,15 @@ import {
     ActivityIndicator,
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import apiClient from "@/services/apiClient";
 import { API_ENDPOINTS } from "@/constants/api";
 import { useAuthStore } from "@/stores";
+import { AgentCard } from "@/components/ui/AgentCard";
 
-// Mock agent type until we have a proper store/type
+// Agent type
 interface Agent {
     id: string;
     full_name: string;
@@ -21,6 +24,9 @@ interface Agent {
     country: string;
     available_capacity: number;
     response_time_minutes: number;
+    tier?: string;
+    is_verified?: boolean;
+    bank_name?: string;
 }
 
 export default function SelectAgentScreen() {
@@ -54,52 +60,55 @@ export default function SelectAgentScreen() {
         });
     };
 
-    const renderAgent = ({ item }: { item: Agent }) => (
-        <TouchableOpacity
-            style={styles.agentCard}
-            onPress={() => handleSelectAgent(item)}
-        >
-            <View style={styles.agentAvatar}>
-                <Text style={styles.avatarText}>
-                    {item.full_name.substring(0, 2).toUpperCase()}
-                </Text>
-            </View>
-            <View style={styles.agentInfo}>
-                <Text style={styles.agentName}>{item.full_name}</Text>
-                <View style={styles.ratingRow}>
-                    <Ionicons name="star" size={14} color="#F59E0B" />
-                    <Text style={styles.ratingText}>{item.rating.toFixed(1)}</Text>
-                    <Text style={styles.dot}>•</Text>
-                    <Text style={styles.responseTime}>~{item.response_time_minutes} mins</Text>
-                </View>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
-        </TouchableOpacity>
-    );
-
     return (
         <View style={styles.container}>
-            <View style={styles.header}>
-                <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-                    <Ionicons name="arrow-back" size={24} color="#111827" />
-                </TouchableOpacity>
-                <Text style={styles.headerTitle}>Select Agent</Text>
-                <View style={{ width: 24 }} />
+            {/* Gradient Header */}
+            <View style={styles.headerWrapper}>
+                <LinearGradient
+                    colors={["#00B14F", "#008F40"]}
+                    style={styles.headerGradient}
+                />
+                <SafeAreaView edges={["top"]} style={styles.headerContent}>
+                    <View style={styles.headerTop}>
+                        <TouchableOpacity
+                            onPress={() => router.back()}
+                            style={styles.backButton}
+                        >
+                            <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
+                        </TouchableOpacity>
+                        <View style={styles.headerText}>
+                            <Text style={styles.title}>Select Agent</Text>
+                            <Text style={styles.subtitle}>
+                                Choose an agent to sell your tokens
+                            </Text>
+                        </View>
+                    </View>
+                </SafeAreaView>
             </View>
 
             {loading ? (
                 <View style={styles.loadingContainer}>
                     <ActivityIndicator size="large" color="#00B14F" />
+                    <Text style={styles.loadingText}>Finding available agents...</Text>
                 </View>
             ) : (
                 <FlatList
                     data={agents}
-                    renderItem={renderAgent}
+                    renderItem={({ item }) => (
+                        <AgentCard agent={item} onSelect={handleSelectAgent} />
+                    )}
                     keyExtractor={(item) => item.id}
                     contentContainerStyle={styles.listContent}
+                    showsVerticalScrollIndicator={false}
                     ListEmptyComponent={
                         <View style={styles.emptyState}>
-                            <Text style={styles.emptyText}>No agents available currently.</Text>
+                            <View style={styles.emptyIcon}>
+                                <Ionicons name="people-outline" size={64} color="#D1D5DB" />
+                            </View>
+                            <Text style={styles.emptyText}>No agents available</Text>
+                            <Text style={styles.emptySubtext}>
+                                Please try again later or contact support
+                            </Text>
                         </View>
                     }
                 />
@@ -111,95 +120,88 @@ export default function SelectAgentScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: "#FFFFFF",
+        backgroundColor: "#F3F4F6",
     },
-    header: {
+    headerWrapper: {
+        marginBottom: 20,
+    },
+    headerGradient: {
+        position: "absolute",
+        top: 0,
+        left: 0,
+        right: 0,
+        height: 140,
+        borderBottomLeftRadius: 30,
+        borderBottomRightRadius: 30,
+    },
+    headerContent: {
+        paddingHorizontal: 20,
+    },
+    headerTop: {
         flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "space-between",
-        paddingHorizontal: 16,
-        paddingVertical: 12,
-        borderBottomWidth: 1,
-        borderBottomColor: "#F3F4F6",
+        alignItems: "flex-start",
+        paddingTop: 10,
+        paddingBottom: 20,
     },
     backButton: {
-        padding: 8,
+        marginRight: 12,
+        marginTop: 4,
+        padding: 4,
     },
-    headerTitle: {
-        fontSize: 18,
-        fontWeight: "600",
-        color: "#111827",
+    headerText: {
+        flex: 1,
+    },
+    title: {
+        fontSize: 28,
+        fontWeight: "700",
+        color: "#FFFFFF",
+        marginBottom: 4,
+        letterSpacing: -0.5,
+    },
+    subtitle: {
+        fontSize: 14,
+        color: "rgba(255, 255, 255, 0.9)",
+        fontWeight: "500",
     },
     loadingContainer: {
         flex: 1,
         justifyContent: "center",
         alignItems: "center",
+        backgroundColor: "#F3F4F6",
+    },
+    loadingText: {
+        marginTop: 12,
+        fontSize: 14,
+        color: "#9CA3AF",
+        fontWeight: "500",
     },
     listContent: {
-        padding: 16,
-    },
-    agentCard: {
-        flexDirection: "row",
-        alignItems: "center",
-        padding: 16,
-        backgroundColor: "#FFFFFF",
-        borderRadius: 12,
-        borderWidth: 1,
-        borderColor: "#F3F4F6",
-        marginBottom: 12,
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.05,
-        shadowRadius: 2,
-        elevation: 2,
-    },
-    agentAvatar: {
-        width: 48,
-        height: 48,
-        borderRadius: 24,
-        backgroundColor: "#ECFDF5",
-        alignItems: "center",
-        justifyContent: "center",
-        marginRight: 12,
-    },
-    avatarText: {
-        fontSize: 16,
-        fontWeight: "700",
-        color: "#00B14F",
-    },
-    agentInfo: {
-        flex: 1,
-    },
-    agentName: {
-        fontSize: 16,
-        fontWeight: "600",
-        color: "#111827",
-        marginBottom: 4,
-    },
-    ratingRow: {
-        flexDirection: "row",
-        alignItems: "center",
-    },
-    ratingText: {
-        fontSize: 14,
-        fontWeight: "500",
-        color: "#374151",
-        marginLeft: 4,
-    },
-    dot: {
-        marginHorizontal: 6,
-        color: "#9CA3AF",
-    },
-    responseTime: {
-        fontSize: 14,
-        color: "#6B7280",
+        paddingHorizontal: 20,
+        paddingBottom: 20,
+        paddingTop: 8,
     },
     emptyState: {
-        padding: 40,
         alignItems: "center",
+        paddingVertical: 80,
+    },
+    emptyIcon: {
+        width: 96,
+        height: 96,
+        borderRadius: 48,
+        backgroundColor: "#F9FAFB",
+        alignItems: "center",
+        justifyContent: "center",
+        marginBottom: 20,
     },
     emptyText: {
-        color: "#9CA3AF",
-        fontSize: 16,
+        fontSize: 18,
+        fontWeight: "600",
+        color: "#111827",
+        marginBottom: 8,
+    },
+    emptySubtext: {
+        fontSize: 14,
+        color: "#6B7280",
+        textAlign: "center",
     },
 });

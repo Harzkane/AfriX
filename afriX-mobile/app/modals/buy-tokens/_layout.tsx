@@ -26,19 +26,29 @@ export default function BuyTokensLayout() {
       />
       <Stack.Screen
         name="select-agent"
-        options={{ headerTitle: "Select Agent" }}
+        options={{
+          headerShown: false,
+          headerTitle: "Select Agent"
+        }}
       />
       <Stack.Screen
         name="payment-instructions"
-        options={{ headerTitle: "Payment Instructions" }}
+        options={{
+          headerShown: false,
+          headerTitle: "Payment Instructions"
+        }}
       />
       <Stack.Screen
         name="upload-proof"
-        options={{ headerTitle: "Upload Proof" }}
+        options={{
+          headerShown: false,
+          headerTitle: "Upload Proof"
+        }}
       />
       <Stack.Screen
         name="status"
         options={{
+          headerShown: false, // disable default Expo Router navigation header.
           headerTitle: "Status",
           headerLeft: () => null, // Prevent going back from status
           gestureEnabled: false,

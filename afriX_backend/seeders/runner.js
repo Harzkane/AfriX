@@ -15,7 +15,8 @@ const runSeeders = async () => {
         // List of seeders to run in order
         const seeders = [
             "demo-users.js",
-            "demo-agents.js"
+            "demo-agents.js",
+            "education-modules.js"
         ];
 
         for (const file of seeders) {

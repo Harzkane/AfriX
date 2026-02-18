@@ -2,6 +2,8 @@
 import React from "react";
 import { View, StyleSheet, TouchableOpacity, Text } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { formatAmount, formatAmountOrCompact } from "@/utils/format";
+import { useWalletStore } from "@/stores";
 
 interface Agent {
   id: string;
@@ -13,11 +15,25 @@ interface Agent {
   response_time_minutes?: number;
   bank_name?: string;
   country?: string;
+  city?: string;
+  status?: string;
+  is_online?: boolean;
+  commission_rate?: number;
+  max_transaction_limit?: number;
+  daily_transaction_limit?: number;
+  total_minted?: number;
+  total_burned?: number;
+  mobile_money_provider?: string;
+  mobile_money_number?: string;
 }
 
 interface AgentCardProps {
   agent: Agent;
   onSelect: (agent: Agent) => void;
+  /** When set, card shows whether agent can handle this amount (Buy/Sell flows) */
+  userAmount?: number;
+  /** Token type for formatting (NT, CT, USDT) */
+  tokenType?: string;
 }
 
 const getTierColor = (tier?: string) => {
@@ -31,7 +47,57 @@ const getTierColor = (tier?: string) => {
   }
 };
 
-export const AgentCard: React.FC<AgentCardProps> = ({ agent, onSelect }) => {
+/**
+ * Convert user amount (NT/CT/USDT) to USDT for capacity comparison.
+ * Uses backend rates from wallet store (GET /wallets/rates). No hardcoded rates.
+ */
+function toUsdt(
+  amount: number,
+  tokenType: string,
+  rates: { USDT_TO_NT: number; USDT_TO_CT: number }
+): number | null {
+  if (tokenType === "USDT") return amount;
+  if (tokenType === "NT") {
+    const rate = rates?.USDT_TO_NT;
+    if (!rate || rate <= 0) return null;
+    return amount / rate;
+  }
+  if (tokenType === "CT") {
+    const rate = rates?.USDT_TO_CT;
+    if (!rate || rate <= 0) return null;
+    return amount / rate;
+  }
+  return amount;
+}
+
+/**
+ * Convert agent's USDT capacity to NT/CT. Used for Max/trade (capped by max_transaction_limit).
+ */
+function capacityToLocal(
+  capacityUsdt: number,
+  tokenType: string,
+  rates: { USDT_TO_NT: number; USDT_TO_CT: number }
+): number | null {
+  if (tokenType === "NT") {
+    const rate = rates?.USDT_TO_NT;
+    if (!rate || rate <= 0) return null;
+    return capacityUsdt * rate;
+  }
+  if (tokenType === "CT") {
+    const rate = rates?.USDT_TO_CT;
+    if (!rate || rate <= 0) return null;
+    return capacityUsdt * rate;
+  }
+  return null;
+}
+
+export const AgentCard: React.FC<AgentCardProps> = ({
+  agent,
+  onSelect,
+  userAmount,
+  tokenType = "USDT",
+}) => {
+  const { exchangeRates } = useWalletStore();
   const tierColor = getTierColor(agent.tier);
   const initials = agent.full_name
     ?.split(" ")
@@ -40,11 +106,38 @@ export const AgentCard: React.FC<AgentCardProps> = ({ agent, onSelect }) => {
     .toUpperCase()
     .substring(0, 2) || "AG";
 
+  const capacity = Number(agent.available_capacity) || 0;
+  const maxLimitStored = agent.max_transaction_limit != null ? Number(agent.max_transaction_limit) : null;
+  const maxTradeUnit = tokenType === "NT" || tokenType === "CT" ? tokenType : agent.country === "NG" ? "NT" : "CT";
+  const capacityInLocal = capacityToLocal(capacity, maxTradeUnit, exchangeRates);
+  const effectiveMaxTrade = capacityInLocal != null ? capacityInLocal : maxLimitStored;
+  const userAmountUsdt =
+    userAmount != null && userAmount > 0
+      ? toUsdt(userAmount, tokenType, exchangeRates)
+      : null;
+  const canHandleCapacity =
+    userAmountUsdt == null ? true : capacity >= userAmountUsdt;
+  const canHandleMax =
+    (effectiveMaxTrade == null || userAmount == null || userAmount <= 0 || effectiveMaxTrade >= userAmount) &&
+    (maxLimitStored == null || userAmount == null || userAmount <= 0 || maxLimitStored >= userAmount);
+  const canHandleAmount =
+    userAmount != null &&
+    userAmount > 0 &&
+    canHandleCapacity &&
+    canHandleMax;
+  const commissionPercent =
+    agent.commission_rate != null ? (Number(agent.commission_rate) * 100).toFixed(1) : null;
+  const isActive = agent.is_online === true || agent.status === "active";
+  const location = [agent.city, agent.country].filter(Boolean).join(", ") || null;
+
+  const disabled = userAmount != null && userAmount > 0 && !canHandleAmount;
+
   return (
     <TouchableOpacity
       onPress={() => onSelect(agent)}
       activeOpacity={0.7}
-      style={styles.card}
+      disabled={disabled}
+      style={[styles.card, disabled && styles.cardDisabled]}
     >
       <View style={styles.content}>
         {/* Agent Header */}
@@ -75,7 +168,19 @@ export const AgentCard: React.FC<AgentCardProps> = ({ agent, onSelect }) => {
                   {agent.tier || "starter"}
                 </Text>
               </View>
+              {isActive && (
+                <View style={styles.statusPill}>
+                  <Text style={styles.statusPillText}>Active</Text>
+                </View>
+              )}
             </View>
+
+            {location ? (
+              <View style={styles.locationRow}>
+                <Ionicons name="location-outline" size={12} color="#6B7280" />
+                <Text style={styles.locationText}>{location}</Text>
+              </View>
+            ) : null}
 
             <View style={styles.statsRow}>
               <View style={styles.statItem}>
@@ -86,42 +191,92 @@ export const AgentCard: React.FC<AgentCardProps> = ({ agent, onSelect }) => {
               <View style={styles.statItem}>
                 <Ionicons name="time-outline" size={14} color="#6B7280" />
                 <Text style={styles.responseText}>
-                  ~{agent.response_time_minutes || 0} min
+                  ~{agent.response_time_minutes ?? 0} min
                 </Text>
               </View>
+              {commissionPercent != null && (
+                <>
+                  <Text style={styles.dot}>•</Text>
+                  <Text style={styles.feeText}>~{commissionPercent}% fee</Text>
+                </>
+              )}
             </View>
           </View>
 
           <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
         </View>
 
-        {/* Footer Info */}
+        {/* Footer Info - stacked rows to avoid overlap */}
         <View style={styles.footer}>
-          <View style={styles.footerItem}>
-            <View style={styles.footerIcon}>
-              <Ionicons name="wallet-outline" size={14} color="#00B14F" />
+          <View style={styles.footerRow}>
+            <View style={styles.footerItem}>
+              <View style={styles.footerIcon}>
+                <Ionicons name="wallet-outline" size={14} color="#00B14F" />
+              </View>
+              <Text style={styles.footerLabel}>Capacity</Text>
+              <Text style={styles.footerValue} numberOfLines={1}>
+                ${formatAmountOrCompact(capacity)}
+              </Text>
             </View>
-            <Text style={styles.footerLabel}>Capacity</Text>
-            <Text style={styles.footerValue}>
-              ${agent.available_capacity?.toLocaleString() || "0"}
-            </Text>
-          </View>
-
-          {agent.bank_name && (
-            <>
-              <View style={styles.separator} />
+            {effectiveMaxTrade != null && effectiveMaxTrade > 0 && (
               <View style={styles.footerItem}>
                 <View style={styles.footerIcon}>
-                  <Ionicons name="business-outline" size={14} color="#00B14F" />
+                  <Ionicons name="card-outline" size={14} color="#6B7280" />
                 </View>
-                <Text style={styles.footerLabel}>Bank</Text>
-                <Text style={styles.footerValue} numberOfLines={1}>
-                  {agent.bank_name}
+                <Text style={styles.footerLabel}>Max/trade</Text>
+                <Text style={styles.footerValue} numberOfLines={1} ellipsizeMode="tail">
+                  {formatAmountOrCompact(effectiveMaxTrade, maxTradeUnit)}
                 </Text>
               </View>
-            </>
-          )}
+            )}
+          </View>
+          {(agent.bank_name || agent.mobile_money_provider) ? (
+            <View style={styles.footerRow}>
+              {agent.bank_name ? (
+                <View style={styles.footerItem}>
+                  <View style={styles.footerIcon}>
+                    <Ionicons name="business-outline" size={14} color="#00B14F" />
+                  </View>
+                  <Text style={styles.footerLabel}>Bank</Text>
+                  <Text style={styles.footerValue} numberOfLines={1} ellipsizeMode="tail">
+                    {agent.bank_name}
+                  </Text>
+                </View>
+              ) : null}
+              {agent.mobile_money_provider ? (
+                <View style={styles.footerItem}>
+                  <View style={styles.footerIcon}>
+                    <Ionicons name="phone-portrait-outline" size={14} color="#00B14F" />
+                  </View>
+                  <Text style={styles.footerLabel}>Mobile</Text>
+                  <Text style={styles.footerValue} numberOfLines={1} ellipsizeMode="tail">
+                    {agent.mobile_money_provider}
+                  </Text>
+                </View>
+              ) : null}
+            </View>
+          ) : null}
         </View>
+
+        {userAmount != null && userAmount > 0 && (
+          <View style={canHandleAmount ? styles.canHandleRow : styles.cannotHandleRow}>
+            <Ionicons
+              name={canHandleAmount ? "checkmark-circle" : "warning"}
+              size={16}
+              color={canHandleAmount ? "#059669" : "#B45309"}
+            />
+            <Text
+              style={[
+                styles.canHandleText,
+                canHandleAmount ? styles.canHandleTextOk : styles.cannotHandleText,
+              ]}
+            >
+              {canHandleAmount
+                ? "Can handle your amount"
+                : "Insufficient capacity or over limit"}
+            </Text>
+          </View>
+        )}
       </View>
     </TouchableOpacity>
   );
@@ -229,17 +384,23 @@ const styles = StyleSheet.create({
     color: "#6B7280",
   },
   footer: {
-    flexDirection: "row",
-    alignItems: "center",
     paddingTop: 12,
     borderTopWidth: 1,
     borderTopColor: "#F3F4F6",
+    gap: 10,
+  },
+  footerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: 16,
   },
   footerItem: {
-    flex: 1,
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
+    flex: 1,
+    minWidth: 120,
   },
   footerIcon: {
     width: 20,
@@ -258,12 +419,67 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "600",
     color: "#111827",
-    marginLeft: "auto",
+    flex: 1,
   },
-  separator: {
-    width: 1,
-    height: 24,
-    backgroundColor: "#E5E7EB",
-    marginHorizontal: 12,
+  cardDisabled: {
+    opacity: 0.7,
+  },
+  statusPill: {
+    backgroundColor: "#D1FAE5",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: "#00B14F",
+  },
+  statusPillText: {
+    fontSize: 10,
+    fontWeight: "600",
+    color: "#059669",
+    textTransform: "uppercase",
+  },
+  locationRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    marginBottom: 6,
+  },
+  locationText: {
+    fontSize: 12,
+    color: "#6B7280",
+    fontWeight: "500",
+  },
+  feeText: {
+    fontSize: 12,
+    fontWeight: "500",
+    color: "#6B7280",
+  },
+  canHandleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: "#F3F4F6",
+  },
+  cannotHandleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: "#FEF3C7",
+  },
+  canHandleText: {
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  canHandleTextOk: {
+    color: "#059669",
+  },
+  cannotHandleText: {
+    color: "#B45309",
   },
 });

@@ -7,6 +7,7 @@ import {
     TouchableOpacity,
     Alert,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Text, ActivityIndicator } from "react-native-paper";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -21,6 +22,7 @@ export default function ConfirmSwapScreen() {
         amount,
         estimatedReceive,
         exchangeRate,
+        swapFee,
         loading,
         error,
         executeSwap,
@@ -50,8 +52,9 @@ export default function ConfirmSwapScreen() {
     };
 
     return (
+        <View style={styles.container}>
         <ScrollView
-            style={styles.container}
+            style={styles.scrollView}
             contentContainerStyle={styles.content}
             showsVerticalScrollIndicator={false}
         >
@@ -97,7 +100,7 @@ export default function ConfirmSwapScreen() {
                 </View>
             </View>
 
-            {/* Exchange Rate */}
+            {/* Exchange Rate & Fee */}
             <View style={styles.detailsCard}>
                 <View style={styles.detailRow}>
                     <Text style={styles.detailLabel}>Exchange Rate</Text>
@@ -105,6 +108,14 @@ export default function ConfirmSwapScreen() {
                         1 {fromToken} = {exchangeRate.toFixed(4)} {toToken}
                     </Text>
                 </View>
+                {swapFee > 0 && (
+                    <View style={styles.detailRow}>
+                        <Text style={styles.detailLabel}>Platform fee (1.5%)</Text>
+                        <Text style={styles.detailValue}>
+                            {swapFee.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {fromToken}
+                        </Text>
+                    </View>
+                )}
             </View>
 
             {/* Info Card */}
@@ -126,36 +137,39 @@ export default function ConfirmSwapScreen() {
                 </View>
             )}
 
-            {/* Action Buttons */}
-            <View style={styles.buttonContainer}>
-                <TouchableOpacity
-                    style={styles.cancelBtn}
-                    onPress={() => router.back()}
-                    disabled={loading}
-                    activeOpacity={0.7}
-                >
-                    <Text style={styles.cancelBtnText}>Back</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                    style={[styles.confirmBtn, loading && styles.confirmBtnDisabled]}
-                    onPress={handleConfirm}
-                    disabled={loading}
-                    activeOpacity={0.8}
-                >
-                    {loading ? (
-                        <ActivityIndicator size="small" color="#FFFFFF" />
-                    ) : (
-                        <>
-                            <Ionicons name="checkmark-circle" size={20} color="#FFFFFF" />
-                            <Text style={styles.confirmBtnText}>Confirm Swap</Text>
-                        </>
-                    )}
-                </TouchableOpacity>
-            </View>
-
-            <View style={styles.bottomSpacer} />
         </ScrollView>
+
+            <SafeAreaView edges={["bottom"]} style={styles.footerWrapper}>
+                <View style={styles.footer}>
+                    <View style={styles.buttonContainer}>
+                        <TouchableOpacity
+                            style={styles.cancelBtn}
+                            onPress={() => router.back()}
+                            disabled={loading}
+                            activeOpacity={0.7}
+                        >
+                            <Text style={styles.cancelBtnText}>Back</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            style={[styles.confirmBtn, loading && styles.confirmBtnDisabled]}
+                            onPress={handleConfirm}
+                            disabled={loading}
+                            activeOpacity={0.8}
+                        >
+                            {loading ? (
+                                <ActivityIndicator size="small" color="#FFFFFF" />
+                            ) : (
+                                <>
+                                    <Ionicons name="checkmark-circle" size={20} color="#FFFFFF" />
+                                    <Text style={styles.confirmBtnText}>Confirm Swap</Text>
+                                </>
+                            )}
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </SafeAreaView>
+        </View>
     );
 }
 
@@ -164,9 +178,13 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: "#FFFFFF",
     },
+    scrollView: {
+        flex: 1,
+    },
     content: {
         paddingHorizontal: 20,
         paddingTop: 20,
+        paddingBottom: 24,
     },
     header: {
         alignItems: "center",
@@ -284,10 +302,19 @@ const styles = StyleSheet.create({
         fontSize: 13,
         color: "#DC2626",
     },
+    footerWrapper: {
+        backgroundColor: "#FFFFFF",
+        borderTopWidth: 1,
+        borderTopColor: "#E5E7EB",
+    },
+    footer: {
+        paddingHorizontal: 20,
+        paddingTop: 16,
+        paddingBottom: 24,
+    },
     buttonContainer: {
         flexDirection: "row",
         gap: 12,
-        marginBottom: 12,
     },
     cancelBtn: {
         flex: 1,
@@ -320,8 +347,5 @@ const styles = StyleSheet.create({
         fontSize: 16,
         fontWeight: "600",
         color: "#FFFFFF",
-    },
-    bottomSpacer: {
-        height: 40,
     },
 });

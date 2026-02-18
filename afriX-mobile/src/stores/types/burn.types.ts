@@ -7,13 +7,22 @@ export enum BurnRequestStatus {
     CONFIRMED = "confirmed",
     REJECTED = "rejected",
     EXPIRED = "expired",
+    DISPUTED = "disputed",
 }
 
-export interface BankAccount {
-    bank_name: string;
-    account_number: string;
-    account_name: string;
-}
+export type BankAccount =
+    | {
+        type: "bank";
+        bank_name: string;
+        account_number: string;
+        account_name: string;
+    }
+    | {
+        type: "mobile_money";
+        provider: string;
+        phone_number: string;
+        account_name: string;
+    };
 
 export interface BurnRequest {
     id: string;
@@ -25,7 +34,7 @@ export interface BurnRequest {
     escrow_id?: string;
     fiat_proof_url?: string;
     agent_bank_reference?: string;
-    user_bank_account: BankAccount;
+    user_bank_account: BankAccount; // API may return either shape
     created_at: string;
     expires_at: string;
     agent?: {
@@ -52,6 +61,8 @@ export interface BurnState {
 
     fetchBurnRequests: () => Promise<void>;
     fetchCurrentBurnRequest: (requestId?: string) => Promise<void>;
+    /** Fetches user requests and sets currentRequest to active burn or null (for dashboard). */
+    fetchCurrentBurnRequestForUser: () => Promise<void>;
     confirmFiatReceipt: (requestId: string) => Promise<void>;
     openDispute: (requestId: string, reason: string, details?: string) => Promise<void>;
     clearError: () => void;

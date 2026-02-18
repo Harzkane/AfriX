@@ -1,5 +1,6 @@
 import { Tabs } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import { Platform } from "react-native";
 
 export default function AgentTabsLayout() {
     return (
@@ -9,11 +10,14 @@ export default function AgentTabsLayout() {
                 tabBarActiveTintColor: "#7C3AED", // Purple for Agent
                 tabBarInactiveTintColor: "#9CA3AF",
                 tabBarStyle: {
+                    backgroundColor: "#FFFFFF",
                     borderTopWidth: 1,
-                    borderTopColor: "#F3F4F6",
-                    height: 60,
-                    paddingBottom: 8,
-                    paddingTop: 8,
+                    borderTopColor: "#E5E7EB",
+                    height: Platform.OS === "ios" ? 88 : 68,
+                    paddingBottom: Platform.OS === "ios" ? 30 : 12,
+                    paddingTop: 10,
+                    elevation: 0,
+                    shadowOpacity: 0,
                 },
                 tabBarLabelStyle: {
                     fontSize: 12,

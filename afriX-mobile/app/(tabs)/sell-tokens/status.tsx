@@ -11,7 +11,9 @@ import {
     TextInput,
     Platform,
     Dimensions,
-    RefreshControl
+    RefreshControl,
+    Image,
+    Linking,
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -21,6 +23,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { Surface } from "react-native-paper";
 import { formatDate } from "@/utils/format";
+import apiClient from "@/services/apiClient";
 
 const { width } = Dimensions.get("window");
 
@@ -32,6 +35,7 @@ export default function SellTokensStatusScreen() {
     const [disputeReason, setDisputeReason] = useState("");
     const [disputeDetails, setDisputeDetails] = useState("");
     const [refreshing, setRefreshing] = useState(false);
+    const [canRate, setCanRate] = useState(true);
 
     useEffect(() => {
         if (requestId) {
@@ -51,6 +55,38 @@ export default function SellTokensStatusScreen() {
 
         return () => clearInterval(interval);
     }, [requestId]);
+
+    // Determine if this completed burn transaction is still eligible for rating.
+    // We use /transactions/pending-review, which only returns completed mint/burn
+    // transactions that do NOT yet have a review from this user.
+    useEffect(() => {
+        const checkCanRate = async () => {
+            try {
+                if (!currentRequest || currentRequest.status !== BurnRequestStatus.CONFIRMED) {
+                    setCanRate(false);
+                    return;
+                }
+
+                const { data } = await apiClient.get("/transactions/pending-review");
+                const pending = data?.data?.transactions || data?.data || [];
+
+                const match = pending.find(
+                    (tx: any) =>
+                        tx.agent_id === currentRequest.agent_id &&
+                        parseFloat(tx.amount) === parseFloat(currentRequest.amount) &&
+                        tx.token_type === currentRequest.token_type &&
+                        (tx.type || "").toLowerCase() === "burn"
+                );
+
+                setCanRate(!!match);
+            } catch (e) {
+                // If the check fails, fall back to allowing rating.
+                setCanRate(true);
+            }
+        };
+
+        checkCanRate();
+    }, [currentRequest]);
 
     const onRefresh = async () => {
         setRefreshing(true);
@@ -144,6 +180,11 @@ export default function SellTokensStatusScreen() {
                 return "#3B82F6"; // Blue
             case BurnRequestStatus.CONFIRMED:
                 return "#00B14F"; // Green
+            case BurnRequestStatus.EXPIRED:
+            case BurnRequestStatus.REJECTED:
+                return "#EF4444"; // Red
+            case BurnRequestStatus.DISPUTED:
+                return "#F59E0B"; // Orange
             default:
                 return "#6B7280"; // Gray
         }
@@ -159,9 +200,31 @@ export default function SellTokensStatusScreen() {
                 return "Payment Sent - Reviewing";
             case BurnRequestStatus.CONFIRMED:
                 return "Transaction Completed";
+            case BurnRequestStatus.EXPIRED:
+                return "Request Expired";
+            case BurnRequestStatus.REJECTED:
+                return "Request Rejected";
+            case BurnRequestStatus.DISPUTED:
+                return "Under Dispute";
             default:
-                return status.toUpperCase();
+                return (status as string).toUpperCase();
         }
+    };
+
+    const isExpiredByTime = (req: { expires_at?: string } | null) => {
+        if (!req?.expires_at) return false;
+        return new Date(req.expires_at).getTime() <= Date.now();
+    };
+
+    const isCompleted = currentRequest.status === BurnRequestStatus.CONFIRMED;
+    const isExpired = currentRequest.status === BurnRequestStatus.EXPIRED || (!isCompleted && isExpiredByTime(currentRequest));
+    const isRejected = currentRequest.status === BurnRequestStatus.REJECTED;
+    const isDisputed = currentRequest.status === BurnRequestStatus.DISPUTED;
+    const isFailed = isExpired || isRejected || isDisputed;
+
+    const handleDismiss = () => {
+        useBurnStore.getState().resetCurrentRequest();
+        router.replace("/(tabs)");
     };
 
     return (
@@ -175,7 +238,7 @@ export default function SellTokensStatusScreen() {
                 <SafeAreaView edges={["top"]} style={styles.headerContent}>
                     <View style={styles.header}>
                         <TouchableOpacity
-                            onPress={() => router.navigate("/(tabs)/activity")}
+                            onPress={() => router.push("/activity")}
                             style={styles.backButton}
                         >
                             <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
@@ -219,6 +282,32 @@ export default function SellTokensStatusScreen() {
                         <Text style={styles.dateText}>{formatDate(currentRequest.created_at, true)}</Text>
                     </View>
                 </Surface>
+
+                {/* Expiry / Error Banner */}
+                {isFailed && (
+                    <Surface style={[styles.instructionCard, {
+                        backgroundColor: isDisputed ? "#FFFBEB" : "#FEF2F2",
+                        borderColor: isDisputed ? "#FEF3C7" : "#FEE2E2"
+                    }]} elevation={0}>
+                        <Ionicons
+                            name={isDisputed ? "alert-circle" : "close-circle"}
+                            size={24}
+                            color={isDisputed ? "#F59E0B" : "#EF4444"}
+                        />
+                        <View style={{ flex: 1 }}>
+                            <Text style={[styles.instructionTitle, { color: isDisputed ? "#92400E" : "#991B1B" }]}>
+                                {isExpired ? "Request Expired" : isRejected ? "Request Rejected" : "Dispute Opened"}
+                            </Text>
+                            <Text style={[styles.instructionText, { color: isDisputed ? "#92400E" : "#B91C1C" }]}>
+                                {isDisputed
+                                    ? "This request expired after the agent claimed to have paid. A dispute has been automatically opened for admin review."
+                                    : isExpired
+                                        ? "This request was not completed within the time limit. Your tokens have been (or will be shortly) automatically refunded to your wallet."
+                                        : "The agent rejected this request. Your tokens have been refunded."}
+                            </Text>
+                        </View>
+                    </Surface>
+                )}
 
                 {/* Timeline Section */}
                 <Surface style={styles.card} elevation={0}>
@@ -288,6 +377,29 @@ export default function SellTokensStatusScreen() {
                     </View>
                 </Surface>
 
+                {/* Payment proof image (agent-uploaded) */}
+                {(currentRequest.status === BurnRequestStatus.FIAT_SENT ||
+                    currentRequest.status === BurnRequestStatus.CONFIRMED) &&
+                    currentRequest.fiat_proof_url && (
+                        <Surface style={styles.card} elevation={0}>
+                            <Text style={styles.cardTitle}>Payment Proof</Text>
+                            <Text style={styles.proofHint}>
+                                The agent uploaded this as proof of payment. Verify it matches your receipt.
+                            </Text>
+                            <TouchableOpacity
+                                onPress={() => Linking.openURL(currentRequest.fiat_proof_url!)}
+                                activeOpacity={0.9}
+                            >
+                                <Image
+                                    source={{ uri: currentRequest.fiat_proof_url }}
+                                    style={styles.proofImage}
+                                    resizeMode="cover"
+                                />
+                            </TouchableOpacity>
+                            <Text style={styles.proofTapHint}>Tap image to view full size</Text>
+                        </Surface>
+                    )}
+
                 {/* Info Card for status instructions */}
                 {currentRequest.status === BurnRequestStatus.FIAT_SENT && (
                     <Surface style={styles.instructionCard} elevation={0}>
@@ -301,14 +413,57 @@ export default function SellTokensStatusScreen() {
                     </Surface>
                 )}
 
-                {/* Back to Dashboard Button */}
-                <TouchableOpacity
-                    style={styles.dashboardButton}
-                    onPress={() => router.replace("/(tabs)")}
-                >
-                    <Ionicons name="home-outline" size={20} color="#6B7280" />
-                    <Text style={styles.dashboardButtonText}>Back to Dashboard</Text>
-                </TouchableOpacity>
+                {/* Rate Experience (only for completed, unreviewed burn transactions) */}
+                {currentRequest.status === BurnRequestStatus.CONFIRMED && canRate && (
+                    <TouchableOpacity
+                        style={styles.rateButton}
+                        onPress={async () => {
+                            try {
+                                const { data } = await apiClient.get("/transactions");
+                                const transactions = data?.data?.transactions || data?.data || [];
+                                const match = transactions.find(
+                                    (tx: any) =>
+                                        tx.agent_id === currentRequest.agent_id &&
+                                        parseFloat(tx.amount) === parseFloat(currentRequest.amount) &&
+                                        tx.token_type === currentRequest.token_type &&
+                                        (tx.type || "").toLowerCase() === "burn"
+                                );
+
+                                router.replace({
+                                    pathname: "/modals/buy-tokens/rate-agent",
+                                    params: { transactionId: match?.id || currentRequest.id },
+                                });
+                            } catch (e) {
+                                router.replace({
+                                    pathname: "/modals/buy-tokens/rate-agent",
+                                    params: { transactionId: currentRequest.id },
+                                });
+                            }
+                        }}
+                        activeOpacity={0.8}
+                    >
+                        <Ionicons name="star" size={20} color="#FFFFFF" />
+                        <Text style={styles.rateButtonText}>Rate Experience</Text>
+                    </TouchableOpacity>
+                )}
+
+                {/* Back to Dashboard / Dismiss Button */}
+                {isFailed ? (
+                    <TouchableOpacity
+                        style={styles.rateButton} // Reuse green button style for prominence
+                        onPress={handleDismiss}
+                    >
+                        <Text style={styles.rateButtonText}>Dismiss & Go Home</Text>
+                    </TouchableOpacity>
+                ) : (
+                    <TouchableOpacity
+                        style={styles.dashboardButton}
+                        onPress={() => router.replace("/(tabs)")}
+                    >
+                        <Ionicons name="home-outline" size={20} color="#6B7280" />
+                        <Text style={styles.dashboardButtonText}>Back to Dashboard</Text>
+                    </TouchableOpacity>
+                )}
             </ScrollView>
 
             {/* Sticky Footer for current action */}
@@ -412,8 +567,6 @@ const styles = StyleSheet.create({
         left: 0,
         right: 0,
         height: 140,
-        borderBottomLeftRadius: 30,
-        borderBottomRightRadius: 30,
     },
     headerContent: {
         paddingHorizontal: 20,
@@ -610,6 +763,24 @@ const styles = StyleSheet.create({
         color: "#1E3A8A",
         lineHeight: 18,
     },
+    proofHint: {
+        fontSize: 13,
+        color: "#6B7280",
+        marginBottom: 12,
+        lineHeight: 18,
+    },
+    proofImage: {
+        width: "100%",
+        height: 220,
+        borderRadius: 12,
+        backgroundColor: "#F3F4F6",
+    },
+    proofTapHint: {
+        fontSize: 12,
+        color: "#9CA3AF",
+        textAlign: "center",
+        marginTop: 8,
+    },
     dashboardButton: {
         flexDirection: "row",
         alignItems: "center",
@@ -626,14 +797,36 @@ const styles = StyleSheet.create({
         fontWeight: "700",
         fontSize: 15,
     },
+    rateButton: {
+        marginTop: 16,
+        marginBottom: 8,
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 8,
+        paddingVertical: 14,
+        paddingHorizontal: 24,
+        backgroundColor: "#00B14F",
+        borderRadius: 999,
+        shadowColor: "#00B14F",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.2,
+        shadowRadius: 8,
+        elevation: 4,
+    },
+    rateButtonText: {
+        color: "#FFFFFF",
+        fontWeight: "700",
+        fontSize: 15,
+    },
     stickyFooter: {
         flexDirection: "row",
         padding: 20,
+        paddingBottom: 24,
         backgroundColor: "#FFFFFF",
         borderTopWidth: 1,
         borderTopColor: "#F3F4F6",
         gap: 12,
-        paddingBottom: Platform.OS === 'ios' ? 90 : 80, // Lift above floating tab bar
     },
     confirmActionBtn: {
         flex: 2,

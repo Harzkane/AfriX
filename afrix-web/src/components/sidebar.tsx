@@ -12,6 +12,11 @@ import {
     AlertCircle,
     Menu,
     Package,
+    GraduationCap,
+    ShieldAlert,
+    Briefcase,
+    Globe,
+    FileText,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -25,46 +30,64 @@ export function Sidebar({ className }: SidebarProps) {
 
     const routes = [
         {
-            label: "Dashboard",
+            label: "Overview",
             icon: LayoutDashboard,
             href: "/",
             active: pathname === "/",
         },
         {
-            label: "Disputes",
-            icon: AlertCircle,
-            href: "/disputes",
-            active: pathname === "/disputes",
-        },
-        {
-            label: "Transactions",
-            icon: Wallet,
-            href: "/transactions",
-            active: pathname === "/transactions",
-        },
-        {
-            label: "Users",
+            label: "User Management",
             icon: Users,
             href: "/users",
             active: pathname === "/users",
         },
         {
-            label: "Agents",
-            icon: Users,
+            label: "Agent Hub",
+            icon: Briefcase,
             href: "/agents",
             active: pathname === "/agents",
         },
         {
-            label: "Products",
-            icon: Package,
-            href: "/products",
-            active: pathname === "/products",
+            label: "Financials",
+            icon: Wallet,
+            href: "/financials",
+            active: pathname === "/financials",
         },
         {
-            label: "Settings",
-            icon: Settings,
-            href: "/settings",
-            active: pathname === "/settings",
+            label: "Merchants",
+            icon: Wallet,
+            href: "/merchants",
+            active: pathname === "/merchants",
+        },
+        {
+            label: "Operations",
+            icon: Globe,
+            href: "/operations",
+            active: pathname === "/operations",
+        },
+        {
+            label: "Disputes",
+            icon: Globe,
+            href: "/disputes",
+            active: pathname === "/disputes",
+        },
+        {
+            label: "Security",
+            icon: ShieldAlert,
+            href: "/security",
+            active: pathname === "/security",
+        },
+        {
+            label: "Education",
+            icon: GraduationCap,
+            href: "/education",
+            active: pathname === "/education",
+        },
+        {
+            label: "Withdrawals",
+            icon: FileText,
+            href: "/withdrawals",
+            active: pathname === "/withdrawals",
         },
     ];
 
@@ -93,16 +116,28 @@ export function Sidebar({ className }: SidebarProps) {
                 </div>
                 <div className="px-3 py-2">
                     <h2 className="mb-2 px-4 text-lg font-semibold tracking-tight">
-                        Analytics
+                        Financial Insights
                     </h2>
                     <div className="space-y-1">
-                        <Button variant="ghost" className="w-full justify-start">
-                            <BarChart3 className="mr-2 h-4 w-4" />
-                            Reports
+                        <Button
+                            variant={pathname === "/financials/transactions" ? "secondary" : "ghost"}
+                            className="w-full justify-start"
+                            asChild
+                        >
+                            <Link href="/financials/transactions">
+                                <FileText className="mr-2 h-4 w-4" />
+                                Transaction History
+                            </Link>
                         </Button>
-                        <Button variant="ghost" className="w-full justify-start">
-                            <ShoppingCart className="mr-2 h-4 w-4" />
-                            Sales
+                        <Button
+                            variant={pathname === "/financials/wallets" ? "secondary" : "ghost"}
+                            className="w-full justify-start"
+                            asChild
+                        >
+                            <Link href="/financials/wallets">
+                                <BarChart3 className="mr-2 h-4 w-4" />
+                                Wallet Assets
+                            </Link>
                         </Button>
                     </div>
                 </div>

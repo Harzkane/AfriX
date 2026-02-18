@@ -2,7 +2,9 @@
 import Constants from "expo-constants";
 
 const API_URL =
-  Constants.expoConfig?.extra?.apiUrl || "http://192.168.1.144:5001/api/v1";
+  (typeof process !== "undefined" && process.env?.EXPO_PUBLIC_API_URL) ||
+  Constants.expoConfig?.extra?.apiUrl ||
+  "https://api.replace-me-with-render-url.com/v1";
 
 export const API_ENDPOINTS = {
   AUTH: {
@@ -12,6 +14,7 @@ export const API_ENDPOINTS = {
     ME: "/auth/me",
     FORGOT_PASSWORD: "/auth/forgot-password",
     RESET_PASSWORD: "/auth/reset-password",
+    CHANGE_PASSWORD: "/auth/change-password",
     RESEND_VERIFICATION: "/auth/resend-verification",
   },
   // WALLET: {
@@ -33,6 +36,12 @@ export const API_ENDPOINTS = {
     DEPOSIT_ADDRESS: "/agents/deposit-address",
   },
 
+  EDUCATION: {
+    PROGRESS: "/education/progress",
+    QUIZ: (module: string) => `/education/quiz/${module}`,
+    SUBMIT: (module: string) => `/education/submit/${module}`,
+  },
+
   REQUESTS: {
     LIST: "/requests", // Added list endpoint
     USER: "/requests/user", // Added user requests endpoint
@@ -40,6 +49,7 @@ export const API_ENDPOINTS = {
       CREATE: "/requests/mint",
       UPLOAD_PROOF: (id: string) => `/requests/mint/${id}/proof`,
       STATUS: (id: string) => `/requests/mint/${id}`,
+      CANCEL: (id: string) => `/requests/mint/${id}`,
       CONFIRM: "/requests/mint/confirm",
       REJECT: "/requests/mint/reject",
     },

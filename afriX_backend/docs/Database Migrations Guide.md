@@ -131,7 +131,8 @@ The scripts will create tables if they don't exist. If you get this error, ensur
    {
      "country": "Nigeria",
      "currency": "NGN",
-     "withdrawal_address": "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb"
+     <!-- "withdrawal_address": "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb" -->
+     "withdrawal_address": "0xb5d4f122a9B353054A8EeF9E16C16BE1E8765d59"
    }
    ```
 

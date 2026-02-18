@@ -3,7 +3,7 @@ const { ethers } = require("ethers"); // ← ADD THIS
 const { WITHDRAWAL_STATUS } = require("../config/constants");
 const { POLYGON_RPC } = require("../config/treasury"); // ← ADD THIS
 const { WithdrawalRequest, Agent } = require("../models");
-const { sendPush } = require("../services/notificationService");
+const { deliver } = require("../services/notificationService");
 const { ApiError } = require("../utils/errors");
 const { Op } = require("sequelize");
 
@@ -79,11 +79,11 @@ const adminWithdrawalController = {
     request.status = WITHDRAWAL_STATUS.APPROVED;
     await request.save();
 
-    await sendPush(
-      request.agent.user_id,
-      "Withdrawal Approved",
-      `$${request.amount_usd} USDT approved. Payment will be sent to ${request.agent.withdrawal_address}`
-    );
+    await deliver(request.agent.user_id, "WITHDRAWAL_APPROVED", {
+      title: "Withdrawal Approved",
+      message: `$${request.amount_usd} USDT approved. Payment will be sent to ${request.agent.withdrawal_address}`,
+      data: { request_id: request.id, amount_usd: request.amount_usd },
+    });
 
     res.json({
       success: true,
@@ -148,15 +148,62 @@ const adminWithdrawalController = {
     request.paid_at = new Date();
     await request.save();
 
-    await sendPush(
-      agent.user_id,
-      "Withdrawal Paid!",
-      `$${request.amount_usd} USDT sent to ${
-        agent.withdrawal_address
-      }. Tx: ${tx_hash.substring(0, 10)}...`
-    );
+    await deliver(agent.user_id, "WITHDRAWAL_PAID", {
+      title: "Withdrawal Paid!",
+      message: `$${request.amount_usd} USDT sent to ${agent.withdrawal_address}. Tx: ${tx_hash.substring(0, 10)}...`,
+      data: { request_id: request.id, amount_usd: request.amount_usd, tx_hash: tx_hash },
+    });
 
     res.json({ success: true, data: request });
+  },
+
+  /**
+   * GET SINGLE WITHDRAWAL
+   * GET /api/admin/withdrawals/:id
+   */
+  async getWithdrawal(req, res) {
+    const { id } = req.params;
+
+    const request = await WithdrawalRequest.findByPk(id, {
+      include: [
+        {
+          model: Agent,
+          as: "agent",
+          attributes: [
+            "id",
+            "user_id",
+            "withdrawal_address",
+            "deposit_usd",
+            "total_minted",
+            "total_burned",
+            "available_capacity",
+            "tier",
+            "rating",
+          ],
+        },
+      ],
+    });
+
+    if (!request) {
+      return res.status(404).json({ success: false, error: "Withdrawal request not found" });
+    }
+
+    const agent = request.agent;
+    const totalMinted = agent ? parseFloat(agent.total_minted) : 0;
+    const totalBurned = agent ? parseFloat(agent.total_burned) : 0;
+    const depositUsd = agent ? parseFloat(agent.deposit_usd) : 0;
+    const outstanding = totalMinted - totalBurned;
+    const maxWithdraw = depositUsd - outstanding;
+
+    res.json({
+      success: true,
+      data: {
+        ...request.toJSON(),
+        outstanding_tokens: outstanding,
+        max_withdrawable: maxWithdraw,
+        is_safe: request.amount_usd <= maxWithdraw,
+      },
+    });
   },
 
   /**
@@ -189,6 +236,71 @@ const adminWithdrawalController = {
     });
 
     res.json({ success: true, data: requests });
+  },
+  /**
+   * REJECT WITHDRAWAL
+   * POST /api/admin/withdrawals/reject
+   * Admin rejects withdrawal request
+   */
+  async reject(req, res) {
+    const { request_id, reason } = req.body;
+
+    if (!reason) throw new ApiError("Rejection reason is required", 400);
+
+    const request = await WithdrawalRequest.findByPk(request_id, {
+      include: [{ model: Agent, as: "agent" }],
+    });
+
+    if (!request || request.status !== WITHDRAWAL_STATUS.PENDING)
+      throw new ApiError("Invalid request or not pending", 400);
+
+    request.status = WITHDRAWAL_STATUS.REJECTED;
+    request.admin_notes = reason;
+    await request.save();
+
+    await deliver(request.agent.user_id, "WITHDRAWAL_REJECTED", {
+      title: "Withdrawal Rejected",
+      message: `Your withdrawal request for $${request.amount_usd} was rejected. Reason: ${reason}`,
+      data: { request_id: request.id, amount_usd: request.amount_usd, reason },
+    });
+
+    res.json({ success: true, data: request });
+  },
+
+  /**
+   * GET WITHDRAWAL STATS
+   * GET /api/admin/withdrawals/stats
+   */
+  async getStats(req, res) {
+    const pendingCount = await WithdrawalRequest.count({
+      where: { status: WITHDRAWAL_STATUS.PENDING }
+    });
+
+    const approvedCount = await WithdrawalRequest.count({
+      where: { status: WITHDRAWAL_STATUS.APPROVED }
+    });
+
+    const paidCount = await WithdrawalRequest.count({
+      where: { status: WITHDRAWAL_STATUS.PAID }
+    });
+
+    // Get total paid volume
+    const paidRequests = await WithdrawalRequest.findAll({
+      where: { status: WITHDRAWAL_STATUS.PAID },
+      attributes: ['amount_usd']
+    });
+
+    const totalPaidVolume = paidRequests.reduce((sum, req) => sum + parseFloat(req.amount_usd), 0);
+
+    res.json({
+      success: true,
+      data: {
+        pending_count: pendingCount,
+        approved_count: approvedCount,
+        paid_count: paidCount,
+        total_paid_volume: totalPaidVolume
+      }
+    });
   },
 };
 

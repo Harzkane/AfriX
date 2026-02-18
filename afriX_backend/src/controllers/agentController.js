@@ -1,17 +1,121 @@
 // File: src/controllers/agentController.js
 
-const { Agent, User, Wallet, Transaction, AgentReview } = require("../models");
+const { Agent, User, Wallet, Transaction, AgentReview, sequelize } = require("../models");
 const {
   AGENT_TIERS,
   AGENT_STATUS,
   TRANSACTION_TYPES,
   TRANSACTION_STATUS,
 } = require("../config/constants");
+const { EXCHANGE_RATES } = require("../config/constants");
 const { TREASURY_ADDRESS } = require("../config/treasury");
 const { ApiError } = require("../utils/errors");
 const agentService = require("../services/agentService");
 const AgentKyc = require("../models/AgentKyc");
 const { uploadToR2 } = require("../services/r2Service");
+
+/**
+ * Compute total minted and burned per token type from Transaction table (source of truth).
+ * Returns { totalMintedByToken, totalBurnedByToken, totalMintedUsdt, totalBurnedUsdt }.
+ */
+async function getAgentMintBurnTotals(agentId) {
+  const mintRows = await sequelize.query(
+    `SELECT token_type, SUM(amount) as total FROM transactions
+     WHERE agent_id = :agentId AND type = :mintType AND status = :completed
+     GROUP BY token_type`,
+    {
+      replacements: {
+        agentId,
+        mintType: TRANSACTION_TYPES.MINT,
+        completed: TRANSACTION_STATUS.COMPLETED,
+      },
+      type: sequelize.QueryTypes.SELECT,
+    }
+  );
+  const burnRows = await sequelize.query(
+    `SELECT token_type, SUM(amount) as total FROM transactions
+     WHERE agent_id = :agentId AND type = :burnType AND status = :completed
+     GROUP BY token_type`,
+    {
+      replacements: {
+        agentId,
+        burnType: TRANSACTION_TYPES.BURN,
+        completed: TRANSACTION_STATUS.COMPLETED,
+      },
+      type: sequelize.QueryTypes.SELECT,
+    }
+  );
+
+  // Commission earned per token type (recorded in fee field)
+  const earningsRows = await sequelize.query(
+    `SELECT token_type, SUM(fee) as commission FROM transactions
+     WHERE agent_id = :agentId AND type IN (:mintType, :burnType) AND status = :completed
+     GROUP BY token_type`,
+    {
+      replacements: {
+        agentId,
+        mintType: TRANSACTION_TYPES.MINT,
+        burnType: TRANSACTION_TYPES.BURN,
+        completed: TRANSACTION_STATUS.COMPLETED,
+      },
+      type: sequelize.QueryTypes.SELECT,
+    }
+  );
+
+  const toMap = (rows, valueKey = "total") => {
+    const map = { NT: 0, CT: 0, USDT: 0 };
+    (rows || []).forEach((r) => {
+      const key = r.token_type || "NT";
+      map[key] = parseFloat(r[valueKey]) || 0;
+    });
+    return map;
+  };
+
+  const totalMintedByToken = toMap(mintRows);
+  const totalBurnedByToken = toMap(burnRows);
+  const totalEarningsByToken = toMap(earningsRows, "commission");
+
+  const tokenToUsdt = (tokenType, amount) => {
+    const rate = tokenType === "NT" ? EXCHANGE_RATES.NT_TO_USDT : tokenType === "CT" ? EXCHANGE_RATES.CT_TO_USDT : 1;
+    return (parseFloat(amount) || 0) * (rate || 0);
+  };
+
+  const totalMintedByTokenUsdt = {
+    NT: tokenToUsdt("NT", totalMintedByToken.NT),
+    CT: tokenToUsdt("CT", totalMintedByToken.CT),
+    USDT: tokenToUsdt("USDT", totalMintedByToken.USDT),
+  };
+  const totalBurnedByTokenUsdt = {
+    NT: tokenToUsdt("NT", totalBurnedByToken.NT),
+    CT: tokenToUsdt("CT", totalBurnedByToken.CT),
+    USDT: tokenToUsdt("USDT", totalBurnedByToken.USDT),
+  };
+  const totalMintedUsdt =
+    totalMintedByTokenUsdt.NT + totalMintedByTokenUsdt.CT + totalMintedByTokenUsdt.USDT;
+  const totalBurnedUsdt =
+    totalBurnedByTokenUsdt.NT + totalBurnedByTokenUsdt.CT + totalBurnedByTokenUsdt.USDT;
+
+  const totalEarningsByTokenUsdt = {
+    NT: tokenToUsdt("NT", totalEarningsByToken.NT),
+    CT: tokenToUsdt("CT", totalEarningsByToken.CT),
+    USDT: tokenToUsdt("USDT", totalEarningsByToken.USDT),
+  };
+  const totalEarningsUsdt =
+    totalEarningsByTokenUsdt.NT + totalEarningsByTokenUsdt.CT + totalEarningsByTokenUsdt.USDT;
+
+  return {
+    totalMintedByToken,
+    totalBurnedByToken,
+    totalMintedByTokenUsdt,
+    totalBurnedByTokenUsdt,
+    totalMintedUsdt,
+    totalBurnedUsdt,
+    totalEarningsByToken,
+    totalEarningsByTokenUsdt,
+    totalEarningsUsdt,
+  };
+}
+
 /**
  * Agent Controller
  * Handles agent registration, profile management, transactions, and reviews
@@ -69,28 +173,42 @@ const agentController = {
     try {
       const agent = req.agent; // From requireAgent middleware
 
-      // Calculate withdrawable amount
-      const outstanding = agent.total_minted - agent.total_burned;
-      const maxWithdraw = agent.deposit_usd - outstanding;
+      const totals = await getAgentMintBurnTotals(agent.id);
+      const outstandingUsdt = totals.totalMintedUsdt - totals.totalBurnedUsdt;
+      const maxWithdraw = Math.max(0, agent.deposit_usd - outstandingUsdt);
 
       // Get review count
       const totalReviews = await AgentReview.count({
         where: { agent_id: agent.id },
       });
 
+      const data = agent.toJSON();
+      data.total_minted = totals.totalMintedUsdt;
+      data.total_burned = totals.totalBurnedUsdt;
+      data.available_capacity = parseFloat(agent.available_capacity) ?? 0;
+
       res.status(200).json({
         success: true,
         data: {
-          ...agent.toJSON(),
+          ...data,
           total_reviews: totalReviews,
           financial_summary: {
-            outstanding_tokens: outstanding,
+            outstanding_tokens_usdt: outstandingUsdt,
             max_withdrawable: maxWithdraw,
-            total_earnings: agent.total_earnings,
+            total_earnings: totals.totalEarningsUsdt,
             utilization_percentage:
               agent.deposit_usd > 0
-                ? ((outstanding / agent.deposit_usd) * 100).toFixed(2)
+                ? ((outstandingUsdt / agent.deposit_usd) * 100).toFixed(2)
                 : 0,
+            total_minted_by_token: totals.totalMintedByToken,
+            total_burned_by_token: totals.totalBurnedByToken,
+            total_minted_by_token_usdt: totals.totalMintedByTokenUsdt,
+            total_burned_by_token_usdt: totals.totalBurnedByTokenUsdt,
+            total_minted_usdt: totals.totalMintedUsdt,
+            total_burned_usdt: totals.totalBurnedUsdt,
+            total_earnings_by_token: totals.totalEarningsByToken,
+            total_earnings_by_token_usdt: totals.totalEarningsByTokenUsdt,
+            total_earnings_usdt: totals.totalEarningsUsdt,
           },
         },
       });
@@ -134,17 +252,24 @@ const agentController = {
         attributes: [
           "id",
           "country",
+          "city",
           "currency",
           "tier",
+          "status",
           "rating",
           "available_capacity",
           "response_time_minutes",
           "is_verified",
+          "is_online",
+          "commission_rate",
+          "max_transaction_limit",
           "phone_number",
           "whatsapp_number",
           "bank_name",
           "account_number",
           "account_name",
+          "mobile_money_provider",
+          "mobile_money_number",
           "total_minted",
           "total_burned",
         ],
@@ -325,8 +450,9 @@ const agentController = {
   async getDashboard(req, res, next) {
     try {
       const agent = req.agent;
-      const outstanding = agent.total_minted - agent.total_burned;
-      const maxWithdraw = agent.deposit_usd - outstanding;
+      const totals = await getAgentMintBurnTotals(agent.id);
+      const outstandingUsdt = totals.totalMintedUsdt - totals.totalBurnedUsdt;
+      const maxWithdraw = Math.max(0, agent.deposit_usd - outstandingUsdt);
 
       // Get recent transactions (mint/burn)
       const recentTxs = await Transaction.findAll({
@@ -390,15 +516,22 @@ const agentController = {
           },
           financials: {
             total_deposit: agent.deposit_usd,
-            available_capacity: agent.available_capacity,
-            total_minted: agent.total_minted,
-            total_burned: agent.total_burned,
-            outstanding_tokens: outstanding,
+            available_capacity: parseFloat(agent.available_capacity) ?? 0,
+            total_minted: totals.totalMintedUsdt,
+            total_burned: totals.totalBurnedUsdt,
+            total_minted_by_token: totals.totalMintedByToken,
+            total_burned_by_token: totals.totalBurnedByToken,
+            total_minted_by_token_usdt: totals.totalMintedByTokenUsdt,
+            total_burned_by_token_usdt: totals.totalBurnedByTokenUsdt,
+            outstanding_tokens: outstandingUsdt,
             max_withdrawable: maxWithdraw,
-            total_earnings: agent.total_earnings,
+            total_earnings: totals.totalEarningsUsdt,
+            total_earnings_by_token: totals.totalEarningsByToken,
+            total_earnings_by_token_usdt: totals.totalEarningsByTokenUsdt,
+            total_earnings_usdt: totals.totalEarningsUsdt,
             utilization_rate:
               agent.deposit_usd > 0
-                ? ((outstanding / agent.deposit_usd) * 100).toFixed(2) + "%"
+                ? ((outstandingUsdt / agent.deposit_usd) * 100).toFixed(2) + "%"
                 : "0%",
           },
           recent_transactions: recentTxs,
@@ -425,12 +558,18 @@ const agentController = {
    */
   async listActiveAgents(req, res, next) {
     try {
-      const { country } = req.query;
+      const { country, sort } = req.query;
+
+      const order =
+        sort === "capacity"
+          ? [["available_capacity", "DESC"], ["rating", "DESC"]]
+          : sort === "fastest"
+            ? [["response_time_minutes", "ASC"], ["rating", "DESC"]]
+            : [["rating", "DESC"], ["response_time_minutes", "ASC"]];
 
       const agents = await Agent.findAll({
         where: {
-          // status: 'ACTIVE',  // ← WRONG! Doesn't match enum
-          status: AGENT_STATUS.ACTIVE, // ← CORRECT! Uses "active" (lowercase)
+          status: AGENT_STATUS.ACTIVE,
           ...(country && { country }),
         },
         include: [
@@ -443,22 +582,29 @@ const agentController = {
         attributes: [
           "id",
           "country",
+          "city",
           "currency",
           "tier",
+          "status",
           "rating",
           "available_capacity",
           "response_time_minutes",
           "is_verified",
+          "is_online",
+          "commission_rate",
+          "max_transaction_limit",
+          "daily_transaction_limit",
           "phone_number",
           "whatsapp_number",
           "bank_name",
           "account_number",
           "account_name",
+          "mobile_money_provider",
+          "mobile_money_number",
+          "total_minted",
+          "total_burned",
         ],
-        order: [
-          ["rating", "DESC"],
-          ["response_time_minutes", "ASC"],
-        ],
+        order,
       });
 
       // Flatten the response to include full_name at the top level
@@ -877,4 +1023,4 @@ const agentController = {
   },
 };
 
-module.exports = agentController;
+module.exports = { ...agentController, getAgentMintBurnTotals };

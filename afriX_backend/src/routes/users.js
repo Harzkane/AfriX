@@ -16,6 +16,8 @@ router.get("/me", userController.getProfile);
 
 // Update profile details
 router.put("/update", userController.updateProfile);
+// Alias for mobile (Profile & Notifications screens)
+router.put("/profile", userController.updateProfile);
 
 // Find agents by country and currency
 router.get("/find-agents", userController.findAgents);

@@ -7,43 +7,74 @@ import {
     KeyboardAvoidingView,
     Platform,
     ScrollView,
-    Dimensions
+    Dimensions,
 } from "react-native";
-import { Text, Surface, ActivityIndicator } from "react-native-paper";
+import { Text } from "react-native-paper";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { isXOFToken } from "@/constants/payment";
+import { XOF_MOBILE_MONEY_PROVIDERS } from "@/constants/payment";
 
 const { width } = Dimensions.get("window");
 
+type PaymentMethod = "bank" | "mobile_money";
+
 export default function BankDetailsScreen() {
     const router = useRouter();
-    const params = useLocalSearchParams();
+    const params = useLocalSearchParams<{
+        amount?: string;
+        tokenType?: string;
+        agentId?: string;
+        agentName?: string;
+    }>();
 
+    const tokenType = params.tokenType || "NT";
+    const showPaymentChoice = isXOFToken(tokenType);
+
+    const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("bank");
     const [bankName, setBankName] = useState("");
     const [accountNumber, setAccountNumber] = useState("");
     const [accountName, setAccountName] = useState("");
+    const [mobileProvider, setMobileProvider] = useState<string>(XOF_MOBILE_MONEY_PROVIDERS[0]);
+    const [mobileNumber, setMobileNumber] = useState("");
 
     const handleContinue = () => {
-        if (!bankName || !accountNumber || !accountName) return;
-
-        router.push({
-            pathname: "/(tabs)/sell-tokens/confirm",
-            params: {
-                ...params,
-                bankName,
-                accountNumber,
-                accountName,
-            },
-        });
+        if (paymentMethod === "bank") {
+            if (!bankName || !accountNumber || !accountName) return;
+            router.push({
+                pathname: "/(tabs)/sell-tokens/confirm",
+                params: {
+                    ...params,
+                    paymentType: "bank",
+                    bankName,
+                    accountNumber,
+                    accountName,
+                },
+            });
+        } else {
+            if (!mobileNumber.trim() || !accountName.trim()) return;
+            router.push({
+                pathname: "/(tabs)/sell-tokens/confirm",
+                params: {
+                    ...params,
+                    paymentType: "mobile_money",
+                    mobileProvider,
+                    mobileNumber: mobileNumber.trim(),
+                    accountName,
+                },
+            });
+        }
     };
 
-    const isFormValid = bankName && accountNumber && accountName;
+    const isFormValid =
+        paymentMethod === "bank"
+            ? !!(bankName && accountNumber && accountName)
+            : !!(mobileNumber.trim() && accountName.trim());
 
     return (
         <View style={styles.container}>
-            {/* Header Section */}
             <View style={styles.headerWrapper}>
                 <LinearGradient
                     colors={["#00B14F", "#008F40"]}
@@ -57,7 +88,9 @@ export default function BankDetailsScreen() {
                         >
                             <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
                         </TouchableOpacity>
-                        <Text style={styles.headerTitle}>Recipient Bank</Text>
+                        <Text style={styles.headerTitle}>
+                            {showPaymentChoice ? "Receive Payment" : "Recipient Bank"}
+                        </Text>
                         <View style={{ width: 40 }} />
                     </View>
                 </SafeAreaView>
@@ -71,78 +104,210 @@ export default function BankDetailsScreen() {
                     style={styles.scrollView}
                     contentContainerStyle={styles.content}
                     showsVerticalScrollIndicator={false}
-                    keyboardShouldPersistTaps="handled"
+                    keyboardShouldPersistTaps="always"
                 >
                     <View style={styles.introContainer}>
                         <Text style={styles.title}>Where should we send funds?</Text>
                         <Text style={styles.subtitle}>
-                            Please provide the local bank account details where your chosen agent will transfer the money.
+                            {showPaymentChoice
+                                ? "Choose how you want to receive payment. In XOF countries most agents use mobile money (Orange Money, Wave, Kiren) or bank."
+                                : "Provide the bank account details where your chosen agent will transfer the money."}
                         </Text>
                     </View>
 
-                    <Surface style={styles.formCard} elevation={0}>
-                        <View style={styles.formGroup}>
-                            <Text style={styles.label}>Bank Name</Text>
-                            <View style={styles.inputWrapper}>
-                                <Ionicons name="business-outline" size={20} color="#9CA3AF" style={styles.inputIcon} />
-                                <TextInput
-                                    style={styles.input}
-                                    placeholder="e.g. GTBank, Zenith, Kuda"
-                                    placeholderTextColor="#9CA3AF"
-                                    value={bankName}
-                                    onChangeText={setBankName}
+                    {showPaymentChoice && (
+                        <View style={styles.methodRow}>
+                            <TouchableOpacity
+                                style={[
+                                    styles.methodBtn,
+                                    paymentMethod === "bank" && styles.methodBtnActive,
+                                ]}
+                                onPress={() => setPaymentMethod("bank")}
+                            >
+                                <Ionicons
+                                    name="business-outline"
+                                    size={22}
+                                    color={paymentMethod === "bank" ? "#00B14F" : "#6B7280"}
                                 />
-                            </View>
+                                <Text
+                                    style={[
+                                        styles.methodBtnText,
+                                        paymentMethod === "bank" && styles.methodBtnTextActive,
+                                    ]}
+                                >
+                                    Bank
+                                </Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={[
+                                    styles.methodBtn,
+                                    paymentMethod === "mobile_money" && styles.methodBtnActive,
+                                ]}
+                                onPress={() => setPaymentMethod("mobile_money")}
+                            >
+                                <Ionicons
+                                    name="phone-portrait-outline"
+                                    size={22}
+                                    color={
+                                        paymentMethod === "mobile_money" ? "#00B14F" : "#6B7280"
+                                    }
+                                />
+                                <Text
+                                    style={[
+                                        styles.methodBtnText,
+                                        paymentMethod === "mobile_money" &&
+                                        styles.methodBtnTextActive,
+                                    ]}
+                                >
+                                    Mobile Money
+                                </Text>
+                            </TouchableOpacity>
                         </View>
+                    )}
 
-                        <View style={styles.formGroup}>
-                            <Text style={styles.label}>Account Number</Text>
-                            <View style={styles.inputWrapper}>
-                                <Ionicons name="card-outline" size={20} color="#9CA3AF" style={styles.inputIcon} />
-                                <TextInput
-                                    style={styles.input}
-                                    placeholder="0123456789"
-                                    placeholderTextColor="#9CA3AF"
-                                    keyboardType="numeric"
-                                    maxLength={10}
-                                    value={accountNumber}
-                                    onChangeText={setAccountNumber}
-                                />
-                            </View>
-                        </View>
-
-                        <View style={styles.formGroup}>
-                            <Text style={styles.label}>Account Holder Name</Text>
-                            <View style={styles.inputWrapper}>
-                                <Ionicons name="person-outline" size={20} color="#9CA3AF" style={styles.inputIcon} />
-                                <TextInput
-                                    style={styles.input}
-                                    placeholder="Full name as it appears in bank"
-                                    placeholderTextColor="#9CA3AF"
-                                    value={accountName}
-                                    onChangeText={setAccountName}
-                                />
-                            </View>
-                        </View>
-                    </Surface>
+                    <View style={styles.formCard}>
+                        {paymentMethod === "bank" ? (
+                            <>
+                                <View style={styles.formGroup}>
+                                    <Text style={styles.label}>Bank Name</Text>
+                                    <View style={styles.inputWrapper}>
+                                        <Ionicons
+                                            name="business-outline"
+                                            size={20}
+                                            color="#9CA3AF"
+                                            style={styles.inputIcon}
+                                        />
+                                        <TextInput
+                                            style={styles.input}
+                                            placeholder="e.g. GTBank, Zenith, Kuda"
+                                            placeholderTextColor="#9CA3AF"
+                                            value={bankName}
+                                            onChangeText={setBankName}
+                                        />
+                                    </View>
+                                </View>
+                                <View style={styles.formGroup}>
+                                    <Text style={styles.label}>Account Number</Text>
+                                    <View style={styles.inputWrapper}>
+                                        <Ionicons
+                                            name="card-outline"
+                                            size={20}
+                                            color="#9CA3AF"
+                                            style={styles.inputIcon}
+                                        />
+                                        <TextInput
+                                            style={styles.input}
+                                            placeholder="0123456789"
+                                            placeholderTextColor="#9CA3AF"
+                                            keyboardType="numeric"
+                                            maxLength={15}
+                                            value={accountNumber}
+                                            onChangeText={setAccountNumber}
+                                        />
+                                    </View>
+                                </View>
+                                <View style={styles.formGroup}>
+                                    <Text style={styles.label}>Account Holder Name</Text>
+                                    <View style={styles.inputWrapper}>
+                                        <Ionicons
+                                            name="person-outline"
+                                            size={20}
+                                            color="#9CA3AF"
+                                            style={styles.inputIcon}
+                                        />
+                                        <TextInput
+                                            style={styles.input}
+                                            placeholder="Full name as on account"
+                                            placeholderTextColor="#9CA3AF"
+                                            value={accountName}
+                                            onChangeText={setAccountName}
+                                        />
+                                    </View>
+                                </View>
+                            </>
+                        ) : (
+                            <>
+                                <View style={styles.formGroup}>
+                                    <Text style={styles.label}>Mobile Money Provider</Text>
+                                    <View style={styles.pickerRow} pointerEvents="box-none">
+                                        {XOF_MOBILE_MONEY_PROVIDERS.map((p) => (
+                                            <TouchableOpacity
+                                                key={p}
+                                                style={[
+                                                    styles.chip,
+                                                    mobileProvider === p && styles.chipActive,
+                                                ]}
+                                                onPress={() => setMobileProvider(p)}
+                                            >
+                                                <Text
+                                                    style={[
+                                                        styles.chipText,
+                                                        mobileProvider === p && styles.chipTextActive,
+                                                    ]}
+                                                >
+                                                    {p}
+                                                </Text>
+                                            </TouchableOpacity>
+                                        ))}
+                                    </View>
+                                </View>
+                                <View style={styles.formGroup} key="mobile-phone-field">
+                                    <Text style={styles.label}>Phone Number</Text>
+                                    <View style={styles.inputWrapper} collapsable={false} pointerEvents="box-none">
+                                        <Ionicons
+                                            name="call-outline"
+                                            size={20}
+                                            color="#9CA3AF"
+                                            style={styles.inputIcon}
+                                        />
+                                        <TextInput
+                                            key="mobile-money-phone-input"
+                                            style={styles.input}
+                                            placeholder="e.g. 77 123 45 67"
+                                            placeholderTextColor="#9CA3AF"
+                                            keyboardType="phone-pad"
+                                            value={mobileNumber}
+                                            onChangeText={setMobileNumber}
+                                            editable={true}
+                                        />
+                                    </View>
+                                </View>
+                                <View style={styles.formGroup}>
+                                    <Text style={styles.label}>Account / Wallet Holder Name</Text>
+                                    <View style={styles.inputWrapper}>
+                                        <Ionicons
+                                            name="person-outline"
+                                            size={20}
+                                            color="#9CA3AF"
+                                            style={styles.inputIcon}
+                                        />
+                                        <TextInput
+                                            style={styles.input}
+                                            placeholder="Full name as on mobile money"
+                                            placeholderTextColor="#9CA3AF"
+                                            value={accountName}
+                                            onChangeText={setAccountName}
+                                        />
+                                    </View>
+                                </View>
+                            </>
+                        )}
+                    </View>
 
                     <View style={styles.warningBox}>
                         <Ionicons name="alert-circle" size={20} color="#F59E0B" />
                         <View style={{ flex: 1 }}>
                             <Text style={styles.warningText}>
-                                Please double-check these details. Incorrect info may lead to lost funds.
+                                Please double-check these details. Incorrect info may lead to lost
+                                funds.
                             </Text>
                         </View>
                     </View>
                 </ScrollView>
 
-                {/* Fixed Footer */}
                 <View style={styles.footer}>
                     <TouchableOpacity
-                        style={[
-                            styles.continueButton,
-                            !isFormValid && styles.disabledButton,
-                        ]}
+                        style={[styles.continueButton, !isFormValid && styles.disabledButton]}
                         onPress={handleContinue}
                         disabled={!isFormValid}
                     >
@@ -160,21 +325,15 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: "#F3F4F6",
     },
-    headerWrapper: {
-        marginBottom: 0,
-    },
+    headerWrapper: { marginBottom: 0 },
     headerGradient: {
         position: "absolute",
         top: 0,
         left: 0,
         right: 0,
         height: 140,
-        borderBottomLeftRadius: 30,
-        borderBottomRightRadius: 30,
     },
-    headerContent: {
-        paddingHorizontal: 20,
-    },
+    headerContent: { paddingHorizontal: 20 },
     header: {
         flexDirection: "row",
         justifyContent: "space-between",
@@ -195,18 +354,13 @@ const styles = StyleSheet.create({
         alignItems: "center",
         justifyContent: "center",
     },
-    scrollView: {
-        flex: 1,
-    },
+    scrollView: { flex: 1 },
     content: {
         padding: 20,
         paddingTop: 10,
         paddingBottom: 40,
     },
-    introContainer: {
-        marginBottom: 24,
-        marginTop: 30,
-    },
+    introContainer: { marginBottom: 24, marginTop: 30 },
     title: {
         fontSize: 22,
         fontWeight: "800",
@@ -218,6 +372,33 @@ const styles = StyleSheet.create({
         color: "#6B7280",
         lineHeight: 22,
     },
+    methodRow: {
+        flexDirection: "row",
+        gap: 12,
+        marginBottom: 20,
+    },
+    methodBtn: {
+        flex: 1,
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 8,
+        paddingVertical: 14,
+        borderRadius: 14,
+        backgroundColor: "#F3F4F6",
+        borderWidth: 2,
+        borderColor: "#E5E7EB",
+    },
+    methodBtnActive: {
+        backgroundColor: "#ECFDF5",
+        borderColor: "#00B14F",
+    },
+    methodBtnText: {
+        fontSize: 15,
+        fontWeight: "600",
+        color: "#6B7280",
+    },
+    methodBtnTextActive: { color: "#00B14F" },
     formCard: {
         backgroundColor: "#FFFFFF",
         borderRadius: 24,
@@ -226,9 +407,7 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         borderColor: "#E5E7EB",
     },
-    formGroup: {
-        marginBottom: 20,
-    },
+    formGroup: { marginBottom: 20 },
     label: {
         fontSize: 14,
         fontWeight: "700",
@@ -244,16 +423,38 @@ const styles = StyleSheet.create({
         borderRadius: 14,
         paddingHorizontal: 16,
     },
-    inputIcon: {
-        marginRight: 12,
-    },
+    inputIcon: { marginRight: 12 },
     input: {
         flex: 1,
+        minWidth: 0,
         paddingVertical: 16,
         fontSize: 16,
         color: "#111827",
         fontWeight: "500",
     },
+    pickerRow: {
+        flexDirection: "row",
+        flexWrap: "wrap",
+        gap: 8,
+    },
+    chip: {
+        paddingHorizontal: 14,
+        paddingVertical: 10,
+        borderRadius: 10,
+        backgroundColor: "#F3F4F6",
+        borderWidth: 1,
+        borderColor: "#E5E7EB",
+    },
+    chipActive: {
+        backgroundColor: "#ECFDF5",
+        borderColor: "#00B14F",
+    },
+    chipText: {
+        fontSize: 13,
+        fontWeight: "600",
+        color: "#6B7280",
+    },
+    chipTextActive: { color: "#00B14F" },
     warningBox: {
         flexDirection: "row",
         backgroundColor: "#FFFBEB",
@@ -270,10 +471,10 @@ const styles = StyleSheet.create({
     },
     footer: {
         padding: 20,
+        paddingBottom: 24,
         backgroundColor: "#FFFFFF",
         borderTopWidth: 1,
         borderTopColor: "#F3F4F6",
-        paddingBottom: Platform.OS === 'ios' ? 90 : 80, // Lift above floating tab bar
     },
     continueButton: {
         backgroundColor: "#00B14F",

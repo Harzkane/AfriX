@@ -1,6 +1,7 @@
 // File: src/routes/admin.js
 const express = require("express");
 const router = express.Router();
+const adminDashboardController = require("../controllers/adminDashboardController");
 const adminWithdrawalController = require("../controllers/adminWithdrawalController");
 const adminMerchantController = require("../controllers/adminMerchantController");
 const adminAgentController = require("../controllers/adminAgentController");
@@ -15,6 +16,22 @@ const { authenticate, authorizeAdmin } = require("../middleware/auth");
  * Base path: /api/v1/admin
  * All routes require admin authentication
  */
+
+// =====================================================
+// DASHBOARD OVERVIEW
+// =====================================================
+
+/**
+ * Get comprehensive dashboard overview
+ * GET /api/v1/admin/dashboard/overview
+ * Returns all critical metrics in a single API call
+ */
+router.get(
+  "/dashboard/overview",
+  authenticate,
+  authorizeAdmin,
+  adminDashboardController.getOverview
+);
 
 // =====================================================
 // WITHDRAWAL MANAGEMENT ROUTES
@@ -65,6 +82,40 @@ router.post(
   authenticate,
   authorizeAdmin,
   adminWithdrawalController.markPaid
+);
+
+/**
+ * Reject withdrawal request
+ * POST /api/v1/admin/withdrawals/reject
+ * Body: { request_id, reason }
+ */
+router.post(
+  "/withdrawals/reject",
+  authenticate,
+  authorizeAdmin,
+  adminWithdrawalController.reject
+);
+
+/**
+ * Get withdrawal statistics
+ * GET /api/v1/admin/withdrawals/stats
+ */
+router.get(
+  "/withdrawals/stats",
+  authenticate,
+  authorizeAdmin,
+  adminWithdrawalController.getStats
+);
+
+/**
+ * Get single withdrawal request
+ * GET /api/v1/admin/withdrawals/:id
+ */
+router.get(
+  "/withdrawals/:id",
+  authenticate,
+  authorizeAdmin,
+  adminWithdrawalController.getWithdrawal
 );
 
 // =====================================================
@@ -385,6 +436,18 @@ router.post(
   adminOperationsController.escalateDispute
 );
 
+/**
+ * Resolve dispute
+ * POST /api/v1/admin/operations/disputes/:id/resolve
+ * Body: { action: string, penalty_amount_usd?: number, notes?: string }
+ */
+router.post(
+  "/operations/disputes/:id/resolve",
+  authenticate,
+  authorizeAdmin,
+  adminOperationsController.resolveDispute
+);
+
 // --- ESCROW MANAGEMENT ---
 
 /**
@@ -408,6 +471,17 @@ router.get(
   authenticate,
   authorizeAdmin,
   adminOperationsController.listEscrows
+);
+
+/**
+ * Get single escrow details
+ * GET /api/v1/admin/operations/escrows/:id
+ */
+router.get(
+  "/operations/escrows/:id",
+  authenticate,
+  authorizeAdmin,
+  adminOperationsController.getEscrow
 );
 
 /**
@@ -460,6 +534,17 @@ router.get(
 );
 
 /**
+ * Get single mint request
+ * GET /api/v1/admin/operations/requests/mint/:id
+ */
+router.get(
+  "/operations/requests/mint/:id",
+  authenticate,
+  authorizeAdmin,
+  adminOperationsController.getMintRequest
+);
+
+/**
  * List burn requests
  * GET /api/v1/admin/operations/requests/burn
  * Query: { status?, agent_id?, user_id?, expired?, limit?, offset? }
@@ -469,6 +554,17 @@ router.get(
   authenticate,
   authorizeAdmin,
   adminOperationsController.listBurnRequests
+);
+
+/**
+ * Get single burn request
+ * GET /api/v1/admin/operations/requests/burn/:id
+ */
+router.get(
+  "/operations/requests/burn/:id",
+  authenticate,
+  authorizeAdmin,
+  adminOperationsController.getBurnRequest
 );
 
 /**
@@ -620,6 +716,31 @@ router.get(
   adminFinancialController.listPayments
 );
 
+// --- PLATFORM FEE COLLECTION ---
+
+/**
+ * Get platform fee wallet balances (NT, CT, USDT)
+ * GET /api/v1/admin/financial/platform-fees/balances
+ */
+router.get(
+  "/financial/platform-fees/balances",
+  authenticate,
+  authorizeAdmin,
+  adminFinancialController.getPlatformFeeBalances
+);
+
+/**
+ * Get platform fee collection report
+ * GET /api/v1/admin/financial/platform-fees/report
+ * Query: { start_date?, end_date?, type? }
+ */
+router.get(
+  "/financial/platform-fees/report",
+  authenticate,
+  authorizeAdmin,
+  adminFinancialController.getPlatformFeeReport
+);
+
 // =====================================================
 // EDUCATION & SECURITY MANAGEMENT
 // =====================================================
@@ -647,6 +768,18 @@ router.get(
   authenticate,
   authorizeAdmin,
   adminEducationAuthController.listProgress
+);
+
+/**
+ * List users with education summary (one row per user)
+ * GET /api/v1/admin/education/users
+ * Query: { status?: "all" | "completed" | "in_progress", limit?, offset? }
+ */
+router.get(
+  "/education/users",
+  authenticate,
+  authorizeAdmin,
+  adminEducationAuthController.listUsersWithEducation
 );
 
 /**

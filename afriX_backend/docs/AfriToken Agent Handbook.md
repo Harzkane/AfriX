@@ -107,19 +107,19 @@ You've already completed this! Your application was reviewed and approved.
 
 ### Step 2: Deposit USDT
 
-**Minimum**: $5,000 USDT  
+**Minimum**: $5,000 USDT (or platform minimum, e.g. $100 to activate)  
 **Recommended**: $10,000+ USDT (more capacity = more business)
 
-**How to Deposit**:
+**How to Deposit** (submit tx_hash — backend verifies on-chain):
 
 1. Open Agent Dashboard in app
-2. Tap "Increase Capacity"
-3. See your deposit address and QR code
-4. Send USDT (ERC-20 on Polygon) from your wallet
-5. Wait for 6 blockchain confirmations (~3 minutes)
-6. Capacity updates automatically
+2. Tap "Increase Capacity" / "Deposit"
+3. See the platform **deposit address** (treasury) and QR code
+4. Send USDT (ERC-20 on **Polygon**) from your wallet to that address
+5. After the transaction confirms, **submit the transaction hash and amount** in the app (e.g. "I've sent USDT" → enter amount and tx hash)
+6. The **platform verifies the transaction on the blockchain** and then credits your capacity
 
-**Important**: Only send USDT on Polygon network! Sending wrong token or wrong network = lost funds.
+**Important**: Only send USDT on Polygon network! Sending wrong token or wrong network = lost funds. Deposits are **not** auto-detected; you must submit the tx hash (and amount) so the backend can verify and credit you. Automatic on-chain detection may be added in the future.
 
 ### Step 3: Complete Training
 

@@ -13,17 +13,29 @@ import { useAgentStore } from "@/stores/slices/agentSlice";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { AgentRequest } from "@/stores/types/agent.types";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { formatAmount, formatDate } from "@/utils/format";
 
 export default function AgentRequests() {
     const router = useRouter();
+    const params = useLocalSearchParams();
     const { pendingRequests, dashboardData, fetchPendingRequests, fetchDashboard, loading } = useAgentStore();
+
     const [activeTab, setActiveTab] = useState<"mint" | "burn" | "history">("mint");
 
     useEffect(() => {
         loadData();
     }, []);
+
+    // Keep activeTab in sync with the `tab` query param so external
+    // navigations (from dashboard) can force a specific tab.
+    useEffect(() => {
+        const tabParam = params.tab as string | undefined;
+        const nextTab: "mint" | "burn" | "history" =
+            tabParam === "burn" || tabParam === "history" ? tabParam : "mint";
+        setActiveTab(nextTab);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [params.tab]);
 
     const loadData = () => {
         fetchPendingRequests();
@@ -44,12 +56,18 @@ export default function AgentRequests() {
         const userName = isHistory
             ? (isMint ? item.toUser?.full_name : item.fromUser?.full_name)
             : item.user?.full_name;
-        const commission = isHistory ? formatAmount((parseFloat(item.amount) * 0.01).toString(), "USDT") : null;
+        const tokenType = item.token_type || "NT";
+        const commissionAmount = isHistory ? (parseFloat(item.amount) * 0.01).toString() : null;
+        const commission = commissionAmount != null ? formatAmount(commissionAmount, tokenType) : null;
 
         return (
             <TouchableOpacity
-                onPress={() => !isHistory && router.push(`/agent/request-details/${item.id}`)}
-                activeOpacity={isHistory ? 1 : 0.7}
+                onPress={() =>
+                    isHistory
+                        ? router.push(`/agent/transaction-details/${item.id}`)
+                        : router.push(`/agent/request-details/${item.id}`)
+                }
+                activeOpacity={0.7}
             >
                 <Surface style={styles.card}>
                     <View style={styles.cardHeader}>
@@ -81,10 +99,10 @@ export default function AgentRequests() {
                         </Text>
                     </View>
 
-                    {isHistory && commission && (
+                    {isHistory && commission != null && (
                         <View style={styles.commissionContainer}>
                             <Text style={styles.commissionLabel}>Commission Earned</Text>
-                            <Text style={styles.commissionValue}>+${commission}</Text>
+                            <Text style={styles.commissionValue}>+{commission} {tokenType}</Text>
                         </View>
                     )}
 

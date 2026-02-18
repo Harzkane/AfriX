@@ -9,10 +9,11 @@ import * as Haptics from "expo-haptics";
 
 export default function SwapSuccessScreen() {
     const router = useRouter();
-    const { fromToken, toToken, amount, estimatedReceive, reset } = useSwapStore();
+    const { fromToken, toToken, amount, estimatedReceive, swapFee, lastFee, lastReceivedAmount, reset } = useSwapStore();
 
     const amountNum = parseFloat(amount) || 0;
-    const estimatedNum = parseFloat(estimatedReceive) || 0;
+    const receivedNum = lastReceivedAmount ?? (parseFloat(estimatedReceive) || 0);
+    const feeNum = lastFee ?? (swapFee ?? 0);
 
     useEffect(() => {
         // Haptic feedback on success
@@ -64,7 +65,7 @@ export default function SwapSuccessScreen() {
                         <View style={styles.swapItem}>
                             <Text style={styles.swapLabel}>Received</Text>
                             <Text style={[styles.swapValue, styles.receiveValue]}>
-                                {estimatedNum.toLocaleString(undefined, {
+                                {receivedNum.toLocaleString(undefined, {
                                     minimumFractionDigits: 2,
                                     maximumFractionDigits: 2,
                                 })}{" "}
@@ -72,6 +73,14 @@ export default function SwapSuccessScreen() {
                             </Text>
                         </View>
                     </View>
+                    {feeNum > 0 && (
+                        <View style={[styles.swapRow, { marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: "#F3F4F6" }]}>
+                            <Text style={styles.swapLabel}>Platform fee</Text>
+                            <Text style={styles.swapValue}>
+                                {feeNum.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {fromToken}
+                            </Text>
+                        </View>
+                    )}
                 </View>
 
                 {/* Info Card */}

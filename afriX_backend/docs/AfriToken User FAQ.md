@@ -289,18 +289,16 @@ Need higher limits? Verify your ID!
 
 **No action needed from you!**
 
-### What is a token request?
+### What is a token request? *(Coming soon)*
 
-Instead of asking "please send me money", you create a token request:
+**This feature is coming soon.** When it’s available, you’ll be able to request tokens from a friend instead of asking “please send me money”:
 
 1. Tap "Request"
 2. Enter friend's email
 3. Enter amount and reason
 4. Send request
 
-Your friend receives notification:
-- "Jane requested 2,000 NT for lunch"
-- They can approve (send tokens) or reject
+Your friend would receive a notification (e.g. “Jane requested 2,000 NT for lunch”) and could approve (send tokens) or reject. Until this is released, use **Send** to receive tokens (share your email or QR and ask the sender to send to you).
 
 ### Can I cancel a sent transaction?
 
@@ -672,7 +670,7 @@ Fees cover:
 
 **You can reduce fees by**:
 - Receiving instead of sending (receiving is free!)
-- Using token requests (recipient pays fee)
+- Using token requests (recipient pays fee) *(coming soon)*
 - Larger, less frequent transactions
 - Swapping less often
 

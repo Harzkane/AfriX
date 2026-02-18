@@ -9,9 +9,11 @@ import {
     TouchableOpacity,
 } from "react-native";
 import { Text, TextInput } from "react-native-paper";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useTransferStore, useWalletStore } from "@/stores";
+import { parseAmountInput, formatAmountForInput, clampAmountToMax, formatAmount } from "@/utils/format";
 
 const PRESET_AMOUNTS = [1000, 5000, 10000, 20000];
 
@@ -53,26 +55,37 @@ export default function SendAmountScreen() {
         router.push("/modals/send-tokens/confirm");
     };
 
+    const maxByToken = tokenType === "USDT" ? availableBalance : Math.floor(availableBalance);
+
     const handleSetPreset = (preset: number) => {
-        setAmount(preset.toString());
+        const clamped = Math.min(preset, maxByToken);
+        const raw = tokenType === "USDT" ? clamped.toFixed(2) : Math.floor(clamped).toString();
+        setAmount(raw);
     };
 
     const handleSetMax = () => {
         if (wallet) {
-            // Set max amount minus fee (approximate)
-            const maxAmount = availableBalance - (availableBalance * 0.005);
-            setAmount(Math.max(0, maxAmount).toFixed(2));
+            const maxAmount = Math.max(0, availableBalance - (availableBalance * 0.005));
+            const raw = tokenType === "USDT" ? maxAmount.toFixed(2) : Math.floor(maxAmount).toString();
+            setAmount(raw);
         }
+    };
+
+    const handleAmountChange = (text: string) => {
+        const parsed = parseAmountInput(text, tokenType);
+        const clamped = clampAmountToMax(parsed, availableBalance, tokenType);
+        setAmount(clamped);
     };
 
     return (
         <KeyboardAvoidingView
-            style={{ flex: 1 }}
-            behavior={Platform.OS === "ios" ? "padding" : undefined}
-            keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
+            behavior={Platform.OS === "ios" ? "padding" : "height"}
+            style={styles.keyboardView}
+            keyboardVerticalOffset={Platform.OS === "ios" ? -8 : 12}
         >
+            <View style={styles.container}>
             <ScrollView
-                style={styles.container}
+                style={styles.scrollView}
                 contentContainerStyle={styles.content}
                 showsVerticalScrollIndicator={false}
                 keyboardShouldPersistTaps="handled"
@@ -94,14 +107,14 @@ export default function SendAmountScreen() {
                     <View style={styles.amountInputWrapper}>
                         <TextInput
                             mode="outlined"
-                            value={amount}
-                            onChangeText={setAmount}
+                            value={formatAmountForInput(amount, tokenType)}
+                            onChangeText={handleAmountChange}
                             keyboardType="numeric"
-                            placeholder="0.00"
+                            placeholder={tokenType === "USDT" ? "0.00" : "0"}
+                            placeholderTextColor="#9CA3AF"
                             style={styles.amountInput}
                             outlineStyle={styles.amountInputOutline}
                             contentStyle={styles.amountInputContent}
-                            returnKeyType="done"
                         />
                         <Text style={styles.currencyLabel}>{tokenType}</Text>
                     </View>
@@ -113,7 +126,7 @@ export default function SendAmountScreen() {
                                 key={preset}
                                 style={[
                                     styles.presetBtn,
-                                    amount === preset.toString() && styles.presetBtnActive,
+                                    amountNum === preset && styles.presetBtnActive,
                                 ]}
                                 onPress={() => handleSetPreset(preset)}
                                 activeOpacity={0.7}
@@ -121,7 +134,7 @@ export default function SendAmountScreen() {
                                 <Text
                                     style={[
                                         styles.presetText,
-                                        amount === preset.toString() && styles.presetTextActive,
+                                        amountNum === preset && styles.presetTextActive,
                                     ]}
                                 >
                                     {preset.toLocaleString()}
@@ -144,11 +157,7 @@ export default function SendAmountScreen() {
                         <View style={styles.balanceRow}>
                             <Text style={styles.balanceLabel}>Available Balance</Text>
                             <Text style={styles.balanceValue}>
-                                {availableBalance.toLocaleString(undefined, {
-                                    minimumFractionDigits: 2,
-                                    maximumFractionDigits: 2,
-                                })}{" "}
-                                {tokenType}
+                                {formatAmount(availableBalance, tokenType)} {tokenType}
                             </Text>
                         </View>
                     </View>
@@ -161,33 +170,21 @@ export default function SendAmountScreen() {
                     <View style={styles.summaryRow}>
                         <Text style={styles.summaryLabel}>Amount</Text>
                         <Text style={styles.summaryValue}>
-                            {amountNum.toLocaleString(undefined, {
-                                minimumFractionDigits: 2,
-                                maximumFractionDigits: 2,
-                            })}{" "}
-                            {tokenType}
+                            {formatAmount(amountNum, tokenType)} {tokenType}
                         </Text>
                     </View>
 
                     <View style={styles.summaryRow}>
                         <Text style={styles.summaryLabel}>Fee (0.5%)</Text>
                         <Text style={styles.summaryValue}>
-                            {fee.toLocaleString(undefined, {
-                                minimumFractionDigits: 2,
-                                maximumFractionDigits: 2,
-                            })}{" "}
-                            {tokenType}
+                            {formatAmount(fee, tokenType)} {tokenType}
                         </Text>
                     </View>
 
                     <View style={[styles.summaryRow, styles.summaryRowTotal]}>
                         <Text style={styles.summaryLabelTotal}>Total</Text>
                         <Text style={styles.summaryValueTotal}>
-                            {total.toLocaleString(undefined, {
-                                minimumFractionDigits: 2,
-                                maximumFractionDigits: 2,
-                            })}{" "}
-                            {tokenType}
+                            {formatAmount(total, tokenType)} {tokenType}
                         </Text>
                     </View>
                 </View>
@@ -198,10 +195,7 @@ export default function SendAmountScreen() {
                         <Ionicons name="warning" size={20} color="#F59E0B" />
                         <Text style={styles.warningText}>
                             Insufficient balance. You need{" "}
-                            {(total - availableBalance).toLocaleString(undefined, {
-                                minimumFractionDigits: 2,
-                                maximumFractionDigits: 2,
-                            })}{" "}
+                            {formatAmount(total - availableBalance, tokenType)}{" "}
                             {tokenType} more.
                         </Text>
                     </View>
@@ -215,32 +209,37 @@ export default function SendAmountScreen() {
                         value={note}
                         onChangeText={setNote}
                         placeholder="e.g., Payment for services"
+                        placeholderTextColor="#9CA3AF"
                         multiline
                         numberOfLines={3}
                         style={styles.noteInput}
                         outlineStyle={styles.noteInputOutline}
+                        contentStyle={styles.noteInputContent}
                         maxLength={500}
                     />
                     <Text style={styles.noteHint}>{note.length}/500</Text>
                 </View>
 
-                {/* Continue Button */}
-                <TouchableOpacity
-                    style={[
-                        styles.continueBtn,
-                        (!amount || amountNum <= 0 || hasInsufficientBalance) &&
-                        styles.continueBtnDisabled,
-                    ]}
-                    onPress={handleContinue}
-                    disabled={!amount || amountNum <= 0 || hasInsufficientBalance}
-                    activeOpacity={0.8}
-                >
-                    <Text style={styles.continueBtnText}>Review Transfer</Text>
-                    <Ionicons name="arrow-forward" size={20} color="#FFFFFF" />
-                </TouchableOpacity>
-
-                <View style={styles.bottomSpacer} />
             </ScrollView>
+
+                <SafeAreaView edges={["bottom"]} style={styles.footerWrapper}>
+                    <View style={styles.footer}>
+                        <TouchableOpacity
+                            style={[
+                                styles.continueBtn,
+                                (!amount || amountNum <= 0 || hasInsufficientBalance) &&
+                                styles.continueBtnDisabled,
+                            ]}
+                            onPress={handleContinue}
+                            disabled={!amount || amountNum <= 0 || hasInsufficientBalance}
+                            activeOpacity={0.8}
+                        >
+                            <Text style={styles.continueBtnText}>Review Transfer</Text>
+                            <Ionicons name="arrow-forward" size={20} color="#FFFFFF" />
+                        </TouchableOpacity>
+                    </View>
+                </SafeAreaView>
+            </View>
         </KeyboardAvoidingView>
     );
 }
@@ -250,9 +249,16 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: "#FFFFFF",
     },
+    keyboardView: {
+        flex: 1,
+    },
+    scrollView: {
+        flex: 1,
+    },
     content: {
         paddingHorizontal: 20,
         paddingTop: 20,
+        paddingBottom: 24,
     },
     recipientCard: {
         backgroundColor: "#F0FDF4",
@@ -298,6 +304,7 @@ const styles = StyleSheet.create({
         fontSize: 32,
         fontWeight: "700",
         textAlign: "center",
+        color: "#111827",
     },
     amountInputOutline: {
         borderRadius: 12,
@@ -307,6 +314,7 @@ const styles = StyleSheet.create({
     amountInputContent: {
         paddingVertical: 20,
         paddingRight: 80,
+        color: "#111827",
     },
     currencyLabel: {
         position: "absolute",
@@ -439,17 +447,31 @@ const styles = StyleSheet.create({
     noteInput: {
         backgroundColor: "#FFFFFF",
         fontSize: 14,
+        color: "#111827",
     },
     noteInputOutline: {
         borderRadius: 12,
         borderWidth: 2,
         borderColor: "#F3F4F6",
     },
+    noteInputContent: {
+        color: "#111827",
+    },
     noteHint: {
         fontSize: 12,
         color: "#9CA3AF",
         textAlign: "right",
         marginTop: 4,
+    },
+    footerWrapper: {
+        backgroundColor: "#FFFFFF",
+        borderTopWidth: 1,
+        borderTopColor: "#E5E7EB",
+    },
+    footer: {
+        paddingHorizontal: 20,
+        paddingTop: 12,
+        paddingBottom: 16,
     },
     continueBtn: {
         backgroundColor: "#00B14F",
@@ -459,7 +481,6 @@ const styles = StyleSheet.create({
         gap: 8,
         paddingVertical: 16,
         borderRadius: 12,
-        marginBottom: 12,
     },
     continueBtnDisabled: {
         backgroundColor: "#E5E7EB",
@@ -468,8 +489,5 @@ const styles = StyleSheet.create({
         fontSize: 16,
         fontWeight: "600",
         color: "#FFFFFF",
-    },
-    bottomSpacer: {
-        height: 40,
     },
 });

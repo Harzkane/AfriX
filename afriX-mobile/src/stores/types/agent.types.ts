@@ -163,12 +163,13 @@ export interface AgentState {
     fetchDepositHistory: () => Promise<void>;
     fetchReviews: (agentId: string) => Promise<void>;
     respondToReview: (reviewId: string, response: string) => Promise<void>;
+    submitReview: (payload: { transaction_id: string; rating: number; review_text?: string }) => Promise<void>;
     fetchHistory: () => Promise<void>;
 
     // Agent Selection (User View)
     agents: any[];
     selectedAgent: any | null;
-    fetchAgents: (country: string) => Promise<void>;
+    fetchAgents: (country: string, sort?: "rating" | "fastest" | "capacity") => Promise<void>;
     selectAgent: (agent: any) => void;
 
     // Request Actions

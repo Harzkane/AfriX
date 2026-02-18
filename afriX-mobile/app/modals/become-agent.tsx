@@ -105,7 +105,7 @@ export default function BecomeAgentModal() {
                 <TouchableOpacity
                     style={styles.secondaryButton}
                     onPress={() => {
-                        // TODO: Link to Agent Handbook
+                        router.push("/modals/agent-learn-more");
                     }}
                 >
                     <Text style={styles.secondaryButtonText}>Learn More</Text>

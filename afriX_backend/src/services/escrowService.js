@@ -114,24 +114,24 @@ const escrowService = {
    *  4. Increase agent capacity (optional).
    *  5. Mark transaction & escrow as COMPLETED.
    */
-  async finalizeBurn(escrowId, evidence = {}) {
-    return sequelize.transaction(async (t) => {
+  async finalizeBurn(escrowId, evidence = {}, t = null) {
+    const work = async (innerT) => {
       // Step 1: Validate escrow
-      const escrow = await Escrow.findByPk(escrowId, { transaction: t });
+      const escrow = await Escrow.findByPk(escrowId, { transaction: innerT });
       if (!escrow) throw new ApiError("Escrow not found", 404);
-      if (escrow.status !== "locked") {
-        throw new ApiError("Escrow not in locked state", 400);
+      if (escrow.status !== "locked" && escrow.status !== "disputed") {
+        throw new ApiError("Escrow not in a state that can be finalized", 400);
       }
 
       // Step 2: Fetch transaction and user wallet
       const tx = await Transaction.findByPk(escrow.transaction_id, {
-        transaction: t,
+        transaction: innerT,
       });
       if (!tx) throw new ApiError("Related transaction not found", 404);
 
       const userWallet = await Wallet.findOne({
         where: { user_id: escrow.from_user_id, token_type: escrow.token_type },
-        transaction: t,
+        transaction: innerT,
       });
       if (!userWallet) throw new ApiError("User wallet not found", 404);
 
@@ -140,32 +140,56 @@ const escrowService = {
         0,
         parseFloat(userWallet.pending_balance) - parseFloat(escrow.amount)
       );
-      await userWallet.save({ transaction: t });
+      await userWallet.save({ transaction: innerT });
 
       // Step 4: Increase agent’s capacity (optional)
       if (escrow.agent_id) {
-        const agent = await Agent.findByPk(escrow.agent_id, { transaction: t });
+        const { EXCHANGE_RATES } = require("../config/constants");
+        const tokenToUsdt = (amt, tokenType) => {
+          const rate =
+            tokenType === "NT"
+              ? EXCHANGE_RATES.NT_TO_USDT
+              : tokenType === "CT"
+                ? EXCHANGE_RATES.CT_TO_USDT
+                : 1;
+          return parseFloat(amt) * (rate || 0);
+        };
+        const amountUsdt = tokenToUsdt(escrow.amount, escrow.token_type);
+        const agent = await Agent.findByPk(escrow.agent_id, { transaction: innerT });
         if (agent) {
-          agent.available_capacity += parseFloat(escrow.amount);
-          agent.total_burned += parseFloat(escrow.amount);
-          await agent.save({ transaction: t });
+          agent.available_capacity = (parseFloat(agent.available_capacity) || 0) + amountUsdt;
+          agent.total_burned = (parseFloat(agent.total_burned) || 0) + parseFloat(escrow.amount);
+
+          // ✅ ADDED: Commission Logic
+          const commissionRate = agent.commission_rate || 0.01;
+          const commissionToken = parseFloat(escrow.amount) * commissionRate;
+          const commissionUsdt = tokenToUsdt(commissionToken, escrow.token_type);
+          agent.total_earnings = (parseFloat(agent.total_earnings) || 0) + commissionUsdt;
+
+          await agent.save({ transaction: innerT });
+
+          // ✅ NEW: Record commission in transaction fee
+          tx.fee = commissionToken;
         }
       }
 
       // Step 5: Update transaction and escrow records
       tx.status = TRANSACTION_STATUS.COMPLETED;
       tx.metadata = { ...(tx.metadata || {}), finalize_evidence: evidence };
-      await tx.save({ transaction: t });
+      await tx.save({ transaction: innerT });
 
       escrow.status = "completed";
       escrow.metadata = {
         ...(escrow.metadata || {}),
         finalize_evidence: evidence,
       };
-      await escrow.save({ transaction: t });
+      await escrow.save({ transaction: innerT });
 
       return { tx, escrow };
-    });
+    };
+
+    if (t) return work(t);
+    return sequelize.transaction(work);
   },
 
   /**
@@ -181,10 +205,10 @@ const escrowService = {
    *  2. Deduct from pending → credit back to balance.
    *  3. Update statuses to REFUNDED.
    */
-  async refundEscrow(escrowId, adminNotes = {}) {
-    return sequelize.transaction(async (t) => {
+  async refundEscrow(escrowId, adminNotes = {}, t = null) {
+    const work = async (innerT) => {
       // Step 1: Fetch escrow
-      const escrow = await Escrow.findByPk(escrowId, { transaction: t });
+      const escrow = await Escrow.findByPk(escrowId, { transaction: innerT });
       if (!escrow) throw new ApiError("Escrow not found", 404);
       if (!["locked", "disputed"].includes(escrow.status)) {
         throw new ApiError(
@@ -195,13 +219,13 @@ const escrowService = {
 
       // Step 2: Fetch transaction & wallet
       const tx = await Transaction.findByPk(escrow.transaction_id, {
-        transaction: t,
+        transaction: innerT,
       });
       if (!tx) throw new ApiError("Related transaction not found", 404);
 
       const userWallet = await Wallet.findOne({
         where: { user_id: escrow.from_user_id, token_type: escrow.token_type },
-        transaction: t,
+        transaction: innerT,
       });
       if (!userWallet) throw new ApiError("User wallet not found", 404);
 
@@ -224,10 +248,13 @@ const escrowService = {
         ...(escrow.metadata || {}),
         refund_admin_notes: adminNotes,
       };
-      await escrow.save({ transaction: t });
+      await escrow.save({ transaction: innerT });
 
       return { tx, escrow };
-    });
+    };
+
+    if (t) return work(t);
+    return sequelize.transaction(work);
   },
 
   /**

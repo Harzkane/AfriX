@@ -5,7 +5,7 @@ const { Umzug, SequelizeStorage } = require("umzug");
 
 const umzug = new Umzug({
     migrations: {
-        glob: "migrations/*.js",
+        glob: "migrations/*[0-9]*.js", // exclude runner.js (no digit in name)
         resolve: ({ name, path, context }) => {
             const migration = require(path);
             if (!migration || typeof migration.up !== 'function') {

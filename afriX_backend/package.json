@@ -12,7 +12,8 @@
     "lint": "eslint src/**/*.js",
     "logs": "tail -f logs/app.log",
     "db:drop": "npx sequelize-cli db:drop --config ./src/config/config.js --env development",
-    "db:create": "npx sequelize-cli db:create --config ./src/config/config.js --env development"
+    "db:create": "npx sequelize-cli db:create --config ./src/config/config.js --env development",
+    "seed:disputes": "node create_dispute_tests.js"
   },
   "keywords": [
     "blockchain",
@@ -51,6 +52,7 @@
     "pg": "^8.16.3",
     "qrcode": "^1.5.4",
     "redis": "^5.8.3",
+    "resend": "^4.8.0",
     "sequelize": "^6.37.7",
     "socket.io": "^4.8.1",
     "speakeasy": "^2.0.0",

@@ -27,7 +27,9 @@ export type AuthState = {
   loading: boolean;
   error: string | null;
 
-  login: (credentials: { email: string; password: string }) => Promise<void>;
+  login: (credentials: { email: string; password: string }) => Promise<
+    void | { requires_2fa: true; temp_token: string }
+  >;
   register: (form: {
     email: string;
     password: string;
@@ -37,10 +39,12 @@ export type AuthState = {
   verifyEmail: (token: string) => Promise<void>;
   logout: () => void;
   initAuth: () => Promise<void>;
+  unlockWithBiometric: () => Promise<boolean>;
   clearError: () => void;
 
   forgotPassword: (email: string) => Promise<void>;
   resetPassword: (token: string, new_password: string) => Promise<void>;
+  changePassword: (current_password: string, new_password: string) => Promise<void>;
   resendVerification: (email: string) => Promise<void>;
   fetchMe: () => Promise<void>;
   setUser: (user: User) => void;

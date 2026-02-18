@@ -3,7 +3,10 @@ import axios from "axios";
 import Constants from "expo-constants";
 import * as SecureStore from "expo-secure-store";
 
-const API_URL = Constants.expoConfig?.extra?.apiUrl || "http://192.168.1.144:5001/api/v1";
+const API_URL =
+  (typeof process !== "undefined" && process.env?.EXPO_PUBLIC_API_URL) ||
+  Constants.expoConfig?.extra?.apiUrl ||
+  "https://api.replace-me-with-render-url.com/v1";
 
 const apiClient = axios.create({
   baseURL: API_URL,
@@ -64,6 +67,19 @@ apiClient.interceptors.response.use(
     ) {
       // Suppress deposit validation errors (shown in Alert to user)
       console.log("ℹ️  Deposit validation error (shown in Alert)");
+    } else if (
+      error.response?.status === 400 &&
+      error.config?.url?.includes("/agents/deposit")
+    ) {
+      // Log briefly; user sees friendly message in Alert, not backend/URL
+      console.log("ℹ️  Deposit request failed (400)");
+    } else if (
+      error.response?.status === 400 &&
+      (error.config?.url?.includes("/auth/2fa/disable") ||
+        error.config?.url?.includes("/auth/2fa/verify"))
+    ) {
+      // Suppress 2FA errors; user sees friendly Alert, not backend message
+      console.log("ℹ️  2FA request failed (handled by UI)");
     } else {
       console.error(
         `❌ ${error.config?.url} - ${error.response?.status}`,

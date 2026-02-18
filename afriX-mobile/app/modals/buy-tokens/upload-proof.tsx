@@ -23,7 +23,7 @@ export default function UploadProofScreen() {
   const { requestId } = useLocalSearchParams<{ requestId: string }>();
   const [imageUri, setImageUri] = useState<string | null>(null);
   const router = useRouter();
-  const { uploadProof, loading } = useMintRequestStore();
+  const { uploadProof, cancelMintRequest, loading } = useMintRequestStore();
 
   const requestCameraPermissions = async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
@@ -106,6 +106,32 @@ export default function UploadProofScreen() {
     } catch (error) {
       Alert.alert("Error", "Failed to upload proof. Please try again.");
     }
+  };
+
+  const handleCancelRequest = () => {
+    Alert.alert(
+      "Cancel Request?",
+      "Are you sure you want to cancel this mint request? This action cannot be undone.",
+      [
+        { text: "No, Keep It", style: "cancel" },
+        {
+          text: "Yes, Cancel",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await cancelMintRequest(requestId);
+              Alert.alert(
+                "Request Cancelled",
+                "Your mint request has been cancelled successfully.",
+                [{ text: "OK", onPress: () => router.back() }]
+              );
+            } catch (error: any) {
+              Alert.alert("Error", error.message || "Failed to cancel request");
+            }
+          },
+        },
+      ]
+    );
   };
 
   return (
@@ -215,6 +241,16 @@ export default function UploadProofScreen() {
           </Text>
         </View>
 
+        {/* Cancel Request Button */}
+        <TouchableOpacity
+          style={styles.cancelBtn}
+          onPress={handleCancelRequest}
+          disabled={loading}
+        >
+          <Ionicons name="close-circle-outline" size={20} color="#EF4444" />
+          <Text style={styles.cancelBtnText}>Cancel Request</Text>
+        </TouchableOpacity>
+
         {/* Upload Action */}
         <TouchableOpacity
           style={[styles.uploadBtn, (!imageUri || loading) && styles.disabledBtn]}
@@ -252,8 +288,6 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: 140,
-    borderBottomLeftRadius: 30,
-    borderBottomRightRadius: 30,
   },
   headerContent: {
     paddingHorizontal: 20,
@@ -436,6 +470,23 @@ const styles = StyleSheet.create({
   },
   uploadBtnText: {
     color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "700",
+  },
+  cancelBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    marginBottom: 12,
+    paddingVertical: 14,
+    borderRadius: 18,
+    borderWidth: 2,
+    borderColor: "#EF4444",
+    backgroundColor: "#FFFFFF",
+  },
+  cancelBtnText: {
+    color: "#EF4444",
     fontSize: 16,
     fontWeight: "700",
   },

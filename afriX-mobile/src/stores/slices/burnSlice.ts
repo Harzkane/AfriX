@@ -77,6 +77,25 @@ export const useBurnStore = create<BurnState>((set, get) => ({
         }
     },
 
+    /** Sets currentRequest from GET /requests/user: active burn or null. */
+    fetchCurrentBurnRequestForUser: async () => {
+        try {
+            const { data } = await apiClient.get(API_ENDPOINTS.REQUESTS.USER);
+            if (data.success && data.data?.length > 0) {
+                const burnRequests = (data.data as any[]).filter((r: any) => r.type === "burn");
+                const activeRequest = burnRequests.find((req: any) =>
+                    ["pending", "escrowed", "fiat_sent"].includes((req.status || "").toLowerCase())
+                );
+                set({ currentRequest: activeRequest ?? null });
+            } else {
+                set({ currentRequest: null });
+            }
+        } catch (err) {
+            console.log("No active burn request found or failed to fetch");
+            set({ currentRequest: null });
+        }
+    },
+
     confirmFiatReceipt: async (requestId) => {
         set({ loading: true, error: null });
         try {

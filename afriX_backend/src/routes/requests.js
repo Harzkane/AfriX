@@ -18,6 +18,7 @@ router.post("/mint/:request_id/proof", authenticate, upload.single("proof"), req
 router.get("/mint/:request_id", authenticate, requestController.getMintRequest);
 router.post("/mint/confirm", authenticate, requireAgent, requestController.confirmMint);
 router.post("/mint/reject", authenticate, requireAgent, requestController.rejectMint);
+router.delete("/mint/:request_id", authenticate, requestController.cancelMintRequest);
 
 // === BURN FLOW ===
 router.post("/burn", authenticate, requestController.createBurnRequest);

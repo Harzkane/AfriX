@@ -24,12 +24,36 @@ import { formatAmount, formatDate } from "@/utils/format";
 export default function RequestDetailsScreen() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
-  const { pendingRequests, confirmMintRequest, confirmBurnPayment, rejectRequest, loading } = useAgentStore();
+  const {
+    pendingRequests,
+    confirmMintRequest,
+    confirmBurnPayment,
+    rejectRequest,
+    loading,
+  } = useAgentStore();
 
   const request = pendingRequests.find((r) => r.id === id);
   const [uploading, setUploading] = useState(false);
   const [rejectModalVisible, setRejectModalVisible] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
+
+  const isMint = request?.type === "mint" || (!request?.type && !request?.bank_account);
+  const isBurn = !isMint;
+
+  // Check for expiry
+  const IsExpiredByTime = (req: any) => {
+    if (!req?.expires_at) return false;
+    return new Date(req.expires_at).getTime() < Date.now();
+  };
+
+  const isExpired = request?.status === "expired" || IsExpiredByTime(request);
+
+  // Only allow actions while the request is still actionable.
+  // For mint: confirm is only valid in proof_submitted status AND not expired.
+  const canConfirmMint = !!request && isMint && request.status === "proof_submitted" && !isExpired;
+  // For reject: pending or proof_submitted are actionable; anything else is read-only.
+  const canReject =
+    !!request && (request.status === "pending" || request.status === "proof_submitted");
 
   if (!request) {
     return (
@@ -43,9 +67,6 @@ export default function RequestDetailsScreen() {
       </SafeAreaView>
     );
   }
-
-  const isMint = request.type === "mint" || (!request.type && !request.bank_account);
-  const isBurn = !isMint;
 
   const handleConfirmMint = async () => {
     Alert.alert(
@@ -117,6 +138,30 @@ export default function RequestDetailsScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
+        {isExpired && request.status !== "disputed" && (
+          <View style={[styles.card, styles.expiredCard]}>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 8 }}>
+              <Ionicons name="alert-circle" size={24} color="#B91C1C" />
+              <Text style={styles.expiredTitle}>Request Expired</Text>
+            </View>
+            <Text style={styles.expiredText}>
+              This request has expired before completion. It has been automatically refunded to the user.
+            </Text>
+          </View>
+        )}
+
+        {request.status === "disputed" && (
+          <View style={[styles.card, styles.disputedCard]}>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 8 }}>
+              <Ionicons name="warning" size={24} color="#D97706" />
+              <Text style={styles.disputedTitle}>Dispute Opened</Text>
+            </View>
+            <Text style={styles.disputedText}>
+              This request expired while in "Fiat Sent" status. An automatic dispute has been opened for admin review.
+            </Text>
+          </View>
+        )}
+
         {/* User Info Card */}
         <View style={styles.card}>
           <Text style={styles.cardTitle}>User Information</Text>
@@ -176,42 +221,74 @@ export default function RequestDetailsScreen() {
           </View>
         )}
 
-        {/* Burn Specific: Bank Details */}
-        {isBurn && request.bank_account && (
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>Bank Details (For Payment)</Text>
-            <View style={styles.bankContainer}>
-              <Text style={styles.bankLabel}>Bank Name</Text>
-              <Text style={styles.bankValue}>{request.bank_account.bank_name}</Text>
+        {/* Burn Specific: Payment Details (Bank or Mobile Money) */}
+        {isBurn && request.bank_account && (() => {
+          const ba = request.bank_account as {
+            type?: string;
+            bank_name?: string;
+            account_number?: string;
+            account_name?: string;
+            provider?: string;
+            phone_number?: string;
+          };
+          const isMobileMoney =
+            ba.type === "mobile_money" ||
+            (!ba.bank_name && (ba.provider || ba.phone_number));
+          return (
+            <View style={styles.card}>
+              <Text style={styles.cardTitle}>
+                {isMobileMoney ? "Mobile Money Details (For Payment)" : "Bank Details (For Payment)"}
+              </Text>
+              <View style={styles.bankContainer}>
+                {isMobileMoney ? (
+                  <>
+                    <Text style={styles.bankLabel}>Provider</Text>
+                    <Text style={styles.bankValue}>{ba.provider ?? "—"}</Text>
 
-              <Text style={styles.bankLabel}>Account Number</Text>
-              <Text style={styles.bankValue}>{request.bank_account.account_number}</Text>
+                    <Text style={styles.bankLabel}>Phone Number</Text>
+                    <Text style={styles.bankValue}>{ba.phone_number ?? "—"}</Text>
 
-              <Text style={styles.bankLabel}>Account Name</Text>
-              <Text style={styles.bankValue}>{request.bank_account.account_name}</Text>
+                    <Text style={styles.bankLabel}>Account / Wallet Holder Name</Text>
+                    <Text style={styles.bankValue}>{ba.account_name ?? "—"}</Text>
+                  </>
+                ) : (
+                  <>
+                    <Text style={styles.bankLabel}>Bank Name</Text>
+                    <Text style={styles.bankValue}>{ba.bank_name ?? "—"}</Text>
+
+                    <Text style={styles.bankLabel}>Account Number</Text>
+                    <Text style={styles.bankValue}>{ba.account_number ?? "—"}</Text>
+
+                    <Text style={styles.bankLabel}>Account Name</Text>
+                    <Text style={styles.bankValue}>{ba.account_name ?? "—"}</Text>
+                  </>
+                )}
+              </View>
             </View>
-          </View>
-        )}
+          );
+        })()}
       </ScrollView>
 
       <View style={styles.footer}>
         {isMint ? (
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={handleConfirmMint}
-            disabled={loading}
-          >
-            {loading ? (
-              <ActivityIndicator color="#FFFFFF" />
-            ) : (
-              <Text style={styles.actionButtonText}>Confirm Payment Received</Text>
-            )}
-          </TouchableOpacity>
+          canConfirmMint ? (
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={handleConfirmMint}
+              disabled={loading}
+            >
+              {loading ? (
+                <ActivityIndicator color="#FFFFFF" />
+              ) : (
+                <Text style={styles.actionButtonText}>Confirm Payment Received</Text>
+              )}
+            </TouchableOpacity>
+          ) : null
         ) : (
           <TouchableOpacity
             style={styles.actionButton}
             onPress={handleUploadProof}
-            disabled={uploading}
+            disabled={uploading || isExpired}
           >
             {uploading ? (
               <ActivityIndicator color="#FFFFFF" />
@@ -221,13 +298,15 @@ export default function RequestDetailsScreen() {
           </TouchableOpacity>
         )}
 
-        <TouchableOpacity
-          style={[styles.actionButton, styles.rejectButton]}
-          onPress={() => setRejectModalVisible(true)}
-          disabled={loading}
-        >
-          <Text style={[styles.actionButtonText, styles.rejectButtonText]}>Reject Request</Text>
-        </TouchableOpacity>
+        {canReject && (
+          <TouchableOpacity
+            style={[styles.actionButton, styles.rejectButton]}
+            onPress={() => setRejectModalVisible(true)}
+            disabled={loading}
+          >
+            <Text style={[styles.actionButtonText, styles.rejectButtonText]}>Reject Request</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Reject Modal */}
@@ -516,5 +595,35 @@ const styles = StyleSheet.create({
     color: "#FFF",
     fontSize: 16,
     fontWeight: "600",
+  },
+  expiredCard: {
+    backgroundColor: "#FEF2F2",
+    borderColor: "#FEE2E2",
+    borderWidth: 1,
+  },
+  expiredTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#991B1B",
+  },
+  expiredText: {
+    fontSize: 14,
+    color: "#B91C1C",
+    lineHeight: 20,
+  },
+  disputedCard: {
+    backgroundColor: "#FFFBEB",
+    borderColor: "#FEF3C7",
+    borderWidth: 1,
+  },
+  disputedTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#92400E",
+  },
+  disputedText: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: "#92400E",
   },
 });

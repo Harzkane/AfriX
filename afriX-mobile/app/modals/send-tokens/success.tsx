@@ -9,9 +9,11 @@ import * as Haptics from "expo-haptics";
 
 export default function TransferSuccessScreen() {
     const router = useRouter();
-    const { recipientEmail, tokenType, amount, reset } = useTransferStore();
+    const { recipientEmail, tokenType, amount, fee, reset } = useTransferStore();
 
     const amountNum = parseFloat(amount) || 0;
+    const feeNum = fee || 0;
+    const recipientReceived = amountNum - feeNum;
 
     useEffect(() => {
         // Haptic feedback on success
@@ -61,6 +63,22 @@ export default function TransferSuccessScreen() {
                             {tokenType}
                         </Text>
                     </View>
+                    {feeNum > 0 && (
+                        <>
+                            <View style={styles.detailRow}>
+                                <Text style={styles.detailLabel}>Platform fee</Text>
+                                <Text style={styles.detailValue}>
+                                    {feeNum.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {tokenType}
+                                </Text>
+                            </View>
+                            <View style={styles.detailRow}>
+                                <Text style={styles.detailLabel}>Recipient received</Text>
+                                <Text style={styles.detailValue}>
+                                    {recipientReceived.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {tokenType}
+                                </Text>
+                            </View>
+                        </>
+                    )}
                 </View>
 
                 {/* Info Card */}

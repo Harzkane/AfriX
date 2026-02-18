@@ -13,10 +13,23 @@ const {
   TRANSACTION_TYPES,
   TRANSACTION_STATUS,
   MINT_REQUEST_STATUS,
+  EXCHANGE_RATES,
 } = require("../config/constants");
 const { ApiError } = require("../utils/errors");
 const { generateTransactionReference } = require("../utils/helpers");
 const walletService = require("./walletService");
+const platformService = require("./platformService");
+
+/** Convert token amount to USDT using exchange rates (capacity and earnings are in USDT). */
+function tokenAmountToUsdt(amount, tokenType) {
+  const rate =
+    tokenType === "NT"
+      ? EXCHANGE_RATES.NT_TO_USDT
+      : tokenType === "CT"
+        ? EXCHANGE_RATES.CT_TO_USDT
+        : 1;
+  return parseFloat(amount) * (rate || 0);
+}
 
 /**
  * Handles creation, wallet debits/credits, and status transitions for transactions.
@@ -122,6 +135,18 @@ const transactionService = {
       const fee = (parseFloat(amount) * feePercent) / 100;
       const netAmount = parseFloat(amount) - fee;
 
+      // Collect platform fee to platform wallet
+      let feeWalletId = null;
+      if (fee > 0) {
+        const feeWallet = await platformService.collectFee({
+          tokenType: token_type,
+          feeAmount: fee,
+          transactionType: "merchant_collection",
+          dbTransaction: t,
+        });
+        if (feeWallet) feeWalletId = feeWallet.id;
+      }
+
       const tx = await Transaction.create(
         {
           reference: generateTransactionReference(),
@@ -136,6 +161,7 @@ const transactionService = {
           merchant_id: merchant.id,
           from_wallet_id: customerWallet.id,
           to_wallet_id: merchantWallet.id,
+          fee_wallet_id: feeWalletId,
         },
         { transaction: t }
       );
@@ -194,10 +220,10 @@ const transactionService = {
    * Process an agent sale (agent minting tokens to user)
    * Called ONLY from mint request flow (after proof)
    */
-  async processAgentMint(userId, agentId, amount, token_type, metadata = {}) {
-    return sequelize.transaction(async (t) => {
+  async processAgentMint(userId, agentId, amount, token_type, metadata = {}, t = null) {
+    const work = async (innerT) => {
       // Find agent and validate
-      const agent = await Agent.findByPk(agentId, { transaction: t });
+      const agent = await Agent.findByPk(agentId, { transaction: innerT });
       if (!agent || agent.status !== "active") {
         throw new ApiError("Agent not available or inactive", 400);
       }
@@ -206,18 +232,21 @@ const transactionService = {
       const userWallet = await walletService.getOrCreateWallet(
         userId,
         token_type,
-        t
+        innerT
       );
 
       // ✅ Use getOrCreateWallet for agent too (agents are users)
       const agentWallet = await walletService.getOrCreateWallet(
         agent.user_id,
         token_type,
-        t
+        innerT
       );
 
-      // Check agent capacity
-      if (parseFloat(agent.available_capacity) < parseFloat(amount)) {
+      const amountNum = parseFloat(amount);
+      const amountUsdt = tokenAmountToUsdt(amount, token_type);
+
+      // Check agent capacity (in USDT)
+      if (parseFloat(agent.available_capacity) < amountUsdt) {
         throw new ApiError("Agent has insufficient capacity to mint", 400);
       }
 
@@ -237,47 +266,54 @@ const transactionService = {
           from_wallet_id: agentWallet.id,
           to_wallet_id: userWallet.id,
         },
-        { transaction: t }
+        { transaction: innerT }
       );
 
-      // Update balances
-      userWallet.balance = parseFloat(userWallet.balance) + parseFloat(amount);
-      agent.available_capacity -= parseFloat(amount);
-      agent.total_minted += parseFloat(amount);
+      // Update balances (wallets in token; capacity in USDT)
+      userWallet.balance = parseFloat(userWallet.balance) + amountNum;
+      agent.available_capacity -= amountUsdt;
+      agent.total_minted += amountNum;
 
-      // Calculate and add commission
+      // Commission in token, convert to USDT for total_earnings
       const commissionRate = agent.commission_rate || 0.01;
-      const commission = parseFloat(amount) * commissionRate;
-      agent.total_earnings = (parseFloat(agent.total_earnings) || 0) + commission;
+      const commissionToken = amountNum * commissionRate;
+      const commissionUsdt = tokenAmountToUsdt(commissionToken, token_type);
+      agent.total_earnings = (parseFloat(agent.total_earnings) || 0) + commissionUsdt;
 
-      await userWallet.save({ transaction: t });
-      await agent.save({ transaction: t });
+      await userWallet.save({ transaction: innerT });
+      await agent.save({ transaction: innerT });
+
+      // ✅ NEW: Record commission in transaction fee
+      tx.fee = commissionToken;
 
       // Complete
       tx.status = TRANSACTION_STATUS.COMPLETED;
-      await tx.save({ transaction: t });
+      await tx.save({ transaction: innerT });
 
       return tx;
-    });
+    };
+
+    if (t) return work(t);
+    return sequelize.transaction(work);
   },
 
   /**
    * Process agent buyback (user burning tokens to agent)
    */
-  async processAgentBuyback(userId, agentId, amount, token_type, metadata = {}) {
-    return sequelize.transaction(async (t) => {
-      const agent = await Agent.findByPk(agentId, { transaction: t });
+  async processAgentBuyback(userId, agentId, amount, token_type, metadata = {}, t = null) {
+    const work = async (innerT) => {
+      const agent = await Agent.findByPk(agentId, { transaction: innerT });
       if (!agent || agent.status !== "active") {
         throw new ApiError("Agent not available or inactive", 400);
       }
 
       const userWallet = await Wallet.findOne({
         where: { user_id: userId, token_type },
-        transaction: t,
+        transaction: innerT,
       });
       const agentWallet = await Wallet.findOne({
         where: { user_id: agent.user_id, token_type },
-        transaction: t,
+        transaction: innerT,
       });
 
       if (!userWallet || !agentWallet) {
@@ -303,26 +339,36 @@ const transactionService = {
           from_wallet_id: userWallet.id,
           to_wallet_id: agentWallet.id,
         },
-        { transaction: t }
+        { transaction: innerT }
       );
 
-      userWallet.balance -= parseFloat(amount);
-      agent.available_capacity += parseFloat(amount);
-      agent.total_burned += parseFloat(amount);
+      const amountNum = parseFloat(amount);
+      const amountUsdt = tokenAmountToUsdt(amount, token_type);
 
-      // Calculate and add commission
+      userWallet.balance -= amountNum;
+      agent.available_capacity += amountUsdt;
+      agent.total_burned += amountNum;
+
+      // Commission in token, convert to USDT for total_earnings
       const commissionRate = agent.commission_rate || 0.01;
-      const commission = parseFloat(amount) * commissionRate;
-      agent.total_earnings = (parseFloat(agent.total_earnings) || 0) + commission;
+      const commissionToken = amountNum * commissionRate;
+      const commissionUsdt = tokenAmountToUsdt(commissionToken, token_type);
+      agent.total_earnings = (parseFloat(agent.total_earnings) || 0) + commissionUsdt;
 
-      await userWallet.save({ transaction: t });
-      await agent.save({ transaction: t });
+      await userWallet.save({ transaction: innerT });
+      await agent.save({ transaction: innerT });
+
+      // ✅ NEW: Record commission in transaction fee
+      tx.fee = commissionToken;
 
       tx.status = TRANSACTION_STATUS.COMPLETED;
-      await tx.save({ transaction: t });
+      await tx.save({ transaction: innerT });
 
       return tx;
-    });
+    };
+
+    if (t) return work(t);
+    return sequelize.transaction(work);
   },
 
   // // ============================================

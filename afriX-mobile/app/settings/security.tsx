@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
     View,
     Text,
@@ -11,6 +11,10 @@ import {
     TextInput,
     Image,
 } from "react-native";
+import Constants from "expo-constants";
+import * as Clipboard from "expo-clipboard";
+import * as SecureStore from "expo-secure-store";
+import * as LocalAuthentication from "expo-local-authentication";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -18,24 +22,95 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useAuthStore } from "@/stores";
 import apiClient from "@/services/apiClient";
 
+const BIOMETRIC_LOGIN_KEY = "biometric_login_enabled";
+
 export default function SecurityScreen() {
     const router = useRouter();
     const { user, setUser } = useAuthStore();
     const [biometricsEnabled, setBiometricsEnabled] = useState(false);
+    const [biometricLoading, setBiometricLoading] = useState(false);
     const [twoFactorEnabled, setTwoFactorEnabled] = useState(
         user?.two_factor_enabled || false
     );
 
+    useEffect(() => {
+        SecureStore.getItemAsync(BIOMETRIC_LOGIN_KEY).then((value) => {
+            setBiometricsEnabled(value === "true");
+        });
+    }, []);
+
     const [show2FAModal, setShow2FAModal] = useState(false);
+    const [showDisable2FAModal, setShowDisable2FAModal] = useState(false);
+    const [disablePassword, setDisablePassword] = useState("");
+    const [disableOtp, setDisableOtp] = useState("");
     const [qrCode, setQrCode] = useState("");
     const [otp, setOtp] = useState("");
     const [secret, setSecret] = useState("");
     const [loading, setLoading] = useState(false);
     const [step, setStep] = useState<"setup" | "verify">("setup");
 
-    const handleBiometricToggle = (value: boolean) => {
-        setBiometricsEnabled(value);
-        // TODO: Implement biometric storage logic
+    const handleBiometricToggle = async (value: boolean) => {
+        if (value) {
+            setBiometricLoading(true);
+            try {
+                // Face ID is not supported in Expo Go – require a development build
+                if (Constants.appOwnership === "expo") {
+                    Alert.alert(
+                        "Use a development build",
+                        "Biometric login (Face ID / Touch ID) does not work in Expo Go. Build the app with: npx expo run:ios"
+                    );
+                    setBiometricLoading(false);
+                    return;
+                }
+                const hasHardware = await LocalAuthentication.hasHardwareAsync();
+                const isEnrolled = await LocalAuthentication.isEnrolledAsync();
+                if (!hasHardware || !isEnrolled) {
+                    Alert.alert(
+                        "Not available",
+                        "Biometric login is not available on this device. Set up Face ID or Touch ID in your device settings. If you use Expo Go, you need a development build (npx expo run:ios) for Face ID."
+                    );
+                    setBiometricLoading(false);
+                    return;
+                }
+                const result = await LocalAuthentication.authenticateAsync({
+                    promptMessage: "Verify identity to enable biometric login",
+                    cancelLabel: "Cancel",
+                    fallbackLabel: "Use password",
+                    disableDeviceFallback: true,
+                });
+                if (result.success) {
+                    await SecureStore.setItemAsync(BIOMETRIC_LOGIN_KEY, "true");
+                    setBiometricsEnabled(true);
+                } else {
+                    setBiometricsEnabled(false);
+                    const errorMsg = (result as { error?: string }).error;
+                    if (errorMsg === "user_cancel" || errorMsg === "system_cancel") {
+                        Alert.alert("Cancelled", "Authentication was cancelled.");
+                    } else if (errorMsg === "lockout") {
+                        Alert.alert(
+                            "Try again later",
+                            "Too many failed attempts. Use your device passcode to unlock, then try again."
+                        );
+                    } else {
+                        Alert.alert(
+                            "Couldn’t enable",
+                            "Biometric authentication failed. Try again or use a development build if you are testing."
+                        );
+                    }
+                }
+            } catch {
+                setBiometricsEnabled(false);
+                Alert.alert(
+                    "Couldn’t enable",
+                    "Biometric login could not be enabled. If you use Expo Go, build the app with: npx expo run:ios"
+                );
+            } finally {
+                setBiometricLoading(false);
+            }
+        } else {
+            await SecureStore.deleteItemAsync(BIOMETRIC_LOGIN_KEY);
+            setBiometricsEnabled(false);
+        }
     };
 
     const handle2FAToggle = async (value: boolean) => {
@@ -57,33 +132,36 @@ export default function SecurityScreen() {
                 setLoading(false);
             }
         } else {
-            // Disable 2FA
-            Alert.prompt(
-                "Disable 2FA",
-                "Enter your password to disable 2FA",
-                [
-                    {
-                        text: "Cancel",
-                        style: "cancel",
-                    },
-                    {
-                        text: "Disable",
-                        onPress: async (password?: string) => {
-                            if (!password) return;
-                            try {
-                                await apiClient.post("/auth/2fa/disable", { password });
-                                setTwoFactorEnabled(false);
-                                if (user) setUser({ ...user, two_factor_enabled: false });
-                                Alert.alert("Success", "2FA disabled successfully");
-                            } catch (error) {
-                                console.error("Disable 2FA error:", error);
-                                Alert.alert("Error", "Failed to disable 2FA. Check your password.");
-                            }
-                        },
-                    },
-                ],
-                "secure-text"
+            // Disable 2FA: show modal for password + optional 6-digit code
+            setDisablePassword("");
+            setDisableOtp("");
+            setShowDisable2FAModal(true);
+        }
+    };
+
+    const handleDisable2FASubmit = async () => {
+        if (!disablePassword.trim()) {
+            Alert.alert("Error", "Enter your account password.");
+            return;
+        }
+        try {
+            setLoading(true);
+            const body: { password: string; token?: string } = { password: disablePassword.trim() };
+            if (disableOtp.trim().length === 6) body.token = disableOtp.trim();
+            await apiClient.post("/auth/2fa/disable", body);
+            setTwoFactorEnabled(false);
+            if (user) setUser({ ...user, two_factor_enabled: false });
+            setShowDisable2FAModal(false);
+            setDisablePassword("");
+            setDisableOtp("");
+            Alert.alert("Success", "2FA disabled successfully");
+        } catch {
+            Alert.alert(
+                "Couldn’t disable 2FA",
+                "Check your password and 6-digit code, then try again."
             );
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -119,6 +197,7 @@ export default function SecurityScreen() {
         onValueChange,
         type = "switch",
         onPress,
+        disabled = false,
     }: any) => (
         <TouchableOpacity
             style={styles.settingItem}
@@ -137,6 +216,7 @@ export default function SecurityScreen() {
                 <Switch
                     value={value}
                     onValueChange={onValueChange}
+                    disabled={disabled}
                     trackColor={{ false: "#E5E7EB", true: "#00B14F" }}
                     thumbColor={"#FFFFFF"}
                 />
@@ -174,9 +254,10 @@ export default function SecurityScreen() {
                         <SettingItem
                             icon="finger-print-outline"
                             title="Biometric Login"
-                            subtitle="Use FaceID or TouchID to log in"
+                            subtitle="Use Face ID or Touch ID to unlock the app"
                             value={biometricsEnabled}
                             onValueChange={handleBiometricToggle}
+                            disabled={biometricLoading}
                         />
                         <View style={styles.divider} />
                         <SettingItem
@@ -197,7 +278,7 @@ export default function SecurityScreen() {
                             title="Change Password"
                             subtitle="Update your account password"
                             type="link"
-                            onPress={() => router.push("/(auth)/forgot-password")}
+                            onPress={() => router.push("/settings/change-password")}
                         />
                     </View>
                 </View>
@@ -237,10 +318,20 @@ export default function SecurityScreen() {
                         )}
 
                         <Text style={styles.secretText}>Or enter this code manually:</Text>
-                        <TouchableOpacity onPress={() => {
-                            // Copy to clipboard logic here if needed
-                        }}>
-                            <Text style={styles.secretCode}>{secret}</Text>
+                        <TouchableOpacity
+                            style={styles.secretCodeTouchable}
+                            onPress={async () => {
+                                if (!secret) return;
+                                await Clipboard.setStringAsync(secret);
+                                Alert.alert("Copied", "2FA code copied to clipboard");
+                            }}
+                            activeOpacity={0.7}
+                        >
+                            <Text style={styles.secretCode} selectable>{secret}</Text>
+                            <View style={styles.copyHint}>
+                                <Ionicons name="copy-outline" size={16} color="#6B7280" />
+                                <Text style={styles.copyHintText}>Tap to copy</Text>
+                            </View>
                         </TouchableOpacity>
 
                         <Text style={styles.stepText}>2. Enter the 6-digit code from the app</Text>
@@ -259,6 +350,47 @@ export default function SecurityScreen() {
                             disabled={loading}
                         >
                             <Text style={styles.verifyButtonText}>{loading ? "Verifying..." : "Verify & Enable"}</Text>
+                        </TouchableOpacity>
+                    </ScrollView>
+                </View>
+            </Modal>
+
+            {/* Disable 2FA Modal */}
+            <Modal visible={showDisable2FAModal} animationType="slide" presentationStyle="pageSheet">
+                <View style={styles.modalContainer}>
+                    <View style={styles.modalHeader}>
+                        <Text style={styles.modalTitle}>Disable 2FA</Text>
+                        <TouchableOpacity onPress={() => { setShowDisable2FAModal(false); setDisablePassword(""); setDisableOtp(""); }}>
+                            <Ionicons name="close" size={24} color="#111827" />
+                        </TouchableOpacity>
+                    </View>
+                    <ScrollView contentContainerStyle={styles.modalContent}>
+                        <Text style={styles.stepText}>Enter your account password. You can also enter the current 6-digit code from your authenticator app for extra verification.</Text>
+                        <Text style={styles.secretText}>Account password</Text>
+                        <TextInput
+                            style={styles.otpInput}
+                            value={disablePassword}
+                            onChangeText={setDisablePassword}
+                            placeholder="Password"
+                            secureTextEntry
+                            autoCapitalize="none"
+                            autoCorrect={false}
+                        />
+                        <Text style={styles.secretText}>6-digit code (optional)</Text>
+                        <TextInput
+                            style={styles.otpInput}
+                            value={disableOtp}
+                            onChangeText={(t) => setDisableOtp(t.replace(/\D/g, "").slice(0, 6))}
+                            placeholder="000000"
+                            keyboardType="number-pad"
+                            maxLength={6}
+                        />
+                        <TouchableOpacity
+                            style={[styles.verifyButton, loading && styles.buttonDisabled]}
+                            onPress={handleDisable2FASubmit}
+                            disabled={loading}
+                        >
+                            <Text style={styles.verifyButtonText}>{loading ? "Disabling..." : "Disable 2FA"}</Text>
                         </TouchableOpacity>
                     </ScrollView>
                 </View>
@@ -413,16 +545,28 @@ const styles = StyleSheet.create({
         color: "#6B7280",
         marginBottom: 8,
     },
+    secretCodeTouchable: {
+        backgroundColor: "#F3F4F6",
+        padding: 12,
+        borderRadius: 8,
+        marginBottom: 32,
+    },
     secretCode: {
         fontSize: 20,
         fontWeight: "700",
         color: "#111827",
         letterSpacing: 2,
-        marginBottom: 32,
-        backgroundColor: "#F3F4F6",
-        padding: 12,
-        borderRadius: 8,
         overflow: "hidden",
+    },
+    copyHint: {
+        flexDirection: "row",
+        alignItems: "center",
+        marginTop: 8,
+    },
+    copyHintText: {
+        fontSize: 13,
+        color: "#6B7280",
+        marginLeft: 6,
     },
     otpInput: {
         width: "100%",

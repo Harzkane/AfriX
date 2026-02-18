@@ -1,5 +1,4 @@
-// app/modals/receive-tokens/index.tsx
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
     View,
     StyleSheet,
@@ -17,10 +16,12 @@ import QRCode from "react-native-qrcode-svg";
 import * as Clipboard from "expo-clipboard";
 import * as Haptics from "expo-haptics";
 import { useAuthStore, useWalletStore } from "@/stores";
+import apiClient from "@/services/apiClient";
 
 export default function ReceiveTokensScreen() {
     const router = useRouter();
     const [tokenType, setTokenType] = useState<"NT" | "CT" | "USDT">("NT");
+    const [startTime] = useState(new Date());
 
     const { user } = useAuthStore();
     const { getWalletByType } = useWalletStore();
@@ -28,6 +29,7 @@ export default function ReceiveTokensScreen() {
     const wallet = getWalletByType(tokenType);
     const walletAddress = wallet?.blockchain_address || "";
     const userEmail = user?.email || "";
+
 
     // QR code data - contains user email for P2P transfers
     const qrData = JSON.stringify({
@@ -225,28 +227,30 @@ export default function ReceiveTokensScreen() {
                     </View>
                 </View>
 
-                {/* Action Buttons */}
-                <View style={styles.buttonContainer}>
-                    <TouchableOpacity
-                        style={styles.shareBtn}
-                        onPress={handleShare}
-                        activeOpacity={0.8}
-                    >
-                        <Ionicons name="share-outline" size={20} color="#FFFFFF" />
-                        <Text style={styles.shareBtnText}>Share</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                        style={styles.doneBtn}
-                        onPress={() => router.back()}
-                        activeOpacity={0.7}
-                    >
-                        <Text style={styles.doneBtnText}>Done</Text>
-                    </TouchableOpacity>
-                </View>
-
-                <View style={styles.bottomSpacer} />
             </ScrollView>
+
+            <SafeAreaView edges={["bottom"]} style={styles.footerWrapper}>
+                <View style={styles.footer}>
+                    <View style={styles.buttonContainer}>
+                        <TouchableOpacity
+                            style={styles.shareBtn}
+                            onPress={handleShare}
+                            activeOpacity={0.8}
+                        >
+                            <Ionicons name="share-outline" size={20} color="#FFFFFF" />
+                            <Text style={styles.shareBtnText}>Share</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            style={styles.doneBtn}
+                            onPress={() => router.back()}
+                            activeOpacity={0.7}
+                        >
+                            <Text style={styles.doneBtnText}>Done</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </SafeAreaView>
         </View>
     );
 }
@@ -265,8 +269,6 @@ const styles = StyleSheet.create({
         left: 0,
         right: 0,
         height: 120,
-        // borderBottomLeftRadius: 30,
-        // borderBottomRightRadius: 30,
     },
     headerContent: {
         paddingHorizontal: 16,
@@ -294,6 +296,7 @@ const styles = StyleSheet.create({
     content: {
         paddingHorizontal: 20,
         paddingTop: 20,
+        paddingBottom: 24,
     },
     subtitle: {
         fontSize: 14,
@@ -420,10 +423,19 @@ const styles = StyleSheet.create({
         color: "#6B7280",
         lineHeight: 18,
     },
+    footerWrapper: {
+        backgroundColor: "#F3F4F6",
+        borderTopWidth: 1,
+        borderTopColor: "#E5E7EB",
+    },
+    footer: {
+        paddingHorizontal: 20,
+        paddingTop: 16,
+        paddingBottom: 24,
+    },
     buttonContainer: {
         flexDirection: "row",
         gap: 12,
-        marginBottom: 12,
     },
     shareBtn: {
         flex: 1,
@@ -453,8 +465,5 @@ const styles = StyleSheet.create({
         fontSize: 16,
         fontWeight: "600",
         color: "#6B7280",
-    },
-    bottomSpacer: {
-        height: 40,
     },
 });

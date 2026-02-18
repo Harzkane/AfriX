@@ -1,10 +1,8 @@
 // src/controllers/requestController.js
-const MintRequest = require("../models/MintRequest");
-const BurnRequest = require("../models/BurnRequest");
-const Agent = require("../models/Agent");
+const { MintRequest, BurnRequest, Agent, sequelize } = require("../models");
 const escrowService = require("../services/escrowService");
 const transactionService = require("../services/transactionService");
-const { sendPush } = require("../services/notificationService");
+const { deliver } = require("../services/notificationService");
 const { uploadToR2 } = require("../services/r2Service");
 const { ApiError } = require("../utils/errors");
 const educationService = require("../services/educationService");
@@ -14,6 +12,8 @@ const {
 } = require("../config/constants");
 
 const THIRTY_MINUTES = 30 * 60 * 1000;
+// After proof is submitted, give agent time to approve (e.g. 24h) so user doesn't see "Request Expired" while waiting
+const PROOF_SUBMITTED_EXPIRY_MS = 24 * 60 * 60 * 1000;
 
 const requestController = {
   // === LIST REQUESTS (for agents) ===
@@ -246,16 +246,17 @@ const requestController = {
       );
       request.payment_proof_url = url;
       request.status = MINT_REQUEST_STATUS.PROOF_SUBMITTED;
+      // Extend expiry so user doesn't see "Request Expired" while waiting for agent approval
+      request.expires_at = new Date(Date.now() + PROOF_SUBMITTED_EXPIRY_MS);
       await request.save();
 
-      // Fetch agent to get user_id for notification
       const agent = await Agent.findByPk(request.agent_id);
       if (agent) {
-        await sendPush(
-          agent.user_id,
-          "New Mint Request",
-          `User uploaded payment proof for ${request.amount} ${request.token_type}`
-        );
+        await deliver(agent.user_id, "NEW_MINT_REQUEST", {
+          title: "New Mint Request",
+          message: `User uploaded payment proof for ${request.amount} ${request.token_type}`,
+          data: { requestId: request.id, amount: request.amount, token_type: request.token_type },
+        });
       } else {
         console.warn(`⚠️ Agent ${request.agent_id} not found for notification`);
       }
@@ -379,12 +380,11 @@ const requestController = {
       mintRequest.bank_reference = bank_reference || null;
       await mintRequest.save();
 
-      // ✅ Send push notification to user
-      await sendPush(
-        [mintRequest.user_id], // sendPush expects an array
-        "Tokens Minted!",
-        `Your ${mintRequest.amount} ${mintRequest.token_type} tokens have been minted`
-      );
+      await deliver(mintRequest.user_id, "TOKENS_MINTED", {
+        title: "Tokens Minted!",
+        message: `Your ${mintRequest.amount} ${mintRequest.token_type} tokens have been minted`,
+        data: { requestId: mintRequest.id, transactionId: result?.id, amount: mintRequest.amount, token_type: mintRequest.token_type },
+      });
 
       res.json({
         success: true,
@@ -417,9 +417,12 @@ const requestController = {
       }
 
       // Validate status
-      if (mintRequest.status !== MINT_REQUEST_STATUS.PROOF_SUBMITTED) {
+      if (
+        mintRequest.status !== MINT_REQUEST_STATUS.PROOF_SUBMITTED &&
+        mintRequest.status !== MINT_REQUEST_STATUS.PENDING
+      ) {
         throw new ApiError(
-          "Request must be in proof_submitted status to reject",
+          "Request must be in pending or proof_submitted status to reject",
           400
         );
       }
@@ -435,17 +438,52 @@ const requestController = {
       // Note: We don't store rejection_reason in DB yet, but we send it in push
       await mintRequest.save();
 
-      // Send push notification to user
-      await sendPush(
-        [mintRequest.user_id],
-        "Mint Request Rejected",
-        `Your mint request was rejected: ${reason}`
-      );
+      await deliver(mintRequest.user_id, "MINT_REJECTED", {
+        title: "Mint Request Rejected",
+        message: `Your mint request was rejected: ${reason}`,
+        data: { requestId: mintRequest.id, reason },
+      });
 
       res.json({
         success: true,
         message: "Mint request rejected",
         data: mintRequest,
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  // === CANCEL MINT (User) ===
+  async cancelMintRequest(req, res, next) {
+    try {
+      const { request_id } = req.params;
+      const userId = req.user.id;
+
+      const mintRequest = await MintRequest.findByPk(request_id);
+      if (!mintRequest) {
+        throw new ApiError("Mint request not found", 404);
+      }
+
+      // Verify ownership (User who created the request)
+      if (mintRequest.user_id !== userId) {
+        throw new ApiError("Access denied", 403);
+      }
+
+      // Only allow cancellation if status is PENDING
+      if (mintRequest.status !== MINT_REQUEST_STATUS.PENDING) {
+        throw new ApiError(
+          "Can only cancel requests in pending status (before proof upload)",
+          400
+        );
+      }
+
+      // Delete the request
+      await mintRequest.destroy();
+
+      res.json({
+        success: true,
+        message: "Mint request cancelled successfully",
       });
     } catch (error) {
       next(error);
@@ -501,11 +539,14 @@ const requestController = {
         await tx.save();
       }
 
-      await sendPush(
-        request.agent_id,
-        "New Burn Request",
-        `User wants to sell ${request.amount} ${request.token_type}`
-      );
+      const agentForNotif = await Agent.findByPk(request.agent_id, { attributes: ["user_id"] });
+      if (agentForNotif) {
+        await deliver(agentForNotif.user_id, "NEW_BURN_REQUEST", {
+          title: "New Burn Request",
+          message: `User wants to sell ${request.amount} ${request.token_type}`,
+          data: { requestId: request.id, amount: request.amount, token_type: request.token_type },
+        });
+      }
 
       res.status(201).json({ success: true, data: request });
     } catch (error) {
@@ -558,12 +599,11 @@ const requestController = {
       burnRequest.status = BURN_REQUEST_STATUS.REJECTED;
       await burnRequest.save();
 
-      // Send push notification to user
-      await sendPush(
-        [burnRequest.user_id],
-        "Burn Request Rejected",
-        `Your burn request was rejected and tokens refunded. Reason: ${reason}`
-      );
+      await deliver(burnRequest.user_id, "BURN_REJECTED", {
+        title: "Burn Request Rejected",
+        message: `Your burn request was rejected and tokens refunded. Reason: ${reason}`,
+        data: { requestId: burnRequest.id, reason },
+      });
 
       res.json({
         success: true,
@@ -593,6 +633,11 @@ const requestController = {
       if (request.status !== BURN_REQUEST_STATUS.ESCROWED)
         throw new ApiError("Request not in escrowed state", 400);
 
+      const isExpired = request.expires_at && new Date(request.expires_at) < new Date();
+      if (isExpired) {
+        throw new ApiError("Burn request has expired", 400);
+      }
+
       const url = await uploadToR2(
         file.buffer,
         file.originalname,
@@ -602,13 +647,15 @@ const requestController = {
       request.fiat_proof_url = url;
       request.agent_bank_reference = bank_reference;
       request.status = BURN_REQUEST_STATUS.FIAT_SENT;
+      // Reset 30 min timer: User now has 30 mins from THIS moment to confirm receipt
+      request.expires_at = new Date(Date.now() + THIRTY_MINUTES);
       await request.save();
 
-      await sendPush(
-        request.user_id,
-        "Fiat Sent!",
-        `Agent sent fiat. Confirm receipt within 30 mins.`
-      );
+      await deliver(request.user_id, "FIAT_SENT", {
+        title: "Fiat Sent!",
+        message: "Agent sent fiat. Confirm receipt within 30 mins.",
+        data: { requestId: request.id },
+      });
 
       res.json({ success: true, data: request });
     } catch (error) {
@@ -699,26 +746,36 @@ const requestController = {
       if (request.status !== BURN_REQUEST_STATUS.FIAT_SENT)
         throw new ApiError("Agent has not sent fiat", 400);
 
-      // Use transactionService to burn tokens
-      const tx = await transactionService.processAgentBuyback(
-        request.user_id,
-        request.agent_id,
-        request.amount,
-        request.token_type,
-        {
-          request_id: request.id,
-          description: `Burned ${request.amount} ${request.token_type} via burn request`,
-        }
-      );
+      const result = await sequelize.transaction(async (t) => {
+        // ✅ USE escrowService.finalizeBurn to avoid double-deduction
+        // Tokens are already in escrow pending_balance, finalizeBurn clears them.
+        const finalizeResult = await escrowService.finalizeBurn(
+          request.escrow_id,
+          {
+            request_id: request.id,
+            description: `Burned ${request.amount} ${request.token_type} via burn request confirmation`,
+          },
+          t
+        );
 
-      request.status = BURN_REQUEST_STATUS.CONFIRMED;
-      await request.save();
+        request.status = BURN_REQUEST_STATUS.CONFIRMED;
+        await request.save({ transaction: t });
 
-      await sendPush(
-        request.agent_id,
-        "Burn Confirmed!",
-        "User confirmed fiat receipt. Tokens burned."
-      );
+        return finalizeResult;
+      });
+
+      const tx = result.tx;
+
+      const agentForBurnNotif = await Agent.findByPk(request.agent_id, {
+        attributes: ["user_id"],
+      });
+      if (agentForBurnNotif) {
+        await deliver(agentForBurnNotif.user_id, "BURN_CONFIRMED", {
+          title: "Burn Confirmed!",
+          message: "User confirmed fiat receipt. Tokens burned.",
+          data: { requestId: request.id },
+        });
+      }
 
       res.json({ success: true, data: tx });
     } catch (error) {

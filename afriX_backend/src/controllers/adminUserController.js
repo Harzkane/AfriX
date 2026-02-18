@@ -186,6 +186,18 @@ const adminUserController = {
       const user = await User.findByPk(id, {
         include: [
           {
+            model: User,
+            as: "lastUnlockedBy",
+            attributes: ["id", "full_name"],
+            required: false,
+          },
+          {
+            model: User,
+            as: "lastResetAttemptsBy",
+            attributes: ["id", "full_name"],
+            required: false,
+          },
+          {
             model: Wallet,
             as: "wallets",
             attributes: [
@@ -246,7 +258,7 @@ const adminUserController = {
             Transaction.sequelize.fn(
               "SUM",
               Transaction.sequelize.literal(
-                "CASE WHEN from_user_id = '" + id + "' THEN amount ELSE 0 END"
+                `CASE WHEN from_user_id = '${id}' AND status = 'completed' THEN amount ELSE 0 END`
               )
             ),
             "total_sent",
@@ -255,7 +267,7 @@ const adminUserController = {
             Transaction.sequelize.fn(
               "SUM",
               Transaction.sequelize.literal(
-                "CASE WHEN to_user_id = '" + id + "' THEN amount ELSE 0 END"
+                `CASE WHEN to_user_id = '${id}' AND status = 'completed' THEN amount ELSE 0 END`
               )
             ),
             "total_received",

@@ -1,5 +1,5 @@
 // app/modals/buy-tokens/select-agent.tsx
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { View, StyleSheet, FlatList, Text, ActivityIndicator, TouchableOpacity } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -7,6 +7,8 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useAgentStore, useAuthStore } from "@/stores";
 import { AgentCard } from "@/components/ui/AgentCard";
 import { Ionicons } from "@expo/vector-icons";
+
+type SortOption = "rating" | "fastest" | "capacity";
 
 export default function SelectAgentScreen() {
   const { tokenType, amount } = useLocalSearchParams<{
@@ -17,10 +19,14 @@ export default function SelectAgentScreen() {
   const router = useRouter();
   const { user } = useAuthStore();
   const { agents, loading, fetchAgents, selectAgent } = useAgentStore();
+  const [sort, setSort] = useState<SortOption>("rating");
+
+  const userAmount = amount ? parseFloat(amount) : undefined;
+  const token = (tokenType as string) || "NT";
 
   useEffect(() => {
-    fetchAgents(user?.country_code || "NG");
-  }, []);
+    fetchAgents(user?.country_code || "NG", sort);
+  }, [sort]);
 
   const handleSelectAgent = (agent: any) => {
     selectAgent(agent);
@@ -66,12 +72,33 @@ export default function SelectAgentScreen() {
         </SafeAreaView>
       </View>
 
+      {/* Sort */}
+      <View style={styles.sortRow}>
+        {(["rating", "fastest", "capacity"] as const).map((key) => (
+          <TouchableOpacity
+            key={key}
+            style={[styles.sortBtn, sort === key && styles.sortBtnActive]}
+            onPress={() => setSort(key)}
+            activeOpacity={0.7}
+          >
+            <Text style={[styles.sortBtnText, sort === key && styles.sortBtnTextActive]}>
+              {key === "rating" ? "Best rated" : key === "fastest" ? "Fastest" : "Highest capacity"}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
       {/* Agents List */}
       <FlatList
         data={agents}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
-          <AgentCard agent={item} onSelect={handleSelectAgent} />
+          <AgentCard
+            agent={item}
+            onSelect={handleSelectAgent}
+            userAmount={userAmount}
+            tokenType={token}
+          />
         )}
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
@@ -110,6 +137,7 @@ const styles = StyleSheet.create({
   },
   headerWrapper: {
     marginBottom: 20,
+    zIndex: 5,
   },
   headerGradient: {
     position: "absolute",
@@ -117,8 +145,6 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: 140,
-    borderBottomLeftRadius: 30,
-    borderBottomRightRadius: 30,
   },
   headerContent: {
     paddingHorizontal: 20,
@@ -148,6 +174,33 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "rgba(255, 255, 255, 0.9)",
     fontWeight: "500",
+  },
+  sortRow: {
+    flexDirection: "row",
+    gap: 8,
+    paddingHorizontal: 20,
+    marginBottom: 12,
+    marginTop: -10,
+    justifyContent: "center",
+    zIndex: 10,
+
+  },
+  sortBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: "#E5E7EB",
+  },
+  sortBtnActive: {
+    backgroundColor: "#00B14F",
+  },
+  sortBtnText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#6B7280",
+  },
+  sortBtnTextActive: {
+    color: "#FFFFFF",
   },
   list: {
     paddingHorizontal: 20,

@@ -3,6 +3,8 @@ import { StateCreator } from "zustand";
 import { create } from "zustand";
 import apiClient from "@/services/apiClient";
 
+const SWAP_FEE_PERCENT = 1.5; // Platform fee for swaps
+
 export interface SwapState {
     // Swap data
     fromToken: "NT" | "CT" | "USDT";
@@ -10,11 +12,16 @@ export interface SwapState {
     amount: string;
     estimatedReceive: string;
     exchangeRate: number;
+    /** Platform fee (1.5% of amount) in source token */
+    swapFee: number;
 
     // UI state
     loading: boolean;
     fetchingRate: boolean;
     error: string | null;
+    /** Set after executeSwap from API response */
+    lastFee?: number;
+    lastReceivedAmount?: number;
 
     // Actions
     setFromToken: (token: "NT" | "CT" | "USDT") => void;
@@ -33,6 +40,7 @@ export const createSwapSlice: StateCreator<SwapState> = (set, get) => ({
     amount: "",
     estimatedReceive: "0",
     exchangeRate: 1,
+    swapFee: 0,
     loading: false,
     fetchingRate: false,
     error: null,
@@ -64,10 +72,13 @@ export const createSwapSlice: StateCreator<SwapState> = (set, get) => ({
         set({ amount });
         const { exchangeRate } = get();
         if (amount && parseFloat(amount) > 0) {
-            const estimated = (parseFloat(amount) * exchangeRate).toFixed(2);
-            set({ estimatedReceive: estimated });
+            const amt = parseFloat(amount);
+            const fee = amt * (SWAP_FEE_PERCENT / 100);
+            const afterFee = amt - fee;
+            const estimated = (afterFee * exchangeRate).toFixed(2);
+            set({ estimatedReceive: estimated, swapFee: fee });
         } else {
-            set({ estimatedReceive: "0" });
+            set({ estimatedReceive: "0", swapFee: 0 });
         }
     },
 
@@ -100,11 +111,14 @@ export const createSwapSlice: StateCreator<SwapState> = (set, get) => ({
                 const rate = response.data.data.rate || 1;
                 set({ exchangeRate: rate, fetchingRate: false });
 
-                // Recalculate estimated receive
+                // Recalculate estimated receive (after 1.5% platform fee)
                 const { amount } = get();
                 if (amount && parseFloat(amount) > 0) {
-                    const estimated = (parseFloat(amount) * rate).toFixed(2);
-                    set({ estimatedReceive: estimated });
+                    const amt = parseFloat(amount);
+                    const fee = amt * (SWAP_FEE_PERCENT / 100);
+                    const afterFee = amt - fee;
+                    const estimated = (afterFee * rate).toFixed(2);
+                    set({ estimatedReceive: estimated, swapFee: fee });
                 }
             } else {
                 throw new Error("Failed to fetch exchange rate");
@@ -117,7 +131,13 @@ export const createSwapSlice: StateCreator<SwapState> = (set, get) => ({
                 console.log("⚠️ Rates endpoint not found, using 1:1 rate");
                 set({ exchangeRate: 1, fetchingRate: false });
                 const { amount } = get();
-                set({ estimatedReceive: amount || "0" });
+                if (amount && parseFloat(amount) > 0) {
+                    const amt = parseFloat(amount);
+                    const fee = amt * (SWAP_FEE_PERCENT / 100);
+                    set({ estimatedReceive: (amt - fee).toFixed(2), swapFee: fee });
+                } else {
+                    set({ estimatedReceive: amount || "0", swapFee: 0 });
+                }
             } else {
                 set({
                     error: error.response?.data?.message || "Failed to fetch rate",
@@ -151,8 +171,10 @@ export const createSwapSlice: StateCreator<SwapState> = (set, get) => ({
             });
 
             if (response.data.success) {
-                console.log("✅ Swap successful:", response.data.data);
-                set({ loading: false });
+                const data = response.data.data;
+                const fee = data?.fee != null ? parseFloat(String(data.fee)) : undefined;
+                const received = data?.receivedAmount != null ? parseFloat(String(data.receivedAmount)) : undefined;
+                set({ loading: false, lastFee: fee, lastReceivedAmount: received });
             } else {
                 throw new Error(response.data.message || "Swap failed");
             }
@@ -174,9 +196,12 @@ export const createSwapSlice: StateCreator<SwapState> = (set, get) => ({
             amount: "",
             estimatedReceive: "0",
             exchangeRate: 1,
+            swapFee: 0,
             loading: false,
             fetchingRate: false,
             error: null,
+            lastFee: undefined,
+            lastReceivedAmount: undefined,
         });
     },
 });

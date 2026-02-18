@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Text,
   StyleSheet,
@@ -6,12 +6,19 @@ import {
   ScrollView,
   Platform,
   View,
+  TouchableOpacity,
+  ActivityIndicator,
 } from "react-native";
 import { TextInput, Button, HelperText } from "react-native-paper";
 import { LinearGradient } from "expo-linear-gradient";
+import { Ionicons } from "@expo/vector-icons";
+import * as SecureStore from "expo-secure-store";
+import * as LocalAuthentication from "expo-local-authentication";
 import { useAuthStore } from "@/stores";
 import { Link, useRouter } from "expo-router";
 import { debugAuth } from "@/utils/debugAuth";
+
+const BIOMETRIC_LOGIN_KEY = "biometric_login_enabled";
 
 const COLORS = {
   primary: "#16A34A", // enabled
@@ -22,11 +29,48 @@ const COLORS = {
 export default function LoginScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const { login, loading, error } = useAuthStore();
+  const [showBiometricUnlock, setShowBiometricUnlock] = useState(false);
+  const [biometricLabel, setBiometricLabel] = useState("Face ID or Touch ID");
+  const [biometricLoading, setBiometricLoading] = useState(false);
+  const { login, loading, error, unlockWithBiometric } = useAuthStore();
 
   const router = useRouter();
 
+  useEffect(() => {
+    (async () => {
+      const token = await SecureStore.getItemAsync("auth_token");
+      const bioEnabled = await SecureStore.getItemAsync(BIOMETRIC_LOGIN_KEY);
+      if (!token || bioEnabled !== "true") {
+        setShowBiometricUnlock(false);
+        return;
+      }
+      const hasHardware = await LocalAuthentication.hasHardwareAsync();
+      const isEnrolled = await LocalAuthentication.isEnrolledAsync();
+      if (!hasHardware || !isEnrolled) {
+        setShowBiometricUnlock(false);
+        return;
+      }
+      const types = await LocalAuthentication.supportedAuthenticationTypesAsync();
+      const hasFace = types.includes(2);
+      const hasFinger = types.includes(1);
+      setBiometricLabel(
+        hasFace && hasFinger ? "Face ID or Touch ID" : hasFace ? "Face ID" : "Touch ID"
+      );
+      setShowBiometricUnlock(true);
+    })();
+  }, []);
+
   const isDisabled = loading || !email || !password;
+
+  const handleBiometricUnlock = async () => {
+    setBiometricLoading(true);
+    try {
+      const success = await unlockWithBiometric();
+      if (success) router.replace("/");
+    } finally {
+      setBiometricLoading(false);
+    }
+  };
 
   const handleLogin = async () => {
     try {
@@ -74,6 +118,26 @@ export default function LoginScreen() {
             <Text style={styles.welcomeText}>Welcome Back</Text>
             <Text style={styles.subtitle}>Sign in to continue</Text>
           </View>
+
+          {/* Biometric unlock - show when user has stored session + biometric enabled */}
+          {showBiometricUnlock && (
+            <TouchableOpacity
+              style={styles.biometricButton}
+              onPress={handleBiometricUnlock}
+              disabled={biometricLoading || loading}
+            >
+              {biometricLoading ? (
+                <ActivityIndicator color="#FFFFFF" size="small" />
+              ) : (
+                <>
+                  <Ionicons name="finger-print" size={24} color="#FFFFFF" style={styles.biometricIcon} />
+                  <Text style={styles.biometricButtonText}>
+                    Unlock with {biometricLabel}
+                  </Text>
+                </>
+              )}
+            </TouchableOpacity>
+          )}
 
           {/* Card Container */}
           <View style={styles.card}>
@@ -213,6 +277,29 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "rgba(255,255,255,0.85)",
     textAlign: "center",
+  },
+
+  biometricButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    alignSelf: "center",
+    backgroundColor: "rgba(255,255,255,0.25)",
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    borderRadius: 14,
+    marginBottom: 20,
+    minWidth: 220,
+    borderWidth: 2,
+    borderColor: "rgba(255,255,255,0.4)",
+  },
+  biometricIcon: {
+    marginRight: 10,
+  },
+  biometricButtonText: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "600",
   },
 
   card: {

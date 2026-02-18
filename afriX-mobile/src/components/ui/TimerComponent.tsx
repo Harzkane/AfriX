@@ -1,5 +1,5 @@
 // src/components/ui/TimerComponent.tsx
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { View, StyleSheet } from "react-native";
 import { Text } from "react-native-paper";
 import { Ionicons } from "@expo/vector-icons";
@@ -15,8 +15,13 @@ export const TimerComponent: React.FC<TimerProps> = ({
 }) => {
   const [timeLeft, setTimeLeft] = useState<string>("");
   const [isExpired, setIsExpired] = useState(false);
+  const onExpireFiredRef = useRef(false);
+  const onExpireRef = useRef(onExpire);
+  onExpireRef.current = onExpire;
 
   useEffect(() => {
+    onExpireFiredRef.current = false;
+
     const updateTimer = () => {
       const now = new Date().getTime();
       const expiry = new Date(expiresAt).getTime();
@@ -25,19 +30,26 @@ export const TimerComponent: React.FC<TimerProps> = ({
       if (diff <= 0) {
         setIsExpired(true);
         setTimeLeft("Expired");
-        onExpire?.();
-        return;
+        if (!onExpireFiredRef.current && onExpireRef.current) {
+          onExpireFiredRef.current = true;
+          onExpireRef.current();
+        }
+        return true; // expired, caller should stop interval
       }
 
       const minutes = Math.floor((diff / 1000 / 60) % 60);
       const seconds = Math.floor((diff / 1000) % 60);
       setTimeLeft(`${minutes}:${seconds.toString().padStart(2, "0")}`);
+      return false;
     };
 
     updateTimer();
-    const interval = setInterval(updateTimer, 1000);
+    const interval = setInterval(() => {
+      const shouldStop = updateTimer();
+      if (shouldStop) clearInterval(interval);
+    }, 1000);
     return () => clearInterval(interval);
-  }, [expiresAt, onExpire]);
+  }, [expiresAt]);
 
   return (
     <View style={[styles.container, isExpired && styles.expired]}>

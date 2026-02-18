@@ -46,6 +46,7 @@ router.post("/register", authenticate, agentController.register);
 router.post(
     "/kyc/upload",
     authenticate,
+  requireAgent,
     upload.fields([
         { name: "id_document", maxCount: 1 },
         { name: "selfie", maxCount: 1 },
@@ -68,6 +69,7 @@ router.get("/kyc/status", authenticate, requireAgent, agentController.checkKycSt
 router.put(
     "/kyc/resubmit",
     authenticate,
+  requireAgent,
     upload.fields([
         { name: "id_document", maxCount: 1 },
         { name: "selfie", maxCount: 1 },
@@ -114,6 +116,17 @@ router.get(
     authenticate,
     requireAgent,
     agentController.getDepositHistory
+);
+
+/**
+ * Get platform deposit address for agents
+ * GET /api/agents/deposit-address
+ */
+router.get(
+  "/deposit-address",
+  authenticate,
+  requireAgent,
+  agentController.getDepositAddress
 );
 
 /**

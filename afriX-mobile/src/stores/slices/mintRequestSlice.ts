@@ -64,6 +64,18 @@ export const useMintRequestStore = create<MintRequestState>()((set, get) => ({
     }
   },
 
+  cancelMintRequest: async (requestId) => {
+    set({ loading: true, error: null });
+    try {
+      await apiClient.delete(API_ENDPOINTS.REQUESTS.MINT.CANCEL(requestId));
+      set({ currentRequest: null, loading: false });
+    } catch (err: any) {
+      const message = err.response?.data?.message || "Failed to cancel request";
+      set({ error: message, loading: false });
+      throw new Error(message);
+    }
+  },
+
   checkStatus: async (requestId) => {
     try {
       const { data } = await apiClient.get(
@@ -77,20 +89,20 @@ export const useMintRequestStore = create<MintRequestState>()((set, get) => ({
 
   fetchCurrentRequest: async () => {
     try {
-      // Assuming there's an endpoint to get the latest pending request
-      // If not, we might need to list requests and filter
-      const { data } = await apiClient.get(API_ENDPOINTS.REQUESTS.LIST);
-      if (data.success && data.data.length > 0) {
-        // Find the most recent active request
-        const activeRequest = data.data.find((req: any) =>
-          ["pending", "proof_submitted"].includes(req.status.toLowerCase())
+      // Use user requests endpoint (GET /requests/user) so it works for any user, not just agents
+      const { data } = await apiClient.get(API_ENDPOINTS.REQUESTS.USER);
+      if (data.success && data.data?.length > 0) {
+        const mintRequests = (data.data as any[]).filter((r: any) => r.type === "mint");
+        const activeRequest = mintRequests.find((req: any) =>
+          ["pending", "proof_submitted", "escrowed"].includes((req.status || "").toLowerCase())
         );
-        if (activeRequest) {
-          set({ currentRequest: activeRequest });
-        }
+        set({ currentRequest: activeRequest ?? null });
+      } else {
+        set({ currentRequest: null });
       }
     } catch (err) {
       console.log("No active mint request found or failed to fetch");
+      set({ currentRequest: null });
     }
   },
 

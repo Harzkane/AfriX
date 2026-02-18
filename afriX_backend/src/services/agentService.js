@@ -26,10 +26,21 @@ const {
   AGENT_STATUS,
   AGENT_TIERS,
   AGENT_CONFIG,
+  EXCHANGE_RATES,
 } = require("../config/constants");
+
+function tokenAmountToUsdt(amount, tokenType) {
+  const rate =
+    tokenType === "NT"
+      ? EXCHANGE_RATES.NT_TO_USDT
+      : tokenType === "CT"
+        ? EXCHANGE_RATES.CT_TO_USDT
+        : 1;
+  return parseFloat(amount) * (rate || 0);
+}
 const { ApiError } = require("../utils/errors");
 const { generateTransactionReference } = require("../utils/helpers");
-const { sendPush } = require("./notificationService");
+const { deliver } = require("./notificationService");
 const { Op } = require("sequelize");
 
 const agentService = {
@@ -68,7 +79,9 @@ const agentService = {
       if (!userWallet || !agentWallet)
         throw new ApiError("Wallet not found", 404);
 
-      if (parseFloat(agent.available_capacity) < parseFloat(amount)) {
+      const amountNum = parseFloat(amount);
+      const amountUsdt = tokenAmountToUsdt(amount, currency);
+      if (parseFloat(agent.available_capacity) < amountUsdt) {
         throw new ApiError("Agent has insufficient capacity to mint", 400);
       }
 
@@ -89,9 +102,9 @@ const agentService = {
         { transaction: t }
       );
 
-      userWallet.balance = parseFloat(userWallet.balance) + parseFloat(amount);
-      agent.available_capacity -= parseFloat(amount);
-      agent.total_minted += parseFloat(amount);
+      userWallet.balance = parseFloat(userWallet.balance) + amountNum;
+      agent.available_capacity -= amountUsdt;
+      agent.total_minted += amountNum;
 
       await userWallet.save({ transaction: t });
       await agent.save({ transaction: t });
@@ -160,9 +173,11 @@ const agentService = {
         { transaction: t }
       );
 
-      userWallet.balance -= parseFloat(amount);
-      agent.available_capacity += parseFloat(amount);
-      agent.total_burned += parseFloat(amount);
+      const amountNum = parseFloat(amount);
+      const amountUsdt = tokenAmountToUsdt(amount, currency);
+      userWallet.balance -= amountNum;
+      agent.available_capacity += amountUsdt;
+      agent.total_burned += amountNum;
 
       await userWallet.save({ transaction: t });
       await agent.save({ transaction: t });
@@ -216,6 +231,8 @@ const agentService = {
       "bank_name",
       "account_number",
       "account_name",
+      "mobile_money_provider",
+      "mobile_money_number",
       "withdrawal_address", // Allow updating withdrawal address
     ];
     updatableFields.forEach((field) => {
@@ -356,6 +373,22 @@ const agentService = {
 
       if (!agent) throw new ApiError("Agent not found", 404);
 
+      // Prevent double-counting the same on-chain transaction
+      const existingDeposit = await Transaction.findOne({
+        where: {
+          type: TRANSACTION_TYPES.AGENT_DEPOSIT,
+          tx_hash: txHash,
+        },
+        transaction: t,
+      });
+
+      if (existingDeposit) {
+        throw new ApiError(
+          "This transaction hash has already been used for an agent deposit.",
+          400
+        );
+      }
+
       // VERIFY DEPOSIT ON BLOCKCHAIN
       const verification = await blockchainService.verifyDeposit(
         txHash,
@@ -391,21 +424,22 @@ const agentService = {
           description: "Agent deposit verified on Polygon",
           to_user_id: agent.user_id,
           agent_id: agent.id,
+          tx_hash: verification.txHash,
+          block_number: verification.blockNumber,
           metadata: {
             tx_hash: txHash,
             from_address: verification.from,
-            block_number: verification.blockNumber,
             treasury_address: TREASURY_ADDRESS,
           },
         },
         { transaction: t }
       );
 
-      await sendPush(
-        agent.user_id,
-        "Deposit Confirmed",
-        `+$${amount} USDT verified. You can now mint/burn tokens!`
-      );
+      await deliver(agent.user_id, "DEPOSIT_CONFIRMED", {
+        title: "Deposit Confirmed",
+        message: `+$${amount} USDT verified. You can now mint/burn tokens!`,
+        data: { amount, transactionId: tx?.id },
+      });
 
       return { agent, transaction: tx };
     });
@@ -461,11 +495,11 @@ const agentService = {
         { transaction: t }
       );
 
-      await sendPush(
-        agent.user_id,
-        "Withdrawal Requested",
-        `$${amount} USDT sent for approval`
-      );
+      await deliver(agent.user_id, "WITHDRAWAL_REQUESTED", {
+        title: "Withdrawal Requested",
+        message: `$${amount} USDT sent for approval`,
+        data: { amount_usd: amount, request_id: request.id },
+      });
 
       return {
         request,
@@ -536,12 +570,11 @@ const agentService = {
         agent.rating = parseFloat(newAverage.toFixed(2));
         await agent.save({ transaction: t });
 
-        // Send push notification to agent
-        await sendPush(
-          agent.user_id,
-          "New Review Received! ⭐",
-          `You received a ${reviewData.rating}-star review. Keep up the great work!`
-        );
+        await deliver(agent.user_id, "NEW_REVIEW", {
+          title: "New Review Received! ⭐",
+          message: `You received a ${reviewData.rating}-star review. Keep up the great work!`,
+          data: { rating: reviewData.rating, agent_id: reviewData.agent_id },
+        });
       }
 
       return review;

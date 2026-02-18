@@ -12,6 +12,9 @@ const {
 } = require("../config/constants");
 // const { redis, REDIS_ENABLED } = require("../config/redis");
 const { setCache, getCache, deleteCache } = require("../utils/cache");
+const { sequelize } = require("../config/database");
+const walletService = require("../services/walletService");
+const { TOKEN_TYPES } = require("../config/constants");
 
 // Cache helpers that work with or without Redis
 // const setCache = async (key, value, ttl) => {
@@ -107,18 +110,29 @@ const registerAdmin = async (req, res) => {
     const referralCode = crypto.randomBytes(4).toString("hex").toUpperCase();
 
     // Create ADMIN user profile
-    const user = await User.create({
-      email: email.toLowerCase(),
-      password_hash: password,
-      full_name,
-      country_code: country_code.toUpperCase(),
-      language: language || (country_code === "NG" ? "en" : "fr"),
-      role: "admin", // ⭐ THIS IS THE KEY DIFFERENCE
-      email_verification_token: verificationToken,
-      email_verification_expires: verificationExpires,
-      referral_code: referralCode,
-      email_verified: true, // Auto-verify admin
+    const result = await sequelize.transaction(async (t) => {
+      const user = await User.create({
+        email: email.toLowerCase(),
+        password_hash: password,
+        full_name,
+        country_code: country_code.toUpperCase(),
+        language: language || (country_code === "NG" ? "en" : "fr"),
+        role: "admin", // ⭐ THIS IS THE KEY DIFFERENCE
+        email_verification_token: verificationToken,
+        email_verification_expires: verificationExpires,
+        referral_code: referralCode,
+        email_verified: true, // Auto-verify admin
+      }, { transaction: t });
+
+      // Create Wallets for Admin
+      for (const tokenType of Object.values(TOKEN_TYPES)) {
+        await walletService.getOrCreateWallet(user.id, tokenType, t);
+      }
+
+      return user;
     });
+
+    const user = result;
 
     // Send verification email (optional for admin)
     try {
@@ -208,16 +222,27 @@ const register = async (req, res) => {
     const referralCode = crypto.randomBytes(4).toString("hex").toUpperCase();
 
     // Create user profile (NOT "account")
-    const user = await User.create({
-      email: email.toLowerCase(),
-      password_hash: password, // Will be hashed by beforeCreate hook
-      full_name,
-      country_code: country_code.toUpperCase(),
-      language: language || (country_code === "NG" ? "en" : "fr"),
-      email_verification_token: verificationToken,
-      email_verification_expires: verificationExpires,
-      referral_code: referralCode,
+    const result = await sequelize.transaction(async (t) => {
+      const user = await User.create({
+        email: email.toLowerCase(),
+        password_hash: password, // Will be hashed by beforeCreate hook
+        full_name,
+        country_code: country_code.toUpperCase(),
+        language: language || (country_code === "NG" ? "en" : "fr"),
+        email_verification_token: verificationToken,
+        email_verification_expires: verificationExpires,
+        referral_code: referralCode,
+      }, { transaction: t });
+
+      // Create Wallets for User
+      for (const tokenType of Object.values(TOKEN_TYPES)) {
+        await walletService.getOrCreateWallet(user.id, tokenType, t);
+      }
+
+      return user;
     });
+
+    const user = result;
 
     // Send verification email
     try {
@@ -611,6 +636,56 @@ const resetPassword = async (req, res) => {
 };
 
 /**
+ * Change password (authenticated)
+ * POST /api/v1/auth/change-password
+ * Body: { current_password, new_password }
+ */
+const changePassword = async (req, res) => {
+  try {
+    const { current_password, new_password } = req.body;
+    if (!current_password || !new_password) {
+      return res.status(HTTP_STATUS.BAD_REQUEST).json({
+        success: false,
+        message: "Current password and new password are required",
+      });
+    }
+    if (!REGEX_PATTERNS.PASSWORD.test(new_password)) {
+      return res.status(HTTP_STATUS.BAD_REQUEST).json({
+        success: false,
+        message: RESPONSE_MESSAGES.ERROR.PASSWORD_REQUIREMENTS || "Password must be at least 8 characters with uppercase, lowercase, number and special character",
+      });
+    }
+    const user = await User.findByPk(req.user.id);
+    if (!user) {
+      return res.status(HTTP_STATUS.NOT_FOUND).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+    const isValid = await user.comparePassword(current_password);
+    if (!isValid) {
+      return res.status(HTTP_STATUS.UNAUTHORIZED).json({
+        success: false,
+        message: "Current password is incorrect",
+      });
+    }
+    user.password_hash = new_password; // beforeUpdate will hash
+    await user.save();
+    await deleteCache(`user:${user.id}`);
+    return res.status(HTTP_STATUS.OK).json({
+      success: true,
+      message: "Password updated successfully",
+    });
+  } catch (error) {
+    console.error("Change password error:", error);
+    return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
+      success: false,
+      message: "Failed to change password",
+    });
+  }
+};
+
+/**
  * Logout user (invalidate token)
  * POST /api/v1/auth/logout
  */
@@ -673,6 +748,8 @@ const getCurrentUser = async (req, res) => {
       userData.withdrawal_address = agent.withdrawal_address;
       userData.is_verified = agent.is_verified;
       userData.country = agent.country;
+      userData.mobile_money_provider = agent.mobile_money_provider;
+      userData.mobile_money_number = agent.mobile_money_number;
     }
 
     // Cache the merged result for future requests
@@ -945,6 +1022,7 @@ module.exports = {
   resendVerification,
   forgotPassword,
   resetPassword,
+  changePassword,
   logout,
   getCurrentUser,
   setup2FA,

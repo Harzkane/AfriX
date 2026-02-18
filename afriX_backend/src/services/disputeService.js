@@ -123,104 +123,123 @@ const disputeService = {
       if (dispute.status === DISPUTE_STATUS.RESOLVED)
         throw new ApiError("Dispute already resolved", 400);
 
-      // Step 2: Fetch linked escrow
-      const escrow = await Escrow.findByPk(dispute.escrow_id, {
-        transaction: t,
-      });
-      if (!escrow) throw new ApiError("Escrow not found", 404);
-
-      // Step 3: Determine admin action (default: refund)
       const action = options.action || "refund";
+      let resultData = { dispute };
 
       /**
        * -----------------------------------------------
-       * CASE 1: REFUND USER
+       * BRANCH: ESCROW DISPUTE (BURN FLOW)
        * -----------------------------------------------
-       * - Refunds escrow amount to user wallet.
-       * - Marks dispute and escrow as resolved/refunded.
        */
-      if (action === "refund") {
-        const { tx, escrow: updatedEscrow } =
-          await require("./escrowService").refundEscrow(
+      if (dispute.escrow_id) {
+        const escrow = await Escrow.findByPk(dispute.escrow_id, { transaction: t });
+        if (!escrow) throw new ApiError("Escrow not found", 404);
+
+        if (action === "refund" || action === "penalize_agent") {
+          // Both refund tokens to user
+          const { tx, escrow: updatedEscrow } = await require("./escrowService").refundEscrow(
             escrow.id,
             { resolved_by: resolverUserId, notes: options.notes },
             t
           );
 
-        dispute.status = DISPUTE_STATUS.RESOLVED;
-        dispute.resolution = {
-          action: "refund",
-          notes: options.notes || null,
-          resolved_by: resolverUserId,
-        };
-        await dispute.save({ transaction: t });
+          // ✅ NEW: Update associated BurnRequest status
+          const BurnRequest = require("../models/BurnRequest");
+          const { BURN_REQUEST_STATUS } = require("../config/constants");
+          await BurnRequest.update(
+            { status: BURN_REQUEST_STATUS.REJECTED },
+            { where: { escrow_id: escrow.id }, transaction: t }
+          );
 
-        return { dispute, tx, escrow: updatedEscrow };
+          resultData = { ...resultData, tx, escrow: updatedEscrow };
+
+          if (action === "penalize_agent") {
+            const penalty = parseFloat(options.penalty_amount_usd || 0);
+            const agent = await Agent.findByPk(dispute.agent_id || escrow.agent_id, { transaction: t });
+            if (agent) {
+              agent.deposit_usd = Math.max(0, agent.deposit_usd - penalty);
+              agent.available_capacity = Math.max(0, agent.available_capacity - penalty);
+              await agent.save({ transaction: t });
+              resultData.agent = agent;
+            }
+          }
+        } else if (action === "complete") {
+          // Finalize burn (reward agent)
+          const { tx, escrow: updatedEscrow } = await require("./escrowService").finalizeBurn(
+            escrow.id,
+            { resolved_by: resolverUserId, notes: options.notes },
+            t
+          );
+
+          // ✅ NEW: Update associated BurnRequest status
+          const BurnRequest = require("../models/BurnRequest");
+          const { BURN_REQUEST_STATUS } = require("../config/constants");
+          await BurnRequest.update(
+            { status: BURN_REQUEST_STATUS.CONFIRMED },
+            { where: { escrow_id: escrow.id }, transaction: t }
+          );
+
+          resultData = { ...resultData, tx, escrow: updatedEscrow };
+        }
       }
-
       /**
        * -----------------------------------------------
-       * CASE 2: PENALIZE AGENT
+       * BRANCH: MINT REQUEST DISPUTE
        * -----------------------------------------------
-       * - Deduct penalty from agent’s deposit/capacity.
-       * - Refund user.
        */
-      if (action === "penalize_agent") {
-        const penalty = parseFloat(options.penalty_amount_usd || 0);
-        const agent = await Agent.findByPk(
-          dispute.agent_id || escrow.agent_id,
-          { transaction: t }
-        );
-        if (!agent) throw new ApiError("Agent not found", 404);
+      else if (dispute.mint_request_id) {
+        const MintRequest = require("../models/MintRequest");
+        const { MINT_REQUEST_STATUS } = require("../config/constants");
+        const mintRequest = await MintRequest.findByPk(dispute.mint_request_id, { transaction: t });
+        if (!mintRequest) throw new ApiError("Mint Request not found", 404);
 
-        // Deduct penalty from agent's security deposit and liquidity
-        agent.deposit_usd = Math.max(0, agent.deposit_usd - penalty);
-        agent.available_capacity = Math.max(
-          0,
-          agent.available_capacity - penalty
-        );
-        await agent.save({ transaction: t });
+        if (action === "complete") {
+          // Finalize mint (release tokens to user)
+          const transactionService = require("./transactionService");
+          const tx = await transactionService.processAgentMint(
+            mintRequest.user_id,
+            mintRequest.agent_id,
+            mintRequest.amount,
+            mintRequest.token_type,
+            { request_id: mintRequest.id, admin_resolved: true, notes: options.notes },
+            t
+          ); // Note: transactionService handles its own transaction internally, 
+          // but we should pass 't' if possible. Current processAgentMint doesn't support it.
+          // For now, we rely on its internal transaction.
 
-        // Refund user
-        await require("./escrowService").refundEscrow(
-          escrow.id,
-          { resolved_by: resolverUserId, notes: options.notes },
-          t
-        );
+          mintRequest.status = MINT_REQUEST_STATUS.CONFIRMED;
+          await mintRequest.save({ transaction: t });
+          resultData = { ...resultData, tx, mintRequest };
+        } else if (action === "refund" || action === "penalize_agent") {
+          // Action "refund" for Mint means agent didn't pay? No, in mint user pays.
+          // Refund means user gets tokens? No, user gets fiat back? 
+          // System can't automate fiat refund. We just reject the request.
+          mintRequest.status = MINT_REQUEST_STATUS.REJECTED;
+          await mintRequest.save({ transaction: t });
 
-        dispute.status = DISPUTE_STATUS.RESOLVED;
-        dispute.resolution = {
-          action: "penalize_agent",
-          penalty_amount_usd: penalty,
-          notes: options.notes || null,
-          resolved_by: resolverUserId,
-        };
-        await dispute.save({ transaction: t });
-
-        return { dispute, agent };
+          if (action === "penalize_agent") {
+            const penalty = parseFloat(options.penalty_amount_usd || 0);
+            const agent = await Agent.findByPk(dispute.agent_id || mintRequest.agent_id, { transaction: t });
+            if (agent) {
+              agent.deposit_usd = Math.max(0, agent.deposit_usd - penalty);
+              agent.available_capacity = Math.max(0, agent.available_capacity - penalty);
+              await agent.save({ transaction: t });
+            }
+          }
+        }
       }
 
-      /**
-       * -----------------------------------------------
-       * CASE 3: SPLIT SETTLEMENT
-       * -----------------------------------------------
-       * - For shared-fault cases.
-       * - Currently records resolution metadata only.
-       */
-      if (action === "split") {
-        dispute.status = DISPUTE_STATUS.RESOLVED;
-        dispute.resolution = {
-          action: "split",
-          notes: options.notes || null,
-          resolved_by: resolverUserId,
-        };
-        await dispute.save({ transaction: t });
+      // Step 4: Finalize dispute record
+      dispute.status = DISPUTE_STATUS.RESOLVED;
+      dispute.resolution = {
+        action,
+        notes: options.notes || null,
+        resolved_by: resolverUserId,
+        ...(options.penalty_amount_usd ? { penalty_amount_usd: options.penalty_amount_usd } : {})
+      };
+      await dispute.save({ transaction: t });
 
-        // (Future enhancement: proportional token/fiat split)
-        return { dispute };
-      }
-
-      throw new ApiError("Unknown resolution action", 400);
+      return resultData;
     });
   },
 };

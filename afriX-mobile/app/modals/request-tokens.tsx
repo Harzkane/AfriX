@@ -132,8 +132,6 @@ const styles = StyleSheet.create({
         left: 0,
         right: 0,
         height: 120,
-        // borderBottomLeftRadius: 30,
-        // borderBottomRightRadius: 30,
     },
     headerContent: {
         paddingHorizontal: 16,

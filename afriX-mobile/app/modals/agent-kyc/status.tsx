@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from "react-native";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAgentStore } from "@/stores/slices/agentSlice";
@@ -10,11 +10,29 @@ type KycStatus = "not_submitted" | "under_review" | "approved" | "rejected";
 
 export default function KycStatusScreen() {
     const router = useRouter();
+    const params = useLocalSearchParams();
+    const fromAgentProfile = params?.from === "agent-profile";
     const { checkKycStatus } = useAgentStore();
     const [status, setStatus] = useState<KycStatus>("not_submitted");
     const [loading, setLoading] = useState(true);
     const [rejectionReason, setRejectionReason] = useState("");
     const [submittedAt, setSubmittedAt] = useState(new Date());
+
+    const handleGoBackToOrigin = () => {
+        if (fromAgentProfile) {
+            router.push("/agent/(tabs)/profile");
+        } else {
+            router.back();
+        }
+    };
+
+    const handleCloseToHome = () => {
+        if (fromAgentProfile) {
+            router.push("/agent/(tabs)/profile");
+        } else {
+            router.push("/(tabs)");
+        }
+    };
 
     useEffect(() => {
         const fetchStatus = async () => {
@@ -97,7 +115,7 @@ export default function KycStatusScreen() {
         <SafeAreaView style={styles.container}>
             {/* Header */}
             <View style={styles.header}>
-                <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+                <TouchableOpacity onPress={handleGoBackToOrigin} style={styles.backButton}>
                     <Ionicons name="arrow-back" size={24} color="#111827" />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>KYC Status</Text>
@@ -207,21 +225,17 @@ export default function KycStatusScreen() {
                     </TouchableOpacity>
                 )}
 
-                {status === "under_review" ? (
-                    <TouchableOpacity
-                        style={styles.homeButton}
-                        onPress={() => router.push("/(tabs)")}
-                    >
-                        <Text style={styles.homeButtonText}>Back to Home</Text>
-                    </TouchableOpacity>
-                ) : (
-                    <TouchableOpacity
-                        style={[styles.homeButton, { marginTop: 12 }]}
-                        onPress={() => router.push("/(tabs)")}
-                    >
-                        <Text style={styles.homeButtonText}>Back to Dashboard</Text>
-                    </TouchableOpacity>
-                )}
+                <TouchableOpacity
+                    style={[
+                        styles.homeButton,
+                        status !== "under_review" && { marginTop: 12 },
+                    ]}
+                    onPress={handleCloseToHome}
+                >
+                    <Text style={styles.homeButtonText}>
+                        {fromAgentProfile ? "Back to Profile" : status === "under_review" ? "Back to Home" : "Back to Dashboard"}
+                    </Text>
+                </TouchableOpacity>
             </View>
         </SafeAreaView>
     );

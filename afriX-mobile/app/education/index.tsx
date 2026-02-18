@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
     View,
     Text,
@@ -6,16 +6,17 @@ import {
     TouchableOpacity,
     ScrollView,
     Modal,
-    Image,
-    Dimensions,
+    ActivityIndicator,
+    RefreshControl,
+    Alert,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { useAuthStore } from "@/stores";
-import apiClient from "@/services/apiClient";
+import { useAuthStore, useEducationStore } from "@/stores";
 import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Markdown from "react-native-markdown-display";
 import { LinearGradient } from "expo-linear-gradient";
+import type { Quiz, SubmitResult } from "@/stores/types/education.types";
 
 // Mock Data for Education Modules
 const MODULES = [
@@ -145,22 +146,37 @@ const BADGES = [
     { id: 4, name: "Master", icon: "medal", color: "#8B5CF6", threshold: 600 },
 ];
 
+const MAX_ATTEMPTS = 5;
+
 export default function EducationScreen() {
     const router = useRouter();
-    const { user, setUser } = useAuthStore();
-    const [selectedModule, setSelectedModule] = useState<any>(null);
-    const [updating, setUpdating] = useState(false);
+    const { fetchMe } = useAuthStore();
+    const {
+        progress,
+        loading: progressLoading,
+        fetchProgress,
+        getQuiz,
+        submitQuiz,
+    } = useEducationStore();
 
-    // Initialize completed modules from user profile
-    const [completedModules, setCompletedModules] = useState<string[]>(() => {
-        if (!user) return [];
-        const completed = [];
-        if (user.education_what_are_tokens) completed.push("what_are_tokens");
-        if (user.education_how_agents_work) completed.push("how_agents_work");
-        if (user.education_understanding_value) completed.push("understanding_value");
-        if (user.education_safety_security) completed.push("safety_security");
-        return completed;
-    });
+    const [selectedModule, setSelectedModule] = useState<typeof MODULES[0] | null>(null);
+    const [modalStep, setModalStep] = useState<"content" | "quiz" | "result">("content");
+    const [quiz, setQuiz] = useState<Quiz | null>(null);
+    const [selectedAnswers, setSelectedAnswers] = useState<number[]>([]);
+    const [submitResult, setSubmitResult] = useState<SubmitResult | null>(null);
+    const [quizLoading, setQuizLoading] = useState(false);
+    const [quizError, setQuizError] = useState<string | null>(null);
+
+    useEffect(() => {
+        fetchProgress().catch(() => { });
+    }, [fetchProgress]);
+
+    const completedModules = useMemo(() => {
+        if (!progress) return [];
+        return Object.entries(progress)
+            .filter(([, p]) => p?.completed)
+            .map(([key]) => key);
+    }, [progress]);
 
     const totalXP = useMemo(() => {
         return MODULES.filter((m) => completedModules.includes(m.id)).reduce(
@@ -184,48 +200,105 @@ export default function EducationScreen() {
         .reverse()
         .find((b) => totalXP >= b.threshold);
 
-    const handleModulePress = (module: any) => {
+    const handleModulePress = (module: typeof MODULES[0]) => {
         setSelectedModule(module);
+        setModalStep("content");
+        setQuiz(null);
+        setSelectedAnswers([]);
+        setSubmitResult(null);
+        setQuizError(null);
     };
 
-    const handleCloseModal = async () => {
-        if (selectedModule && !completedModules.includes(selectedModule.id)) {
-            try {
-                setUpdating(true);
-                const fieldName = `education_${selectedModule.id}`;
-
-                // 1. Optimistic Update
-                const newCompleted = [...completedModules, selectedModule.id];
-                setCompletedModules(newCompleted);
-
-                // 2. Call Backend
-                await apiClient.put("/users/profile", {
-                    [fieldName]: true,
-                });
-
-                // 3. Update Global Store
-                if (user) {
-                    setUser({
-                        ...user,
-                        [fieldName]: true,
-                    });
-                }
-            } catch (error) {
-                console.error("Failed to save progress:", error);
-                // Revert on error
-                setCompletedModules(completedModules.filter(id => id !== selectedModule.id));
-            } finally {
-                setUpdating(false);
-            }
-        }
+    const handleCloseModal = () => {
         setSelectedModule(null);
+        setModalStep("content");
+        setQuiz(null);
+        setSelectedAnswers([]);
+        setSubmitResult(null);
+        setQuizError(null);
     };
+
+    const handleTakeQuiz = async () => {
+        if (!selectedModule) return;
+        setQuizError(null);
+        setQuizLoading(true);
+        try {
+            const q = await getQuiz(selectedModule.id);
+            setQuiz(q);
+            setSelectedAnswers(q.questions.map(() => -1));
+            setModalStep("quiz");
+        } catch (e: any) {
+            const msg = e.message || "Failed to load quiz";
+            setQuizError(msg);
+            if (msg.toLowerCase().includes("max attempts")) {
+                Alert.alert(
+                    "No attempts left",
+                    "You've used all attempts for this module. Contact support if you need a reset."
+                );
+            } else {
+                Alert.alert("Error", msg);
+            }
+        } finally {
+            setQuizLoading(false);
+        }
+    };
+
+    const handleSubmitQuiz = async () => {
+        if (!selectedModule || !quiz) return;
+        const hasEmpty = selectedAnswers.some((a) => a === -1);
+        if (hasEmpty) {
+            Alert.alert("Answer all questions", "Please select an answer for every question.");
+            return;
+        }
+        setQuizError(null);
+        setQuizLoading(true);
+        try {
+            const result = await submitQuiz(selectedModule.id, selectedAnswers as number[]);
+            setSubmitResult(result);
+            setModalStep("result");
+            if (result.passed) {
+                await fetchProgress();
+                await fetchMe().catch(() => { });
+            }
+        } catch (e: any) {
+            const msg = e.message || "Submit failed";
+            setQuizError(msg);
+            if (msg.toLowerCase().includes("max attempts")) {
+                Alert.alert(
+                    "No attempts left",
+                    "You've used all attempts for this module. Contact support if you need a reset."
+                );
+            } else {
+                Alert.alert("Error", msg);
+            }
+        } finally {
+            setQuizLoading(false);
+        }
+    };
+
+    const handleBackToContent = () => {
+        setModalStep("content");
+        setQuiz(null);
+        setSelectedAnswers([]);
+        setSubmitResult(null);
+        setQuizError(null);
+    };
+
+    const moduleProgress = selectedModule && progress ? progress[selectedModule.id] : null;
+    const isCompleted = selectedModule ? completedModules.includes(selectedModule.id) : false;
+    const maxAttemptsReached =
+        moduleProgress && !moduleProgress.completed && moduleProgress.attempts >= MAX_ATTEMPTS;
+
+    const onRefresh = () => fetchProgress().catch(() => { });
 
     return (
         <View style={styles.container}>
             <ScrollView
                 contentContainerStyle={styles.scrollContent}
                 showsVerticalScrollIndicator={false}
+                refreshControl={
+                    <RefreshControl refreshing={progressLoading} onRefresh={onRefresh} tintColor="#00B14F" />
+                }
             >
                 {/* Gamified Header */}
                 <LinearGradient
@@ -235,7 +308,7 @@ export default function EducationScreen() {
                     <SafeAreaView edges={["top"]} style={styles.headerContent}>
                         <View style={styles.headerTop}>
                             <TouchableOpacity
-                                onPress={() => router.back()}
+                                onPress={() => router.replace("/(tabs)/profile")}
                                 style={styles.backButton}
                             >
                                 <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
@@ -338,7 +411,7 @@ export default function EducationScreen() {
                 </View>
             </ScrollView>
 
-            {/* Module Content Modal */}
+            {/* Module Content / Quiz / Result Modal */}
             <Modal
                 visible={!!selectedModule}
                 animationType="slide"
@@ -349,47 +422,196 @@ export default function EducationScreen() {
                     <View style={styles.modalContainer}>
                         <View style={styles.modalHeader}>
                             <TouchableOpacity
-                                onPress={handleCloseModal}
+                                onPress={
+                                    modalStep === "quiz" || modalStep === "result"
+                                        ? modalStep === "result"
+                                            ? handleCloseModal
+                                            : handleBackToContent
+                                        : handleCloseModal
+                                }
                                 style={styles.closeButton}
                             >
                                 <Ionicons name="close" size={24} color="#111827" />
                             </TouchableOpacity>
                         </View>
-                        <ScrollView contentContainerStyle={styles.modalContent}>
-                            <View
-                                style={[
-                                    styles.modalIconBox,
-                                    { backgroundColor: `${selectedModule.color}15` },
-                                ]}
-                            >
-                                <Ionicons
-                                    name={selectedModule.icon as any}
-                                    size={48}
-                                    color={selectedModule.color}
-                                />
-                            </View>
-                            <Text style={styles.modalTitle}>{selectedModule.title}</Text>
 
-                            <View style={styles.markdownContainer}>
-                                <Markdown style={markdownStyles}>
-                                    {selectedModule.content}
-                                </Markdown>
-                            </View>
+                        {modalStep === "content" && (
+                            <ScrollView contentContainerStyle={styles.modalContent}>
+                                <View
+                                    style={[
+                                        styles.modalIconBox,
+                                        { backgroundColor: `${selectedModule.color}15` },
+                                    ]}
+                                >
+                                    <Ionicons
+                                        name={selectedModule.icon as any}
+                                        size={48}
+                                        color={selectedModule.color}
+                                    />
+                                </View>
+                                <Text style={styles.modalTitle}>{selectedModule.title}</Text>
+                                <View style={styles.markdownContainer}>
+                                    <Markdown style={markdownStyles}>
+                                        {selectedModule.content}
+                                    </Markdown>
+                                </View>
+                                {isCompleted ? (
+                                    <View style={styles.resultBadge}>
+                                        <Ionicons name="checkmark-circle" size={24} color="#059669" />
+                                        <Text style={styles.resultBadgeText}>
+                                            Completed
+                                            {moduleProgress?.score != null
+                                                ? ` • Score: ${moduleProgress.score}%`
+                                                : ""}
+                                        </Text>
+                                    </View>
+                                ) : maxAttemptsReached ? (
+                                    <Text style={styles.maxAttemptsText}>
+                                        No attempts left. Contact support if you need a reset.
+                                    </Text>
+                                ) : null}
+                                <TouchableOpacity
+                                    style={[
+                                        styles.completeButton,
+                                        { backgroundColor: selectedModule.color },
+                                    ]}
+                                    onPress={
+                                        isCompleted
+                                            ? handleCloseModal
+                                            : maxAttemptsReached
+                                                ? undefined
+                                                : handleTakeQuiz
+                                    }
+                                    disabled={maxAttemptsReached || quizLoading}
+                                >
+                                    {quizLoading ? (
+                                        <ActivityIndicator color="#FFF" />
+                                    ) : isCompleted ? (
+                                        <Text style={styles.completeButtonText}>Close</Text>
+                                    ) : maxAttemptsReached ? (
+                                        <Text style={styles.completeButtonText}>Max attempts reached</Text>
+                                    ) : (
+                                        <Text style={styles.completeButtonText}>
+                                            Take quiz • Pass to earn {selectedModule.xp} XP
+                                        </Text>
+                                    )}
+                                </TouchableOpacity>
+                            </ScrollView>
+                        )}
 
-                            <TouchableOpacity
-                                style={[
-                                    styles.completeButton,
-                                    { backgroundColor: selectedModule.color },
-                                ]}
-                                onPress={handleCloseModal}
-                            >
-                                <Text style={styles.completeButtonText}>
-                                    {completedModules.includes(selectedModule.id)
-                                        ? "Close"
-                                        : `Complete & Earn ${selectedModule.xp} XP`}
+                        {modalStep === "quiz" && quiz && (
+                            <ScrollView contentContainerStyle={styles.modalContent}>
+                                <View
+                                    style={[
+                                        styles.modalIconBox,
+                                        { backgroundColor: `${selectedModule.color}15` },
+                                    ]}
+                                >
+                                    <Ionicons name="help-circle" size={48} color={selectedModule.color} />
+                                </View>
+                                <Text style={styles.modalTitle}>{quiz.title}</Text>
+                                <Text style={styles.quizSubtitle}>
+                                    Pass with {quiz.passingScore}% or higher
                                 </Text>
-                            </TouchableOpacity>
-                        </ScrollView>
+                                {quizError ? (
+                                    <Text style={styles.quizError}>{quizError}</Text>
+                                ) : null}
+                                {quiz.questions.map((q, qIndex) => (
+                                    <View key={qIndex} style={styles.questionBlock}>
+                                        <Text style={styles.questionText}>
+                                            {qIndex + 1}. {q.question}
+                                        </Text>
+                                        {q.options.map((opt, oIndex) => (
+                                            <TouchableOpacity
+                                                key={oIndex}
+                                                style={[
+                                                    styles.optionRow,
+                                                    selectedAnswers[qIndex] === oIndex &&
+                                                    styles.optionRowSelected,
+                                                ]}
+                                                onPress={() => {
+                                                    const next = [...selectedAnswers];
+                                                    next[qIndex] = oIndex;
+                                                    setSelectedAnswers(next);
+                                                }}
+                                            >
+                                                <Text style={styles.optionText}>{opt}</Text>
+                                                {selectedAnswers[qIndex] === oIndex ? (
+                                                    <Ionicons name="checkmark-circle" size={22} color={selectedModule.color} />
+                                                ) : null}
+                                            </TouchableOpacity>
+                                        ))}
+                                    </View>
+                                ))}
+                                <TouchableOpacity
+                                    style={[
+                                        styles.completeButton,
+                                        { backgroundColor: selectedModule.color },
+                                    ]}
+                                    onPress={handleSubmitQuiz}
+                                    disabled={quizLoading || selectedAnswers.some((a) => a === -1)}
+                                >
+                                    {quizLoading ? (
+                                        <ActivityIndicator color="#FFF" />
+                                    ) : (
+                                        <Text style={styles.completeButtonText}>Submit answers</Text>
+                                    )}
+                                </TouchableOpacity>
+                            </ScrollView>
+                        )}
+
+                        {modalStep === "result" && submitResult && (
+                            <View style={styles.modalContent}>
+                                <View
+                                    style={[
+                                        styles.modalIconBox,
+                                        {
+                                            backgroundColor: submitResult.passed
+                                                ? "#D1FAE515"
+                                                : "#FEF2F215",
+                                        },
+                                    ]}
+                                >
+                                    <Ionicons
+                                        name={submitResult.passed ? "checkmark-circle" : "close-circle"}
+                                        size={64}
+                                        color={submitResult.passed ? "#059669" : "#DC2626"}
+                                    />
+                                </View>
+                                <Text style={styles.modalTitle}>
+                                    {submitResult.passed ? "Module complete!" : "Not quite"}
+                                </Text>
+                                <Text style={styles.resultScore}>
+                                    Score: {submitResult.score}% ({submitResult.correct}/{submitResult.total})
+                                </Text>
+                                <Text style={styles.resultMessage}>{submitResult.message}</Text>
+                                {!submitResult.passed && (
+                                    <Text style={styles.attemptsLeft}>
+                                        Attempts left: {submitResult.attempts_left}
+                                    </Text>
+                                )}
+                                <TouchableOpacity
+                                    style={[
+                                        styles.completeButton,
+                                        { backgroundColor: selectedModule.color },
+                                    ]}
+                                    onPress={handleCloseModal}
+                                >
+                                    <Text style={styles.completeButtonText}>
+                                        {submitResult.passed ? "Done" : "Back to modules"}
+                                    </Text>
+                                </TouchableOpacity>
+                                {!submitResult.passed && (
+                                    <TouchableOpacity
+                                        style={styles.tryAgainButton}
+                                        onPress={handleTakeQuiz}
+                                        disabled={quizLoading}
+                                    >
+                                        <Text style={styles.tryAgainButtonText}>Try again</Text>
+                                    </TouchableOpacity>
+                                )}
+                            </View>
+                        )}
                     </View>
                 )}
             </Modal>
@@ -407,8 +629,6 @@ const styles = StyleSheet.create({
     },
     headerGradient: {
         paddingBottom: 30,
-        borderBottomLeftRadius: 30,
-        borderBottomRightRadius: 30,
     },
     headerContent: {
         paddingHorizontal: 20,
@@ -632,6 +852,101 @@ const styles = StyleSheet.create({
         color: "#FFFFFF",
         fontSize: 16,
         fontWeight: "700",
+    },
+    resultBadge: {
+        flexDirection: "row",
+        alignItems: "center",
+        alignSelf: "center",
+        backgroundColor: "#D1FAE5",
+        paddingHorizontal: 16,
+        paddingVertical: 10,
+        borderRadius: 12,
+        marginBottom: 16,
+        gap: 8,
+    },
+    resultBadgeText: {
+        fontSize: 16,
+        fontWeight: "600",
+        color: "#059669",
+    },
+    maxAttemptsText: {
+        fontSize: 14,
+        color: "#6B7280",
+        textAlign: "center",
+        marginBottom: 16,
+    },
+    quizSubtitle: {
+        fontSize: 14,
+        color: "#6B7280",
+        marginBottom: 20,
+        textAlign: "center",
+    },
+    quizError: {
+        fontSize: 14,
+        color: "#DC2626",
+        marginBottom: 12,
+    },
+    questionBlock: {
+        marginBottom: 24,
+    },
+    questionText: {
+        fontSize: 16,
+        fontWeight: "600",
+        color: "#111827",
+        marginBottom: 12,
+    },
+    optionRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+        paddingVertical: 14,
+        paddingHorizontal: 16,
+        borderRadius: 12,
+        marginBottom: 8,
+        backgroundColor: "#F3F4F6",
+        borderWidth: 2,
+        borderColor: "transparent",
+    },
+    optionRowSelected: {
+        backgroundColor: "#EFF6FF",
+        borderColor: "#3B82F6",
+    },
+    optionText: {
+        fontSize: 15,
+        color: "#374151",
+        flex: 1,
+    },
+    resultScore: {
+        fontSize: 18,
+        fontWeight: "700",
+        color: "#111827",
+        marginBottom: 8,
+        textAlign: "center",
+    },
+    resultMessage: {
+        fontSize: 16,
+        color: "#6B7280",
+        textAlign: "center",
+        marginBottom: 8,
+    },
+    attemptsLeft: {
+        fontSize: 14,
+        color: "#F59E0B",
+        marginBottom: 24,
+        textAlign: "center",
+    },
+    tryAgainButton: {
+        paddingVertical: 14,
+        marginTop: 8,
+        alignItems: "center",
+        borderRadius: 16,
+        borderWidth: 2,
+        borderColor: "#D1D5DB",
+    },
+    tryAgainButtonText: {
+        fontSize: 16,
+        fontWeight: "600",
+        color: "#6B7280",
     },
 });
 

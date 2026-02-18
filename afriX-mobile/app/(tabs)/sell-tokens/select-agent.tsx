@@ -16,35 +16,29 @@ import { API_ENDPOINTS } from "@/constants/api";
 import { useAuthStore } from "@/stores";
 import { AgentCard } from "@/components/ui/AgentCard";
 
-// Agent type
-interface Agent {
-    id: string;
-    full_name: string;
-    rating: number;
-    country: string;
-    available_capacity: number;
-    response_time_minutes: number;
-    tier?: string;
-    is_verified?: boolean;
-    bank_name?: string;
-}
+type SortOption = "rating" | "fastest" | "capacity";
 
 export default function SelectAgentScreen() {
     const router = useRouter();
-    const params = useLocalSearchParams();
+    const params = useLocalSearchParams<{ amount?: string; tokenType?: string }>();
     const { user } = useAuthStore();
-    const [agents, setAgents] = useState<Agent[]>([]);
+    const [agents, setAgents] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [sort, setSort] = useState<SortOption>("rating");
+
+    const userAmount = params.amount ? parseFloat(params.amount) : undefined;
+    const tokenType = (params.tokenType as string) || "NT";
 
     useEffect(() => {
         fetchAgents();
-    }, []);
+    }, [sort]);
 
     const fetchAgents = async () => {
         try {
-            // Filter agents by user's country
             const countryCode = user?.country_code || "NG";
-            const { data } = await apiClient.get(`${API_ENDPOINTS.AGENTS.LIST}?country=${countryCode}`);
+            let url = `${API_ENDPOINTS.AGENTS.LIST}?country=${countryCode}`;
+            if (sort && sort !== "rating") url += `&sort=${sort}`;
+            const { data } = await apiClient.get(url);
             setAgents(data.data || []);
         } catch (error) {
             console.error("Failed to fetch agents:", error);
@@ -53,7 +47,7 @@ export default function SelectAgentScreen() {
         }
     };
 
-    const handleSelectAgent = (agent: Agent) => {
+    const handleSelectAgent = (agent: any) => {
         router.push({
             pathname: "/(tabs)/sell-tokens/bank-details",
             params: { ...params, agentId: agent.id, agentName: agent.full_name }
@@ -79,7 +73,9 @@ export default function SelectAgentScreen() {
                         <View style={styles.headerText}>
                             <Text style={styles.title}>Select Agent</Text>
                             <Text style={styles.subtitle}>
-                                Choose an agent to sell your tokens
+                                {userAmount != null && userAmount > 0
+                                    ? `Sell ${userAmount.toLocaleString(undefined, { maximumFractionDigits: 0 })} ${tokenType} — choose an agent`
+                                    : "Choose an agent to sell your tokens"}
                             </Text>
                         </View>
                     </View>
@@ -92,26 +88,47 @@ export default function SelectAgentScreen() {
                     <Text style={styles.loadingText}>Finding available agents...</Text>
                 </View>
             ) : (
-                <FlatList
-                    data={agents}
-                    renderItem={({ item }) => (
-                        <AgentCard agent={item} onSelect={handleSelectAgent} />
-                    )}
-                    keyExtractor={(item) => item.id}
-                    contentContainerStyle={styles.listContent}
-                    showsVerticalScrollIndicator={false}
-                    ListEmptyComponent={
-                        <View style={styles.emptyState}>
-                            <View style={styles.emptyIcon}>
-                                <Ionicons name="people-outline" size={64} color="#D1D5DB" />
+                <>
+                    <View style={styles.sortRow}>
+                        {(["rating", "fastest", "capacity"] as const).map((key) => (
+                            <TouchableOpacity
+                                key={key}
+                                style={[styles.sortBtn, sort === key && styles.sortBtnActive]}
+                                onPress={() => setSort(key)}
+                                activeOpacity={0.7}
+                            >
+                                <Text style={[styles.sortBtnText, sort === key && styles.sortBtnTextActive]}>
+                                    {key === "rating" ? "Best rated" : key === "fastest" ? "Fastest" : "Highest capacity"}
+                                </Text>
+                            </TouchableOpacity>
+                        ))}
+                    </View>
+                    <FlatList
+                        data={agents}
+                        renderItem={({ item }) => (
+                            <AgentCard
+                                agent={item}
+                                onSelect={handleSelectAgent}
+                                userAmount={userAmount}
+                                tokenType={tokenType}
+                            />
+                        )}
+                        keyExtractor={(item) => item.id}
+                        contentContainerStyle={styles.listContent}
+                        showsVerticalScrollIndicator={false}
+                        ListEmptyComponent={
+                            <View style={styles.emptyState}>
+                                <View style={styles.emptyIcon}>
+                                    <Ionicons name="people-outline" size={64} color="#D1D5DB" />
+                                </View>
+                                <Text style={styles.emptyText}>No agents available</Text>
+                                <Text style={styles.emptySubtext}>
+                                    Please try again later or contact support
+                                </Text>
                             </View>
-                            <Text style={styles.emptyText}>No agents available</Text>
-                            <Text style={styles.emptySubtext}>
-                                Please try again later or contact support
-                            </Text>
-                        </View>
-                    }
-                />
+                        }
+                    />
+                </>
             )}
         </View>
     );
@@ -131,8 +148,6 @@ const styles = StyleSheet.create({
         left: 0,
         right: 0,
         height: 140,
-        borderBottomLeftRadius: 30,
-        borderBottomRightRadius: 30,
     },
     headerContent: {
         paddingHorizontal: 20,
@@ -162,6 +177,29 @@ const styles = StyleSheet.create({
         fontSize: 14,
         color: "rgba(255, 255, 255, 0.9)",
         fontWeight: "500",
+    },
+    sortRow: {
+        flexDirection: "row",
+        gap: 8,
+        paddingHorizontal: 20,
+        marginBottom: 12,
+    },
+    sortBtn: {
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        borderRadius: 8,
+        backgroundColor: "#E5E7EB",
+    },
+    sortBtnActive: {
+        backgroundColor: "#00B14F",
+    },
+    sortBtnText: {
+        fontSize: 13,
+        fontWeight: "600",
+        color: "#6B7280",
+    },
+    sortBtnTextActive: {
+        color: "#FFFFFF",
     },
     loadingContainer: {
         flex: 1,

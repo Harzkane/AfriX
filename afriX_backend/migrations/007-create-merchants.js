@@ -1,8 +1,21 @@
 'use strict';
 
+function canSkip(err) {
+  const msg = (err && (err.message || err.original?.message || '')) || '';
+  const code = err && (err.parent?.code || err.original?.code);
+  return (
+    code === '42P07' ||
+    code === '42703' ||
+    msg.includes('already exists') ||
+    msg.includes('duplicate') ||
+    msg.includes('does not exist')
+  );
+}
+
 module.exports = {
   up: async (queryInterface, Sequelize) => {
-    await queryInterface.createTable('merchants', {
+    try {
+      await queryInterface.createTable('merchants', {
       id: {
         type: Sequelize.UUID,
         defaultValue: Sequelize.UUIDV4,
@@ -112,20 +125,22 @@ module.exports = {
         defaultValue: Sequelize.literal('CURRENT_TIMESTAMP')
       }
     });
+    } catch (e) {
+      if (!canSkip(e)) throw e;
+    }
 
-    // Add indexes
-    await queryInterface.addIndex('merchants', ['user_id', 'business_name'], {
-      unique: true,
-      name: 'merchants_user_business_unique'
-    });
-    
-    await queryInterface.addIndex('merchants', ['business_name'], {
-      name: 'merchants_business_name_idx'
-    });
-    
-    await queryInterface.addIndex('merchants', ['verification_status'], {
-      name: 'merchants_verification_status_idx'
-    });
+    const indexes = [
+      { columns: ['user_id', 'business_name'], options: { unique: true, name: 'merchants_user_business_unique' } },
+      { columns: ['business_name'], options: { name: 'merchants_business_name_idx' } },
+      { columns: ['verification_status'], options: { name: 'merchants_verification_status_idx' } },
+    ];
+    for (const { columns, options } of indexes) {
+      try {
+        await queryInterface.addIndex('merchants', columns, options);
+      } catch (e) {
+        if (!canSkip(e)) throw e;
+      }
+    }
   },
 
   down: async (queryInterface, Sequelize) => {

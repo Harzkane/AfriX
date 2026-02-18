@@ -4,8 +4,10 @@ const { Wallet, Transaction, User } = require("../models");
 const {
   TRANSACTION_TYPES,
   TRANSACTION_STATUS,
+  PLATFORM_FEES,
 } = require("../config/constants");
 const { ApiError } = require("../utils/errors");
+const platformService = require("./platformService");
 const { generateTransactionReference } = require("../utils/helpers");
 const { ethers } = require("ethers");
 const crypto = require("crypto");
@@ -164,9 +166,9 @@ const walletService = {
     if (recipient.id === fromUserId)
       throw new ApiError("Cannot send to self", 400);
 
-    const FEE_RATE = 0.005;
+    const feePercent = (PLATFORM_FEES.P2P_TRANSFER || 0.5) / 100;
     const transferAmount = parseFloat(amount);
-    const fee = transferAmount * FEE_RATE;
+    const fee = transferAmount * feePercent;
     const totalDebit = transferAmount + fee;
 
     return sequelize.transaction(async (t) => {
@@ -211,6 +213,18 @@ const walletService = {
       await senderWallet.save({ transaction: t });
       await receiverWallet.save({ transaction: t });
 
+      // Collect platform fee to platform wallet
+      let feeWalletId = null;
+      if (fee > 0) {
+        const feeWallet = await platformService.collectFee({
+          tokenType: token_type,
+          feeAmount: fee,
+          transactionType: "transfer",
+          dbTransaction: t,
+        });
+        if (feeWallet) feeWalletId = feeWallet.id;
+      }
+
       const tx = await Transaction.create(
         {
           reference: generateTransactionReference(),
@@ -223,6 +237,7 @@ const walletService = {
           to_user_id: recipient.id,
           from_wallet_id: senderWallet.id,
           to_wallet_id: receiverWallet.id,
+          fee_wallet_id: feeWalletId,
           description: metadata.description || `Transfer to ${recipient.email}`,
           metadata,
         },
@@ -250,14 +265,17 @@ const walletService = {
     const { getExchangeRate } = require("../config/constants");
     const exchangeRate = getExchangeRate(fromToken, toToken);
     const swapAmount = parseFloat(amount);
-    const receiveAmount = swapAmount * exchangeRate;
+    const swapFeePercent = (PLATFORM_FEES.TOKEN_SWAP || 1.5) / 100;
+    const swapFee = swapAmount * swapFeePercent;
+    const netSwapAmount = swapAmount - swapFee;
+    const receiveAmount = netSwapAmount * exchangeRate;
 
     return sequelize.transaction(async (t) => {
       // Get or create both wallets
       const fromWallet = await this.getOrCreateWallet(userId, fromToken, t);
       const toWallet = await this.getOrCreateWallet(userId, toToken, t);
 
-      // Check balance
+      // Check balance (full amount including fee)
       const fromBalance = parseFloat(fromWallet.balance) || 0;
       if (fromBalance < swapAmount) {
         throw new ApiError("Insufficient balance for swap", 400);
@@ -267,13 +285,25 @@ const walletService = {
         throw new ApiError("Wallet is frozen", 403);
       }
 
-      // Update from wallet (debit)
+      // Update from wallet (debit full amount)
       const fromSent = parseFloat(fromWallet.total_sent) || 0;
       fromWallet.balance = fromBalance - swapAmount;
       fromWallet.total_sent = fromSent + swapAmount;
       fromWallet.transaction_count += 1;
 
-      // Update to wallet (credit)
+      // Collect platform swap fee to platform wallet (in source token)
+      let feeWalletId = null;
+      if (swapFee > 0) {
+        const feeWallet = await platformService.collectFee({
+          tokenType: fromToken,
+          feeAmount: swapFee,
+          transactionType: "swap",
+          dbTransaction: t,
+        });
+        if (feeWallet) feeWalletId = feeWallet.id;
+      }
+
+      // Update to wallet (credit received amount after fee)
       const toBalance = parseFloat(toWallet.balance) || 0;
       const toReceived = parseFloat(toWallet.total_received) || 0;
       toWallet.balance = toBalance + receiveAmount;
@@ -290,17 +320,20 @@ const walletService = {
           type: TRANSACTION_TYPES.SWAP,
           status: TRANSACTION_STATUS.COMPLETED,
           amount: swapAmount,
+          fee: swapFee,
           token_type: fromToken,
           from_user_id: userId,
           to_user_id: userId,
           from_wallet_id: fromWallet.id,
           to_wallet_id: toWallet.id,
+          fee_wallet_id: feeWalletId,
           description: `Swapped ${swapAmount} ${fromToken} to ${receiveAmount.toFixed(2)} ${toToken}`,
           metadata: {
             from_token: fromToken,
             to_token: toToken,
             exchange_rate: exchangeRate,
             received_amount: receiveAmount,
+            swap_fee: swapFee,
           },
         },
         { transaction: t }
@@ -313,6 +346,7 @@ const walletService = {
         toBalance: toWallet.balance,
         exchangeRate,
         receivedAmount: receiveAmount,
+        fee: swapFee,
       };
     });
   },

@@ -157,7 +157,17 @@ const adminOperationsController = {
                 as: "transaction",
                 attributes: ["id", "reference", "type", "amount", "status"],
               },
+              {
+                model: BurnRequest,
+                as: "burnRequest",
+                attributes: ["id", "fiat_proof_url", "status"],
+              },
             ],
+          },
+          {
+            model: MintRequest,
+            as: "mintRequest",
+            attributes: ["id", "payment_proof_url", "status"],
           },
           {
             model: User,
@@ -368,6 +378,48 @@ const adminOperationsController = {
       });
     } catch (error) {
       console.error("List escrows error:", error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  },
+
+  /**
+   * Get single escrow details
+   * GET /api/v1/admin/operations/escrows/:id
+   */
+  getEscrow: async (req, res) => {
+    try {
+      const { id } = req.params;
+
+      const escrow = await Escrow.findByPk(id, {
+        include: [
+          {
+            model: Transaction,
+            as: "transaction",
+            attributes: ["id", "reference", "type", "amount", "status", "from_user_id", "to_user_id"],
+          },
+          {
+            model: User,
+            as: "fromUser",
+            attributes: ["id", "full_name", "email", "phone_number"],
+          },
+          {
+            model: Agent,
+            as: "agent",
+            attributes: ["id", "tier", "rating", "deposit_usd"],
+            required: false,
+          },
+        ],
+      });
+
+      if (!escrow) {
+        return res
+          .status(404)
+          .json({ success: false, error: "Escrow not found" });
+      }
+
+      res.status(200).json({ success: true, data: escrow });
+    } catch (error) {
+      console.error("Get escrow error:", error);
       res.status(500).json({ success: false, error: error.message });
     }
   },
@@ -617,6 +669,84 @@ const adminOperationsController = {
   },
 
   /**
+   * Get single mint request
+   * GET /api/v1/admin/operations/requests/mint/:id
+   */
+  getMintRequest: async (req, res) => {
+    try {
+      const { id } = req.params;
+
+      const request = await MintRequest.findByPk(id, {
+        include: [
+          {
+            model: User,
+            as: "user",
+            attributes: ["id", "full_name", "email", "phone_number"],
+          },
+          {
+            model: Agent,
+            as: "agent",
+            attributes: ["id", "tier", "rating", "deposit_usd"],
+          },
+        ],
+      });
+
+      if (!request) {
+        return res
+          .status(404)
+          .json({ success: false, error: "Mint request not found" });
+      }
+
+      res.status(200).json({ success: true, data: request });
+    } catch (error) {
+      console.error("Get mint request error:", error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  },
+
+  /**
+   * Get single burn request
+   * GET /api/v1/admin/operations/requests/burn/:id
+   */
+  getBurnRequest: async (req, res) => {
+    try {
+      const { id } = req.params;
+
+      const request = await BurnRequest.findByPk(id, {
+        include: [
+          {
+            model: User,
+            as: "user",
+            attributes: ["id", "full_name", "email", "phone_number"],
+          },
+          {
+            model: Agent,
+            as: "agent",
+            attributes: ["id", "tier", "rating", "deposit_usd"],
+          },
+          {
+            model: Escrow,
+            as: "escrow",
+            attributes: ["id", "status", "amount", "token_type", "expires_at", "transaction_id"],
+            required: false,
+          },
+        ],
+      });
+
+      if (!request) {
+        return res
+          .status(404)
+          .json({ success: false, error: "Burn request not found" });
+      }
+
+      res.status(200).json({ success: true, data: request });
+    } catch (error) {
+      console.error("Get burn request error:", error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  },
+
+  /**
    * Cancel mint request (admin)
    * POST /api/v1/admin/operations/requests/mint/:id/cancel
    * Body: { reason: string }
@@ -713,6 +843,48 @@ const adminOperationsController = {
       });
     } catch (error) {
       console.error("Cancel burn request error:", error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  },
+
+
+  /**
+   * Resolve dispute (admin action)
+   * POST /api/v1/admin/operations/disputes/:id/resolve
+   * Body: { action: "refund" | "penalize_agent", penalty_amount_usd?: number, notes?: string }
+   */
+  resolveDispute: async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { action, penalty_amount_usd, notes } = req.body;
+
+      if (!["refund", "penalize_agent", "split", "complete"].includes(action)) {
+        return res.status(400).json({
+          success: false,
+          error: "Invalid resolution action. Allowed: refund, penalize_agent, split, complete",
+        });
+      }
+
+      if (action === "penalize_agent" && !penalty_amount_usd) {
+        return res.status(400).json({
+          success: false,
+          error: "Penalty amount is required for agent penalization",
+        });
+      }
+
+      const result = await disputeService.resolveDispute(id, req.user.id, {
+        action,
+        penalty_amount_usd,
+        notes,
+      });
+
+      res.status(200).json({
+        success: true,
+        message: "Dispute resolved successfully",
+        data: result,
+      });
+    } catch (error) {
+      console.error("Resolve dispute error:", error);
       res.status(500).json({ success: false, error: error.message });
     }
   },

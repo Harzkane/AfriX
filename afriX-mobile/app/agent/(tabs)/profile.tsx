@@ -1,26 +1,45 @@
-import React, { useEffect } from "react";
+import React, { useCallback, useEffect } from "react";
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl } from "react-native";
 import { Surface } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
+import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useAuthStore } from "@/stores";
 import { useAgentStore } from "@/stores/slices/agentSlice";
+import { getCountryByCode } from "@/constants/countries";
 
 export default function AgentProfile() {
     const router = useRouter();
     const { user } = useAuthStore();
-    const { stats, dashboardData, fetchAgentStats, fetchDashboard, loading } = useAgentStore();
+    const {
+        stats,
+        dashboardData,
+        withdrawalRequests,
+        fetchAgentStats,
+        fetchDashboard,
+        fetchWithdrawalRequests,
+        loading,
+    } = useAgentStore();
+
+    const loadData = useCallback(async () => {
+        await Promise.all([
+            fetchAgentStats(),
+            fetchDashboard(),
+            fetchWithdrawalRequests(),
+        ]);
+    }, [fetchAgentStats, fetchDashboard, fetchWithdrawalRequests]);
 
     useEffect(() => {
         loadData();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    }, [loadData]);
 
-    const loadData = async () => {
-        await Promise.all([fetchAgentStats(), fetchDashboard()]);
-    };
+    useFocusEffect(
+        useCallback(() => {
+            loadData();
+        }, [loadData])
+    );
 
     const getTierColor = (tier: string) => {
         switch (tier?.toLowerCase()) {
@@ -40,6 +59,32 @@ export default function AgentProfile() {
             default: return '#6B7280';
         }
     };
+
+    // Derive withdrawal status summary from agent's requests
+    const baseMaxWithdrawable = dashboardData?.financials?.max_withdrawable ?? 0;
+    const pendingReserved = (withdrawalRequests || []).reduce((sum, req) => {
+        if (req.status !== "pending") return sum;
+        const value = parseFloat(req.amount_usd || "0");
+        return sum + (isNaN(value) ? 0 : value);
+    }, 0);
+    const effectiveMaxWithdrawable = Math.max(0, baseMaxWithdrawable - pendingReserved);
+
+    const pendingWithdrawals = (withdrawalRequests || []).filter(
+        (req) => req.status === "pending"
+    );
+    const approvedUnpaidWithdrawals = (withdrawalRequests || []).filter(
+        (req) => req.status === "approved" && !req.paid_at
+    );
+
+    const totalPendingAmount = pendingWithdrawals.reduce((sum, req) => {
+        const value = parseFloat(req.amount_usd || "0");
+        return sum + (isNaN(value) ? 0 : value);
+    }, 0);
+
+    const totalApprovedUnpaidAmount = approvedUnpaidWithdrawals.reduce((sum, req) => {
+        const value = parseFloat(req.amount_usd || "0");
+        return sum + (isNaN(value) ? 0 : value);
+    }, 0);
 
     const renderStars = (rating: number) => {
         const stars = [];
@@ -169,7 +214,13 @@ export default function AgentProfile() {
                             </View>
                             <View style={styles.infoContent}>
                                 <Text style={styles.infoLabel}>Country</Text>
-                                <Text style={styles.infoValue}>{user?.country_code || "N/A"}</Text>
+                                <Text style={styles.infoValue}>
+                                    {(() => {
+                                        const code = (user as any)?.country_code || (user as any)?.country || "";
+                                        const country = code ? getCountryByCode(code) : null;
+                                        return country ? `${country.name} (${country.code})` : "N/A";
+                                    })()}
+                                </Text>
                             </View>
                         </View>
                     </Surface>
@@ -220,6 +271,30 @@ export default function AgentProfile() {
                                 </Text>
                             </View>
                         </View>
+                        {((user as any)?.mobile_money_provider || (user as any)?.mobile_money_number) ? (
+                            <>
+                                <View style={styles.divider} />
+                                <View style={styles.infoRow}>
+                                    <View style={[styles.infoIcon, { backgroundColor: "#FFF7ED" }]}>
+                                        <Ionicons name="phone-portrait-outline" size={20} color="#EA580C" />
+                                    </View>
+                                    <View style={styles.infoContent}>
+                                        <Text style={styles.infoLabel}>Mobile Money Provider</Text>
+                                        <Text style={styles.infoValue}>{(user as any)?.mobile_money_provider || "—"}</Text>
+                                    </View>
+                                </View>
+                                <View style={styles.divider} />
+                                <View style={styles.infoRow}>
+                                    <View style={[styles.infoIcon, { backgroundColor: "#FFF7ED" }]}>
+                                        <Ionicons name="call-outline" size={20} color="#EA580C" />
+                                    </View>
+                                    <View style={styles.infoContent}>
+                                        <Text style={styles.infoLabel}>Mobile Money Number</Text>
+                                        <Text style={styles.infoValue}>{(user as any)?.mobile_money_number || "—"}</Text>
+                                    </View>
+                                </View>
+                            </>
+                        ) : null}
                         <View style={styles.divider} />
                         <View style={styles.infoRow}>
                             <View style={[styles.infoIcon, { backgroundColor: "#F0FDF4" }]}>
@@ -245,13 +320,13 @@ export default function AgentProfile() {
                             <View style={styles.financialItem}>
                                 <Text style={styles.financialLabel}>Total Deposit</Text>
                                 <Text style={styles.financialValue}>
-                                    ${dashboardData?.financials?.total_deposit?.toLocaleString() || "0.00"}
+                                    {(dashboardData?.financials?.total_deposit ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDT
                                 </Text>
                             </View>
                             <View style={styles.financialItem}>
                                 <Text style={styles.financialLabel}>Available Capacity</Text>
                                 <Text style={[styles.financialValue, { color: "#7C3AED" }]}>
-                                    ${dashboardData?.financials?.available_capacity?.toLocaleString() || "0.00"}
+                                    {(dashboardData?.financials?.available_capacity ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDT
                                 </Text>
                             </View>
                         </View>
@@ -260,13 +335,13 @@ export default function AgentProfile() {
                             <View style={styles.financialItem}>
                                 <Text style={styles.financialLabel}>Total Earnings</Text>
                                 <Text style={[styles.financialValue, { color: "#00B14F" }]}>
-                                    ${dashboardData?.financials?.total_earnings?.toLocaleString() || "0.00"}
+                                    {(dashboardData?.financials?.total_earnings ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDT
                                 </Text>
                             </View>
                             <View style={styles.financialItem}>
-                                <Text style={styles.financialLabel}>Outstanding Tokens</Text>
+                                <Text style={styles.financialLabel}>Outstanding (USDT)</Text>
                                 <Text style={styles.financialValue}>
-                                    {dashboardData?.financials?.outstanding_tokens?.toLocaleString() || "0"}
+                                    {(dashboardData?.financials?.outstanding_tokens ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDT
                                 </Text>
                             </View>
                         </View>
@@ -275,13 +350,44 @@ export default function AgentProfile() {
                             <View style={styles.financialItem}>
                                 <Text style={styles.financialLabel}>Max Withdrawable</Text>
                                 <Text style={styles.financialValue}>
-                                    ${dashboardData?.financials?.max_withdrawable?.toLocaleString() || "0.00"}
+                                    {effectiveMaxWithdrawable.toLocaleString(undefined, {
+                                        minimumFractionDigits: 2,
+                                        maximumFractionDigits: 2,
+                                    })} USDT
                                 </Text>
                             </View>
                             <View style={styles.financialItem}>
                                 <Text style={styles.financialLabel}>Utilization Rate</Text>
                                 <Text style={styles.financialValue}>
                                     {dashboardData?.financials?.utilization_rate || "0%"}
+                                </Text>
+                            </View>
+                        </View>
+                        <View style={styles.divider} />
+                        <View style={styles.withdrawalStatusSection}>
+                            <Text style={styles.withdrawalStatusTitle}>Withdrawal Status</Text>
+                            <View style={styles.withdrawalStatusRow}>
+                                <View style={styles.withdrawalStatusPill}>
+                                    <View style={[styles.statusDot, { backgroundColor: "#F59E0B" }]} />
+                                    <Text style={styles.withdrawalStatusLabel}>Pending</Text>
+                                </View>
+                                <Text style={styles.withdrawalStatusValue}>
+                                    {pendingWithdrawals.length} • {totalPendingAmount.toLocaleString(undefined, {
+                                        minimumFractionDigits: 2,
+                                        maximumFractionDigits: 2,
+                                    })} USDT
+                                </Text>
+                            </View>
+                            <View style={styles.withdrawalStatusRow}>
+                                <View style={styles.withdrawalStatusPill}>
+                                    <View style={[styles.statusDot, { backgroundColor: "#3B82F6" }]} />
+                                    <Text style={styles.withdrawalStatusLabel}>Approved (Unpaid)</Text>
+                                </View>
+                                <Text style={styles.withdrawalStatusValue}>
+                                    {approvedUnpaidWithdrawals.length} • {totalApprovedUnpaidAmount.toLocaleString(undefined, {
+                                        minimumFractionDigits: 2,
+                                        maximumFractionDigits: 2,
+                                    })} USDT
                                 </Text>
                             </View>
                         </View>
@@ -363,7 +469,7 @@ export default function AgentProfile() {
                     <Surface style={styles.card}>
                         <TouchableOpacity
                             style={styles.settingRow}
-                            onPress={() => router.push("/modals/agent/edit-profile")}
+                            onPress={() => router.push("/modals/agent/edit-profile?from=agent-profile")}
                             activeOpacity={0.7}
                         >
                             <View style={styles.settingLeft}>
@@ -377,7 +483,7 @@ export default function AgentProfile() {
                         <View style={styles.divider} />
                         <TouchableOpacity
                             style={styles.settingRow}
-                            onPress={() => router.push("/modals/agent/edit-bank-details")}
+                            onPress={() => router.push("/modals/agent/edit-bank-details?from=agent-profile")}
                             activeOpacity={0.7}
                         >
                             <View style={styles.settingLeft}>
@@ -391,7 +497,7 @@ export default function AgentProfile() {
                         <View style={styles.divider} />
                         <TouchableOpacity
                             style={styles.settingRow}
-                            onPress={() => router.push("/modals/agent/withdrawal-request")}
+                            onPress={() => router.push("/modals/agent/withdrawal-request?from=agent-profile")}
                             activeOpacity={0.7}
                         >
                             <View style={styles.settingLeft}>
@@ -405,7 +511,7 @@ export default function AgentProfile() {
                         <View style={styles.divider} />
                         <TouchableOpacity
                             style={styles.settingRow}
-                            onPress={() => router.push("/modals/agent-kyc/status")}
+                            onPress={() => router.push("/modals/agent-kyc/status?from=agent-profile")}
                             activeOpacity={0.7}
                         >
                             <View style={styles.settingLeft}>
@@ -435,8 +541,6 @@ export default function AgentProfile() {
                         </TouchableOpacity>
                     </Surface>
                 </View>
-
-                <View style={styles.bottomSpacer} />
             </ScrollView>
         </View>
     );
@@ -493,7 +597,7 @@ const styles = StyleSheet.create({
     },
     content: {
         padding: 16,
-        paddingBottom: 100,
+        paddingBottom: 24,
         paddingTop: 40,
     },
     profileCard: {
@@ -654,6 +758,39 @@ const styles = StyleSheet.create({
         fontWeight: "800",
         color: "#111827",
     },
+    withdrawalStatusSection: {
+        paddingTop: 8,
+        paddingBottom: 4,
+    },
+    withdrawalStatusTitle: {
+        fontSize: 12,
+        fontWeight: "600",
+        color: "#9CA3AF",
+        textTransform: "uppercase",
+        letterSpacing: 0.8,
+        marginBottom: 6,
+    },
+    withdrawalStatusRow: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
+        paddingVertical: 4,
+    },
+    withdrawalStatusPill: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 6,
+    },
+    withdrawalStatusLabel: {
+        fontSize: 13,
+        fontWeight: "500",
+        color: "#4B5563",
+    },
+    withdrawalStatusValue: {
+        fontSize: 13,
+        fontWeight: "600",
+        color: "#111827",
+    },
     performanceGrid: {
         flexDirection: "row",
         gap: 12,
@@ -711,8 +848,5 @@ const styles = StyleSheet.create({
         fontSize: 15,
         fontWeight: "600",
         color: "#111827",
-    },
-    bottomSpacer: {
-        height: 40,
     },
 });

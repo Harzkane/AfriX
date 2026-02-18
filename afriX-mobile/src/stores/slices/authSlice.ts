@@ -3,9 +3,12 @@ import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as SecureStore from "expo-secure-store";
+import * as LocalAuthentication from "expo-local-authentication";
 import apiClient from "@/services/apiClient";
 import { API_ENDPOINTS } from "@/constants/api";
 import type { AuthState } from "@/stores/types/auth.types";
+
+const BIOMETRIC_LOGIN_KEY = "biometric_login_enabled";
 
 export const useAuthStore = create<AuthState>()(
   persist(
@@ -27,9 +30,19 @@ export const useAuthStore = create<AuthState>()(
 
           console.log("📦 Login response:", data);
 
-          // ✅ Extract token from nested structure
-          const { user, tokens } = data.data;
-          const token = tokens.access_token; // ← Get access_token from tokens object
+          // When 2FA is required, backend returns requires_2fa + temp_token (no data.data)
+          if (data.requires_2fa && data.temp_token) {
+            set({ loading: false });
+            const payload: { requires_2fa: true; temp_token: string } = {
+              requires_2fa: true,
+              temp_token: data.temp_token,
+            };
+            return payload;
+          }
+
+          // Full login: extract token from nested structure
+          const { user, tokens } = data.data || {};
+          const token = tokens?.access_token;
 
           if (!token) {
             throw new Error("No token received from server");
@@ -109,18 +122,34 @@ export const useAuthStore = create<AuthState>()(
 
       initAuth: async () => {
         try {
-          // ✅ Check SecureStore first (source of truth for API calls)
           const secureToken = await SecureStore.getItemAsync("auth_token");
 
           if (!secureToken) {
-            console.log("ℹ️  No auth token found in SecureStore");
             set({ isAuthenticated: false, loading: false });
             return;
           }
 
-          console.log("🔐 Found token in SecureStore, verifying...");
+          // If biometric login is enabled, require biometric before restoring session
+          const biometricEnabled = await SecureStore.getItemAsync(BIOMETRIC_LOGIN_KEY);
+          if (biometricEnabled === "true") {
+            const hasHardware = await LocalAuthentication.hasHardwareAsync();
+            const isEnrolled = await LocalAuthentication.isEnrolledAsync();
+            if (hasHardware && isEnrolled) {
+              const result = await LocalAuthentication.authenticateAsync({
+                promptMessage: "Unlock AfriX",
+                cancelLabel: "Cancel",
+                fallbackLabel: "Use password",
+                disableDeviceFallback: true,
+              });
+              if (!result.success) {
+                // Don't delete token so user can tap "Unlock with Face ID" on login screen
+                delete apiClient.defaults.headers.Authorization;
+                set({ token: null, isAuthenticated: false, user: null, loading: false });
+                return;
+              }
+            }
+          }
 
-          // Set header for the verification request
           apiClient.defaults.headers.Authorization = `Bearer ${secureToken}`;
 
           const { data } = await apiClient.get(API_ENDPOINTS.AUTH.ME);
@@ -163,6 +192,46 @@ export const useAuthStore = create<AuthState>()(
 
       clearError: () => set({ error: null }),
 
+      unlockWithBiometric: async () => {
+        try {
+          const secureToken = await SecureStore.getItemAsync("auth_token");
+          const biometricEnabled = await SecureStore.getItemAsync(BIOMETRIC_LOGIN_KEY);
+          if (!secureToken || biometricEnabled !== "true") return false;
+
+          const hasHardware = await LocalAuthentication.hasHardwareAsync();
+          const isEnrolled = await LocalAuthentication.isEnrolledAsync();
+          if (!hasHardware || !isEnrolled) return false;
+
+          const result = await LocalAuthentication.authenticateAsync({
+            promptMessage: "Unlock AfriX",
+            cancelLabel: "Cancel",
+            fallbackLabel: "Use password",
+            disableDeviceFallback: true,
+          });
+          if (!result.success) return false;
+
+          apiClient.defaults.headers.Authorization = `Bearer ${secureToken}`;
+          const { data } = await apiClient.get(API_ENDPOINTS.AUTH.ME);
+          const userData = data.data?.user || data.data || data.user || data;
+          if (!userData || !userData.email) return false;
+
+          set({
+            user: userData,
+            token: secureToken,
+            isAuthenticated: true,
+            loading: false,
+          });
+          return true;
+        } catch {
+          try {
+            await SecureStore.deleteItemAsync("auth_token");
+          } catch (_) {}
+          delete apiClient.defaults.headers.Authorization;
+          set({ token: null, isAuthenticated: false, user: null, loading: false });
+          return false;
+        }
+      },
+
       forgotPassword: async (email: string) => {
         set({ loading: true, error: null });
         try {
@@ -187,6 +256,22 @@ export const useAuthStore = create<AuthState>()(
         } catch (err: any) {
           const message =
             err.response?.data?.message || "Password reset failed";
+          set({ error: message, loading: false });
+          throw new Error(message);
+        }
+      },
+
+      changePassword: async (current_password: string, new_password: string) => {
+        set({ loading: true, error: null });
+        try {
+          await apiClient.post(API_ENDPOINTS.AUTH.CHANGE_PASSWORD, {
+            current_password,
+            new_password,
+          });
+          set({ loading: false });
+        } catch (err: any) {
+          const message =
+            err.response?.data?.message || "Failed to change password";
           set({ error: message, loading: false });
           throw new Error(message);
         }

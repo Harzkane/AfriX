@@ -72,45 +72,102 @@ export default function AgentDashboard() {
                         </View>
                         <Text style={styles.statLabel}>Available Capacity</Text>
                         <Text style={styles.statValue}>
-                            ${formatAmount(stats?.available_capacity || 0, "USDT")}
+                            {formatAmount(dashboardData?.financials?.available_capacity ?? stats?.available_capacity ?? 0, "USDT")} USDT
                         </Text>
                     </Surface>
                 </View>
 
-                {/* Stats Grid */}
-                <View style={styles.statsGrid}>
-                    <Surface style={styles.statCard}>
-                        <View style={[styles.statIcon, { backgroundColor: "#F0FDF4" }]}>
-                            <Ionicons name="cash-outline" size={20} color="#00B14F" />
-                        </View>
-                        <Text style={styles.statLabel}>Total Earnings</Text>
-                        <Text style={[styles.statValue, { color: "#00B14F" }]}>
-                            ${formatAmount(stats?.total_earnings || 0, "USDT")}
-                        </Text>
-                    </Surface>
-                    <Surface style={styles.statCard}>
-                        <View style={[styles.statIcon, { backgroundColor: "#EFF6FF" }]}>
-                            <Ionicons name="arrow-up-circle-outline" size={20} color="#3B82F6" />
-                        </View>
-                        <Text style={styles.statLabel}>Total Minted</Text>
-                        <Text style={styles.statValue}>
-                            {formatAmount(stats?.total_minted || 0, "NT")}
-                        </Text>
-                    </Surface>
+                {/* Total Earnings - by token (commission) with USDT */}
+                <View style={styles.section}>
+                    <Text style={styles.tokenSectionLabel}>Total Earnings (Commission)</Text>
+                    <View style={styles.statsGrid}>
+                        <Surface style={styles.statCard}>
+                            <View style={[styles.statIcon, { backgroundColor: "#F0FDF4" }]}>
+                                <Ionicons name="cash-outline" size={20} color="#00B14F" />
+                            </View>
+                            <Text style={styles.statLabel}>NT</Text>
+                            <Text style={[styles.statValue, { color: "#00B14F" }]}>
+                                {formatAmount((dashboardData?.financials?.total_earnings_by_token as Record<string, number>)?.NT ?? 0, "NT")} NT
+                            </Text>
+                            <Text style={styles.statSubvalue}>
+                                ≈ {formatAmount((dashboardData?.financials?.total_earnings_by_token_usdt as Record<string, number>)?.NT ?? 0, "USDT")} USDT
+                            </Text>
+                        </Surface>
+                        <Surface style={styles.statCard}>
+                            <View style={[styles.statIcon, { backgroundColor: "#ECFDF5" }]}>
+                                <Ionicons name="cash-outline" size={20} color="#059669" />
+                            </View>
+                            <Text style={styles.statLabel}>CT</Text>
+                            <Text style={[styles.statValue, { color: "#00B14F" }]}>
+                                {formatAmount((dashboardData?.financials?.total_earnings_by_token as Record<string, number>)?.CT ?? 0, "CT")} CT
+                            </Text>
+                            <Text style={styles.statSubvalue}>
+                                ≈ {formatAmount((dashboardData?.financials?.total_earnings_by_token_usdt as Record<string, number>)?.CT ?? 0, "USDT")} USDT
+                            </Text>
+                        </Surface>
+                    </View>
                 </View>
 
-                {/* Single Stat Card */}
-                <View style={styles.statsGrid}>
-                    <Surface style={styles.statCard}>
-                        <View style={[styles.statIcon, { backgroundColor: "#FEF2F2" }]}>
-                            <Ionicons name="arrow-down-circle-outline" size={20} color="#EF4444" />
-                        </View>
-                        <Text style={styles.statLabel}>Total Burned</Text>
-                        <Text style={styles.statValue}>
-                            {formatAmount(stats?.total_burned || 0, "NT")}
-                        </Text>
-                    </Surface>
-                    <View style={{ flex: 1 }} />
+                {/* Total Minted - by token with USDT */}
+                <View style={styles.section}>
+                    <Text style={styles.tokenSectionLabel}>Total Minted</Text>
+                    <View style={styles.statsGrid}>
+                        <Surface style={styles.statCard}>
+                            <View style={[styles.statIcon, { backgroundColor: "#EFF6FF" }]}>
+                                <Ionicons name="arrow-up-circle-outline" size={20} color="#3B82F6" />
+                            </View>
+                            <Text style={styles.statLabel}>NT</Text>
+                            <Text style={styles.statValue}>
+                                {formatAmount((dashboardData?.financials?.total_minted_by_token as Record<string, number>)?.NT ?? 0, "NT")} NT
+                            </Text>
+                            <Text style={styles.statSubvalue}>
+                                ≈ {formatAmount((dashboardData?.financials?.total_minted_by_token_usdt as Record<string, number>)?.NT ?? 0, "USDT")} USDT
+                            </Text>
+                        </Surface>
+                        <Surface style={styles.statCard}>
+                            <View style={[styles.statIcon, { backgroundColor: "#FFF7ED" }]}>
+                                <Ionicons name="arrow-up-circle-outline" size={20} color="#EA580C" />
+                            </View>
+                            <Text style={styles.statLabel}>CT</Text>
+                            <Text style={styles.statValue}>
+                                {formatAmount((dashboardData?.financials?.total_minted_by_token as Record<string, number>)?.CT ?? 0, "CT")} CT
+                            </Text>
+                            <Text style={styles.statSubvalue}>
+                                ≈ {formatAmount((dashboardData?.financials?.total_minted_by_token_usdt as Record<string, number>)?.CT ?? 0, "USDT")} USDT
+                            </Text>
+                        </Surface>
+                    </View>
+                </View>
+
+                {/* Total Burned - by token with USDT */}
+                <View style={styles.section}>
+                    <Text style={styles.tokenSectionLabel}>Total Burned</Text>
+                    <View style={styles.statsGrid}>
+                        <Surface style={styles.statCard}>
+                            <View style={[styles.statIcon, { backgroundColor: "#FEF2F2" }]}>
+                                <Ionicons name="arrow-down-circle-outline" size={20} color="#EF4444" />
+                            </View>
+                            <Text style={styles.statLabel}>NT</Text>
+                            <Text style={styles.statValue}>
+                                {formatAmount((dashboardData?.financials?.total_burned_by_token as Record<string, number>)?.NT ?? 0, "NT")} NT
+                            </Text>
+                            <Text style={styles.statSubvalue}>
+                                ≈ {formatAmount((dashboardData?.financials?.total_burned_by_token_usdt as Record<string, number>)?.NT ?? 0, "USDT")} USDT
+                            </Text>
+                        </Surface>
+                        <Surface style={styles.statCard}>
+                            <View style={[styles.statIcon, { backgroundColor: "#FFF1F2" }]}>
+                                <Ionicons name="arrow-down-circle-outline" size={20} color="#DC2626" />
+                            </View>
+                            <Text style={styles.statLabel}>CT</Text>
+                            <Text style={styles.statValue}>
+                                {formatAmount((dashboardData?.financials?.total_burned_by_token as Record<string, number>)?.CT ?? 0, "CT")} CT
+                            </Text>
+                            <Text style={styles.statSubvalue}>
+                                ≈ {formatAmount((dashboardData?.financials?.total_burned_by_token_usdt as Record<string, number>)?.CT ?? 0, "USDT")} USDT
+                            </Text>
+                        </Surface>
+                    </View>
                 </View>
 
                 {/* Quick Actions */}
@@ -119,7 +176,7 @@ export default function AgentDashboard() {
                     <View style={styles.actionGrid}>
                         <TouchableOpacity
                             style={styles.actionButton}
-                            onPress={() => router.push("/agent/requests")}
+                            onPress={() => router.push({ pathname: "/agent/requests", params: { tab: "mint" } })}
                             activeOpacity={0.7}
                         >
                             <Surface style={styles.actionSurface}>
@@ -156,23 +213,29 @@ export default function AgentDashboard() {
                     {dashboardData?.deposit_history && dashboardData.deposit_history.length > 0 ? (
                         <Surface style={styles.listCard}>
                             {dashboardData.deposit_history.map((deposit: any, index: number) => (
-                                <View key={deposit.id}>
-                                    <View style={styles.listItem}>
-                                        <View style={[styles.listItemIcon, { backgroundColor: "#F0FDF4" }]}>
-                                            <Ionicons name="arrow-down" size={20} color="#00B14F" />
+                                <TouchableOpacity
+                                    key={deposit.id}
+                                    activeOpacity={0.7}
+                                    onPress={() => router.push("/agent/deposit-history")}
+                                >
+                                    <View>
+                                        <View style={styles.listItem}>
+                                            <View style={[styles.listItemIcon, { backgroundColor: "#F0FDF4" }]}>
+                                                <Ionicons name="arrow-down" size={20} color="#00B14F" />
+                                            </View>
+                                            <View style={styles.listItemInfo}>
+                                                <Text style={styles.listItemAmount}>+{formatAmount(deposit.amount, "USDT")} USDT</Text>
+                                                <Text style={styles.listItemDate}>
+                                                    {formatDate(deposit.created_at)}
+                                                </Text>
+                                            </View>
+                                            <View style={styles.depositStatus}>
+                                                <Text style={styles.depositStatusText}>Verified</Text>
+                                            </View>
                                         </View>
-                                        <View style={styles.listItemInfo}>
-                                            <Text style={styles.listItemAmount}>+{formatAmount(deposit.amount, "USDT")} USDT</Text>
-                                            <Text style={styles.listItemDate}>
-                                                {formatDate(deposit.created_at)}
-                                            </Text>
-                                        </View>
-                                        <View style={styles.depositStatus}>
-                                            <Text style={styles.depositStatusText}>Verified</Text>
-                                        </View>
+                                        {index < dashboardData.deposit_history.length - 1 && <View style={styles.divider} />}
                                     </View>
-                                    {index < dashboardData.deposit_history.length - 1 && <View style={styles.divider} />}
-                                </View>
+                                </TouchableOpacity>
                             ))}
                         </Surface>
                     ) : (
@@ -183,49 +246,59 @@ export default function AgentDashboard() {
                 </View>
 
                 {/* Recent Withdrawals Summary */}
-                {withdrawalRequests.length > 0 && (
-                    <View style={styles.section}>
-                        <View style={styles.sectionHeader}>
-                            <Text style={styles.sectionTitle}>Recent Withdrawals</Text>
-                            <TouchableOpacity onPress={() => router.push("/agent/withdrawal-history")}>
-                                <Text style={styles.viewAllText}>View All</Text>
-                            </TouchableOpacity>
-                        </View>
+                <View style={styles.section}>
+                    <View style={styles.sectionHeader}>
+                        <Text style={styles.sectionTitle}>Recent Withdrawals</Text>
+                        <TouchableOpacity onPress={() => router.push("/agent/withdrawal-history")}>
+                            <Text style={styles.viewAllText}>View All</Text>
+                        </TouchableOpacity>
+                    </View>
+                    {withdrawalRequests.length > 0 ? (
                         <Surface style={styles.listCard}>
                             {withdrawalRequests.slice(0, 2).map((request: WithdrawalRequest, index: number) => (
-                                <View key={request.id}>
-                                    <View style={styles.listItem}>
-                                        <View style={[styles.listItemIcon, { backgroundColor: "#FEF2F2" }]}>
-                                            <Ionicons name="arrow-up" size={20} color="#EF4444" />
-                                        </View>
-                                        <View style={styles.listItemInfo}>
-                                            <Text style={styles.listItemAmount}>${formatAmount(request.amount_usd, "USDT")}</Text>
-                                            <Text style={styles.listItemDate}>
-                                                {formatDate(request.created_at)}
-                                            </Text>
-                                        </View>
-                                        <View style={[styles.statusBadge, {
-                                            backgroundColor:
-                                                request.status === 'pending' ? '#FFFBEB' :
-                                                    request.status === 'paid' ? '#F0FDF4' :
-                                                        request.status === 'rejected' ? '#FEF2F2' : '#EFF6FF'
-                                        }]}>
-                                            <Text style={[styles.statusText, {
-                                                color:
-                                                    request.status === 'pending' ? '#D97706' :
-                                                        request.status === 'paid' ? '#00B14F' :
-                                                            request.status === 'rejected' ? '#EF4444' : '#3B82F6'
+                                <TouchableOpacity
+                                    key={request.id}
+                                    activeOpacity={0.7}
+                                    onPress={() => router.push("/agent/withdrawal-history")}
+                                >
+                                    <View>
+                                        <View style={styles.listItem}>
+                                            <View style={[styles.listItemIcon, { backgroundColor: "#FEF2F2" }]}>
+                                                <Ionicons name="arrow-up" size={20} color="#EF4444" />
+                                            </View>
+                                            <View style={styles.listItemInfo}>
+                                                <Text style={styles.listItemAmount}>{formatAmount(request.amount_usd, "USDT")} USDT</Text>
+                                                <Text style={styles.listItemDate}>
+                                                    {formatDate(request.created_at)}
+                                                </Text>
+                                            </View>
+                                            <View style={[styles.statusBadge, {
+                                                backgroundColor:
+                                                    request.status === "pending" ? "#FFFBEB" :
+                                                        request.status === "paid" ? "#F0FDF4" :
+                                                            request.status === "rejected" ? "#FEF2F2" : "#EFF6FF"
                                             }]}>
-                                                {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
-                                            </Text>
+                                                <Text style={[styles.statusText, {
+                                                    color:
+                                                        request.status === "pending" ? "#D97706" :
+                                                            request.status === "paid" ? "#00B14F" :
+                                                                request.status === "rejected" ? "#EF4444" : "#3B82F6"
+                                                }]}>
+                                                    {request.status === "approved" ? "Approved" : request.status.charAt(0).toUpperCase() + request.status.slice(1)}
+                                                </Text>
+                                            </View>
                                         </View>
+                                        {index < Math.min(withdrawalRequests.length, 2) - 1 && <View style={styles.divider} />}
                                     </View>
-                                    {index < Math.min(withdrawalRequests.length, 2) - 1 && <View style={styles.divider} />}
-                                </View>
+                                </TouchableOpacity>
                             ))}
                         </Surface>
-                    </View>
-                )}
+                    ) : (
+                        <Surface style={styles.emptyCard}>
+                            <Text style={styles.emptyText}>No withdrawal requests</Text>
+                        </Surface>
+                    )}
+                </View>
 
                 {/* Performance Summary */}
                 <View style={styles.section}>
@@ -263,7 +336,7 @@ export default function AgentDashboard() {
                 <View style={styles.section}>
                     <View style={styles.sectionHeader}>
                         <Text style={styles.sectionTitle}>Recent Transactions</Text>
-                        <TouchableOpacity onPress={() => router.push("/agent/requests")}>
+                        <TouchableOpacity onPress={() => router.push({ pathname: "/agent/requests", params: { tab: "history" } })}>
                             <Text style={styles.viewAllText}>View All</Text>
                         </TouchableOpacity>
                     </View>
@@ -272,29 +345,36 @@ export default function AgentDashboard() {
                             {dashboardData.recent_transactions.slice(0, 5).map((tx: any, index: number) => {
                                 const isMint = tx.type === 'mint';
                                 const userName = isMint ? tx.toUser?.full_name : tx.fromUser?.full_name;
-                                const commission = (parseFloat(tx.amount) * 0.01).toFixed(2);
+                                const tokenType = tx.token_type || "NT";
+                                const commissionAmount = (parseFloat(tx.amount) * 0.01).toString();
+                                const commission = formatAmount(commissionAmount, tokenType);
 
                                 return (
                                     <View key={tx.id}>
-                                        <View style={styles.listItem}>
-                                            <View style={[styles.listItemIcon, { backgroundColor: isMint ? "#F0FDF4" : "#FFFBEB" }]}>
-                                                <Ionicons
-                                                    name={isMint ? "arrow-up" : "arrow-down"}
-                                                    size={20}
-                                                    color={isMint ? "#00B14F" : "#F59E0B"}
-                                                />
+                                        <TouchableOpacity
+                                            activeOpacity={0.7}
+                                            onPress={() => router.push(`/agent/transaction-details/${tx.id}`)}
+                                        >
+                                            <View style={styles.listItem}>
+                                                <View style={[styles.listItemIcon, { backgroundColor: isMint ? "#F0FDF4" : "#FFFBEB" }]}>
+                                                    <Ionicons
+                                                        name={isMint ? "arrow-up" : "arrow-down"}
+                                                        size={20}
+                                                        color={isMint ? "#00B14F" : "#F59E0B"}
+                                                    />
+                                                </View>
+                                                <View style={styles.listItemInfo}>
+                                                    <Text style={styles.listItemType}>{isMint ? "Mint" : "Burn"} - {userName}</Text>
+                                                    <Text style={styles.listItemDate}>
+                                                        {formatDate(tx.created_at)}
+                                                    </Text>
+                                                </View>
+                                                <View style={styles.listItemAmounts}>
+                                                    <Text style={styles.listItemAmountValue}>{formatAmount(tx.amount, tx.token_type)} {tx.token_type}</Text>
+                                                    <Text style={styles.transactionCommission}>+{commission} {tokenType} earned</Text>
+                                                </View>
                                             </View>
-                                            <View style={styles.listItemInfo}>
-                                                <Text style={styles.listItemType}>{isMint ? "Mint" : "Burn"} - {userName}</Text>
-                                                <Text style={styles.listItemDate}>
-                                                    {formatDate(tx.created_at)}
-                                                </Text>
-                                            </View>
-                                            <View style={styles.listItemAmounts}>
-                                                <Text style={styles.listItemAmountValue}>{formatAmount(tx.amount, tx.token_type)} {tx.token_type}</Text>
-                                                <Text style={styles.transactionCommission}>+${formatAmount(commission, "USDT")} earned</Text>
-                                            </View>
-                                        </View>
+                                        </TouchableOpacity>
                                         {index < Math.min(dashboardData.recent_transactions.length, 5) - 1 && <View style={styles.divider} />}
                                     </View>
                                 );
@@ -403,6 +483,20 @@ const styles = StyleSheet.create({
         fontSize: 20,
         fontWeight: "700",
         color: "#111827",
+    },
+    statSubvalue: {
+        fontSize: 12,
+        color: "#6B7280",
+        marginTop: 4,
+        fontWeight: "500",
+    },
+    tokenSectionLabel: {
+        fontSize: 14,
+        fontWeight: "700",
+        color: "#6B7280",
+        marginBottom: 10,
+        textTransform: "uppercase",
+        letterSpacing: 0.5,
     },
     section: {
         marginTop: 12,

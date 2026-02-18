@@ -1,33 +1,48 @@
 import { useState, useEffect } from "react";
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, Alert, KeyboardAvoidingView, Platform, ScrollView } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useAuthStore } from "@/stores";
 import { useAgentStore } from "@/stores/slices/agentSlice";
+import { getCountryByCode, stripLeadingZero } from "@/constants/countries";
 
 export default function EditProfile() {
     const router = useRouter();
+    const params = useLocalSearchParams();
+    const fromAgentProfile = params?.from === "agent-profile";
     const { user } = useAuthStore();
     const { updateProfile, loading } = useAgentStore();
+
+    const countryCode = (user as any)?.country_code || (user as any)?.country || "";
+    const countryInfo = countryCode ? getCountryByCode(countryCode) : null;
 
     const [phoneNumber, setPhoneNumber] = useState("");
     const [whatsappNumber, setWhatsappNumber] = useState("");
     const [errors, setErrors] = useState<{ phone?: string; whatsapp?: string }>({});
 
+    const handleGoBack = () => {
+        if (fromAgentProfile) {
+            router.push("/agent/(tabs)/profile");
+        } else {
+            router.back();
+        }
+    };
+
     useEffect(() => {
-        // Pre-populate with current values
+        // Pre-populate with current values; strip leading 0 for display
         if (user) {
-            setPhoneNumber(user.phone_number || "");
-            setWhatsappNumber((user as any).whatsapp_number || user.phone_number || "");
+            const phone = (user.phone_number || "").trim();
+            const whatsapp = ((user as any).whatsapp_number || user.phone_number || "").trim();
+            setPhoneNumber(stripLeadingZero(phone));
+            setWhatsappNumber(stripLeadingZero(whatsapp));
         }
     }, [user]);
 
     const validatePhone = (phone: string): boolean => {
-        // Basic phone validation - adjust regex as needed
-        const phoneRegex = /^[\d\s\-\+\(\)]+$/;
-        return phone.length >= 10 && phoneRegex.test(phone);
+        const digitsOnly = phone.replace(/\D/g, "");
+        return digitsOnly.length >= 8 && digitsOnly.length <= 15;
     };
 
     const handleSave = async () => {
@@ -50,15 +65,17 @@ export default function EditProfile() {
         }
 
         try {
+            const phone = stripLeadingZero(phoneNumber.trim()).replace(/\D/g, "");
+            const whatsapp = (stripLeadingZero(whatsappNumber.trim()).replace(/\D/g, "") || phone);
             await updateProfile({
-                phone_number: phoneNumber.trim(),
-                whatsapp_number: whatsappNumber.trim() || phoneNumber.trim(),
+                phone_number: phone,
+                whatsapp_number: whatsapp,
             });
 
             Alert.alert(
                 "Success",
                 "Profile updated successfully",
-                [{ text: "OK", onPress: () => router.back() }]
+                [{ text: "OK", onPress: () => handleGoBack() }]
             );
         } catch (error: any) {
             Alert.alert("Error", error.message || "Failed to update profile");
@@ -76,7 +93,7 @@ export default function EditProfile() {
                 />
                 <SafeAreaView edges={["top"]} style={styles.headerContent}>
                     <View style={styles.header}>
-                        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+                        <TouchableOpacity onPress={handleGoBack} style={styles.backButton}>
                             <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
                         </TouchableOpacity>
                         <Text style={styles.headerTitle}>Edit Profile</Text>
@@ -95,19 +112,32 @@ export default function EditProfile() {
                     keyboardShouldPersistTaps="handled"
                     showsVerticalScrollIndicator={false}
                 >
+                    {countryInfo ? (
+                        <View style={styles.countryRow}>
+                            <Ionicons name="globe-outline" size={20} color="#6B7280" style={styles.countryIcon} />
+                            <Text style={styles.countryLabel}>Country</Text>
+                            <Text style={styles.countryValue}>
+                                {countryInfo.name} ({countryInfo.dialCode})
+                            </Text>
+                        </View>
+                    ) : null}
+
                     {/* Phone Number */}
                     <View style={styles.inputGroup}>
                         <Text style={styles.label}>Phone Number *</Text>
                         <View style={[styles.inputContainer, errors.phone && styles.inputError]}>
                             <Ionicons name="call-outline" size={20} color="#6B7280" style={styles.inputIcon} />
+                            {countryInfo ? (
+                                <Text style={styles.dialCodePrefix}>{countryInfo.dialCode}</Text>
+                            ) : null}
                             <TextInput
                                 style={styles.input}
                                 value={phoneNumber}
                                 onChangeText={(text) => {
-                                    setPhoneNumber(text);
+                                    setPhoneNumber(stripLeadingZero(text));
                                     if (errors.phone) setErrors({ ...errors, phone: undefined });
                                 }}
-                                placeholder="Enter phone number"
+                                placeholder="8012345678"
                                 keyboardType="phone-pad"
                                 editable={!loading}
                             />
@@ -120,14 +150,17 @@ export default function EditProfile() {
                         <Text style={styles.label}>WhatsApp Number</Text>
                         <View style={[styles.inputContainer, errors.whatsapp && styles.inputError]}>
                             <Ionicons name="logo-whatsapp" size={20} color="#6B7280" style={styles.inputIcon} />
+                            {countryInfo ? (
+                                <Text style={styles.dialCodePrefix}>{countryInfo.dialCode}</Text>
+                            ) : null}
                             <TextInput
                                 style={styles.input}
                                 value={whatsappNumber}
                                 onChangeText={(text) => {
-                                    setWhatsappNumber(text);
+                                    setWhatsappNumber(stripLeadingZero(text));
                                     if (errors.whatsapp) setErrors({ ...errors, whatsapp: undefined });
                                 }}
-                                placeholder="Enter WhatsApp number (optional)"
+                                placeholder="8012345678"
                                 keyboardType="phone-pad"
                                 editable={!loading}
                             />
@@ -180,8 +213,6 @@ const styles = StyleSheet.create({
         left: 0,
         right: 0,
         height: 120,
-        // borderBottomLeftRadius: 30,
-        // borderBottomRightRadius: 30,
     },
     headerContent: {
         paddingHorizontal: 16,
@@ -213,6 +244,31 @@ const styles = StyleSheet.create({
         padding: 16,
         paddingBottom: 100,
     },
+    countryRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        backgroundColor: "#F9FAFB",
+        paddingVertical: 12,
+        paddingHorizontal: 14,
+        borderRadius: 12,
+        marginBottom: 20,
+        borderWidth: 1,
+        borderColor: "#E5E7EB",
+    },
+    countryIcon: {
+        marginRight: 10,
+    },
+    countryLabel: {
+        fontSize: 14,
+        color: "#6B7280",
+        fontWeight: "500",
+    },
+    countryValue: {
+        marginLeft: "auto",
+        fontSize: 15,
+        fontWeight: "600",
+        color: "#111827",
+    },
     inputGroup: {
         marginBottom: 24,
     },
@@ -236,6 +292,15 @@ const styles = StyleSheet.create({
     },
     inputIcon: {
         marginRight: 8,
+    },
+    dialCodePrefix: {
+        fontSize: 16,
+        fontWeight: "600",
+        color: "#6B7280",
+        paddingRight: 10,
+        marginRight: 8,
+        borderRightWidth: 1,
+        borderRightColor: "#E5E7EB",
     },
     input: {
         flex: 1,

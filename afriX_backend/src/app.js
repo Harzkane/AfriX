@@ -20,6 +20,7 @@ const escrowRoutes = require("./routes/escrows");
 const disputeRoutes = require("./routes/disputes");
 const educationRoutes = require("./routes/education");
 const configRoutes = require("./routes/config");
+const notificationRoutes = require("./routes/notifications");
 
 // Import middleware
 const { sanitizeInput } = require("./middleware/validation");
@@ -90,6 +91,7 @@ app.use(`/api/${API_VERSION}/escrows`, escrowRoutes);
 app.use(`/api/${API_VERSION}/disputes`, disputeRoutes);
 app.use(`/api/${API_VERSION}/education`, educationRoutes);
 app.use(`/api/${API_VERSION}/config`, configRoutes);
+app.use(`/api/${API_VERSION}/notifications`, notificationRoutes);
 
 // ============================================
 // ROOT ENDPOINT

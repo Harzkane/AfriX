@@ -9,10 +9,11 @@ import {
 } from "react-native";
 import { Text } from "react-native-paper";
 import { useRouter, useLocalSearchParams } from "expo-router";
-import { useMintRequestStore, useAgentStore } from "@/stores";
+import { useMintRequestStore, useAgentStore, useWalletStore } from "@/stores";
 import * as Clipboard from "expo-clipboard";
 import { Ionicons } from "@expo/vector-icons";
 import apiClient from "@/services/apiClient";
+import { formatAmount, formatAmountOrCompact } from "@/utils/format";
 import { LinearGradient } from "expo-linear-gradient";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -27,6 +28,7 @@ export default function PaymentInstructionsScreen() {
   const router = useRouter();
   const { selectedAgent, selectAgent } = useAgentStore();
   const { createMintRequest, loading } = useMintRequestStore();
+  const { exchangeRates } = useWalletStore();
   const [fetchingAgent, setFetchingAgent] = useState(false);
 
   // Fetch agent details if coming from agent profile (agentId provided but no selectedAgent or different agent)
@@ -129,22 +131,67 @@ export default function PaymentInstructionsScreen() {
               <View style={styles.cardContent}>
                 <View style={styles.row}>
                   <Text style={styles.rowLabel}>Tier</Text>
-                  <View style={styles.tierBadge}>
-                    <Text style={styles.tierText}>
-                      {selectedAgent?.tier.toUpperCase()}
-                    </Text>
+                  <View style={styles.tierRow}>
+                    <View style={styles.tierBadge}>
+                      <Text style={styles.tierText}>
+                        {(selectedAgent?.tier || "").toUpperCase()}
+                      </Text>
+                    </View>
+                    {(selectedAgent?.is_online === true || selectedAgent?.status === "active") && (
+                      <View style={styles.activePill}>
+                        <Text style={styles.activePillText}>Active</Text>
+                      </View>
+                    )}
                   </View>
                 </View>
+
+                {([(selectedAgent as any)?.city, (selectedAgent as any)?.country].filter(Boolean).length > 0) && (
+                  <View style={styles.row}>
+                    <Text style={styles.rowLabel}>Location</Text>
+                    <View style={styles.locationValue}>
+                      <Ionicons name="location-outline" size={14} color="#6B7280" />
+                      <Text style={styles.rowValue}>
+                        {[(selectedAgent as any).city, (selectedAgent as any).country].filter(Boolean).join(", ")}
+                      </Text>
+                    </View>
+                  </View>
+                )}
 
                 <View style={styles.row}>
                   <Text style={styles.rowLabel}>Rating</Text>
                   <View style={styles.ratingRow}>
                     <Ionicons name="star" size={16} color="#FFB800" />
                     <Text style={styles.rowValue}>
-                      {selectedAgent?.rating.toFixed(1)}
+                      {(selectedAgent?.rating ?? 0).toFixed(1)}
                     </Text>
                   </View>
                 </View>
+
+                {(selectedAgent as any)?.commission_rate != null && (
+                  <View style={styles.row}>
+                    <Text style={styles.rowLabel}>Fee</Text>
+                    <Text style={styles.rowValue}>
+                      ~{((selectedAgent as any).commission_rate * 100).toFixed(1)}%
+                    </Text>
+                  </View>
+                )}
+
+                {(() => {
+                  const cap = Number((selectedAgent as any)?.available_capacity) || 0;
+                  const maxStored = (selectedAgent as any)?.max_transaction_limit != null ? Number((selectedAgent as any).max_transaction_limit) : null;
+                  const t = tokenType === "NT" || tokenType === "CT" ? tokenType : "NT";
+                  const rate = t === "NT" ? exchangeRates.USDT_TO_NT : exchangeRates.USDT_TO_CT;
+                  const capacityInLocal = rate && rate > 0 && cap > 0 ? cap * rate : null;
+                  const maxTradeDisplay = capacityInLocal != null ? capacityInLocal : maxStored;
+                  return maxTradeDisplay != null && maxTradeDisplay > 0 ? (
+                    <View style={styles.row}>
+                      <Text style={styles.rowLabel}>Max/trade</Text>
+                      <Text style={styles.rowValue}>
+                        {formatAmountOrCompact(maxTradeDisplay, t)}
+                      </Text>
+                    </View>
+                  ) : null;
+                })()}
 
                 {selectedAgent?.phone_number && (
                   <View style={styles.row}>
@@ -162,37 +209,76 @@ export default function PaymentInstructionsScreen() {
                   </View>
                 )}
 
-                {/* Bank Details Section */}
+                {/* Payment: Bank and/or Mobile Money */}
                 <View style={styles.divider} />
 
-                <View style={styles.row}>
-                  <Text style={styles.rowLabel}>Bank Name</Text>
-                  <Text style={styles.rowValue}>{selectedAgent?.bank_name || "N/A"}</Text>
-                </View>
+                {(selectedAgent as any)?.bank_name ? (
+                  <>
+                    <Text style={styles.sectionSubtitle}>Pay via Bank</Text>
+                    <View style={styles.row}>
+                      <Text style={styles.rowLabel}>Bank Name</Text>
+                      <Text style={styles.rowValue}>{(selectedAgent as any).bank_name}</Text>
+                    </View>
+                    <View style={styles.row}>
+                      <Text style={styles.rowLabel}>Account Name</Text>
+                      <Text style={styles.rowValue}>{(selectedAgent as any).account_name || "N/A"}</Text>
+                    </View>
+                    <View style={styles.row}>
+                      <Text style={styles.rowLabel}>Account Number</Text>
+                      <TouchableOpacity
+                        style={styles.phoneRow}
+                        onPress={async () => {
+                          if ((selectedAgent as any).account_number) {
+                            await Clipboard.setStringAsync((selectedAgent as any).account_number);
+                            Alert.alert("Copied", "Account number copied to clipboard");
+                          }
+                        }}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={styles.phoneNumber}>
+                          {(selectedAgent as any).account_number || "N/A"}
+                        </Text>
+                        <Ionicons name="copy-outline" size={16} color="#00B14F" />
+                      </TouchableOpacity>
+                    </View>
+                  </>
+                ) : null}
 
-                <View style={styles.row}>
-                  <Text style={styles.rowLabel}>Account Name</Text>
-                  <Text style={styles.rowValue}>{selectedAgent?.account_name || "N/A"}</Text>
-                </View>
+                {(selectedAgent as any)?.mobile_money_provider ? (
+                  <>
+                    {((selectedAgent as any)?.bank_name) ? <View style={styles.divider} /> : null}
+                    <Text style={styles.sectionSubtitle}>Or pay via Mobile Money</Text>
+                    <View style={styles.row}>
+                      <Text style={styles.rowLabel}>Provider</Text>
+                      <Text style={styles.rowValue}>{(selectedAgent as any).mobile_money_provider}</Text>
+                    </View>
+                    <View style={styles.row}>
+                      <Text style={styles.rowLabel}>Number</Text>
+                      <TouchableOpacity
+                        style={styles.phoneRow}
+                        onPress={async () => {
+                          if ((selectedAgent as any).mobile_money_number) {
+                            await Clipboard.setStringAsync((selectedAgent as any).mobile_money_number);
+                            Alert.alert("Copied", "Number copied to clipboard");
+                          }
+                        }}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={styles.phoneNumber}>
+                          {(selectedAgent as any).mobile_money_number || "N/A"}
+                        </Text>
+                        <Ionicons name="copy-outline" size={16} color="#00B14F" />
+                      </TouchableOpacity>
+                    </View>
+                  </>
+                ) : null}
 
-                <View style={styles.row}>
-                  <Text style={styles.rowLabel}>Account Number</Text>
-                  <TouchableOpacity
-                    style={styles.phoneRow}
-                    onPress={async () => {
-                      if (selectedAgent?.account_number) {
-                        await Clipboard.setStringAsync(selectedAgent.account_number);
-                        Alert.alert("Copied", "Account number copied to clipboard");
-                      }
-                    }}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={styles.phoneNumber}>
-                      {selectedAgent?.account_number || "N/A"}
-                    </Text>
-                    <Ionicons name="copy-outline" size={16} color="#00B14F" />
-                  </TouchableOpacity>
-                </View>
+                {!(selectedAgent as any)?.bank_name && !(selectedAgent as any)?.mobile_money_provider ? (
+                  <View style={styles.row}>
+                    <Text style={styles.rowLabel}>Payment details</Text>
+                    <Text style={styles.rowValue}>N/A</Text>
+                  </View>
+                ) : null}
               </View>
             </View>
 
@@ -313,8 +399,6 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: 140,
-    borderBottomLeftRadius: 30,
-    borderBottomRightRadius: 30,
   },
   headerContent: {
     paddingHorizontal: 20,
@@ -383,6 +467,15 @@ const styles = StyleSheet.create({
     backgroundColor: "#F3F4F6",
     marginVertical: 4,
   },
+  sectionSubtitle: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#6B7280",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+    marginTop: 8,
+    marginBottom: 4,
+  },
   row: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -398,6 +491,11 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#111827",
   },
+  tierRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
   tierBadge: {
     backgroundColor: "#F0FDF4",
     paddingHorizontal: 12,
@@ -410,6 +508,25 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "600",
     color: "#00B14F",
+  },
+  activePill: {
+    backgroundColor: "#D1FAE5",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: "#00B14F",
+  },
+  activePillText: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#059669",
+    textTransform: "uppercase",
+  },
+  locationValue: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
   },
   ratingRow: {
     flexDirection: "row",

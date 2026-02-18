@@ -15,6 +15,7 @@ import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSwapStore, useWalletStore } from "@/stores";
+import { parseAmountInput, formatAmountForInput, clampAmountToMax } from "@/utils/format";
 
 const TOKEN_INFO = {
     NT: { name: "Naira Token", icon: "cash-outline", color: "#00B14F" },
@@ -52,6 +53,15 @@ export default function SwapTokensScreen() {
     const availableBalance = fromWallet
         ? parseFloat(fromWallet.available_balance)
         : 0;
+
+    // When user changes "From" token, clamp amount to new token's balance so input updates
+    useEffect(() => {
+        const num = parseFloat(amount) || 0;
+        if (amount && num > availableBalance) {
+            setAmount(clampAmountToMax(amount, availableBalance, fromToken));
+        }
+    }, [fromToken]);
+
     const amountNum = parseFloat(amount) || 0;
     const hasInsufficientBalance = amountNum > availableBalance;
 
@@ -69,8 +79,18 @@ export default function SwapTokensScreen() {
 
     const handleSetMax = () => {
         if (fromWallet) {
-            setAmount(availableBalance.toFixed(2));
+            const raw =
+                fromToken === "USDT"
+                    ? availableBalance.toFixed(2)
+                    : Math.floor(availableBalance).toString();
+            setAmount(raw);
         }
+    };
+
+    const handleAmountChange = (text: string) => {
+        const parsed = parseAmountInput(text, fromToken);
+        const clamped = clampAmountToMax(parsed, availableBalance, fromToken);
+        setAmount(clamped);
     };
 
     const handleCancel = () => {
@@ -125,9 +145,9 @@ export default function SwapTokensScreen() {
 
     return (
         <KeyboardAvoidingView
-            style={{ flex: 1 }}
-            behavior={Platform.OS === "ios" ? "padding" : undefined}
-            keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
+            behavior={Platform.OS === "ios" ? "padding" : "height"}
+            style={styles.keyboardView}
+            keyboardVerticalOffset={Platform.OS === "ios" ? -8 : 12}
         >
             <View style={styles.container}>
                 <View style={styles.headerWrapper}>
@@ -169,14 +189,14 @@ export default function SwapTokensScreen() {
                             <View style={styles.amountInputWrapper}>
                                 <TextInput
                                     mode="outlined"
-                                    value={amount}
-                                    onChangeText={setAmount}
+                                    value={formatAmountForInput(amount, fromToken)}
+                                    onChangeText={handleAmountChange}
                                     keyboardType="numeric"
-                                    placeholder="0.00"
+                                    placeholder={fromToken === "USDT" ? "0.00" : "0"}
+                                    placeholderTextColor="#9CA3AF"
                                     style={styles.amountInput}
                                     outlineStyle={styles.amountInputOutline}
                                     contentStyle={styles.amountInputContent}
-                                    returnKeyType="done"
                                 />
                                 <TouchableOpacity
                                     style={styles.maxBtn}
@@ -287,33 +307,35 @@ export default function SwapTokensScreen() {
                         </View>
                     </View>
 
-                    {/* Action Buttons */}
-                    <View style={styles.buttonContainer}>
-                        <TouchableOpacity
-                            style={styles.cancelBtn}
-                            onPress={handleCancel}
-                            activeOpacity={0.7}
-                        >
-                            <Text style={styles.cancelBtnText}>Cancel</Text>
-                        </TouchableOpacity>
-
-                        <TouchableOpacity
-                            style={[
-                                styles.continueBtn,
-                                (!amount || amountNum <= 0 || hasInsufficientBalance) &&
-                                styles.continueBtnDisabled,
-                            ]}
-                            onPress={handleContinue}
-                            disabled={!amount || amountNum <= 0 || hasInsufficientBalance}
-                            activeOpacity={0.8}
-                        >
-                            <Text style={styles.continueBtnText}>Review Swap</Text>
-                            <Ionicons name="arrow-forward" size={20} color="#FFFFFF" />
-                        </TouchableOpacity>
-                    </View>
-
-                    <View style={styles.bottomSpacer} />
                 </ScrollView>
+
+                <SafeAreaView edges={["bottom"]} style={styles.footerWrapper}>
+                    <View style={styles.footer}>
+                        <View style={styles.buttonContainer}>
+                            <TouchableOpacity
+                                style={styles.cancelBtn}
+                                onPress={handleCancel}
+                                activeOpacity={0.7}
+                            >
+                                <Text style={styles.cancelBtnText}>Cancel</Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                style={[
+                                    styles.continueBtn,
+                                    (!amount || amountNum <= 0 || hasInsufficientBalance) &&
+                                    styles.continueBtnDisabled,
+                                ]}
+                                onPress={handleContinue}
+                                disabled={!amount || amountNum <= 0 || hasInsufficientBalance}
+                                activeOpacity={0.8}
+                            >
+                                <Text style={styles.continueBtnText}>Review Swap</Text>
+                                <Ionicons name="arrow-forward" size={20} color="#FFFFFF" />
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </SafeAreaView>
             </View>
         </KeyboardAvoidingView>
     );
@@ -324,6 +346,9 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: "#F3F4F6",
     },
+    keyboardView: {
+        flex: 1,
+    },
     headerWrapper: {
         // marginBottom: 20,
     },
@@ -333,8 +358,6 @@ const styles = StyleSheet.create({
         left: 0,
         right: 0,
         height: 120,
-        // borderBottomLeftRadius: 30,
-        // borderBottomRightRadius: 30,
     },
     headerContent: {
         paddingHorizontal: 16,
@@ -362,6 +385,7 @@ const styles = StyleSheet.create({
     content: {
         paddingHorizontal: 20,
         paddingTop: 20,
+        paddingBottom: 24,
     },
     subtitle: {
         fontSize: 14,
@@ -421,6 +445,7 @@ const styles = StyleSheet.create({
         backgroundColor: "#FFFFFF",
         fontSize: 24,
         fontWeight: "700",
+        color: "#111827",
     },
     amountInputOutline: {
         borderRadius: 12,
@@ -430,6 +455,7 @@ const styles = StyleSheet.create({
     amountInputContent: {
         paddingVertical: 16,
         paddingRight: 80,
+        color: "#111827",
     },
     maxBtn: {
         position: "absolute",
@@ -562,10 +588,19 @@ const styles = StyleSheet.create({
         color: "#6B7280",
         lineHeight: 18,
     },
+    footerWrapper: {
+        backgroundColor: "#F3F4F6",
+        borderTopWidth: 1,
+        borderTopColor: "#E5E7EB",
+    },
+    footer: {
+        paddingHorizontal: 20,
+        paddingTop: 12,
+        paddingBottom: 16,
+    },
     buttonContainer: {
         flexDirection: "row",
         gap: 12,
-        marginBottom: 12,
     },
     cancelBtn: {
         flex: 1,
@@ -598,8 +633,5 @@ const styles = StyleSheet.create({
         fontSize: 16,
         fontWeight: "600",
         color: "#FFFFFF",
-    },
-    bottomSpacer: {
-        height: 40,
     },
 });

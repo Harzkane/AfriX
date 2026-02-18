@@ -8,7 +8,6 @@ import {
     TouchableOpacity,
     ActivityIndicator,
     Linking,
-    Platform,
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -16,23 +15,32 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import apiClient from "@/services/apiClient";
 import { API_ENDPOINTS } from "@/constants/api";
-import { formatDate } from "@/utils/format";
+import { useWalletStore } from "@/stores";
+import { formatDate, formatAmount, formatAmountOrCompact } from "@/utils/format";
 
 interface AgentProfile {
     id: string;
     full_name: string;
     rating: number;
     country: string;
+    city?: string;
     currency: string;
     tier: string;
+    status?: string;
+    is_online?: boolean;
     available_capacity: number;
     response_time_minutes: number;
     is_verified: boolean;
+    commission_rate?: number;
+    max_transaction_limit?: number;
     phone_number?: string;
     whatsapp_number?: string;
     bank_name?: string;
     account_number?: string;
     account_name?: string;
+    // XOF agents: optional mobile money details (Orange Money, Wave, Moov, etc.)
+    mobile_money_provider?: string;
+    mobile_money_number?: string;
     total_minted?: number;
     total_burned?: number;
 }
@@ -51,6 +59,7 @@ export default function AgentProfileScreen() {
     const router = useRouter();
     const params = useLocalSearchParams();
     const agentId = params.id as string;
+    const { exchangeRates } = useWalletStore();
 
     const [agent, setAgent] = useState<AgentProfile | null>(null);
     const [reviews, setReviews] = useState<Review[]>([]);
@@ -176,11 +185,11 @@ export default function AgentProfileScreen() {
                         )}
                     </View>
                     <Text style={styles.agentName}>{agent.full_name}</Text>
-                    <View style={styles.tierContainer}>
+                    <View style={styles.tierRow}>
                         <View
                             style={[
                                 styles.tierBadge,
-                                { backgroundColor: getTierColor(agent.tier) + "20" },
+                                { backgroundColor: getTierColor(agent.tier) + "20", borderColor: getTierColor(agent.tier) + "40" },
                             ]}
                         >
                             <Text
@@ -192,7 +201,20 @@ export default function AgentProfileScreen() {
                                 {agent.tier} Agent
                             </Text>
                         </View>
+                        {(agent.is_online === true || agent.status === "active") && (
+                            <View style={styles.activePill}>
+                                <Text style={styles.activePillText}>Active</Text>
+                            </View>
+                        )}
                     </View>
+                    {([agent.city, agent.country].filter(Boolean).length > 0) && (
+                        <View style={styles.locationRow}>
+                            <Ionicons name="location-outline" size={14} color="#6B7280" />
+                            <Text style={styles.locationText}>
+                                {[agent.city, agent.country].filter(Boolean).join(", ")}
+                            </Text>
+                        </View>
+                    )}
 
                     {/* Rating */}
                     <View style={styles.ratingContainer}>
@@ -215,9 +237,9 @@ export default function AgentProfileScreen() {
                     <View style={styles.statItem}>
                         <Ionicons name="wallet-outline" size={24} color="#00B14F" />
                         <Text style={styles.statValue}>
-                            ${agent.available_capacity.toLocaleString()}
+                            ${formatAmountOrCompact(agent.available_capacity)}
                         </Text>
-                        <Text style={styles.statLabel}>Available</Text>
+                        <Text style={styles.statLabel}>Capacity</Text>
                     </View>
                     <View style={styles.statDivider} />
                     <View style={styles.statItem}>
@@ -233,6 +255,36 @@ export default function AgentProfileScreen() {
                         </Text>
                         <Text style={styles.statLabel}>Transactions</Text>
                     </View>
+                </View>
+
+                {/* Max/trade = agent's USDT capacity converted to NT/CT & Fee */}
+                <View style={styles.extraStatsRow}>
+                    {(() => {
+                        const cap = Number(agent.available_capacity) || 0;
+                        const maxStored = agent.max_transaction_limit != null ? Number(agent.max_transaction_limit) : null;
+                        const unit = agent.currency === "XOF" ? "CT" : "NT";
+                        const rate = unit === "NT" ? exchangeRates.USDT_TO_NT : exchangeRates.USDT_TO_CT;
+                        const capacityInLocal = rate && rate > 0 && cap > 0 ? cap * rate : null;
+                        const maxTradeDisplay = capacityInLocal != null ? capacityInLocal : maxStored;
+                        return maxTradeDisplay != null && maxTradeDisplay > 0 ? (
+                            <View style={styles.extraStat}>
+                                <Ionicons name="card-outline" size={18} color="#6B7280" />
+                                <Text style={styles.extraStatLabel}>Max/trade</Text>
+                                <Text style={styles.extraStatValue}>
+                                    {formatAmountOrCompact(maxTradeDisplay, unit)}
+                                </Text>
+                            </View>
+                        ) : null;
+                    })()}
+                    {agent.commission_rate != null && (
+                        <View style={styles.extraStat}>
+                            <Ionicons name="pricetag-outline" size={18} color="#6B7280" />
+                            <Text style={styles.extraStatLabel}>Fee</Text>
+                            <Text style={styles.extraStatValue}>
+                                ~{(Number(agent.commission_rate) * 100).toFixed(1)}%
+                            </Text>
+                        </View>
+                    )}
                 </View>
 
                 {/* Contact Info */}
@@ -287,6 +339,25 @@ export default function AgentProfileScreen() {
                     </View>
                 )}
 
+                {/* Mobile Money (XOF countries) */}
+                {(agent.currency === "XOF" || agent.mobile_money_provider || agent.mobile_money_number) && (
+                    <View style={styles.section}>
+                        <Text style={styles.sectionTitle}>Mobile Money (XOF)</Text>
+                        <View style={styles.bankCard}>
+                            <View style={styles.bankRow}>
+                                <Text style={styles.bankLabel}>Provider</Text>
+                                <Text style={styles.bankValue}>{agent.mobile_money_provider || "—"}</Text>
+                            </View>
+                            {agent.mobile_money_number && (
+                                <View style={styles.bankRow}>
+                                    <Text style={styles.bankLabel}>Phone Number</Text>
+                                    <Text style={styles.bankValue}>{agent.mobile_money_number}</Text>
+                                </View>
+                            )}
+                        </View>
+                    </View>
+                )}
+
                 {/* Reviews */}
                 {reviews.length > 0 && (
                     <View style={styles.section}>
@@ -322,22 +393,24 @@ export default function AgentProfileScreen() {
                 <View style={styles.bottomSpacer} />
             </ScrollView>
 
-            {/* Action Buttons */}
-            <SafeAreaView edges={["bottom"]} style={styles.actionBar}>
-                <TouchableOpacity
-                    style={[styles.actionButton, styles.sellButton]}
-                    onPress={handleSellTokens}
-                >
-                    <Ionicons name="arrow-down-circle-outline" size={20} color="#F59E0B" />
-                    <Text style={styles.sellButtonText}>Sell Tokens</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                    style={[styles.actionButton, styles.buyButton]}
-                    onPress={handleBuyTokens}
-                >
-                    <Ionicons name="arrow-up-circle-outline" size={20} color="#FFFFFF" />
-                    <Text style={styles.buyButtonText}>Buy Tokens</Text>
-                </TouchableOpacity>
+            {/* Action Buttons - sticky footer, same pattern as Buy/Sell */}
+            <SafeAreaView edges={["bottom"]} style={styles.footerWrapper}>
+                <View style={styles.actionBar}>
+                    <TouchableOpacity
+                        style={[styles.actionButton, styles.sellButton]}
+                        onPress={handleSellTokens}
+                    >
+                        <Ionicons name="arrow-down-circle-outline" size={20} color="#F59E0B" />
+                        <Text style={styles.sellButtonText}>Sell Tokens</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={[styles.actionButton, styles.buyButton]}
+                        onPress={handleBuyTokens}
+                    >
+                        <Ionicons name="arrow-up-circle-outline" size={20} color="#FFFFFF" />
+                        <Text style={styles.buyButtonText}>Buy Tokens</Text>
+                    </TouchableOpacity>
+                </View>
             </SafeAreaView>
         </View>
     );
@@ -386,8 +459,6 @@ const styles = StyleSheet.create({
         left: 0,
         right: 0,
         height: 120,
-        borderBottomLeftRadius: 30,
-        borderBottomRightRadius: 30,
     },
     headerContent: {
         paddingHorizontal: 20,
@@ -458,13 +529,43 @@ const styles = StyleSheet.create({
         color: "#111827",
         marginBottom: 8,
     },
-    tierContainer: {
-        marginBottom: 16,
+    tierRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 8,
+        marginBottom: 12,
+        flexWrap: "wrap",
     },
     tierBadge: {
         paddingHorizontal: 12,
         paddingVertical: 6,
         borderRadius: 8,
+        borderWidth: 1,
+    },
+    activePill: {
+        backgroundColor: "#D1FAE5",
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 6,
+        borderWidth: 1,
+        borderColor: "#00B14F",
+    },
+    activePillText: {
+        fontSize: 11,
+        fontWeight: "600",
+        color: "#059669",
+        textTransform: "uppercase",
+    },
+    locationRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 6,
+        marginBottom: 12,
+    },
+    locationText: {
+        fontSize: 14,
+        color: "#6B7280",
+        fontWeight: "500",
     },
     tierText: {
         fontSize: 12,
@@ -513,6 +614,28 @@ const styles = StyleSheet.create({
         fontSize: 12,
         color: "#6B7280",
         marginTop: 4,
+    },
+    extraStatsRow: {
+        flexDirection: "row",
+        flexWrap: "wrap",
+        gap: 16,
+        marginBottom: 16,
+        paddingHorizontal: 4,
+    },
+    extraStat: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 6,
+    },
+    extraStatLabel: {
+        fontSize: 13,
+        color: "#6B7280",
+        fontWeight: "500",
+    },
+    extraStatValue: {
+        fontSize: 14,
+        fontWeight: "600",
+        color: "#111827",
     },
     section: {
         marginBottom: 16,
@@ -594,16 +717,18 @@ const styles = StyleSheet.create({
         color: "#9CA3AF",
     },
     bottomSpacer: {
-        height: 100,
+        height: 24,
+    },
+    footerWrapper: {
+        backgroundColor: "#FFFFFF",
+        borderTopWidth: 1,
+        borderTopColor: "#E5E7EB",
     },
     actionBar: {
         flexDirection: "row",
-        padding: 20,
-        backgroundColor: "#FFFFFF",
-        borderTopWidth: 1,
-        borderTopColor: "#F3F4F6",
+        paddingHorizontal: 20,
+        paddingTop: 16,
         gap: 12,
-        paddingBottom: Platform.OS === 'ios' ? 90 : 80, // Lift above floating tab bar
     },
     actionButton: {
         flex: 1,

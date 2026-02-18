@@ -73,7 +73,9 @@ export const useAgentStore = create<AgentState>((set, get) => ({
 
       // Filter for pending requests
       const pending = allRequests.filter((r: any) =>
-        (r.status === 'pending' || r.status === 'proof_submitted' || r.status === 'escrowed')
+        (r.status === 'pending' || r.status === 'proof_submitted' || r.status === 'escrowed') &&
+        !(new Date(r.expires_at).getTime() < Date.now()) &&
+        r.status !== 'disputed'
       );
 
       set({ pendingRequests: pending, loading: false });
@@ -92,10 +94,12 @@ export const useAgentStore = create<AgentState>((set, get) => ({
     set({ loading: false });
   },
 
-  fetchAgents: async (country) => {
+  fetchAgents: async (country: string, sort?: "rating" | "fastest" | "capacity") => {
     set({ loading: true, error: null });
     try {
-      const { data } = await apiClient.get(`${API_ENDPOINTS.AGENTS.LIST}?country=${country}`);
+      let url = `${API_ENDPOINTS.AGENTS.LIST}?country=${country}`;
+      if (sort && sort !== "rating") url += `&sort=${sort}`;
+      const { data } = await apiClient.get(url);
       set({ agents: data.data || [], loading: false });
     } catch (err: any) {
       set({ error: err.message, loading: false });
@@ -347,12 +351,17 @@ export const useAgentStore = create<AgentState>((set, get) => ({
         tx_hash: txHash,
       });
 
+      await Promise.all([get().fetchAgentStats(), get().fetchDashboard()]);
+
       set({
         agentStatus: response.data.data.agent.status,
         loading: false
       });
     } catch (err: any) {
-      const message = err.response?.data?.message || "Failed to submit deposit";
+      const raw = err.response?.data?.message || "Failed to submit deposit";
+      const message = raw.includes("already been used")
+        ? "This deposit was already applied. Each transaction can only be used once."
+        : raw;
       set({ error: message, loading: false });
       throw new Error(message);
     }
@@ -433,6 +442,19 @@ export const useAgentStore = create<AgentState>((set, get) => ({
     } catch (err: any) {
       set({ error: err.message, loading: false });
       throw err;
+    }
+  },
+
+  submitReview: async (payload) => {
+    set({ loading: true, error: null });
+    try {
+      await apiClient.post(API_ENDPOINTS.AGENTS.REVIEW, payload);
+      set({ loading: false });
+    } catch (err: any) {
+      const message =
+        err.response?.data?.message || "Failed to submit review. Please try again.";
+      set({ error: message, loading: false });
+      throw new Error(message);
     }
   },
 }));

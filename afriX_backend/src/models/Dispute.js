@@ -70,7 +70,7 @@ Dispute.init(
     escalation_level: {
       type: DataTypes.ENUM(...Object.values(DISPUTE_ESCALATION_LEVELS)),
       allowNull: true,
-      defaultValue: DISPUTE_ESCALATION_LEVELS.LEVEL_1,
+      defaultValue: DISPUTE_ESCALATION_LEVELS.AUTO,
       comment: "Indicates the current dispute escalation stage",
     },
 

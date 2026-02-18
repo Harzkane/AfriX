@@ -1,21 +1,31 @@
 import { useState, useEffect } from "react";
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, Alert, KeyboardAvoidingView, Platform, ScrollView } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useAuthStore } from "@/stores";
 import { useAgentStore } from "@/stores/slices/agentSlice";
+import { isXOFCountry } from "@/constants/payment";
+import { XOF_MOBILE_MONEY_PROVIDERS } from "@/constants/payment";
+import { getCountryByCode } from "@/constants/countries";
 
 export default function EditBankDetails() {
     const router = useRouter();
+    const params = useLocalSearchParams();
+    const fromAgentProfile = params?.from === "agent-profile";
     const { user } = useAuthStore();
     const { updateProfile, loading } = useAgentStore();
+    const countryCode = (user as any)?.country_code || (user as any)?.country || "";
+    const countryInfo = countryCode ? getCountryByCode(countryCode) : null;
+    const showMobileMoney = countryCode ? isXOFCountry(countryCode) : false;
 
     const [bankName, setBankName] = useState("");
     const [accountNumber, setAccountNumber] = useState("");
     const [accountName, setAccountName] = useState("");
     const [withdrawalAddress, setWithdrawalAddress] = useState("");
+    const [mobileMoneyProvider, setMobileMoneyProvider] = useState("");
+    const [mobileMoneyNumber, setMobileMoneyNumber] = useState("");
     const [errors, setErrors] = useState<{
         bankName?: string;
         accountNumber?: string;
@@ -23,13 +33,22 @@ export default function EditBankDetails() {
         withdrawalAddress?: string;
     }>({});
 
+    const handleGoBack = () => {
+        if (fromAgentProfile) {
+            router.push("/agent/(tabs)/profile");
+        } else {
+            router.back();
+        }
+    };
+
     useEffect(() => {
-        // Pre-populate with current values
         if (user) {
             setBankName((user as any).bank_name || "");
             setAccountNumber((user as any).account_number || "");
             setAccountName((user as any).account_name || "");
             setWithdrawalAddress((user as any).withdrawal_address || "");
+            setMobileMoneyProvider((user as any).mobile_money_provider || XOF_MOBILE_MONEY_PROVIDERS[0]);
+            setMobileMoneyNumber((user as any).mobile_money_number || "");
         }
     }, [user]);
 
@@ -66,17 +85,22 @@ export default function EditBankDetails() {
         }
 
         try {
-            await updateProfile({
+            const payload: any = {
                 bank_name: bankName.trim(),
                 account_number: accountNumber.trim(),
                 account_name: accountName.trim(),
                 withdrawal_address: withdrawalAddress.trim(),
-            });
+            };
+            if (showMobileMoney) {
+                payload.mobile_money_provider = mobileMoneyProvider.trim() || null;
+                payload.mobile_money_number = mobileMoneyNumber.trim() || null;
+            }
+            await updateProfile(payload);
 
             Alert.alert(
                 "Success",
                 "Bank details updated successfully",
-                [{ text: "OK", onPress: () => router.back() }]
+                [{ text: "OK", onPress: () => handleGoBack() }]
             );
         } catch (error: any) {
             Alert.alert("Error", error.message || "Failed to update bank details");
@@ -99,7 +123,7 @@ export default function EditBankDetails() {
                 />
                 <SafeAreaView edges={["top"]} style={styles.headerContent}>
                     <View style={styles.header}>
-                        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+                        <TouchableOpacity onPress={handleGoBack} style={styles.backButton}>
                             <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
                         </TouchableOpacity>
                         <Text style={styles.headerTitle}>Update Bank Details</Text>
@@ -118,6 +142,14 @@ export default function EditBankDetails() {
                     keyboardShouldPersistTaps="handled"
                     showsVerticalScrollIndicator={false}
                 >
+                    {countryInfo ? (
+                        <View style={styles.countryRow}>
+                            <Ionicons name="globe-outline" size={20} color="#6B7280" style={styles.countryIcon} />
+                            <Text style={styles.countryLabel}>Country</Text>
+                            <Text style={styles.countryValue}>{countryInfo.name}</Text>
+                        </View>
+                    ) : null}
+
                     {/* Bank Name */}
                     <View style={styles.inputGroup}>
                         <Text style={styles.label}>Bank Name *</Text>
@@ -175,6 +207,47 @@ export default function EditBankDetails() {
                         </View>
                         {errors.accountName && <Text style={styles.errorText}>{errors.accountName}</Text>}
                     </View>
+
+                    {/* Mobile Money (XOF agents) */}
+                    {showMobileMoney && (
+                        <>
+                            <Text style={[styles.label, { marginTop: 8 }]}>Mobile Money (optional)</Text>
+                            <Text style={styles.helperText}>
+                                In XOF countries many users pay via Orange Money, Wave, Kiren. Add your details so users can pay you.
+                            </Text>
+                            <View style={styles.inputGroup}>
+                                <Text style={styles.label}>Provider</Text>
+                                <View style={styles.inputContainer}>
+                                    <Ionicons name="phone-portrait-outline" size={20} color="#6B7280" style={styles.inputIcon} />
+                                    <View style={styles.pickerRow}>
+                                        {XOF_MOBILE_MONEY_PROVIDERS.map((p) => (
+                                            <TouchableOpacity
+                                                key={p}
+                                                style={[styles.chip, mobileMoneyProvider === p && styles.chipActive]}
+                                                onPress={() => setMobileMoneyProvider(p)}
+                                            >
+                                                <Text style={[styles.chipText, mobileMoneyProvider === p && styles.chipTextActive]}>{p}</Text>
+                                            </TouchableOpacity>
+                                        ))}
+                                    </View>
+                                </View>
+                            </View>
+                            <View style={styles.inputGroup}>
+                                <Text style={styles.label}>Mobile Money Number</Text>
+                                <View style={styles.inputContainer}>
+                                    <Ionicons name="call-outline" size={20} color="#6B7280" style={styles.inputIcon} />
+                                    <TextInput
+                                        style={styles.input}
+                                        value={mobileMoneyNumber}
+                                        onChangeText={setMobileMoneyNumber}
+                                        placeholder="e.g. +221 77 123 45 67"
+                                        keyboardType="phone-pad"
+                                        editable={!loading}
+                                    />
+                                </View>
+                            </View>
+                        </>
+                    )}
 
                     {/* Withdrawal Address */}
                     <View style={styles.inputGroup}>
@@ -242,8 +315,6 @@ const styles = StyleSheet.create({
         left: 0,
         right: 0,
         height: 120,
-        // borderBottomLeftRadius: 30,
-        // borderBottomRightRadius: 30,
     },
     headerContent: {
         paddingHorizontal: 16,
@@ -275,6 +346,31 @@ const styles = StyleSheet.create({
         padding: 16,
         paddingBottom: 100,
     },
+    countryRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        backgroundColor: "#F9FAFB",
+        paddingVertical: 12,
+        paddingHorizontal: 14,
+        borderRadius: 12,
+        marginBottom: 20,
+        borderWidth: 1,
+        borderColor: "#E5E7EB",
+    },
+    countryIcon: {
+        marginRight: 10,
+    },
+    countryLabel: {
+        fontSize: 14,
+        color: "#6B7280",
+        fontWeight: "500",
+    },
+    countryValue: {
+        marginLeft: "auto",
+        fontSize: 15,
+        fontWeight: "600",
+        color: "#111827",
+    },
     inputGroup: {
         marginBottom: 24,
     },
@@ -292,6 +388,7 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         borderColor: "#E5E7EB",
         paddingHorizontal: 12,
+        paddingVertical: 12,
     },
     inputError: {
         borderColor: "#EF4444",
@@ -319,6 +416,30 @@ const styles = StyleSheet.create({
         color: "#6B7280",
         marginTop: 4,
     },
+    pickerRow: {
+        flexDirection: "row",
+        flexWrap: "wrap",
+        gap: 8,
+        flex: 1,
+    },
+    chip: {
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        borderRadius: 8,
+        backgroundColor: "#F3F4F6",
+        borderWidth: 1,
+        borderColor: "#E5E7EB",
+    },
+    chipActive: {
+        backgroundColor: "#EDE9FE",
+        borderColor: "#7C3AED",
+    },
+    chipText: {
+        fontSize: 12,
+        fontWeight: "600",
+        color: "#6B7280",
+    },
+    chipTextActive: { color: "#7C3AED" },
     warningBox: {
         flexDirection: "row",
         backgroundColor: "#FEF3C7",

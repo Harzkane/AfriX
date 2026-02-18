@@ -7,6 +7,7 @@ const {
   testConnection: testRedis,
   REDIS_ENABLED,
 } = require("./src/config/redis");
+require("./src/jobs/scheduler"); // Start background jobs (expiry, etc.)
 
 const PORT = process.env.PORT || 5000;
 
@@ -36,11 +37,12 @@ const startServer = async () => {
       console.log("💾 Redis is disabled (using in-memory cache)");
     }
 
-    // Start Express server
-    const server = app.listen(PORT, () => {
+    // Start Express server (0.0.0.0 = accept connections from LAN/hotspot, not just localhost)
+    const server = app.listen(PORT, "0.0.0.0", () => {
       console.log(`\n✅ Server running on port ${PORT}`);
       console.log(`📍 Environment: ${process.env.NODE_ENV || "development"}`);
       console.log(`🌐 API Base URL: http://localhost:${PORT}/api/v1`);
+      console.log(`🌐 On network: http://<this-machine-ip>:${PORT}/api/v1`);
       console.log(`🏥 Health Check: http://localhost:${PORT}/health`);
       console.log("\n📝 Available endpoints:");
       console.log(`   - POST /api/v1/auth/register`);

@@ -60,6 +60,13 @@ router.post("/forgot-password", authController.forgotPassword);
 router.post("/reset-password", authController.resetPassword);
 
 /**
+ * @route   POST /api/v1/auth/change-password
+ * @desc    Change password (requires current password)
+ * @access  Private
+ */
+router.post("/change-password", authenticate, authController.changePassword);
+
+/**
  * @route   POST /api/v1/auth/logout
  * @desc    Logout user
  * @access  Private

@@ -13,7 +13,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Card, Surface } from "react-native-paper";
 import { useRouter } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
-import { useAuthStore, useWalletStore, useMintRequestStore, useAgentStore } from "@/stores";
+import { useAuthStore, useWalletStore, useMintRequestStore, useBurnStore, useAgentStore, useNotificationStore } from "@/stores";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { formatDate } from "@/utils/format";
@@ -22,7 +22,11 @@ export default function DashboardScreen() {
   const { user, isAuthenticated } = useAuthStore();
   const { wallets, fetchWallets, loading, exchangeRates, fetchExchangeRates } = useWalletStore();
   const { currentRequest, checkStatus, fetchCurrentRequest } = useMintRequestStore();
+  const { currentRequest: currentBurnRequest, fetchCurrentBurnRequestForUser } = useBurnStore();
   const { fetchAgentStats } = useAgentStore();
+  const { unreadCount, fetchUnreadCount } = useNotificationStore();
+  const [lastUnread, setLastUnread] = useState<number | null>(null);
+  const [bannerVisible, setBannerVisible] = useState(false);
 
   const getInitials = (name?: string) => {
     if (!name) return "U";
@@ -41,7 +45,9 @@ export default function DashboardScreen() {
       agentStatus === "active";
     const isVerified = user?.email_verified;
     const verificationLevel = user?.verification_level || 0;
-    const hasActiveRequest = currentRequest && ["pending", "proof_submitted"].includes(currentRequest.status.toLowerCase());
+    const mintActive = currentRequest && ["pending", "proof_submitted"].includes(currentRequest.status?.toLowerCase());
+    const burnActive = currentBurnRequest && ["pending", "escrowed", "fiat_sent"].includes(currentBurnRequest.status?.toLowerCase());
+    const hasActiveRequest = mintActive || burnActive;
 
     return (
       <TouchableOpacity
@@ -101,6 +107,35 @@ export default function DashboardScreen() {
     }
   };
 
+  const handleTransactionPress = (tx: any) => {
+    if (tx.type === "mint") {
+      if (tx.status.toLowerCase() === "pending") {
+        // For pending mint, go to upload proof (tx.id is the request ID)
+        router.push({
+          pathname: "/modals/buy-tokens/upload-proof",
+          params: { requestId: tx.id },
+        });
+      } else {
+        // For completed mint, use metadata.request_id if available
+        const requestId = tx.metadata?.request_id || tx.id;
+        router.push({
+          pathname: "/modals/buy-tokens/status",
+          params: { requestId },
+        });
+      }
+    } else if (tx.type === "burn") {
+      // For burn, use metadata.request_id if available
+      const requestId = tx.metadata?.request_id || tx.id;
+      router.push({
+        pathname: "/(tabs)/sell-tokens/status",
+        params: { requestId },
+      });
+    } else {
+      // Fallback: open full activity screen
+      router.push("/activity");
+    }
+  };
+
   // Initial fetch on mount
   useEffect(() => {
     if (isAuthenticated && user) {
@@ -109,30 +144,48 @@ export default function DashboardScreen() {
       fetchRecentTransactions();
       fetchAgentStats();
       fetchCurrentRequest();
+      fetchCurrentBurnRequestForUser();
+      fetchExchangeRates();
+      fetchUnreadCount();
     }
-  }, [isAuthenticated, user]);
+  }, [isAuthenticated, user, fetchExchangeRates]);
 
-  // Refresh when user navigates back to this tab
+  // Refresh when user navigates back to this tab (stable deps to avoid refresh loop)
   useFocusEffect(
     useCallback(() => {
-      if (isAuthenticated) {
-        console.log("👁️  Dashboard focused, refreshing");
-        fetchWallets();
-        fetchRecentTransactions();
-        fetchAgentStats();
-        fetchCurrentRequest();
-        if (currentRequest) {
-          checkStatus(currentRequest.id);
-        }
-      }
-    }, [isAuthenticated, currentRequest?.id])
+      if (!isAuthenticated) return;
+      fetchWallets();
+      fetchRecentTransactions();
+      fetchAgentStats();
+      fetchCurrentRequest();
+      fetchCurrentBurnRequestForUser();
+      fetchExchangeRates();
+      fetchUnreadCount();
+      const req = useMintRequestStore.getState().currentRequest;
+      if (req) checkStatus(req.id);
+    }, [isAuthenticated, fetchUnreadCount])
   );
+
+  // Show in-app banner when unread count increases while on dashboard
+  useEffect(() => {
+    if (lastUnread === null) {
+      setLastUnread(unreadCount);
+      return;
+    }
+    if (unreadCount > lastUnread) {
+      setBannerVisible(true);
+    }
+    setLastUnread(unreadCount);
+  }, [unreadCount, lastUnread]);
 
   const onRefresh = () => {
     if (isAuthenticated) {
       fetchWallets();
       fetchRecentTransactions();
       fetchAgentStats();
+      fetchCurrentRequest();
+      fetchCurrentBurnRequestForUser();
+      fetchExchangeRates();
       if (currentRequest) {
         checkStatus(currentRequest.id);
       }
@@ -185,12 +238,55 @@ export default function DashboardScreen() {
                   {user?.full_name || user?.email?.split("@")[0] || "User"}
                 </Text>
               </View>
-              <DashboardAvatar />
+              <View style={styles.headerRight}>
+                <TouchableOpacity
+                  style={styles.headerBell}
+                  onPress={() => router.push("/settings/notification-inbox")}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="notifications-outline" size={22} color="#FFFFFF" />
+                  {unreadCount > 0 && (
+                    <View style={styles.headerBellBadge}>
+                      <Text style={styles.headerBellBadgeText}>
+                        {unreadCount > 99 ? "99+" : unreadCount}
+                      </Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+                <DashboardAvatar />
+              </View>
             </View>
           </SafeAreaView>
         </View>
 
         <View style={styles.contentContainer}>
+
+          {/* In-app notification banner */}
+          {bannerVisible && unreadCount > 0 && (
+            <TouchableOpacity
+              style={styles.notificationBanner}
+              activeOpacity={0.8}
+              onPress={() => {
+                setBannerVisible(false);
+                router.push("/settings/notification-inbox");
+              }}
+            >
+              <View style={styles.notificationBannerContent}>
+                <View style={styles.notificationBannerIcon}>
+                  <Ionicons name="notifications-outline" size={18} color="#FFFFFF" />
+                </View>
+                <View style={styles.notificationBannerText}>
+                  <Text style={styles.notificationBannerTitle}>New notifications</Text>
+                  <Text style={styles.notificationBannerSubtitle}>
+                    {unreadCount === 1
+                      ? "You have 1 new notification"
+                      : `You have ${unreadCount} new notifications`}
+                  </Text>
+                </View>
+                <Text style={styles.notificationBannerAction}>View</Text>
+              </View>
+            </TouchableOpacity>
+          )}
 
           {/* Quick Actions Grid - Moved to top for prominence */}
           <View style={styles.actionsSection}>
@@ -276,21 +372,63 @@ export default function DashboardScreen() {
           {/* Active Mint Alert */}
           {currentRequest &&
             ["pending", "proof_submitted"].includes(
-              currentRequest.status.toLowerCase()
+              (currentRequest.status || "").toLowerCase()
             ) && (
-              <Surface style={styles.alertCard} elevation={0}>
-                <View style={styles.alertContent}>
-                  <View style={styles.alertIcon}>
-                    <Ionicons name="hourglass-outline" size={20} color="#FFB800" />
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={() =>
+                  router.push({
+                    pathname: "/modals/buy-tokens/status",
+                    params: { requestId: currentRequest.id },
+                  })
+                }
+              >
+                <Surface style={styles.alertCard} elevation={0}>
+                  <View style={styles.alertContent}>
+                    <View style={styles.alertIcon}>
+                      <Ionicons name="hourglass-outline" size={20} color="#FFB800" />
+                    </View>
+                    <View style={styles.alertText}>
+                      <Text style={styles.alertTitle}>Mint in Progress</Text>
+                      <Text style={styles.alertSubtitle}>
+                        Tap to view status or pull down to refresh
+                      </Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={20} color="#94A3B8" />
                   </View>
-                  <View style={styles.alertText}>
-                    <Text style={styles.alertTitle}>Mint in Progress</Text>
-                    <Text style={styles.alertSubtitle}>
-                      Pull down to refresh and check status
-                    </Text>
+                </Surface>
+              </TouchableOpacity>
+            )}
+
+          {/* Active Burn Alert */}
+          {currentBurnRequest &&
+            ["pending", "escrowed", "fiat_sent"].includes(
+              (currentBurnRequest.status || "").toLowerCase()
+            ) && (
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={() =>
+                  router.push({
+                    pathname: "/(tabs)/sell-tokens/status",
+                    params: { requestId: currentBurnRequest.id },
+                  })
+                }
+              >
+                <Surface style={styles.alertCard} elevation={0}>
+                  <View style={styles.alertContent}>
+                    <View style={styles.alertIcon}>
+                      <Ionicons name="hourglass-outline" size={20} color="#F59E0B" />
+                    </View>
+                    <View style={styles.alertText}>
+                      <Text style={styles.alertTitle}>Burn (Sell) in Progress</Text>
+                      <Text style={styles.alertSubtitle}>
+                        Tap to view status or pull down to refresh
+                      </Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={20} color="#94A3B8" />
                   </View>
-                </View>
-              </Surface>
+                </Surface>
+              </TouchableOpacity>
             )}
 
           {/* Token Balances */}
@@ -541,7 +679,7 @@ export default function DashboardScreen() {
                 <TouchableOpacity
                   key={tx.id}
                   style={styles.transactionItem}
-                  onPress={() => router.push("/activity")}
+                  onPress={() => handleTransactionPress(tx)}
                   activeOpacity={0.7}
                 >
                   <View style={styles.transactionLeft}>
@@ -685,6 +823,37 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
     marginTop: 10,
   },
+  headerRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  headerBell: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255,255,255,0.15)",
+    position: "relative",
+  },
+  headerBellBadge: {
+    position: "absolute",
+    top: 4,
+    right: 4,
+    minWidth: 18,
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+    borderRadius: 9,
+    backgroundColor: "#F97316",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  headerBellBadgeText: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: "#FFFFFF",
+  },
   greeting: {
     fontSize: 14,
     color: "rgba(255, 255, 255, 0.8)",
@@ -695,6 +864,52 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#FFFFFF",
     marginTop: 2,
+  },
+  notificationBanner: {
+    marginTop: -10,
+    marginHorizontal: 16,
+    marginBottom: 12,
+  },
+  notificationBannerContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#111827",
+    borderRadius: 16,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  notificationBannerIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "rgba(255,255,255,0.1)",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 10,
+  },
+  notificationBannerText: {
+    flex: 1,
+  },
+  notificationBannerTitle: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#F9FAFB",
+    marginBottom: 2,
+  },
+  notificationBannerSubtitle: {
+    fontSize: 12,
+    color: "#D1D5DB",
+  },
+  notificationBannerAction: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#22C55E",
+    marginLeft: 8,
   },
   // Avatar Styles
   avatarContainer: {

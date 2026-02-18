@@ -47,8 +47,27 @@ export default function RateAgentScreen() {
                     onPress: handleSkip,
                 },
             ]);
-        } catch (error) {
-            Alert.alert("Error", "Failed to submit review. Please try again.");
+        } catch (error: any) {
+            const message =
+                error?.message || "Failed to submit review. Please try again.";
+            const normalized = message.toLowerCase();
+
+            // If the server says this transaction is already reviewed,
+            // treat it as a non-fatal case: inform the user and send them home.
+            if (normalized.includes("already reviewed this transaction")) {
+                Alert.alert(
+                    "Already Rated",
+                    "You've already submitted a review for this transaction.",
+                    [
+                        {
+                            text: "OK",
+                            onPress: handleSkip,
+                        },
+                    ]
+                );
+            } else {
+                Alert.alert("Error", message);
+            }
         }
     };
 
@@ -62,7 +81,15 @@ export default function RateAgentScreen() {
                 contentContainerStyle={styles.content}
                 keyboardShouldPersistTaps="handled"
             >
-                <View style={styles.headerSpacer} />
+                <View style={styles.headerSpacer}>
+                    <TouchableOpacity
+                        onPress={() => router.back()}
+                        style={styles.backButton}
+                        activeOpacity={0.7}
+                    >
+                        <Ionicons name="arrow-back" size={24} color="#111827" />
+                    </TouchableOpacity>
+                </View>
 
                 <View style={styles.iconContainer}>
                     <View style={styles.successIcon}>
@@ -72,7 +99,7 @@ export default function RateAgentScreen() {
 
                 <Text style={styles.title}>Transaction Complete!</Text>
                 <Text style={styles.subtitle}>
-                    Your tokens have been minted. How was your experience with the agent?
+                    How was your experience with the agent?
                 </Text>
 
                 {/* Star Rating */}
@@ -161,6 +188,12 @@ const styles = StyleSheet.create({
     },
     headerSpacer: {
         height: 60,
+        alignSelf: "stretch",
+        justifyContent: "flex-start",
+        alignItems: "flex-start",
+    },
+    backButton: {
+        padding: 4,
     },
     iconContainer: {
         marginBottom: 24,

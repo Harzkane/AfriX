@@ -1,17 +1,18 @@
 // File: src/controllers/adminAgentController.js
-const { Agent, AgentKyc, User } = require("../models");
-const { AGENT_STATUS } = require("../config/constants");
+const { Agent, AgentKyc, User, Wallet } = require("../models");
+const { AGENT_STATUS, EXCHANGE_RATES } = require("../config/constants");
 const { ApiError } = require("../utils/errors");
 const { Op } = require("sequelize");
+const { getAgentMintBurnTotals } = require("./agentController");
 
 const adminAgentController = {
   /**
    * List all agents (optionally filter by status or is_verified)
-   * GET /api/v1/admin/agents?status=pending|active|suspended&verified=true|false
+   * GET /api/v1/admin/agents?status=pending|active|suspended&verified=true|false&limit=&offset=
    */
   listAgents: async (req, res) => {
     try {
-      const { status, verified, country, tier } = req.query;
+      const { status, verified, country, tier, limit = 50, offset = 0 } = req.query;
       const where = {};
 
       if (status) where.status = status;
@@ -19,7 +20,10 @@ const adminAgentController = {
       if (country) where.country = country;
       if (tier) where.tier = tier;
 
-      const agents = await Agent.findAll({
+      const limitNum = Math.min(parseInt(limit, 10) || 50, 100);
+      const offsetNum = parseInt(offset, 10) || 0;
+
+      const { rows: agents, count: total } = await Agent.findAndCountAll({
         where,
         include: [
           {
@@ -31,33 +35,55 @@ const adminAgentController = {
             model: User,
             as: "user",
             attributes: ["id", "full_name", "email", "phone_number"],
+            include: [
+              {
+                model: Wallet,
+                as: "wallets",
+                attributes: ["token_type", "balance"],
+              },
+            ],
           },
         ],
         order: [["created_at", "DESC"]],
+        limit: limitNum,
+        offset: offsetNum,
       });
 
-      // Enrich with financial calculations
-      const enrichedAgents = agents.map((agent) => {
-        const outstanding = agent.total_minted - agent.total_burned;
-        const maxWithdraw = agent.deposit_usd - outstanding;
+      // Enrich with financial calculations from Transaction table (USDT-based)
+      const enrichedAgents = await Promise.all(
+        agents.map(async (agent) => {
+          const totals = await getAgentMintBurnTotals(agent.id);
+          const outstandingUsdt = totals.totalMintedUsdt - totals.totalBurnedUsdt;
+          const depositUsd = parseFloat(agent.deposit_usd) || 0;
+          const maxWithdraw = Math.max(0, depositUsd - outstandingUsdt);
+          const utilization =
+            depositUsd > 0 ? ((outstandingUsdt / depositUsd) * 100).toFixed(2) : 0;
 
-        return {
-          ...agent.toJSON(),
-          financial_summary: {
-            outstanding_tokens: outstanding,
-            max_withdrawable: maxWithdraw,
-            utilization_percentage:
-              agent.deposit_usd > 0
-                ? ((outstanding / agent.deposit_usd) * 100).toFixed(2)
-                : 0,
-          },
-        };
-      });
+          return {
+            ...agent.toJSON(),
+            total_minted_usdt: totals.totalMintedUsdt,
+            total_burned_usdt: totals.totalBurnedUsdt,
+            total_earnings_usdt: totals.totalEarningsUsdt,
+            financial_summary: {
+              outstanding_usdt: outstandingUsdt,
+              max_withdrawable: maxWithdraw,
+              utilization_percentage: utilization,
+              liquidity_nt: (parseFloat(agent.available_capacity) || 0) * (EXCHANGE_RATES.USDT_TO_NT || 0),
+              liquidity_ct: (parseFloat(agent.available_capacity) || 0) * (EXCHANGE_RATES.USDT_TO_CT || 0),
+            },
+          };
+        })
+      );
 
       res.status(200).json({
         success: true,
         data: enrichedAgents,
-        count: enrichedAgents.length,
+        pagination: {
+          total,
+          limit: limitNum,
+          offset: offsetNum,
+          has_more: offsetNum + limitNum < total,
+        },
       });
     } catch (error) {
       console.error("List agents error:", error);
@@ -66,7 +92,7 @@ const adminAgentController = {
   },
 
   /**
-   * Get a single agent + KYC details + financial summary
+   * Get a single agent + KYC details + financial summary (USDT-based from Transaction table)
    * GET /api/v1/admin/agents/:id
    */
   getAgent: async (req, res) => {
@@ -89,6 +115,13 @@ const adminAgentController = {
               "country_code",
               "created_at",
             ],
+            include: [
+              {
+                model: Wallet,
+                as: "wallets",
+                attributes: ["token_type", "balance"],
+              },
+            ],
           },
         ],
       });
@@ -99,20 +132,30 @@ const adminAgentController = {
           .json({ success: false, error: "Agent not found" });
       }
 
-      // Calculate financial metrics
-      const outstanding = agent.total_minted - agent.total_burned;
-      const maxWithdraw = agent.deposit_usd - outstanding;
+      const totals = await getAgentMintBurnTotals(agent.id);
+      const outstandingUsdt = totals.totalMintedUsdt - totals.totalBurnedUsdt;
+      const depositUsd = parseFloat(agent.deposit_usd) || 0;
+      const maxWithdraw = Math.max(0, depositUsd - outstandingUsdt);
+      const utilization =
+        depositUsd > 0 ? ((outstandingUsdt / depositUsd) * 100).toFixed(2) : 0;
 
       const agentData = {
         ...agent.toJSON(),
+        total_minted_usdt: totals.totalMintedUsdt,
+        total_burned_usdt: totals.totalBurnedUsdt,
+        total_earnings_usdt: totals.totalEarningsUsdt,
+        total_minted_by_token: totals.totalMintedByToken,
+        total_burned_by_token: totals.totalBurnedByToken,
+        total_earnings_by_token: totals.totalEarningsByToken,
+        total_minted_by_token_usdt: totals.totalMintedByTokenUsdt,
+        total_burned_by_token_usdt: totals.totalBurnedByTokenUsdt,
+        total_earnings_by_token_usdt: totals.totalEarningsByTokenUsdt,
         financial_summary: {
-          outstanding_tokens: outstanding,
+          outstanding_usdt: outstandingUsdt,
           max_withdrawable: maxWithdraw,
-          utilization_percentage:
-            agent.deposit_usd > 0
-              ? ((outstanding / agent.deposit_usd) * 100).toFixed(2)
-              : 0,
-          total_revenue: agent.total_minted - agent.total_burned, // Simplified metric
+          utilization_percentage: utilization,
+          liquidity_nt: (parseFloat(agent.available_capacity) || 0) * (EXCHANGE_RATES.USDT_TO_NT || 0),
+          liquidity_ct: (parseFloat(agent.available_capacity) || 0) * (EXCHANGE_RATES.USDT_TO_CT || 0),
         },
       };
 

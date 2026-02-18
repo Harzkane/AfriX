@@ -14,7 +14,7 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { MobileSidebar } from "@/components/sidebar";
 
 export function Header() {
@@ -56,7 +56,6 @@ export function Header() {
                     <DropdownMenuTrigger asChild>
                         <Button variant="ghost" size="icon" className="rounded-full">
                             <Avatar>
-                                <AvatarImage src="/placeholder-user.jpg" alt="User" />
                                 <AvatarFallback>AD</AvatarFallback>
                             </Avatar>
                             <span className="sr-only">Toggle user menu</span>

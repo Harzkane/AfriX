@@ -2,6 +2,7 @@
 const { Transaction, Wallet, User, Merchant, Agent } = require("../models");
 const transactionService = require("../services/transactionService");
 const walletService = require("../services/walletService");
+const platformService = require("../services/platformService");
 const {
   TRANSACTION_TYPES,
   TRANSACTION_STATUS,
@@ -47,6 +48,33 @@ const adminFinancialController = {
         raw: true,
       });
 
+      // Volume History (Last 6 Months)
+      const sixMonthsAgo = new Date();
+      sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+      sixMonthsAgo.setDate(1);
+      sixMonthsAgo.setHours(0, 0, 0, 0);
+
+      const volumeHistory = await Transaction.findAll({
+        attributes: [
+          [sequelize.fn('date_trunc', 'month', sequelize.col('created_at')), 'month'],
+          [sequelize.fn('count', sequelize.col('id')), 'count'],
+          [sequelize.fn('sum', sequelize.col('amount')), 'amount'],
+        ],
+        where: {
+          created_at: { [Op.gte]: sixMonthsAgo }
+        },
+        group: [sequelize.fn('date_trunc', 'month', sequelize.col('created_at'))],
+        order: [[sequelize.fn('date_trunc', 'month', sequelize.col('created_at')), 'ASC']],
+        raw: true
+      });
+
+      // Format volume history for charts
+      const formattedHistory = volumeHistory.map(item => ({
+        name: new Date(item.month).toLocaleString('default', { month: 'short' }),
+        transactions: parseInt(item.count || 0),
+        activity: Math.round(parseFloat(item.count || 0) * 0.7) // Mocked activity as 70% of txs for now as placeholder for "User Activity"
+      }));
+
       // Recent 24h activity
       const last24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
       const recent24hCount = await Transaction.count({
@@ -68,6 +96,12 @@ const adminFinancialController = {
             failed: failedTransactions,
             refunded: refundedTransactions,
           },
+          status_distribution: [
+            { name: "Completed", value: completedTransactions, color: "#10b981" },
+            { name: "Pending", value: pendingTransactions, color: "#3b82f6" },
+            { name: "Failed", value: failedTransactions + refundedTransactions, color: "#ef4444" },
+          ],
+          volume_history: formattedHistory,
           by_type: transactionsByType.reduce((acc, item) => {
             acc[item.type] = {
               count: parseInt(item.count),
@@ -643,6 +677,115 @@ const adminFinancialController = {
       });
     } catch (error) {
       console.error("List payments error:", error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  },
+
+  // =====================================================
+  // PLATFORM FEE COLLECTION
+  // =====================================================
+
+  /**
+   * Get platform fee wallet balances (NT, CT, USDT)
+   * GET /api/v1/admin/financial/platform-fees/balances
+   */
+  getPlatformFeeBalances: async (req, res) => {
+    try {
+      const balances = await platformService.getPlatformFeeBalances();
+      const wallets = await platformService.getPlatformWallets();
+      res.status(200).json({
+        success: true,
+        data: {
+          balances: {
+            NT: parseFloat(balances.NT) || 0,
+            CT: parseFloat(balances.CT) || 0,
+            USDT: parseFloat(balances.USDT) || 0,
+          },
+          wallet_ids: {
+            NT: wallets.NT?.id,
+            CT: wallets.CT?.id,
+            USDT: wallets.USDT?.id,
+          },
+        },
+      });
+    } catch (error) {
+      console.error("Get platform fee balances error:", error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  },
+
+  /**
+   * Get platform fee collection report (fees collected by type and time)
+   * GET /api/v1/admin/financial/platform-fees/report
+   * Query: { start_date?, end_date?, type? }
+   */
+  getPlatformFeeReport: async (req, res) => {
+    try {
+      const { start_date, end_date, type } = req.query;
+      const where = {
+        status: TRANSACTION_STATUS.COMPLETED,
+        fee_wallet_id: { [Op.ne]: null },
+        fee: { [Op.gt]: 0 },
+      };
+      if (type) where.type = type;
+      if (start_date || end_date) {
+        where.created_at = {};
+        if (start_date) where.created_at[Op.gte] = new Date(start_date);
+        if (end_date) where.created_at[Op.lte] = new Date(end_date);
+      }
+
+      const byType = await Transaction.findAll({
+        attributes: [
+          "type",
+          "token_type",
+          [sequelize.fn("COUNT", sequelize.col("id")), "count"],
+          [sequelize.fn("SUM", sequelize.col("fee")), "total_fee"],
+        ],
+        where,
+        group: ["type", "token_type"],
+        raw: true,
+      });
+
+      const totals = await Transaction.findOne({
+        attributes: [
+          [sequelize.fn("COUNT", sequelize.col("id")), "total_count"],
+          [sequelize.fn("SUM", sequelize.col("fee")), "total_fees"],
+        ],
+        where,
+        raw: true,
+      });
+
+      const byToken = await Transaction.findAll({
+        attributes: [
+          "token_type",
+          [sequelize.fn("SUM", sequelize.col("fee")), "total_fee"],
+        ],
+        where,
+        group: ["token_type"],
+        raw: true,
+      });
+
+      res.status(200).json({
+        success: true,
+        data: {
+          summary: {
+            total_transactions_with_fees: parseInt(totals?.total_count || 0),
+            total_fees_collected: parseFloat(totals?.total_fees || 0),
+          },
+          by_type: byType.map((r) => ({
+            type: r.type,
+            token_type: r.token_type,
+            count: parseInt(r.count),
+            total_fee: parseFloat(r.total_fee || 0),
+          })),
+          by_token: byToken.reduce((acc, r) => {
+            acc[r.token_type] = parseFloat(r.total_fee || 0);
+            return acc;
+          }, {}),
+        },
+      });
+    } catch (error) {
+      console.error("Get platform fee report error:", error);
       res.status(500).json({ success: false, error: error.message });
     }
   },

@@ -259,6 +259,26 @@ const User = sequelize.define(
       comment: "User ID who referred this user",
     },
 
+    // Security audit (admin unlock / reset attempts)
+    last_unlocked_at: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
+    last_unlocked_by_id: {
+      type: DataTypes.UUID,
+      allowNull: true,
+      references: { model: "users", key: "id" },
+    },
+    last_reset_attempts_at: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
+    last_reset_attempts_by_id: {
+      type: DataTypes.UUID,
+      allowNull: true,
+      references: { model: "users", key: "id" },
+    },
+
     // Timestamps
     created_at: {
       type: DataTypes.DATE,

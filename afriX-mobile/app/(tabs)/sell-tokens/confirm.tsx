@@ -13,6 +13,7 @@ import { Text, Surface, Card } from "react-native-paper";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useBurnStore } from "@/stores/slices/burnSlice";
+import type { BankAccount } from "@/stores/types/burn.types";
 import { LinearGradient } from "expo-linear-gradient";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -28,31 +29,43 @@ export default function ConfirmSellScreen() {
         tokenType,
         agentId,
         agentName,
+        paymentType,
         bankName,
         accountNumber,
         accountName,
+        mobileProvider,
+        mobileNumber,
     } = params;
 
+    const isBank = paymentType !== "mobile_money";
+
     const handleConfirm = async () => {
-        // Validate required fields
         if (!tokenType || !amount || !agentId) {
             Alert.alert("Error", "Missing required information. Please start over.");
             return;
         }
 
+        const bank_account: BankAccount = isBank
+            ? {
+                type: "bank",
+                bank_name: (bankName as string) || "",
+                account_number: (accountNumber as string) || "",
+                account_name: (accountName as string) || "",
+            }
+            : {
+                type: "mobile_money",
+                provider: (mobileProvider as string) || "",
+                phone_number: (mobileNumber as string) || "",
+                account_name: (accountName as string) || "",
+            };
+
         try {
-            const requestData = {
+            await createBurnRequest({
                 agent_id: agentId as string,
                 amount: amount as string,
                 token_type: tokenType as string,
-                bank_account: {
-                    bank_name: bankName as string,
-                    account_number: accountNumber as string,
-                    account_name: accountName as string,
-                },
-            };
-
-            await createBurnRequest(requestData);
+                bank_account,
+            });
 
             Alert.alert("Success", "Sell request created successfully!", [
                 { text: "OK", onPress: () => router.replace("/(tabs)/sell-tokens/status") }
@@ -125,26 +138,51 @@ export default function ConfirmSellScreen() {
                         </View>
                     </View>
 
-                    <View style={styles.detailRow}>
-                        <View style={styles.detailIconBg}>
-                            <Ionicons name="business-outline" size={18} color="#00B14F" />
-                        </View>
-                        <View style={styles.detailTextContainer}>
-                            <Text style={styles.detailLabel}>Payout Bank</Text>
-                            <Text style={styles.detailValue}>{bankName}</Text>
-                        </View>
-                    </View>
-
-                    <View style={styles.detailRow}>
-                        <View style={styles.detailIconBg}>
-                            <Ionicons name="card-outline" size={18} color="#00B14F" />
-                        </View>
-                        <View style={styles.detailTextContainer}>
-                            <Text style={styles.detailLabel}>Account Details</Text>
-                            <Text style={styles.detailValue}>{accountNumber}</Text>
-                            <Text style={styles.accountSubValue}>{accountName}</Text>
-                        </View>
-                    </View>
+                    {isBank ? (
+                        <>
+                            <View style={styles.detailRow}>
+                                <View style={styles.detailIconBg}>
+                                    <Ionicons name="business-outline" size={18} color="#00B14F" />
+                                </View>
+                                <View style={styles.detailTextContainer}>
+                                    <Text style={styles.detailLabel}>Payout Bank</Text>
+                                    <Text style={styles.detailValue}>{bankName}</Text>
+                                </View>
+                            </View>
+                            <View style={styles.detailRow}>
+                                <View style={styles.detailIconBg}>
+                                    <Ionicons name="card-outline" size={18} color="#00B14F" />
+                                </View>
+                                <View style={styles.detailTextContainer}>
+                                    <Text style={styles.detailLabel}>Account Details</Text>
+                                    <Text style={styles.detailValue}>{accountNumber}</Text>
+                                    <Text style={styles.accountSubValue}>{accountName}</Text>
+                                </View>
+                            </View>
+                        </>
+                    ) : (
+                        <>
+                            <View style={styles.detailRow}>
+                                <View style={styles.detailIconBg}>
+                                    <Ionicons name="phone-portrait-outline" size={18} color="#00B14F" />
+                                </View>
+                                <View style={styles.detailTextContainer}>
+                                    <Text style={styles.detailLabel}>Payout: Mobile Money</Text>
+                                    <Text style={styles.detailValue}>{mobileProvider}</Text>
+                                </View>
+                            </View>
+                            <View style={styles.detailRow}>
+                                <View style={styles.detailIconBg}>
+                                    <Ionicons name="call-outline" size={18} color="#00B14F" />
+                                </View>
+                                <View style={styles.detailTextContainer}>
+                                    <Text style={styles.detailLabel}>Phone Number</Text>
+                                    <Text style={styles.detailValue}>{mobileNumber}</Text>
+                                    <Text style={styles.accountSubValue}>{accountName}</Text>
+                                </View>
+                            </View>
+                        </>
+                    )}
                 </Surface>
 
                 {/* Security Box */}
@@ -155,7 +193,7 @@ export default function ConfirmSellScreen() {
                     <View style={{ flex: 1 }}>
                         <Text style={styles.infoTitle}>Secure Escrow</Text>
                         <Text style={styles.infoText}>
-                            Your tokens will be held securely in escrow. They will only be released to the agent after you confirm receipt of payment in your bank account.
+                            Your tokens will be held securely in escrow. They will only be released to the agent after you confirm receipt of payment in your {isBank ? "bank account" : "mobile money"}.
                         </Text>
                     </View>
                 </View>
@@ -196,8 +234,6 @@ const styles = StyleSheet.create({
         left: 0,
         right: 0,
         height: 140,
-        borderBottomLeftRadius: 30,
-        borderBottomRightRadius: 30,
     },
     headerContent: {
         paddingHorizontal: 20,
@@ -351,10 +387,10 @@ const styles = StyleSheet.create({
     },
     footer: {
         padding: 20,
+        paddingBottom: 24,
         backgroundColor: "#FFFFFF",
         borderTopWidth: 1,
         borderTopColor: "#F3F4F6",
-        paddingBottom: Platform.OS === 'ios' ? 90 : 80, // Lift above floating tab bar
     },
     confirmButton: {
         backgroundColor: "#00B14F",

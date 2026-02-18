@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, Alert, KeyboardAvoidingView, Platform, ScrollView } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useAuthStore } from "@/stores";
@@ -9,12 +9,36 @@ import { useAgentStore } from "@/stores/slices/agentSlice";
 
 export default function WithdrawalRequest() {
     const router = useRouter();
+    const params = useLocalSearchParams();
+    const fromAgentProfile = params?.from === "agent-profile";
     const { user } = useAuthStore();
-    const { dashboardData, createWithdrawalRequest, loading } = useAgentStore();
+    const {
+        dashboardData,
+        createWithdrawalRequest,
+        loading,
+        withdrawalRequests,
+        fetchWithdrawalRequests,
+    } = useAgentStore();
 
     const [amount, setAmount] = useState("");
     const [displayAmount, setDisplayAmount] = useState("");
     const [error, setError] = useState("");
+
+    const handleGoBack = () => {
+        if (fromAgentProfile) {
+            router.push("/agent/(tabs)/profile");
+        } else {
+            router.back();
+        }
+    };
+
+    // Load latest withdrawal requests so summary can account for pending ones
+    useEffect(() => {
+        fetchWithdrawalRequests().catch(() => {
+            // swallow error here; validation will still use dashboard fallback
+        });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     // Helper function to format currency with commas
     const formatCurrency = (value: number): string => {
@@ -51,7 +75,24 @@ export default function WithdrawalRequest() {
     // Calculate financial data
     const totalDeposit = dashboardData?.financials?.total_deposit || 0;
     const outstandingTokens = dashboardData?.financials?.outstanding_tokens || 0;
-    const maxWithdrawable = totalDeposit - outstandingTokens;
+
+    // Base max withdrawable from dashboard (backend already exposes this),
+    // with a fallback to the simple formula if needed.
+    const baseMaxWithdrawable =
+        dashboardData?.financials?.max_withdrawable ??
+        (totalDeposit - outstandingTokens);
+
+    // Reserve capacity for any pending withdrawal requests so agents
+    // see an accurate "remaining" amount they can still request.
+    const pendingReserved =
+        (withdrawalRequests || []).reduce((sum, req) => {
+            if (req.status !== "pending") return sum;
+            const value = parseFloat(req.amount_usd || "0");
+            return sum + (isNaN(value) ? 0 : value);
+        }, 0);
+
+    const maxWithdrawable = Math.max(0, baseMaxWithdrawable - pendingReserved);
+
     const withdrawalAddress = (user as any)?.withdrawal_address || "Not set";
 
     const validateAmount = (value: string): boolean => {
@@ -107,11 +148,15 @@ export default function WithdrawalRequest() {
                     onPress: async () => {
                         try {
                             const result = await createWithdrawalRequest(parseFloat(amount));
-                            Alert.alert(
-                                "Success",
-                                `Withdrawal request submitted successfully!\n\nRequest ID: ${result.request.id.slice(0, 8)}...\n\nYou will be notified once approved.`,
-                                [{ text: "OK", onPress: () => router.back() }]
-                            );
+                            const fromParam = fromAgentProfile ? "agent-profile" : "";
+                            router.replace({
+                                pathname: "/modals/agent/withdrawal-success",
+                                params: {
+                                    amount: amount,
+                                    requestId: result.request.id,
+                                    ...(fromParam ? { from: fromParam } : {}),
+                                },
+                            });
                         } catch (err: any) {
                             Alert.alert("Error", err.message || "Failed to submit withdrawal request");
                         }
@@ -132,7 +177,7 @@ export default function WithdrawalRequest() {
                 />
                 <SafeAreaView edges={["top"]} style={styles.headerContent}>
                     <View style={styles.header}>
-                        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+                        <TouchableOpacity onPress={handleGoBack} style={styles.backButton}>
                             <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
                         </TouchableOpacity>
                         <Text style={styles.headerTitle}>Request Withdrawal</Text>
@@ -275,8 +320,6 @@ const styles = StyleSheet.create({
         left: 0,
         right: 0,
         height: 120,
-        // borderBottomLeftRadius: 30,
-        // borderBottomRightRadius: 30,
     },
     headerContent: {
         paddingHorizontal: 16,

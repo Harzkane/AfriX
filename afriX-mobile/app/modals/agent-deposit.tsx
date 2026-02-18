@@ -9,20 +9,26 @@ import {
     Alert,
     ActivityIndicator,
     Clipboard,
+    KeyboardAvoidingView,
+    Platform,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 import QRCode from "react-native-qrcode-svg";
+import apiClient from "@/services/apiClient";
+import { useAgentStore } from "@/stores/slices/agentSlice";
 
 export default function AgentDepositScreen() {
     const router = useRouter();
+    const { fetchAgentStats, fetchDashboard } = useAgentStore();
     const [txHash, setTxHash] = useState("");
     const [amount, setAmount] = useState("");
     const [loading, setLoading] = useState(false);
 
     // TODO: Get this from backend/agent profile
-    const depositAddress = "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb";
+    // const depositAddress = "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb"; //original test wallet
+    const depositAddress = "0x7c26C161F7b3b1b975489DA1a1672a9D9178a16e";
     const minimumDeposit = 100;
 
     const copyAddress = () => {
@@ -56,18 +62,16 @@ export default function AgentDepositScreen() {
         setLoading(true);
 
         try {
-            // TODO: Submit deposit to backend
-            // await apiClient.post('/agents/deposit', {
-            //     amount_usd: depositAmount,
-            //     tx_hash: txHash,
-            // });
+            await apiClient.post("/agents/deposit", {
+                amount_usd: depositAmount,
+                tx_hash: txHash.trim(),
+            });
 
-            // Simulate API call
-            await new Promise((resolve) => setTimeout(resolve, 2000));
+            await Promise.all([fetchAgentStats(), fetchDashboard()]);
 
             Alert.alert(
-                "Deposit Submitted!",
-                "Your deposit is being verified. You'll be notified once confirmed and your agent account will be activated.",
+                "Deposit Verified",
+                "Your deposit has been verified. Your available capacity has been updated and you can now mint/burn tokens.",
                 [
                     {
                         text: "OK",
@@ -78,7 +82,11 @@ export default function AgentDepositScreen() {
                 ]
             );
         } catch (error: any) {
-            Alert.alert("Error", error.message || "Failed to submit deposit");
+            const raw = error.response?.data?.message || error.message || "";
+            const message = raw.includes("already been used")
+                ? "This deposit was already applied. Each transaction can only be used once."
+                : raw || "Deposit could not be verified. Please try again.";
+            Alert.alert("Deposit failed", message);
         } finally {
             setLoading(false);
         }
@@ -95,141 +103,147 @@ export default function AgentDepositScreen() {
                 <View style={{ width: 24 }} />
             </View>
 
-            <ScrollView contentContainerStyle={styles.content}>
-                {/* Progress Indicator */}
-                <View style={styles.progressContainer}>
-                    <View style={styles.progressStep}>
-                        <View style={[styles.progressDot, styles.progressDotComplete]}>
-                            <Ionicons name="checkmark" size={20} color="#FFFFFF" />
+            <KeyboardAvoidingView
+                behavior={Platform.OS === "ios" ? "padding" : "height"}
+                style={{ flex: 1 }}
+                keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
+            >
+                <ScrollView contentContainerStyle={styles.content}>
+                    {/* Progress Indicator */}
+                    <View style={styles.progressContainer}>
+                        <View style={styles.progressStep}>
+                            <View style={[styles.progressDot, styles.progressDotComplete]}>
+                                <Ionicons name="checkmark" size={20} color="#FFFFFF" />
+                            </View>
+                            <Text style={styles.progressLabel}>Register</Text>
                         </View>
-                        <Text style={styles.progressLabel}>Register</Text>
-                    </View>
-                    <View style={[styles.progressLine, styles.progressLineActive]} />
-                    <View style={styles.progressStep}>
-                        <View style={[styles.progressDot, styles.progressDotComplete]}>
-                            <Ionicons name="checkmark" size={20} color="#FFFFFF" />
+                        <View style={[styles.progressLine, styles.progressLineActive]} />
+                        <View style={styles.progressStep}>
+                            <View style={[styles.progressDot, styles.progressDotComplete]}>
+                                <Ionicons name="checkmark" size={20} color="#FFFFFF" />
+                            </View>
+                            <Text style={styles.progressLabel}>KYC</Text>
                         </View>
-                        <Text style={styles.progressLabel}>KYC</Text>
-                    </View>
-                    <View style={[styles.progressLine, styles.progressLineActive]} />
-                    <View style={styles.progressStep}>
-                        <View style={[styles.progressDot, styles.progressDotActive]}>
-                            <Text style={styles.progressNumber}>3</Text>
+                        <View style={[styles.progressLine, styles.progressLineActive]} />
+                        <View style={styles.progressStep}>
+                            <View style={[styles.progressDot, styles.progressDotActive]}>
+                                <Text style={styles.progressNumber}>3</Text>
+                            </View>
+                            <Text style={styles.progressLabel}>Deposit</Text>
                         </View>
-                        <Text style={styles.progressLabel}>Deposit</Text>
                     </View>
-                </View>
 
-                {/* Introduction */}
-                <View style={styles.introSection}>
-                    <Text style={styles.introTitle}>Almost There! 🎉</Text>
-                    <Text style={styles.introDescription}>
-                        Make your security deposit to activate your agent account and start earning.
-                    </Text>
-                </View>
-
-                {/* Deposit Info */}
-                <View style={styles.infoCard}>
-                    <View style={styles.infoRow}>
-                        <Text style={styles.infoLabel}>Minimum Deposit</Text>
-                        <Text style={styles.infoValue}>${minimumDeposit} USDT</Text>
-                    </View>
-                    <View style={styles.infoRow}>
-                        <Text style={styles.infoLabel}>Network</Text>
-                        <Text style={styles.infoValue}>Polygon (MATIC)</Text>
-                    </View>
-                    <View style={styles.infoRow}>
-                        <Text style={styles.infoLabel}>Token</Text>
-                        <Text style={styles.infoValue}>USDT (ERC-20)</Text>
-                    </View>
-                </View>
-
-                {/* Warning Banner */}
-                <View style={styles.warningBanner}>
-                    <Ionicons name="warning" size={20} color="#DC2626" />
-                    <Text style={styles.warningText}>
-                        Only send USDT on Polygon network! Sending wrong token or wrong network will
-                        result in permanent loss of funds.
-                    </Text>
-                </View>
-
-                {/* QR Code */}
-                <View style={styles.qrSection}>
-                    <Text style={styles.sectionTitle}>Deposit Address</Text>
-                    <View style={styles.qrContainer}>
-                        <QRCode value={depositAddress} size={200} />
-                    </View>
-                    <View style={styles.addressContainer}>
-                        <Text style={styles.addressText} numberOfLines={1} ellipsizeMode="middle">
-                            {depositAddress}
-                        </Text>
-                        <TouchableOpacity style={styles.copyButton} onPress={copyAddress}>
-                            <Ionicons name="copy-outline" size={20} color="#00B14F" />
-                        </TouchableOpacity>
-                    </View>
-                </View>
-
-                {/* Deposit Form */}
-                <View style={styles.form}>
-                    <Text style={styles.sectionTitle}>Confirm Your Deposit</Text>
-
-                    <View style={styles.inputGroup}>
-                        <Text style={styles.label}>Amount (USDT) *</Text>
-                        <TextInput
-                            style={styles.input}
-                            placeholder={`Minimum ${minimumDeposit}`}
-                            value={amount}
-                            onChangeText={setAmount}
-                            keyboardType="decimal-pad"
-                        />
-                        <Text style={styles.helperText}>
-                            This will be your minting capacity
+                    {/* Introduction */}
+                    <View style={styles.introSection}>
+                        <Text style={styles.introTitle}>Almost There! 🎉</Text>
+                        <Text style={styles.introDescription}>
+                            Make your security deposit to activate your agent account and start earning.
                         </Text>
                     </View>
 
-                    <View style={styles.inputGroup}>
-                        <Text style={styles.label}>Transaction Hash *</Text>
-                        <TextInput
-                            style={styles.input}
-                            placeholder="0x..."
-                            value={txHash}
-                            onChangeText={setTxHash}
-                            autoCapitalize="none"
-                            autoCorrect={false}
-                        />
-                        <Text style={styles.helperText}>
-                            Enter the transaction hash from your wallet
+                    {/* Deposit Info */}
+                    <View style={styles.infoCard}>
+                        <View style={styles.infoRow}>
+                            <Text style={styles.infoLabel}>Minimum Deposit</Text>
+                            <Text style={styles.infoValue}>${minimumDeposit} USDT</Text>
+                        </View>
+                        <View style={styles.infoRow}>
+                            <Text style={styles.infoLabel}>Network</Text>
+                            <Text style={styles.infoValue}>Polygon (MATIC)</Text>
+                        </View>
+                        <View style={styles.infoRow}>
+                            <Text style={styles.infoLabel}>Token</Text>
+                            <Text style={styles.infoValue}>USDT (ERC-20)</Text>
+                        </View>
+                    </View>
+
+                    {/* Warning Banner */}
+                    <View style={styles.warningBanner}>
+                        <Ionicons name="warning" size={20} color="#DC2626" />
+                        <Text style={styles.warningText}>
+                            Only send USDT on Polygon network! Sending wrong token or wrong network will
+                            result in permanent loss of funds.
                         </Text>
                     </View>
-                </View>
 
-                {/* Info Banner */}
-                <View style={styles.infoBanner}>
-                    <Ionicons name="information-circle" size={20} color="#00B14F" />
-                    <Text style={styles.infoText}>
-                        Your deposit will be verified on the blockchain. This usually takes 2-5
-                        minutes.
-                    </Text>
-                </View>
-            </ScrollView>
+                    {/* QR Code */}
+                    <View style={styles.qrSection}>
+                        <Text style={styles.sectionTitle}>Deposit Address</Text>
+                        <View style={styles.qrContainer}>
+                            <QRCode value={depositAddress} size={200} />
+                        </View>
+                        <View style={styles.addressContainer}>
+                            <Text style={styles.addressText} numberOfLines={1} ellipsizeMode="middle">
+                                {depositAddress}
+                            </Text>
+                            <TouchableOpacity style={styles.copyButton} onPress={copyAddress}>
+                                <Ionicons name="copy-outline" size={20} color="#00B14F" />
+                            </TouchableOpacity>
+                        </View>
+                    </View>
 
-            {/* Footer */}
-            <View style={styles.footer}>
-                <TouchableOpacity
-                    style={[styles.submitButton, loading && styles.submitButtonDisabled]}
-                    onPress={handleSubmit}
-                    disabled={loading}
-                >
-                    {loading ? (
-                        <ActivityIndicator color="#FFFFFF" />
-                    ) : (
-                        <>
-                            <Text style={styles.submitButtonText}>Verify Deposit</Text>
-                            <Ionicons name="checkmark-circle" size={20} color="#FFFFFF" />
-                        </>
-                    )}
-                </TouchableOpacity>
-            </View>
+                    {/* Deposit Form */}
+                    <View style={styles.form}>
+                        <Text style={styles.sectionTitle}>Confirm Your Deposit</Text>
+
+                        <View style={styles.inputGroup}>
+                            <Text style={styles.label}>Amount (USDT) *</Text>
+                            <TextInput
+                                style={styles.input}
+                                placeholder={`Minimum ${minimumDeposit}`}
+                                value={amount}
+                                onChangeText={setAmount}
+                                keyboardType="decimal-pad"
+                            />
+                            <Text style={styles.helperText}>
+                                This will be your minting capacity
+                            </Text>
+                        </View>
+
+                        <View style={styles.inputGroup}>
+                            <Text style={styles.label}>Transaction Hash *</Text>
+                            <TextInput
+                                style={styles.input}
+                                placeholder="0x..."
+                                value={txHash}
+                                onChangeText={setTxHash}
+                                autoCapitalize="none"
+                                autoCorrect={false}
+                            />
+                            <Text style={styles.helperText}>
+                                Enter the transaction hash from your wallet
+                            </Text>
+                        </View>
+                    </View>
+
+                    {/* Info Banner */}
+                    <View style={styles.infoBanner}>
+                        <Ionicons name="information-circle" size={20} color="#00B14F" />
+                        <Text style={styles.infoText}>
+                            Your deposit will be verified on the blockchain. This usually takes 2-5
+                            minutes.
+                        </Text>
+                    </View>
+                </ScrollView>
+
+                {/* Footer */}
+                <View style={styles.footer}>
+                    <TouchableOpacity
+                        style={[styles.submitButton, loading && styles.submitButtonDisabled]}
+                        onPress={handleSubmit}
+                        disabled={loading}
+                    >
+                        {loading ? (
+                            <ActivityIndicator color="#FFFFFF" />
+                        ) : (
+                            <>
+                                <Text style={styles.submitButtonText}>Verify Deposit</Text>
+                                <Ionicons name="checkmark-circle" size={20} color="#FFFFFF" />
+                            </>
+                        )}
+                    </TouchableOpacity>
+                </View>
+            </KeyboardAvoidingView>
         </SafeAreaView>
     );
 }

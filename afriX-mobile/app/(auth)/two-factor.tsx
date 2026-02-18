@@ -49,11 +49,10 @@ export default function TwoFactorScreen() {
             if (response.data.success) {
                 const { user, tokens } = response.data.data;
 
-                // Save tokens and user
-                setToken(tokens.access_token);
+                // Persist token to SecureStore and set apiClient header before navigating
+                await setToken(tokens.access_token);
                 setUser(user);
 
-                // Navigate to home
                 router.replace("/");
             }
         } catch (error: any) {

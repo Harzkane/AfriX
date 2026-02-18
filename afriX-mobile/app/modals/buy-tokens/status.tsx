@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { View, StyleSheet, ScrollView, RefreshControl, Modal, TextInput, TouchableOpacity, Alert, KeyboardAvoidingView, Platform, Dimensions } from "react-native";
+import { View, StyleSheet, ScrollView, RefreshControl, Modal, TextInput, TouchableOpacity, Alert, KeyboardAvoidingView, Platform, Dimensions, Image, Linking } from "react-native";
 import { Text, Button, ActivityIndicator, Card, Surface } from "react-native-paper";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useMintRequestStore, useWalletStore } from "@/stores";
@@ -9,6 +9,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { formatDate } from "@/utils/format";
+import apiClient from "@/services/apiClient";
 
 const { width } = Dimensions.get("window");
 
@@ -21,27 +22,42 @@ export default function MintStatusScreen() {
   const [showDisputeModal, setShowDisputeModal] = useState(false);
   const [disputeReason, setDisputeReason] = useState("");
   const [disputeDetails, setDisputeDetails] = useState("");
+  const [canRate, setCanRate] = useState(true);
 
   // Helper function to check if status is terminal (no more updates expected)
   const isTerminalStatus = (status: string) => {
     return ["confirmed", "cancelled", "rejected", "expired", "refunded"].includes(
-      status.toLowerCase()
+      (status || "").toLowerCase()
     );
   };
 
+  // Expired by time = don't poll; show expired state
+  const isExpiredByTime = (req: { expires_at?: string } | null) => {
+    if (!req?.expires_at) return false;
+    return new Date(req.expires_at).getTime() <= Date.now();
+  };
+
   useEffect(() => {
-    // Initial check
+    if (!requestId) return;
+    // Initial fetch once when screen opens
     checkStatus(requestId);
 
-    // Poll status every 10 seconds only if not in terminal state
+    // Poll every 10s only when request is not terminal and not expired by time
     const interval = setInterval(() => {
-      if (currentRequest && !isTerminalStatus(currentRequest.status)) {
-        checkStatus(requestId);
+      const state = useMintRequestStore.getState();
+      const req = state.currentRequest;
+      if (
+        req &&
+        req.id === requestId &&
+        !isTerminalStatus(req.status) &&
+        !isExpiredByTime(req)
+      ) {
+        state.checkStatus(requestId);
       }
     }, 10000);
 
     return () => clearInterval(interval);
-  }, [requestId, currentRequest?.status]);
+  }, [requestId]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -55,7 +71,13 @@ export default function MintStatusScreen() {
   };
 
   const handleCreateNew = () => {
-    router.replace("/modals/buy-tokens");
+    router.replace({
+      pathname: "/modals/buy-tokens",
+      params: {
+        amount: currentRequest?.amount?.toString() ?? "",
+        tokenType: currentRequest?.token_type ?? "NT",
+      },
+    });
   };
 
   const handleOpenDispute = () => {
@@ -82,6 +104,57 @@ export default function MintStatusScreen() {
     }
   };
 
+  const handleDismiss = async () => {
+    if (!currentRequest) return;
+
+    // If it's expired but still pending in DB, we use cancel to delete it
+    if (currentRequest.status.toLowerCase() === "pending") {
+      try {
+        await useMintRequestStore.getState().cancelMintRequest(currentRequest.id);
+      } catch (e) {
+        // Ignore error if cancel fails (e.g. network), just clear local state below
+        console.log("Failed to cancel expired request:", e);
+      }
+    }
+
+    // Always clear local state and go home
+    useMintRequestStore.getState().clearRequest();
+    router.replace("/(tabs)");
+  };
+
+  // Decide if we should show the "Rate Experience" button.
+  useEffect(() => {
+    const checkCanRate = async () => {
+      if (!currentRequest) return;
+
+      const isCompleted = (currentRequest.status || "").toLowerCase() === "confirmed";
+
+      try {
+        if (!isCompleted) {
+          setCanRate(false);
+          return;
+        }
+
+        const { data } = await apiClient.get("/transactions/pending-review");
+        const pending = data?.data?.transactions || data?.data || [];
+
+        const match = pending.find(
+          (tx: any) =>
+            tx.agent_id === currentRequest.agent_id &&
+            parseFloat(tx.amount) === parseFloat(currentRequest.amount) &&
+            tx.token_type === currentRequest.token_type &&
+            (tx.type || "").toLowerCase() === "mint"
+        );
+
+        setCanRate(!!match);
+      } catch (e) {
+        setCanRate(true);
+      }
+    };
+
+    checkCanRate();
+  }, [currentRequest]);
+
   if (!currentRequest) {
     return (
       <View style={styles.loading}>
@@ -91,12 +164,19 @@ export default function MintStatusScreen() {
     );
   }
 
-  const isCompleted = currentRequest.status === "confirmed" || currentRequest.status === "CONFIRMED";
-  const isExpired = currentRequest.status === "expired" || currentRequest.status === "EXPIRED";
+  const statusLower = (currentRequest.status || "").toLowerCase();
+  const isCompleted = statusLower === "confirmed";
+  const isExpiredByStatus = statusLower === "expired";
+  // Only treat time-based expiry as "expired" while the request is not already completed.
+  // This prevents a successfully minted request from later being shown as "Request Expired"
+  // just because its original expires_at time has passed.
+  const isExpiredByTimeNow = !isCompleted && isExpiredByTime(currentRequest);
+  const isExpired = isExpiredByStatus || isExpiredByTimeNow;
   const isCancelled = currentRequest.status === "cancelled" || currentRequest.status === "CANCELLED";
   const isRejected = currentRequest.status.toLowerCase() === "rejected";
   const isDisputed = currentRequest.status.toLowerCase() === "disputed";
   const isFailed = isExpired || isCancelled || isRejected || isDisputed;
+
 
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
@@ -127,12 +207,12 @@ export default function MintStatusScreen() {
         <SafeAreaView edges={["top"]} style={styles.headerContent}>
           <View style={styles.header}>
             <TouchableOpacity
-              onPress={() => router.navigate("/(tabs)/activity")}
+              onPress={() => router.push("/activity")}
               style={styles.backButton}
             >
               <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
             </TouchableOpacity>
-            <Text style={styles.headerTitle}>Request Status</Text>
+            <Text style={styles.headerTitle}>Mint Request Status</Text>
             <View style={{ width: 40 }} />
           </View>
         </SafeAreaView>
@@ -157,15 +237,16 @@ export default function MintStatusScreen() {
             <Text style={styles.refText}>Ref: {currentRequest.id.split('-')[0].toUpperCase()}</Text>
           </View>
 
-          {/* Timer - only show if not in terminal state */}
-          {!isTerminalStatus(currentRequest.status) && (
-            <Surface style={styles.timerCard} elevation={0}>
-              <TimerComponent
-                expiresAt={currentRequest.expires_at}
-                onExpire={() => checkStatus(requestId)}
-              />
-            </Surface>
-          )}
+          {/* Timer - only show if not in terminal state and not already expired by time */}
+          {!isTerminalStatus(currentRequest.status) &&
+            new Date(currentRequest.expires_at).getTime() > Date.now() && (
+              <Surface style={styles.timerCard} elevation={0}>
+                <TimerComponent
+                  expiresAt={currentRequest.expires_at}
+                  onExpire={() => checkStatus(requestId)}
+                />
+              </Surface>
+            )}
 
           {/* Status Tracker */}
           <Surface style={styles.card} elevation={0}>
@@ -195,8 +276,29 @@ export default function MintStatusScreen() {
             </View>
           </Surface>
 
+          {/* Payment Proof (user-uploaded) */}
+          {currentRequest.payment_proof_url && (
+            <Surface style={styles.card} elevation={0}>
+              <Text style={styles.cardTitle}>Payment Proof</Text>
+              <Text style={styles.proofHint}>
+                This is the payment proof you uploaded. The agent will verify your transfer using this image.
+              </Text>
+              <TouchableOpacity
+                onPress={() => Linking.openURL(currentRequest.payment_proof_url!)}
+                activeOpacity={0.9}
+              >
+                <Image
+                  source={{ uri: currentRequest.payment_proof_url }}
+                  style={styles.proofImage}
+                  resizeMode="cover"
+                />
+              </TouchableOpacity>
+              <Text style={styles.proofTapHint}>Tap image to view full size</Text>
+            </Surface>
+          )}
+
           {/* Status Specific Message Cards */}
-          {currentRequest.status.toLowerCase() === "pending" && (
+          {currentRequest.status.toLowerCase() === "pending" && !isExpired && (
             <Surface style={[styles.messageCard, styles.pendingMessage]} elevation={0}>
               <Ionicons name="information-circle" size={20} color="#FFB800" />
               <View style={styles.messageContent}>
@@ -280,7 +382,7 @@ export default function MintStatusScreen() {
 
           {/* Action Buttons */}
           <View style={styles.footerActions}>
-            {isCompleted ? (
+            {isCompleted && canRate ? (
               <TouchableOpacity
                 style={styles.primaryBtn}
                 onPress={async () => {
@@ -309,10 +411,18 @@ export default function MintStatusScreen() {
                 <Ionicons name="star" size={20} color="#FFFFFF" />
               </TouchableOpacity>
             ) : isFailed ? (
-              <TouchableOpacity style={styles.primaryBtn} onPress={handleCreateNew}>
-                <Text style={styles.primaryBtnText}>Try Again</Text>
-                <Ionicons name="refresh" size={20} color="#FFFFFF" />
-              </TouchableOpacity>
+              <View style={styles.footerRow}>
+                <TouchableOpacity
+                  style={styles.dismissBtn}
+                  onPress={handleDismiss}
+                >
+                  <Text style={styles.dismissBtnText}>Dismiss</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={[styles.primaryBtn, { flex: 1 }]} onPress={handleCreateNew}>
+                  <Text style={styles.primaryBtnText}>Try Again</Text>
+                  <Ionicons name="refresh" size={20} color="#FFFFFF" />
+                </TouchableOpacity>
+              </View>
             ) : (
               <TouchableOpacity style={styles.secondaryBtn} onPress={handleGoHome}>
                 <Ionicons name="home-outline" size={20} color="#6B7280" />
@@ -324,7 +434,7 @@ export default function MintStatusScreen() {
           {/* Help Support Link */}
           <TouchableOpacity
             style={styles.helpLink}
-            onPress={() => router.push("/settings")}
+            onPress={() => router.push("/(tabs)/profile")}
           >
             <Text style={styles.helpLinkText}>Need help with this request?</Text>
             <Text style={styles.supportText}>Contact Support</Text>
@@ -416,8 +526,6 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: 140,
-    borderBottomLeftRadius: 30,
-    borderBottomRightRadius: 30,
   },
   headerContent: {
     paddingHorizontal: 20,
@@ -532,6 +640,22 @@ const styles = StyleSheet.create({
     backgroundColor: "#F3F4F6",
     marginVertical: 12,
   },
+  proofHint: {
+    fontSize: 13,
+    color: "#6B7280",
+    marginBottom: 12,
+  },
+  proofImage: {
+    width: "100%",
+    height: 220,
+    borderRadius: 12,
+    backgroundColor: "#E5E7EB",
+  },
+  proofTapHint: {
+    marginTop: 8,
+    fontSize: 12,
+    color: "#6B7280",
+  },
   messageCard: {
     flexDirection: "row",
     padding: 16,
@@ -613,6 +737,10 @@ const styles = StyleSheet.create({
     gap: 12,
     marginTop: 10,
   },
+  footerRow: {
+    flexDirection: "row",
+    gap: 12,
+  },
   primaryBtn: {
     backgroundColor: "#00B14F",
     flexDirection: "row",
@@ -647,6 +775,22 @@ const styles = StyleSheet.create({
     color: "#374151",
     fontSize: 16,
     fontWeight: "700",
+  },
+  dismissBtn: {
+    backgroundColor: "#EFF6FF",
+    flexDirection: "row",
+    height: 56,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    flex: 1,
+    borderWidth: 1,
+    borderColor: "#DBEAFE",
+  },
+  dismissBtnText: {
+    color: "#1E40AF",
+    fontSize: 16,
+    fontWeight: "600",
   },
   helpLink: {
     alignItems: "center",

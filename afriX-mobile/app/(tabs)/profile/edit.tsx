@@ -79,9 +79,14 @@ export default function EditProfileScreen() {
 
             <KeyboardAvoidingView
                 behavior={Platform.OS === "ios" ? "padding" : "height"}
-                style={{ flex: 1 }}
+                style={styles.keyboardView}
+                keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
             >
-                <ScrollView contentContainerStyle={styles.content}>
+                <ScrollView
+                    contentContainerStyle={styles.content}
+                    keyboardShouldPersistTaps="handled"
+                    showsVerticalScrollIndicator={false}
+                >
                     <Surface style={styles.card}>
                         <View style={styles.formGroup}>
                             <Text style={styles.label}>Full Name</Text>
@@ -172,9 +177,13 @@ const styles = StyleSheet.create({
         fontWeight: "700",
         color: "#FFFFFF",
     },
+    keyboardView: {
+        flex: 1,
+    },
     content: {
         padding: 20,
         paddingTop: 40,
+        paddingBottom: 24,
     },
     card: {
         backgroundColor: "#FFFFFF",
@@ -225,10 +234,10 @@ const styles = StyleSheet.create({
     },
     footer: {
         padding: 20,
-        paddingBottom: Platform.OS === "ios" ? 110 : 90,
+        paddingBottom: 24,
         backgroundColor: "#FFFFFF",
         borderTopWidth: 1,
-        borderTopColor: "#F3F4F6",
+        borderTopColor: "#E5E7EB",
     },
     saveButton: {
         backgroundColor: "#00B14F",

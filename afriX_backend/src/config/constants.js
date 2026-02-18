@@ -200,6 +200,7 @@ const BURN_REQUEST_STATUS = {
   REJECTED: "rejected",
   EXPIRED: "expired",
   CANCELLED: "cancelled",
+  DISPUTED: "disputed",
 };
 
 // ============================================
@@ -259,6 +260,14 @@ const PLATFORM_FEES = {
 };
 
 // ============================================
+// PLATFORM CONFIGURATION
+// ============================================
+const PLATFORM_CONFIG = {
+  SYSTEM_USER_EMAIL: process.env.PLATFORM_USER_EMAIL || "platform@afritoken.com",
+  FEE_COLLECTION_ENABLED: process.env.FEE_COLLECTION_ENABLED !== "false", // Default: true
+};
+
+// ============================================
 // AGENT CONFIGURATION
 // ============================================
 const AGENT_CONFIG = {
@@ -276,8 +285,8 @@ const AGENT_CONFIG = {
 // ESCROW CONFIGURATION
 // ============================================
 const ESCROW_CONFIG = {
-  TIMEOUT_HOURS: parseInt(process.env.ESCROW_TIMEOUT_HOURS) || 2,
-  AUTO_DISPUTE_HOURS: parseInt(process.env.AUTO_DISPUTE_DELAY_HOURS) || 2,
+  TIMEOUT_HOURS: parseInt(process.env.ESCROW_TIMEOUT_HOURS) || 1, // Reduced to 1h default
+  AUTO_DISPUTE_HOURS: parseInt(process.env.AUTO_DISPUTE_DELAY_HOURS) || 1,
   MAX_ESCROW_AMOUNT_USD: 5000,
 };
 
@@ -345,13 +354,70 @@ const EMAIL_TEMPLATES = {
 };
 
 // ============================================
-// NOTIFICATION TYPES
+// NOTIFICATION CHANNELS (how we send)
 // ============================================
-const NOTIFICATION_TYPES = {
+const NOTIFICATION_CHANNELS = {
   EMAIL: "email",
   SMS: "sms",
   PUSH: "push",
   IN_APP: "in_app",
+};
+
+// Legacy alias
+const NOTIFICATION_TYPES = NOTIFICATION_CHANNELS;
+
+// ============================================
+// NOTIFICATION EVENT TYPES (inbox + preferences)
+// ============================================
+const NOTIFICATION_EVENT_TYPES = {
+  // User-facing
+  TOKENS_MINTED: "TOKENS_MINTED",
+  MINT_REJECTED: "MINT_REJECTED",
+  BURN_REJECTED: "BURN_REJECTED",
+  FIAT_SENT: "FIAT_SENT",
+  BURN_CONFIRMED: "BURN_CONFIRMED",
+  // Agent-facing
+  NEW_MINT_REQUEST: "NEW_MINT_REQUEST",
+  NEW_BURN_REQUEST: "NEW_BURN_REQUEST",
+  DEPOSIT_CONFIRMED: "DEPOSIT_CONFIRMED",
+  WITHDRAWAL_REQUESTED: "WITHDRAWAL_REQUESTED",
+  WITHDRAWAL_APPROVED: "WITHDRAWAL_APPROVED",
+  WITHDRAWAL_REJECTED: "WITHDRAWAL_REJECTED",
+  WITHDRAWAL_PAID: "WITHDRAWAL_PAID",
+  NEW_REVIEW: "NEW_REVIEW",
+  // Security (future)
+  SECURITY_LOGIN: "SECURITY_LOGIN",
+  SECURITY_PASSWORD: "SECURITY_PASSWORD",
+  // Marketing (future)
+  MARKETING_PROMO: "MARKETING_PROMO",
+};
+
+// Event type -> preference category (for granular push/email flags)
+const NOTIFICATION_CATEGORY = {
+  transactions: [
+    NOTIFICATION_EVENT_TYPES.TOKENS_MINTED,
+    NOTIFICATION_EVENT_TYPES.MINT_REJECTED,
+    NOTIFICATION_EVENT_TYPES.BURN_REJECTED,
+    NOTIFICATION_EVENT_TYPES.BURN_CONFIRMED,
+  ],
+  requests: [
+    NOTIFICATION_EVENT_TYPES.NEW_MINT_REQUEST,
+    NOTIFICATION_EVENT_TYPES.NEW_BURN_REQUEST,
+    NOTIFICATION_EVENT_TYPES.FIAT_SENT,
+  ],
+  agent_updates: [
+    NOTIFICATION_EVENT_TYPES.DEPOSIT_CONFIRMED,
+    NOTIFICATION_EVENT_TYPES.WITHDRAWAL_REQUESTED,
+    NOTIFICATION_EVENT_TYPES.WITHDRAWAL_APPROVED,
+    NOTIFICATION_EVENT_TYPES.WITHDRAWAL_REJECTED,
+    NOTIFICATION_EVENT_TYPES.WITHDRAWAL_PAID,
+    NOTIFICATION_EVENT_TYPES.NEW_REVIEW,
+  ],
+  security: [
+    NOTIFICATION_EVENT_TYPES.SECURITY_LOGIN,
+    NOTIFICATION_EVENT_TYPES.SECURITY_PASSWORD,
+  ],
+  marketing: [NOTIFICATION_EVENT_TYPES.MARKETING_PROMO],
 };
 
 // ============================================
@@ -450,12 +516,13 @@ const NIGERIAN_PROVIDERS = [
   "Moniepoint",
 ];
 
-// XOF payment providers
+// XOF payment providers (mobile money dominant in XOF countries)
 const XOF_PROVIDERS = [
   "Orange Money",
   "MTN Mobile Money",
   "Moov Money",
   "Wave",
+  "Kiren Money",
 ];
 
 // ============================================
@@ -587,13 +654,17 @@ module.exports = {
   VERIFICATION_LEVELS,
   TRANSACTION_LIMITS,
   PLATFORM_FEES,
+  PLATFORM_CONFIG,
   AGENT_CONFIG,
   ESCROW_CONFIG,
   ESCROW_STATUS,
   EDUCATION_CONFIG,
   CACHE_KEYS,
   EMAIL_TEMPLATES,
+  NOTIFICATION_CHANNELS,
   NOTIFICATION_TYPES,
+  NOTIFICATION_EVENT_TYPES,
+  NOTIFICATION_CATEGORY,
   COUNTRIES,
   COUNTRY_DETAILS,
   CURRENCIES,

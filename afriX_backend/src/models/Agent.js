@@ -29,6 +29,31 @@ Agent.init(
       allowNull: false,
     },
 
+    city: {
+      type: DataTypes.STRING(100),
+      allowNull: true,
+      comment: "Agent city for user-facing list",
+    },
+
+    is_online: {
+      type: DataTypes.BOOLEAN,
+      allowNull: true,
+      defaultValue: false,
+      comment: "Whether agent is currently available",
+    },
+
+    max_transaction_limit: {
+      type: DataTypes.DECIMAL(15, 2),
+      allowNull: true,
+      comment: "Max amount per single transaction",
+    },
+
+    daily_transaction_limit: {
+      type: DataTypes.DECIMAL(15, 2),
+      allowNull: true,
+      comment: "Max total amount per day",
+    },
+
     currency: {
       type: DataTypes.ENUM(...Object.values(CURRENCIES)),
       allowNull: false,
@@ -139,6 +164,18 @@ Agent.init(
     account_name: {
       type: DataTypes.STRING(100),
       allowNull: true,
+    },
+
+    // XOF: mobile money (Orange Money, Wave, Kiren Money, etc.)
+    mobile_money_provider: {
+      type: DataTypes.STRING(80),
+      allowNull: true,
+      comment: "e.g. Orange Money, Wave, Kiren Money",
+    },
+    mobile_money_number: {
+      type: DataTypes.STRING(30),
+      allowNull: true,
+      comment: "Phone number for mobile money",
     },
   },
   {

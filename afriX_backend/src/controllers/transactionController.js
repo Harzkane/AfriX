@@ -1,8 +1,9 @@
 // src/controllers/transactionController.js
-const { Transaction, User, Wallet, Merchant } = require("../models");
+const { Transaction, User, Wallet, Merchant, Agent } = require("../models");
 const {
   TRANSACTION_TYPES,
   TRANSACTION_STATUS,
+  COUNTRY_DETAILS,
 } = require("../config/constants");
 const { ApiError } = require("../utils/errors");
 const { generateTransactionReference } = require("../utils/helpers");
@@ -77,6 +78,7 @@ const transactionController = {
           },
           {
             model: Merchant,
+            as: "merchant",
             attributes: ["id", "business_name"],
             required: false,
           },
@@ -157,14 +159,55 @@ const transactionController = {
       const result = await Transaction.findAndCountAll({
         where,
         order: [["created_at", "DESC"]],
+        include: [
+          {
+            model: User,
+            as: "fromUser",
+            attributes: ["id", "full_name", "email", "country_code"],
+          },
+          {
+            model: Agent,
+            as: "agent",
+            attributes: ["id", "country", "city", "rating"],
+            required: false,
+            include: [
+              {
+                model: User,
+                as: "user",
+                attributes: ["full_name"],
+              },
+            ],
+          },
+          {
+            model: Merchant,
+            as: "merchant",
+            attributes: ["id", "business_name", "display_name", "country", "city"],
+            required: false,
+          },
+        ],
         limit: parseInt(limit),
         offset,
+      });
+
+      // Map country codes to names for easier frontend display
+      const transactions = result.rows.map(tx => {
+        const plain = tx.toJSON();
+        if (plain.fromUser && plain.fromUser.country_code) {
+          plain.fromUser.country_name = COUNTRY_DETAILS[plain.fromUser.country_code]?.name || plain.fromUser.country_code;
+        }
+        if (plain.agent && plain.agent.country) {
+          plain.agent.country_name = COUNTRY_DETAILS[plain.agent.country]?.name || plain.agent.country;
+        }
+        if (plain.merchant && plain.merchant.country) {
+          plain.merchant.country_name = COUNTRY_DETAILS[plain.merchant.country]?.name || plain.merchant.country;
+        }
+        return plain;
       });
 
       res.json({
         success: true,
         data: {
-          transactions: result.rows,
+          transactions,
           pagination: {
             total: result.count,
             page: parseInt(page),

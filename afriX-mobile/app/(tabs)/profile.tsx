@@ -10,7 +10,8 @@ import {
   Image,
   Platform,
 } from "react-native";
-import { useAuthStore } from "@/stores";
+import { useFocusEffect } from "expo-router";
+import { useAuthStore, useNotificationStore } from "@/stores";
 import { useAgentStore } from "@/stores/slices/agentSlice";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -21,6 +22,7 @@ import { formatDate } from "@/utils/format";
 export default function ProfileScreen() {
   const { user, logout } = useAuthStore();
   const { agentStatus, fetchAgentStats } = useAgentStore();
+  const { unreadCount, fetchUnreadCount } = useNotificationStore();
   const router = useRouter();
 
   useEffect(() => {
@@ -28,6 +30,12 @@ export default function ProfileScreen() {
       fetchAgentStats();
     }
   }, [user]);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      if (user) fetchUnreadCount();
+    }, [user, fetchUnreadCount])
+  );
 
   const handleLogout = async () => {
     await logout();
@@ -72,6 +80,7 @@ export default function ProfileScreen() {
     color = "#111827",
     bgColor = "#F9FAFB",
     showChevron = true,
+    badge,
   }: any) => (
     <TouchableOpacity
       style={styles.actionItem}
@@ -81,7 +90,14 @@ export default function ProfileScreen() {
       <View style={[styles.actionIconBox, { backgroundColor: bgColor }]}>
         <Ionicons name={icon} size={20} color={color} />
       </View>
-      <Text style={[styles.actionLabel, { color }]}>{label}</Text>
+      <View style={styles.actionLabelRow}>
+        <Text style={[styles.actionLabel, { color }]}>{label}</Text>
+        {badge != null && badge > 0 && (
+          <View style={styles.badge}>
+            <Text style={styles.badgeText}>{badge > 99 ? "99+" : badge}</Text>
+          </View>
+        )}
+      </View>
       {showChevron && (
         <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
       )}
@@ -209,7 +225,14 @@ export default function ProfileScreen() {
               <View style={styles.divider} />
               <ActionItem
                 icon="notifications-outline"
-                label="Notifications"
+                label="Notification center"
+                onPress={() => router.push("/settings/notification-inbox")}
+                badge={unreadCount}
+              />
+              <View style={styles.divider} />
+              <ActionItem
+                icon="options-outline"
+                label="Notification settings"
                 onPress={() => router.push("/settings/notifications")}
               />
               <View style={styles.divider} />
@@ -227,7 +250,7 @@ export default function ProfileScreen() {
               <ActionItem
                 icon="help-circle-outline"
                 label="Help & Support"
-                onPress={() => { }}
+                onPress={() => router.push("/help-support")}
               />
               <View style={styles.divider} />
               <ActionItem
@@ -278,8 +301,8 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: 220,
-    borderBottomLeftRadius: 30,
-    borderBottomRightRadius: 30,
+    borderBottomLeftRadius: 5,
+    borderBottomRightRadius: 5,
   },
   headerContent: {
     paddingHorizontal: 20,
@@ -432,11 +455,29 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginRight: 14,
   },
-  actionLabel: {
+  actionLabelRow: {
     flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  actionLabel: {
     fontSize: 16,
     fontWeight: "600",
     color: "#374151",
+  },
+  badge: {
+    backgroundColor: "#DC2626",
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 12,
+    minWidth: 22,
+    alignItems: "center",
+  },
+  badgeText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#FFFFFF",
   },
   divider: {
     height: 1,

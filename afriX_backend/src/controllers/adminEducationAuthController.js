@@ -144,6 +144,95 @@ const adminEducationAuthController = {
   },
 
   /**
+   * List users with education summary (one row per user)
+   * GET /api/v1/admin/education/users
+   * Query: { status?: "all" | "completed" | "in_progress", limit?, offset? }
+   */
+  listUsersWithEducation: async (req, res) => {
+    try {
+      const { status = "all", limit = 50, offset = 0 } = req.query;
+      const totalModules = Object.keys(EDUCATION_MODULES).length;
+      const modulesForMint = EDUCATION_CONFIG.MODULES_REQUIRED_FOR_MINT.length;
+      const modulesForBurn = EDUCATION_CONFIG.MODULES_REQUIRED_FOR_BURN.length;
+
+      const statusFilter =
+        status === "completed"
+          ? "HAVING SUM(CASE WHEN e.completed THEN 1 ELSE 0 END) = :totalModules"
+          : status === "in_progress"
+            ? "HAVING SUM(CASE WHEN e.completed THEN 1 ELSE 0 END) < :totalModules AND COUNT(e.id) > 0"
+            : "HAVING COUNT(e.id) > 0";
+
+      const rows = await sequelize.query(
+        `
+        SELECT
+          u.id,
+          u.full_name,
+          u.email,
+          COALESCE(SUM(CASE WHEN e.completed THEN 1 ELSE 0 END), 0)::int AS completed_modules,
+          :totalModules::int AS total_modules,
+          ROUND((COALESCE(SUM(CASE WHEN e.completed THEN 1 ELSE 0 END), 0)::numeric / :totalModules) * 100, 2)::text AS completion_percentage
+        FROM users u
+        INNER JOIN education e ON e.user_id = u.id
+        GROUP BY u.id, u.full_name, u.email
+        ${statusFilter}
+        ORDER BY completed_modules DESC, u.full_name ASC
+        LIMIT :limit OFFSET :offset
+      `,
+        {
+          replacements: {
+            totalModules,
+            limit: parseInt(limit),
+            offset: parseInt(offset),
+          },
+          type: sequelize.QueryTypes.SELECT,
+        }
+      );
+
+      const countRows = await sequelize.query(
+        `
+        SELECT COUNT(*) AS total FROM (
+          SELECT u.id
+          FROM users u
+          INNER JOIN education e ON e.user_id = u.id
+          GROUP BY u.id
+          ${statusFilter}
+        ) sub
+      `,
+        {
+          replacements: { totalModules },
+          type: sequelize.QueryTypes.SELECT,
+        }
+      );
+
+      const total = parseInt(countRows?.[0]?.total ?? 0, 10);
+      const data = (Array.isArray(rows) ? rows : []).map((row) => ({
+        user_id: row.id,
+        full_name: row.full_name,
+        email: row.email,
+        completed_modules: parseInt(row.completed_modules, 10),
+        total_modules: totalModules,
+        completion_percentage: row.completion_percentage,
+        can_mint: parseInt(row.completed_modules, 10) >= modulesForMint,
+        can_burn: parseInt(row.completed_modules, 10) >= modulesForBurn,
+      }));
+
+      res.status(200).json({
+        success: true,
+        data,
+        pagination: {
+          total,
+          limit: parseInt(limit),
+          offset: parseInt(offset),
+          has_more: parseInt(offset) + data.length < total,
+        },
+      });
+    } catch (error) {
+      console.error("List users with education error:", error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  },
+
+  /**
    * Get user's education progress
    * GET /api/v1/admin/education/users/:user_id/progress
    */
@@ -498,6 +587,24 @@ const adminEducationAuthController = {
           "email_verified",
           "last_login_at",
           "created_at",
+          "last_unlocked_at",
+          "last_unlocked_by_id",
+          "last_reset_attempts_at",
+          "last_reset_attempts_by_id",
+        ],
+        include: [
+          {
+            model: User,
+            as: "lastUnlockedBy",
+            attributes: ["id", "full_name"],
+            required: false,
+          },
+          {
+            model: User,
+            as: "lastResetAttemptsBy",
+            attributes: ["id", "full_name"],
+            required: false,
+          },
         ],
         limit: parseInt(limit),
         offset: parseInt(offset),
@@ -543,9 +650,11 @@ const adminEducationAuthController = {
         });
       }
 
-      // Reset login attempts and unlock
+      // Reset login attempts and unlock; record audit
       user.login_attempts = 0;
       user.locked_until = null;
+      user.last_unlocked_at = new Date();
+      user.last_unlocked_by_id = req.user.id;
       await user.save();
 
       // Clear cache
@@ -586,6 +695,8 @@ const adminEducationAuthController = {
 
       user.login_attempts = 0;
       user.locked_until = null;
+      user.last_reset_attempts_at = new Date();
+      user.last_reset_attempts_by_id = req.user.id;
       await user.save();
 
       await deleteCache(`user:${user_id}`);

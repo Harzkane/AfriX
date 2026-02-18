@@ -52,9 +52,9 @@ export default function SendTokensScreen() {
 
     return (
         <KeyboardAvoidingView
-            style={{ flex: 1 }}
-            behavior={Platform.OS === "ios" ? "padding" : undefined}
-            keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
+            behavior={Platform.OS === "ios" ? "padding" : "height"}
+            style={styles.keyboardView}
+            keyboardVerticalOffset={Platform.OS === "ios" ? -8 : 12}
         >
             <View style={styles.container}>
                 <View style={styles.headerWrapper}>
@@ -221,6 +221,7 @@ export default function SendTokensScreen() {
                                 }}
                                 keyboardType="email-address"
                                 placeholder="user@example.com"
+                                placeholderTextColor="#9CA3AF"
                                 autoCapitalize="none"
                                 autoCorrect={false}
                                 style={styles.input}
@@ -263,32 +264,34 @@ export default function SendTokensScreen() {
                         </Text>
                     </View>
 
-                    {/* Action Buttons */}
-                    <View style={styles.buttonContainer}>
-                        <TouchableOpacity
-                            style={styles.cancelBtn}
-                            onPress={handleCancel}
-                            activeOpacity={0.7}
-                        >
-                            <Text style={styles.cancelBtnText}>Cancel</Text>
-                        </TouchableOpacity>
-
-                        <TouchableOpacity
-                            style={[
-                                styles.continueBtn,
-                                (!email.trim() || !!emailError) && styles.continueBtnDisabled,
-                            ]}
-                            onPress={handleContinue}
-                            disabled={!email.trim() || !!emailError}
-                            activeOpacity={0.8}
-                        >
-                            <Text style={styles.continueBtnText}>Continue</Text>
-                            <Ionicons name="arrow-forward" size={20} color="#FFFFFF" />
-                        </TouchableOpacity>
-                    </View>
-
-                    <View style={styles.bottomSpacer} />
                 </ScrollView>
+
+                <SafeAreaView edges={["bottom"]} style={styles.footerWrapper}>
+                    <View style={styles.footer}>
+                        <View style={styles.buttonContainer}>
+                            <TouchableOpacity
+                                style={styles.cancelBtn}
+                                onPress={handleCancel}
+                                activeOpacity={0.7}
+                            >
+                                <Text style={styles.cancelBtnText}>Cancel</Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                style={[
+                                    styles.continueBtn,
+                                    (!email.trim() || !!emailError) && styles.continueBtnDisabled,
+                                ]}
+                                onPress={handleContinue}
+                                disabled={!email.trim() || !!emailError}
+                                activeOpacity={0.8}
+                            >
+                                <Text style={styles.continueBtnText}>Continue</Text>
+                                <Ionicons name="arrow-forward" size={20} color="#FFFFFF" />
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </SafeAreaView>
             </View>
         </KeyboardAvoidingView>
     );
@@ -299,6 +302,9 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: "#F3F4F6",
     },
+    keyboardView: {
+        flex: 1,
+    },
     headerWrapper: {
         // marginBottom: 20,
     },
@@ -308,8 +314,6 @@ const styles = StyleSheet.create({
         left: 0,
         right: 0,
         height: 120,
-        // borderBottomLeftRadius: 30,
-        // borderBottomRightRadius: 30,
     },
     headerContent: {
         paddingHorizontal: 16,
@@ -337,6 +341,7 @@ const styles = StyleSheet.create({
     content: {
         paddingHorizontal: 20,
         paddingTop: 20,
+        paddingBottom: 24,
     },
     subtitle: {
         fontSize: 14,
@@ -436,6 +441,7 @@ const styles = StyleSheet.create({
     input: {
         backgroundColor: "#FFFFFF",
         fontSize: 16,
+        color: "#111827",
     },
     inputOutline: {
         borderRadius: 12,
@@ -444,6 +450,7 @@ const styles = StyleSheet.create({
     },
     inputContent: {
         paddingLeft: 40,
+        color: "#111827",
     },
     errorText: {
         fontSize: 12,
@@ -508,10 +515,19 @@ const styles = StyleSheet.create({
         color: "#6B7280",
         lineHeight: 18,
     },
+    footerWrapper: {
+        backgroundColor: "#F3F4F6",
+        borderTopWidth: 1,
+        borderTopColor: "#E5E7EB",
+    },
+    footer: {
+        paddingHorizontal: 20,
+        paddingTop: 12,
+        paddingBottom: 16,
+    },
     buttonContainer: {
         flexDirection: "row",
         gap: 12,
-        marginBottom: 12,
     },
     cancelBtn: {
         flex: 1,
@@ -544,8 +560,5 @@ const styles = StyleSheet.create({
         fontSize: 16,
         fontWeight: "600",
         color: "#FFFFFF",
-    },
-    bottomSpacer: {
-        height: 40,
     },
 });

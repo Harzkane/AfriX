@@ -1,8 +1,22 @@
 'use strict';
 
+/** Return true if migration step can be skipped (idempotent). */
+function canSkip(err) {
+  const msg = (err && (err.message || err.original?.message || '')) || '';
+  const code = err && (err.parent?.code || err.original?.code);
+  return (
+    code === '42P07' || /* relation already exists */
+    code === '42703' || /* column does not exist (table has different schema) */
+    msg.includes('already exists') ||
+    msg.includes('duplicate') ||
+    msg.includes('does not exist')
+  );
+}
+
 module.exports = {
   up: async (queryInterface, Sequelize) => {
-    await queryInterface.createTable('agents', {
+    try {
+      await queryInterface.createTable('agents', {
       id: {
         type: Sequelize.UUID,
         defaultValue: Sequelize.UUIDV4,
@@ -116,12 +130,24 @@ module.exports = {
         defaultValue: Sequelize.fn('NOW')
       }
     });
+    } catch (e) {
+      if (!canSkip(e)) throw e;
+    }
 
-    // Add indexes
-    await queryInterface.addIndex('agents', ['user_id'], { unique: true });
-    await queryInterface.addIndex('agents', ['verification_status']);
-    await queryInterface.addIndex('agents', ['country', 'city']);
-    await queryInterface.addIndex('agents', ['tier']);
+    // Add indexes (idempotent: skip if index or column already exists / missing)
+    const indexes = [
+      { columns: ['user_id'], options: { unique: true } },
+      { columns: ['verification_status'] },
+      { columns: ['country', 'city'] },
+      { columns: ['tier'] },
+    ];
+    for (const { columns, options = {} } of indexes) {
+      try {
+        await queryInterface.addIndex('agents', columns, options);
+      } catch (e) {
+        if (!canSkip(e)) throw e;
+      }
+    }
   },
 
   down: async (queryInterface, Sequelize) => {

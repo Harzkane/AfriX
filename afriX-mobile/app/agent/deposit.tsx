@@ -56,9 +56,11 @@ export default function DepositScreen() {
             Alert.alert("Success", "Deposit submitted for verification!");
             router.back();
         } catch (error: any) {
-            // Extract the actual error message from the response
-            const errorMessage = error.response?.data?.message || error.message || "Failed to verify deposit";
-            Alert.alert("Verification Failed", errorMessage);
+            const raw = error.response?.data?.message || error.message || "";
+            const errorMessage = raw.includes("already been used")
+                ? "This deposit was already applied. Each transaction can only be used once."
+                : raw || "Deposit could not be verified. Please try again.";
+            Alert.alert("Deposit failed", errorMessage);
         }
     };
 

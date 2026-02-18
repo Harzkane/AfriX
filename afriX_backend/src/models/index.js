@@ -16,6 +16,8 @@ const AgentReview = require("./AgentReview");
 const AgentKyc = require("./AgentKyc");
 const MerchantKyc = require("./MerchantKyc");
 const Education = require("./Education");
+const Notification = require("./Notification");
+const UserNotificationSettings = require("./UserNotificationSettings");
 
 // ========== Associations ==========
 
@@ -26,6 +28,10 @@ User.hasMany(Wallet, {
   onDelete: "CASCADE",
 });
 Wallet.belongsTo(User, { foreignKey: "user_id", as: "user" });
+
+//  User (security audit) -> Admin who unlocked / reset
+User.belongsTo(User, { foreignKey: "last_unlocked_by_id", as: "lastUnlockedBy" });
+User.belongsTo(User, { foreignKey: "last_reset_attempts_by_id", as: "lastResetAttemptsBy" });
 
 //  User <-> Merchant (one-to-one)
 User.hasOne(Merchant, {
@@ -200,6 +206,14 @@ Education.belongsTo(User, {
   as: "user",
 });
 
+// User <-> Notification (inbox)
+User.hasMany(Notification, { foreignKey: "user_id", as: "notifications", onDelete: "CASCADE" });
+Notification.belongsTo(User, { foreignKey: "user_id", as: "user" });
+
+// User <-> UserNotificationSettings (one-to-one)
+User.hasOne(UserNotificationSettings, { foreignKey: "user_id", as: "notificationSettings", onDelete: "CASCADE" });
+UserNotificationSettings.belongsTo(User, { foreignKey: "user_id", as: "user" });
+
 // ========== Export ==========
 module.exports = {
   sequelize,
@@ -216,5 +230,7 @@ module.exports = {
   AgentReview,
   AgentKyc,
   MerchantKyc,
-  Education
+  Education,
+  Notification,
+  UserNotificationSettings,
 };

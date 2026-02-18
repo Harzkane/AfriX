@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
     View,
     Text,
@@ -6,6 +6,7 @@ import {
     TouchableOpacity,
     Switch,
     ScrollView,
+    ActivityIndicator,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -14,26 +15,60 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useAuthStore } from "@/stores";
 import apiClient from "@/services/apiClient";
 
+type NotificationSettingsData = {
+    push: {
+        enabled: boolean;
+        transactions: boolean;
+        requests: boolean;
+        agentUpdates: boolean;
+        security: boolean;
+        marketing: boolean;
+    };
+    email: {
+        enabled: boolean;
+        transactionReceipts: boolean;
+        agentUpdates: boolean;
+        security: boolean;
+        marketing: boolean;
+    };
+};
+
 export default function NotificationScreen() {
     const router = useRouter();
     const { user, setUser } = useAuthStore();
     const [updating, setUpdating] = useState(false);
+    const [loadingSettings, setLoadingSettings] = useState(true);
 
-    // Initialize state from user profile
-    const [pushEnabled, setPushEnabled] = useState(
-        user?.push_notifications_enabled ?? true
-    );
-    const [emailEnabled, setEmailEnabled] = useState(
-        user?.email_notifications_enabled ?? true
-    );
-    const [smsEnabled, setSmsEnabled] = useState(
-        user?.sms_notifications_enabled ?? false
-    );
+    const [pushEnabled, setPushEnabled] = useState(user?.push_notifications_enabled ?? true);
+    const [emailEnabled, setEmailEnabled] = useState(user?.email_notifications_enabled ?? true);
+    const [smsEnabled, setSmsEnabled] = useState(user?.sms_notifications_enabled ?? false);
 
-    // Placeholder states for specific alert types (not yet in backend)
     const [transactions, setTransactions] = useState(true);
     const [security, setSecurity] = useState(true);
+    const [agentUpdates, setAgentUpdates] = useState(true);
     const [marketing, setMarketing] = useState(false);
+
+    useEffect(() => {
+        let cancelled = false;
+        (async () => {
+            try {
+                const res = await apiClient.get<{ success: boolean; data: NotificationSettingsData }>("/notifications/settings");
+                if (cancelled || !res.data?.data) return;
+                const d = res.data.data;
+                setPushEnabled(d.push?.enabled ?? true);
+                setEmailEnabled(d.email?.enabled ?? true);
+                setTransactions(d.push?.transactions ?? true);
+                setSecurity(d.push?.security ?? true);
+                setAgentUpdates(d.push?.agentUpdates ?? true);
+                setMarketing(d.push?.marketing ?? false);
+            } catch (e) {
+                console.error("Fetch notification settings:", e);
+            } finally {
+                if (!cancelled) setLoadingSettings(false);
+            }
+        })();
+        return () => { cancelled = true; };
+    }, []);
 
     const handleToggle = async (
         type: "push" | "email" | "sms",
@@ -90,16 +125,59 @@ export default function NotificationScreen() {
         }
     };
 
+    const handleAlertTypeToggle = async (key: "transactions" | "security" | "agentUpdates" | "marketing", value: boolean) => {
+        const setters: Record<string, (v: boolean) => void> = {
+            transactions: setTransactions,
+            security: setSecurity,
+            agentUpdates: setAgentUpdates,
+            marketing: setMarketing,
+        };
+        setters[key](value);
+        try {
+            setUpdating(true);
+            await apiClient.put("/notifications/settings", {
+                push: {
+                    enabled: pushEnabled,
+                    transactions: key === "transactions" ? value : transactions,
+                    requests: true,
+                    agentUpdates: key === "agentUpdates" ? value : agentUpdates,
+                    security: key === "security" ? value : security,
+                    marketing: key === "marketing" ? value : marketing,
+                },
+                email: {
+                    enabled: emailEnabled,
+                    transactionReceipts: key === "transactions" ? value : transactions,
+                    agentUpdates: key === "agentUpdates" ? value : agentUpdates,
+                    security: key === "security" ? value : security,
+                    marketing: key === "marketing" ? value : marketing,
+                },
+            });
+        } catch (e) {
+            console.error("Update notification settings:", e);
+            setters[key](!value);
+        } finally {
+            setUpdating(false);
+        }
+    };
+
     const SettingItem = ({
         icon,
         title,
         subtitle,
         value,
         onValueChange,
-    }: any) => (
-        <View style={styles.settingItem}>
+        disabled,
+    }: {
+        icon: string;
+        title: string;
+        subtitle?: string;
+        value: boolean;
+        onValueChange: (v: boolean) => void;
+        disabled?: boolean;
+    }) => (
+        <View style={[styles.settingItem, disabled && styles.settingItemDisabled]}>
             <View style={styles.settingIcon}>
-                <Ionicons name={icon} size={22} color="#4B5563" />
+                <Ionicons name={icon as any} size={22} color="#4B5563" />
             </View>
             <View style={styles.settingContent}>
                 <Text style={styles.settingTitle}>{title}</Text>
@@ -108,6 +186,7 @@ export default function NotificationScreen() {
             <Switch
                 value={value}
                 onValueChange={onValueChange}
+                disabled={disabled}
                 trackColor={{ false: "#E5E7EB", true: "#00B14F" }}
                 thumbColor={"#FFFFFF"}
             />
@@ -166,32 +245,49 @@ export default function NotificationScreen() {
                 </View>
 
                 <View style={styles.section}>
-                    <Text style={styles.sectionHeader}>Alert Types</Text>
-                    <View style={styles.card}>
-                        <SettingItem
-                            icon="wallet-outline"
-                            title="Transaction Updates"
-                            subtitle="Deposits, withdrawals, and transfers"
-                            value={true}
-                            onValueChange={() => { }}
-                        />
-                        <View style={styles.divider} />
-                        <SettingItem
-                            icon="shield-checkmark-outline"
-                            title="Security Alerts"
-                            subtitle="Login attempts and password changes"
-                            value={true}
-                            onValueChange={() => { }}
-                        />
-                        <View style={styles.divider} />
-                        <SettingItem
-                            icon="megaphone-outline"
-                            title="Marketing & Promos"
-                            subtitle="News, updates, and special offers"
-                            value={false}
-                            onValueChange={() => { }}
-                        />
-                    </View>
+                    <Text style={styles.sectionHeader}>Alert types</Text>
+                    {loadingSettings ? (
+                        <View style={styles.card}>
+                            <View style={styles.loadingRow}>
+                                <ActivityIndicator size="small" color="#00B14F" />
+                                <Text style={styles.loadingText}>Loading…</Text>
+                            </View>
+                        </View>
+                    ) : (
+                        <View style={styles.card}>
+                            <SettingItem
+                                icon="wallet-outline"
+                                title="Transaction updates"
+                                subtitle="Mint, burn, and transfer notifications"
+                                value={transactions}
+                                onValueChange={(v) => handleAlertTypeToggle("transactions", v)}
+                            />
+                            <View style={styles.divider} />
+                            <SettingItem
+                                icon="shield-checkmark-outline"
+                                title="Security alerts"
+                                subtitle="Login and account changes"
+                                value={security}
+                                onValueChange={(v) => handleAlertTypeToggle("security", v)}
+                            />
+                            <View style={styles.divider} />
+                            <SettingItem
+                                icon="briefcase-outline"
+                                title="Agent updates"
+                                subtitle="Withdrawals, reviews, and agent activity"
+                                value={agentUpdates}
+                                onValueChange={(v) => handleAlertTypeToggle("agentUpdates", v)}
+                            />
+                            <View style={styles.divider} />
+                            <SettingItem
+                                icon="megaphone-outline"
+                                title="Marketing & promos"
+                                subtitle="News and special offers"
+                                value={marketing}
+                                onValueChange={(v) => handleAlertTypeToggle("marketing", v)}
+                            />
+                        </View>
+                    )}
                 </View>
             </ScrollView>
         </View>
@@ -212,8 +308,6 @@ const styles = StyleSheet.create({
         left: 0,
         right: 0,
         height: 120,
-        borderBottomLeftRadius: 30,
-        borderBottomRightRadius: 30,
     },
     headerContent: {
         paddingHorizontal: 20,
@@ -251,6 +345,26 @@ const styles = StyleSheet.create({
         marginBottom: 12,
         marginLeft: 4,
         textTransform: "uppercase",
+    },
+    comingSoon: {
+        fontSize: 12,
+        color: "#9CA3AF",
+        marginBottom: 8,
+        marginLeft: 4,
+    },
+    settingItemDisabled: {
+        opacity: 0.7,
+    },
+    loadingRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 24,
+        gap: 8,
+    },
+    loadingText: {
+        fontSize: 14,
+        color: "#6B7280",
     },
     card: {
         backgroundColor: "#FFFFFF",

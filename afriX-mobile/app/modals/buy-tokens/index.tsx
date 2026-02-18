@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   StyleSheet,
@@ -11,19 +11,30 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Text, TextInput } from "react-native-paper";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useWalletStore } from "@/stores";
+import { parseAmountInput, formatAmountForInput, formatAmount } from "@/utils/format";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 
 const PRESET_AMOUNTS = [5000, 10000, 20000, 50000];
 
 export default function BuyTokensScreen() {
-  const [tokenType, setTokenType] = useState<"NT" | "CT">("NT");
-  const [amount, setAmount] = useState("");
   const router = useRouter();
-  const params = useLocalSearchParams();
+  const params = useLocalSearchParams<{ amount?: string; tokenType?: string; agentId?: string; agentName?: string }>();
   const { getWalletByType } = useWalletStore();
 
-  // Check if agent is pre-selected from agent profile
+  const initialTokenType = (params.tokenType === "CT" ? "CT" : "NT") as "NT" | "CT";
+  const initialAmount = params.amount ? parseAmountInput(params.amount, initialTokenType) : "";
+  const [tokenType, setTokenType] = useState<"NT" | "CT">(initialTokenType);
+  const [amount, setAmount] = useState(initialAmount);
+
+  // When opening via "Try again", params bring amount/tokenType — keep form in sync
+  useEffect(() => {
+    if (params.amount != null && params.amount !== amount) setAmount(parseAmountInput(params.amount, tokenType));
+    if (params.tokenType === "CT" && tokenType !== "CT") setTokenType("CT");
+    if (params.tokenType === "NT" && tokenType !== "NT") setTokenType("NT");
+  }, [params.amount, params.tokenType]);
+
+  // Check if agent is pre-selected from agent profile (or Try again doesn't pass these)
   const preSelectedAgentId = params.agentId as string | undefined;
   const preSelectedAgentName = params.agentName as string | undefined;
 
@@ -57,9 +68,9 @@ export default function BuyTokensScreen() {
 
   return (
     <KeyboardAvoidingView
-      style={{ flex: 1 }}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-      keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      style={styles.keyboardView}
+      keyboardVerticalOffset={Platform.OS === "ios" ? -8 : 12}
     >
       <View style={styles.container}>
         <View style={styles.headerWrapper}>
@@ -192,14 +203,14 @@ export default function BuyTokensScreen() {
               />
               <TextInput
                 mode="outlined"
-                value={amount}
-                onChangeText={setAmount}
+                value={formatAmountForInput(amount, tokenType)}
+                onChangeText={(t) => setAmount(parseAmountInput(t, tokenType))}
                 keyboardType="numeric"
                 placeholder="0.00"
+                placeholderTextColor="#9CA3AF"
                 style={styles.input}
                 outlineStyle={styles.inputOutline}
                 contentStyle={styles.inputContent}
-                returnKeyType="done"
               />
             </View>
 
@@ -239,28 +250,30 @@ export default function BuyTokensScreen() {
             </Text>
             <Text style={styles.infoSubtext}>
               You&apos;ll pay approximately {tokenType === "NT" ? "₦" : "XOF "}
-              {amount ? parseFloat(amount).toLocaleString() : "0.00"} to the agent
+              {formatAmount(amount || "0", tokenType)} to the agent
             </Text>
           </View>
-
-          {/* Continue Button */}
-          <TouchableOpacity
-            style={[
-              styles.continueBtn,
-              (!amount || parseFloat(amount) <= 0) && styles.continueBtnDisabled,
-            ]}
-            onPress={handleContinue}
-            disabled={!amount || parseFloat(amount) <= 0}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.continueBtnText}>
-              Continue to Agent Selection
-            </Text>
-            <Ionicons name="arrow-forward" size={20} color="#FFFFFF" />
-          </TouchableOpacity>
-
-          <View style={styles.bottomSpacer} />
         </ScrollView>
+
+        {/* Sticky Continue Button - same pattern as Sell Tokens */}
+        <SafeAreaView edges={["bottom"]} style={styles.footerWrapper}>
+          <View style={styles.footer}>
+            <TouchableOpacity
+              style={[
+                styles.continueBtn,
+                (!amount || parseFloat(amount) <= 0) && styles.continueBtnDisabled,
+              ]}
+              onPress={handleContinue}
+              disabled={!amount || parseFloat(amount) <= 0}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.continueBtnText}>
+                Continue to Agent Selection
+              </Text>
+              <Ionicons name="arrow-forward" size={20} color="#FFFFFF" />
+            </TouchableOpacity>
+          </View>
+        </SafeAreaView>
       </View>
     </KeyboardAvoidingView>
   );
@@ -271,6 +284,9 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#F3F4F6",
   },
+  keyboardView: {
+    flex: 1,
+  },
   headerWrapper: {
     // marginBottom: 20,
   },
@@ -280,8 +296,6 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: 120,
-    // borderBottomLeftRadius: 30,
-    // borderBottomRightRadius: 30,
   },
   headerContent: {
     paddingHorizontal: 16,
@@ -309,6 +323,7 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: 20,
     paddingTop: 20,
+    paddingBottom: 24,
   },
   subtitle: {
     fontSize: 14,
@@ -414,8 +429,9 @@ const styles = StyleSheet.create({
   },
   input: {
     backgroundColor: "#FFFFFF",
-    fontSize: 18,
-    fontWeight: "600",
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#111827",
   },
   inputOutline: {
     borderRadius: 12,
@@ -424,6 +440,7 @@ const styles = StyleSheet.create({
   },
   inputContent: {
     paddingLeft: 40,
+    color: "#111827",
   },
   presets: {
     flexDirection: "row",
@@ -480,6 +497,16 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: "#6B7280",
   },
+  footerWrapper: {
+    backgroundColor: "#F3F4F6",
+    borderTopWidth: 1,
+    borderTopColor: "#E5E7EB",
+  },
+  footer: {
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 16,
+  },
   continueBtn: {
     backgroundColor: "#00B14F",
     flexDirection: "row",
@@ -488,7 +515,6 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingVertical: 16,
     borderRadius: 12,
-    marginBottom: 12,
   },
   continueBtnDisabled: {
     backgroundColor: "#E5E7EB",
@@ -497,8 +523,5 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
     color: "#FFFFFF",
-  },
-  bottomSpacer: {
-    height: 40,
   },
 });

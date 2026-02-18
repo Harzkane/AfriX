@@ -42,6 +42,7 @@ export interface MintRequestState {
     tokenType: string
   ) => Promise<MintRequest>;
   uploadProof: (requestId: string, imageUri: string) => Promise<void>;
+  cancelMintRequest: (requestId: string) => Promise<void>;
   checkStatus: (requestId: string) => Promise<void>;
   fetchCurrentRequest: () => Promise<void>;
   openDispute: (requestId: string, reason: string, details: string) => Promise<void>;

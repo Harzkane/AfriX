@@ -1,5 +1,5 @@
 // app/transactions/index.tsx
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
     View,
     Text,
@@ -7,6 +7,7 @@ import {
     ScrollView,
     RefreshControl,
     TouchableOpacity,
+    ActivityIndicator,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -14,6 +15,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import apiClient from "@/services/apiClient";
 import { API_ENDPOINTS } from "@/constants/api";
+import { useAuthStore } from "@/stores";
 import { formatDate } from "@/utils/format";
 
 interface Transaction {
@@ -22,12 +24,18 @@ interface Transaction {
     type: string;
     status: string;
     amount: string;
+    fee?: string;
     token_type: string;
     description: string;
     created_at: string;
+    from_user_id?: string;
+    to_user_id?: string;
     metadata?: {
         request_id?: string;
         bank_reference?: string;
+        received_amount?: number;
+        to_token?: string;
+        from_token?: string;
         [key: string]: any;
     };
     agent?: {
@@ -42,10 +50,29 @@ interface Transaction {
 
 export default function TransactionHistoryScreen() {
     const router = useRouter();
+    const { user } = useAuthStore();
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [pendingReviews, setPendingReviews] = useState<Set<string>>(new Set());
     const [loading, setLoading] = useState(true);
-    const [filter, setFilter] = useState<"all" | "mint" | "burn">("all");
+    const FILTERS = ["all", "mint", "burn", "swap", "transfer", "credit", "debit"] as const;
+    type FilterType = (typeof FILTERS)[number];
+    const [filter, setFilter] = useState<FilterType>("all");
+    const filterScrollRef = useRef<ScrollView>(null);
+    const tabLayoutX = useRef<number[]>([]);
+
+    const ESTIMATED_TAB_WIDTH = 84;
+    const FILTER_GAP = 12;
+    const handleFilterPress = (f: FilterType) => {
+        setFilter(f);
+        const index = FILTERS.indexOf(f);
+        if (index < 0) return;
+        const x = tabLayoutX.current[index] !== undefined
+            ? tabLayoutX.current[index] - 24
+            : index * (ESTIMATED_TAB_WIDTH + FILTER_GAP);
+        requestAnimationFrame(() => {
+            filterScrollRef.current?.scrollTo({ x: Math.max(0, x), animated: true });
+        });
+    };
 
     const fetchTransactions = async () => {
         try {
@@ -59,17 +86,20 @@ export default function TransactionHistoryScreen() {
             const { data: reviewData } = await apiClient.get("/transactions/pending-review");
             const pendingTx = reviewData.data.transactions || [];
 
-            console.log("📊 API_ENDPOINTS.REQUESTS.USER:", API_ENDPOINTS.REQUESTS.USER);
+            if (__DEV__) {
+                console.log("📊 API_ENDPOINTS.REQUESTS.USER:", API_ENDPOINTS.REQUESTS.USER);
+            }
             // Fetch user requests (pending mint/burn)
             const { data: requestData } = await apiClient.get(API_ENDPOINTS.REQUESTS.USER);
             const requests = requestData.data || [];
-            console.log("📊 Fetched Requests:", requests.length);
 
             // Filter requests to only show pending/active ones
             const activeRequests = requests.filter((r: any) =>
                 !["confirmed", "completed", "cancelled", "rejected", "expired"].includes(r.status.toLowerCase())
             );
-            console.log("📊 Active Requests:", activeRequests.length);
+            if (__DEV__) {
+                console.log("📊 Fetched Requests:", requests.length, "Active:", activeRequests.length);
+            }
 
             // Map requests to Transaction format
             const formattedRequests = activeRequests.map((req: any) => ({
@@ -90,6 +120,9 @@ export default function TransactionHistoryScreen() {
                 pendingMap.set(tx.id, tx);
             });
 
+            // Create a set of active request IDs to filter duplicates
+            const activeRequestIds = new Set(activeRequests.map((r: any) => r.id));
+
             // Merge agent data from pending reviews into all transactions
             const mergedTransactions = allTx.map((tx: Transaction) => {
                 const pendingTx = pendingMap.get(tx.id);
@@ -97,17 +130,23 @@ export default function TransactionHistoryScreen() {
                     return { ...tx, agent: pendingTx.agent };
                 }
                 return tx;
+            }).filter((tx: Transaction) => {
+                // If it's a transaction already shown as an active request, skip to avoid double entry.
+                // This applies even if status is 'completed' (during the transient finalization phase).
+                if (tx.metadata?.request_id && activeRequestIds.has(tx.metadata.request_id)) {
+                    return false;
+                }
+                return true;
             });
-            console.log("📊 Merged Transactions:", mergedTransactions.length);
-
             const pendingIds = new Set<string>(pendingTx.map((tx: Transaction) => tx.id));
 
             // Combine requests and transactions
             const allItems = [...formattedRequests, ...mergedTransactions].sort(
                 (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
             );
-            console.log("📊 All Items:", allItems.length);
-            allItems.forEach(item => console.log(`Item: ${item.type} - ${item.status}`));
+            if (__DEV__) {
+                console.log("📊 Merged:", mergedTransactions.length, "All Items:", allItems.length);
+            }
 
             setTransactions(allItems);
             setPendingReviews(pendingIds);
@@ -124,7 +163,7 @@ export default function TransactionHistoryScreen() {
 
     const filteredTransactions = transactions.filter((tx) => {
         if (filter === "all") return true;
-        return tx.type === filter;
+        return (tx.type || "").toLowerCase() === filter;
     });
 
     const getStatusColor = (status: string) => {
@@ -141,30 +180,66 @@ export default function TransactionHistoryScreen() {
     };
 
     const getTypeIcon = (type: string) => {
-        switch (type.toLowerCase()) {
+        switch ((type || "").toLowerCase()) {
             case "mint":
                 return "add-circle";
             case "burn":
                 return "remove-circle";
             case "transfer":
+            case "swap":
+            case "credit":
+            case "debit":
                 return "swap-horizontal";
             default:
                 return "cash";
         }
     };
 
+    const getTypeStyle = (type: string) => {
+        switch ((type || "").toLowerCase()) {
+            case "mint":
+                return { bg: "#F0FDF4", color: "#00B14F" };
+            case "burn":
+                return { bg: "#FEF3C7", color: "#F59E0B" };
+            case "swap":
+                return { bg: "#F5F3FF", color: "#7C3AED" };
+            case "transfer":
+            case "credit":
+                return { bg: "#EFF6FF", color: "#3B82F6" };
+            case "debit":
+                return { bg: "#FEF2F2", color: "#DC2626" };
+            default:
+                return { bg: "#F3F4F6", color: "#6B7280" };
+        }
+    };
+
+    const isCreditOrDebitType = (type: string) =>
+        ["transfer", "swap", "credit", "debit"].includes((type || "").toLowerCase());
+
+    const isDebitForUser = (tx: Transaction) =>
+        user?.id && tx.from_user_id === user.id;
+
+    const getAmountPrefix = (tx: Transaction) => {
+        if (tx.type === "burn") return "-";
+        if (tx.type === "mint") return "+";
+        if (isCreditOrDebitType(tx.type)) return isDebitForUser(tx) ? "-" : "+";
+        return "+";
+    };
+
+    const getCreditDebitLabel = (tx: Transaction) => {
+        if (!isCreditOrDebitType(tx.type)) return null;
+        return isDebitForUser(tx) ? "Debit" : "Credit";
+    };
+
 
     const handleTransactionPress = (tx: Transaction) => {
         if (tx.type === "mint") {
             if (tx.status.toLowerCase() === "pending") {
-                // Go to upload proof - tx.id is the request ID for pending requests
                 router.push({
                     pathname: "/modals/buy-tokens/upload-proof",
                     params: { requestId: tx.id },
                 });
             } else {
-                // For completed transactions, extract request_id from metadata
-                // Fall back to tx.id for backward compatibility
                 const requestId = tx.metadata?.request_id || tx.id;
                 router.push({
                     pathname: "/modals/buy-tokens/status",
@@ -172,11 +247,17 @@ export default function TransactionHistoryScreen() {
                 });
             }
         } else if (tx.type === "burn") {
-            // Extract request_id from metadata, fall back to tx.id
             const requestId = tx.metadata?.request_id || tx.id;
             router.push({
                 pathname: "/(tabs)/sell-tokens/status",
                 params: { requestId: requestId },
+            });
+        } else if (
+            ["swap", "transfer", "credit", "debit"].includes((tx.type || "").toLowerCase())
+        ) {
+            router.push({
+                pathname: "/(tabs)/transaction-details/[id]",
+                params: { id: tx.id, from: "activity" },
             });
         }
     };
@@ -203,25 +284,37 @@ export default function TransactionHistoryScreen() {
                 </SafeAreaView>
             </View>
 
-            {/* Filter Tabs */}
-            <View style={styles.filterContainer}>
-                {(["all", "mint", "burn"] as const).map((f) => (
+            {/* Filter Tabs - horizontal scroll so Credit/Debit are reachable and auto-scroll into view */}
+            <ScrollView
+                ref={filterScrollRef}
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.filterScrollContent}
+                style={styles.filterScroll}
+            >
+                {FILTERS.map((f, index) => (
                     <TouchableOpacity
                         key={f}
                         style={[styles.filterTab, filter === f && styles.filterTabActive]}
-                        onPress={() => setFilter(f)}
+                        onPress={() => handleFilterPress(f)}
+                        onLayout={(e) => {
+                            const x = e.nativeEvent?.layout?.x ?? (e as { layout?: { x: number } }).layout?.x;
+                            if (typeof x === "number") tabLayoutX.current[index] = x;
+                        }}
                     >
                         <Text
                             style={[
                                 styles.filterText,
                                 filter === f && styles.filterTextActive,
                             ]}
+                            numberOfLines={1}
+                            allowFontScaling={true}
                         >
-                            {f.charAt(0).toUpperCase() + f.slice(1)}
+                            {String(f).charAt(0).toUpperCase() + String(f).slice(1)}
                         </Text>
                     </TouchableOpacity>
                 ))}
-            </View>
+            </ScrollView>
 
             {/* Transaction List */}
             <ScrollView
@@ -230,7 +323,12 @@ export default function TransactionHistoryScreen() {
                     <RefreshControl refreshing={loading} onRefresh={fetchTransactions} tintColor="#00B14F" />
                 }
             >
-                {filteredTransactions.length === 0 ? (
+                {loading && transactions.length === 0 ? (
+                    <View style={styles.loadingContainer}>
+                        <ActivityIndicator size="large" color="#00B14F" />
+                        <Text style={styles.loadingText}>Loading activity...</Text>
+                    </View>
+                ) : filteredTransactions.length === 0 ? (
                     <View style={styles.emptyStateContainer}>
                         {/* Empty State Card */}
                         <View style={styles.emptyStateCard}>
@@ -245,15 +343,31 @@ export default function TransactionHistoryScreen() {
                                     ? "No Activity Yet"
                                     : filter === "mint"
                                         ? "No Mint Transactions"
-                                        : "No Burn Transactions"}
+                                        : filter === "burn"
+                                            ? "No Burn Transactions"
+                                            : filter === "swap"
+                                                ? "No Swap Transactions"
+                                                : filter === "transfer"
+                                                    ? "No Transfer Transactions"
+                                                    : filter === "credit"
+                                                        ? "No Credit Transactions"
+                                                        : "No Debit Transactions"}
                             </Text>
 
                             <Text style={styles.emptyStateDescription}>
                                 {filter === "all"
-                                    ? "Your transaction history will appear here once you start buying, selling, or transferring tokens."
+                                    ? "Your transaction history will appear here once you start buying, selling, swapping, or transferring tokens."
                                     : filter === "mint"
                                         ? "You haven't purchased any tokens yet. Start by buying your first tokens from a trusted agent."
-                                        : "You haven't sold any tokens yet. Start by selling tokens to convert them to fiat currency."}
+                                        : filter === "burn"
+                                            ? "You haven't sold any tokens yet. Start by selling tokens to convert them to fiat currency."
+                                            : filter === "swap"
+                                                ? "You haven't swapped any tokens yet. Use Swap to convert between different token types."
+                                                : filter === "transfer"
+                                                    ? "You haven't sent or received any tokens yet. Start by using Send or Receive to move tokens."
+                                                    : filter === "credit"
+                                                        ? "You don't have any incoming credits yet. Credits appear when you receive tokens from another user."
+                                                        : "You don't have any debits yet. Debits appear when you send tokens to another user."}
                             </Text>
 
                             {/* Quick Actions */}
@@ -366,16 +480,13 @@ export default function TransactionHistoryScreen() {
                                     <View
                                         style={[
                                             styles.iconContainer,
-                                            {
-                                                backgroundColor:
-                                                    tx.type === "mint" ? "#F0FDF4" : "#FEF3C7",
-                                            },
+                                            { backgroundColor: getTypeStyle(tx.type).bg },
                                         ]}
                                     >
                                         <Ionicons
                                             name={getTypeIcon(tx.type)}
                                             size={20}
-                                            color={tx.type === "mint" ? "#00B14F" : "#F59E0B"}
+                                            color={getTypeStyle(tx.type).color}
                                         />
                                     </View>
                                     <View>
@@ -388,10 +499,25 @@ export default function TransactionHistoryScreen() {
                                     </View>
                                 </View>
                                 <View style={styles.transactionRight}>
+                                    {getCreditDebitLabel(tx) ? (
+                                        <Text style={styles.creditDebitLabel}>
+                                            {getCreditDebitLabel(tx)}
+                                        </Text>
+                                    ) : null}
                                     <Text style={styles.transactionAmount}>
-                                        {tx.type === "burn" ? "-" : "+"}
+                                        {getAmountPrefix(tx)}
                                         {parseFloat(tx.amount).toLocaleString()} {tx.token_type}
                                     </Text>
+                                    {tx.type === "swap" && tx.metadata?.received_amount != null && tx.metadata?.to_token ? (
+                                        <Text style={styles.transactionSubtext}>
+                                            → {parseFloat(String(tx.metadata.received_amount)).toLocaleString()} {tx.metadata.to_token}
+                                        </Text>
+                                    ) : null}
+                                    {parseFloat(tx.fee || "0") > 0 ? (
+                                        <Text style={styles.feeSubtext}>
+                                            Fee: {tx.fee} {tx.token_type}
+                                        </Text>
+                                    ) : null}
                                     <View
                                         style={[
                                             styles.statusBadge,
@@ -425,7 +551,7 @@ export default function TransactionHistoryScreen() {
                                         <View style={styles.ratingContainer}>
                                             <Ionicons name="star" size={12} color="#FFB800" />
                                             <Text style={styles.ratingText}>
-                                                {tx.agent.rating.toFixed(1)}
+                                                {(tx.agent.rating || 5.0).toFixed(1)}
                                             </Text>
                                         </View>
                                     </View>
@@ -470,8 +596,6 @@ const styles = StyleSheet.create({
         left: 0,
         right: 0,
         height: 140,
-        borderBottomLeftRadius: 30,
-        borderBottomRightRadius: 30,
     },
     headerContent: {
         paddingHorizontal: 20,
@@ -499,31 +623,51 @@ const styles = StyleSheet.create({
     placeholder: {
         width: 40,
     },
-    filterContainer: {
+    filterScroll: {
+        minHeight: 48,
+        maxHeight: 98,
+    },
+    filterScrollContent: {
         flexDirection: "row",
+        alignItems: "center",
         paddingHorizontal: 20,
         paddingVertical: 16,
+        paddingRight: 40,
         gap: 12,
     },
     filterTab: {
         paddingHorizontal: 20,
-        paddingVertical: 8,
+        paddingVertical: 10,
         borderRadius: 20,
         backgroundColor: "#F9FAFB",
+        flexShrink: 0,
     },
     filterTabActive: {
         backgroundColor: "#00B14F",
     },
     filterText: {
-        fontSize: 14,
+        fontSize: 16,
         fontWeight: "600",
-        color: "#6B7280",
+        color: "#111827",
     },
     filterTextActive: {
         color: "#FFFFFF",
+        fontWeight: "700",
     },
     list: {
         flex: 1,
+    },
+    loadingContainer: {
+        flex: 1,
+        justifyContent: "center",
+        alignItems: "center",
+        paddingVertical: 80,
+    },
+    loadingText: {
+        marginTop: 12,
+        fontSize: 15,
+        color: "#6B7280",
+        fontWeight: "500",
     },
     emptyStateContainer: {
         paddingHorizontal: 20,
@@ -725,11 +869,28 @@ const styles = StyleSheet.create({
     transactionRight: {
         alignItems: "flex-end",
     },
+    creditDebitLabel: {
+        fontSize: 11,
+        fontWeight: "600",
+        color: "#6B7280",
+        marginBottom: 2,
+        textAlign: "right",
+    },
     transactionAmount: {
         fontSize: 16,
         fontWeight: "700",
         color: "#111827",
-        marginBottom: 6,
+        marginBottom: 2,
+    },
+    transactionSubtext: {
+        fontSize: 12,
+        color: "#6B7280",
+        marginBottom: 2,
+    },
+    feeSubtext: {
+        fontSize: 11,
+        color: "#9CA3AF",
+        marginBottom: 4,
     },
     statusBadge: {
         paddingHorizontal: 8,

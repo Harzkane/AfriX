@@ -113,6 +113,16 @@ const Transaction = sequelize.define(
       comment: "Wallet credited",
     },
 
+    fee_wallet_id: {
+      type: DataTypes.UUID,
+      allowNull: true,
+      references: {
+        model: "wallets",
+        key: "id",
+      },
+      comment: "Platform wallet that received the fee",
+    },
+
     // Blockchain sync fields (optional)
     network: {
       type: DataTypes.STRING(32),

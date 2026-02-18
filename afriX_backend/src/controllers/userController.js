@@ -7,6 +7,7 @@ const {
 } = require("../config/constants");
 const userService = require("../services/userService");
 const { ApiError } = require("../utils/errors");
+const { deleteCache } = require("../utils/cache");
 
 /**
  * User Controller
@@ -62,6 +63,14 @@ const userController = {
       if (language) user.language = language;
       if (theme) user.theme = theme;
 
+      // Notification preferences (Profile → Notifications screen)
+      if (req.body.push_notifications_enabled !== undefined)
+        user.push_notifications_enabled = !!req.body.push_notifications_enabled;
+      if (req.body.email_notifications_enabled !== undefined)
+        user.email_notifications_enabled = !!req.body.email_notifications_enabled;
+      if (req.body.sms_notifications_enabled !== undefined)
+        user.sms_notifications_enabled = !!req.body.sms_notifications_enabled;
+
       // Education Progress Updates
       if (req.body.education_what_are_tokens !== undefined)
         user.education_what_are_tokens = req.body.education_what_are_tokens;
@@ -73,6 +82,9 @@ const userController = {
         user.education_safety_security = req.body.education_safety_security;
 
       await user.save();
+
+      // Invalidate cached user so /auth/me returns updated prefs
+      await deleteCache(`user:${req.user.id}`).catch(() => {});
 
       res.json({
         success: true,

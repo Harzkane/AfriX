@@ -1,8 +1,21 @@
 'use strict';
 
+function canSkip(err) {
+  const msg = (err && (err.message || err.original?.message || '')) || '';
+  const code = err && (err.parent?.code || err.original?.code);
+  return (
+    code === '42P07' ||
+    code === '42703' ||
+    msg.includes('already exists') ||
+    msg.includes('duplicate') ||
+    msg.includes('does not exist')
+  );
+}
+
 module.exports = {
   up: async (queryInterface, Sequelize) => {
-    await queryInterface.createTable('agent_wallets', {
+    try {
+      await queryInterface.createTable('agent_wallets', {
       agent_id: {
         type: Sequelize.UUID,
         allowNull: false,
@@ -34,15 +47,27 @@ module.exports = {
         defaultValue: Sequelize.fn('NOW')
       }
     });
+    } catch (e) {
+      if (!canSkip(e)) throw e;
+    }
 
-    await queryInterface.addConstraint('agent_wallets', {
-      fields: ['agent_id', 'wallet_id'],
-      type: 'primary key',
-      name: 'pk_agent_wallets'
-    });
+    try {
+      await queryInterface.addConstraint('agent_wallets', {
+        fields: ['agent_id', 'wallet_id'],
+        type: 'primary key',
+        name: 'pk_agent_wallets'
+      });
+    } catch (e) {
+      if (!canSkip(e)) throw e;
+    }
 
-    await queryInterface.addIndex('agent_wallets', ['agent_id']);
-    await queryInterface.addIndex('agent_wallets', ['wallet_id']);
+    for (const col of [['agent_id'], ['wallet_id']]) {
+      try {
+        await queryInterface.addIndex('agent_wallets', col);
+      } catch (e) {
+        if (!canSkip(e)) throw e;
+      }
+    }
   },
 
   down: async (queryInterface, Sequelize) => {

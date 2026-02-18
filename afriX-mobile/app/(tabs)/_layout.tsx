@@ -2,8 +2,11 @@
 import { Tabs } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Platform } from "react-native";
+import { useNotificationStore } from "@/stores";
 
 export default function TabLayout() {
+  const unreadCount = useNotificationStore((s) => s.unreadCount);
+
   return (
     <Tabs
       screenOptions={{
@@ -11,22 +14,14 @@ export default function TabLayout() {
         tabBarActiveTintColor: "#00B14F",
         tabBarInactiveTintColor: "#9CA3AF",
         tabBarStyle: {
-          borderTopWidth: 0,
           backgroundColor: "#FFFFFF",
+          borderTopWidth: 1,
+          borderTopColor: "#E5E7EB",
           height: Platform.OS === "ios" ? 88 : 68,
           paddingBottom: Platform.OS === "ios" ? 30 : 12,
           paddingTop: 10,
-          position: "absolute",
-          bottom: 0,
-          left: 0,
-          right: 0,
-          elevation: 20,
-          shadowColor: "#000",
-          shadowOffset: { width: 0, height: -4 },
-          shadowOpacity: 0.1,
-          shadowRadius: 10,
-          borderTopLeftRadius: 24,
-          borderTopRightRadius: 24,
+          elevation: 0,
+          shadowOpacity: 0,
         },
         tabBarLabelStyle: {
           fontSize: 12,
@@ -68,11 +63,13 @@ export default function TabLayout() {
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="person" size={size} color={color} />
           ),
+          tabBarBadge: unreadCount > 0 ? (unreadCount > 99 ? "99+" : unreadCount) : undefined,
         }}
       />
       <Tabs.Screen
         name="settings"
         options={{
+          href: null,
           title: "Settings",
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="settings-outline" size={size} color={color} />
@@ -80,14 +77,47 @@ export default function TabLayout() {
         }}
       />
 
-      {/* Hide these from tab bar - they're accessed via dashboard buttons */}
-      <Tabs.Screen name="sell-tokens/index" options={{ href: null }} />
-      <Tabs.Screen name="sell-tokens/select-agent" options={{ href: null }} />
-      <Tabs.Screen name="sell-tokens/bank-details" options={{ href: null }} />
-      <Tabs.Screen name="sell-tokens/confirm" options={{ href: null }} />
-      <Tabs.Screen name="sell-tokens/status" options={{ href: null }} />
+      {/* Hide these from tab bar - they're accessed via navigation (not as tabs) */}
+      {/* Sell flow: hide tab bar entirely on these screens */}
+      <Tabs.Screen
+        name="sell-tokens/index"
+        options={{
+          href: null,
+          tabBarStyle: { display: "none" },
+        }}
+      />
+      <Tabs.Screen
+        name="sell-tokens/select-agent"
+        options={{
+          href: null,
+          tabBarStyle: { display: "none" },
+        }}
+      />
+      <Tabs.Screen
+        name="sell-tokens/bank-details"
+        options={{
+          href: null,
+          tabBarStyle: { display: "none" },
+        }}
+      />
+      <Tabs.Screen
+        name="sell-tokens/confirm"
+        options={{
+          href: null,
+          tabBarStyle: { display: "none" },
+        }}
+      />
+      <Tabs.Screen
+        name="sell-tokens/status"
+        options={{
+          href: null,
+          // Hide bottom tab bar on the sell request status screen
+          tabBarStyle: { display: "none" },
+        }}
+      />
       <Tabs.Screen name="profile/edit" options={{ href: null }} />
       <Tabs.Screen name="agents/[id]" options={{ href: null }} />
+      <Tabs.Screen name="transaction-details/[id]" options={{ href: null }} />
     </Tabs>
   );
 }

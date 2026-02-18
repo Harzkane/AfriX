@@ -23,7 +23,7 @@ const educationController = {
       req.user.id,
       module,
       answers
-    );w
+    );
     res.json({ success: true, data: result });
   },
 };

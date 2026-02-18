@@ -4,7 +4,7 @@ export default function AgentLayout() {
     return (
         <Stack screenOptions={{ headerShown: false }}>
             <Stack.Screen name="(tabs)" />
-            <Stack.Screen name="request-details" />
+            <Stack.Screen name="request-details/[id]" />
         </Stack>
     );
 }

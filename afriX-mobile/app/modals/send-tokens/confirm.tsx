@@ -7,6 +7,7 @@ import {
     TouchableOpacity,
     Alert,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Text, ActivityIndicator } from "react-native-paper";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -50,19 +51,22 @@ export default function ConfirmTransferScreen() {
             // Authenticate with biometric
             const result = await LocalAuthentication.authenticateAsync({
                 promptMessage: "Confirm transfer",
-                fallbackLabel: "Use PIN",
+                fallbackLabel: "Use Passcode",
                 cancelLabel: "Cancel",
+                disableDeviceFallback: false, // Allow fallback to passcode/PIN
             });
 
             if (result.success) {
                 handleConfirm();
             } else {
                 setAuthenticating(false);
+                // If they cancelled or it failed, we don't do handleConfirm()
+                // the user just stays on the screen.
             }
         } catch (error) {
             console.error("Biometric auth error:", error);
             setAuthenticating(false);
-            // Fallback to direct confirmation
+            // Fallback to direct confirmation if something goes wrong with the module
             handleConfirm();
         }
     };
@@ -87,126 +91,130 @@ export default function ConfirmTransferScreen() {
     };
 
     return (
-        <ScrollView
-            style={styles.container}
-            contentContainerStyle={styles.content}
-            showsVerticalScrollIndicator={false}
-        >
-            <View style={styles.header}>
-                <View style={styles.iconContainer}>
-                    <Ionicons name="send" size={48} color="#00B14F" />
-                </View>
-                <Text style={styles.title}>Review Transfer</Text>
-                <Text style={styles.subtitle}>
-                    Please confirm the details before sending
-                </Text>
-            </View>
-
-            {/* Transfer Details */}
-            <View style={styles.detailsCard}>
-                <View style={styles.detailRow}>
-                    <Text style={styles.detailLabel}>Recipient</Text>
-                    <Text style={styles.detailValue}>{recipientEmail}</Text>
-                </View>
-
-                <View style={styles.detailRow}>
-                    <Text style={styles.detailLabel}>Token Type</Text>
-                    <Text style={styles.detailValue}>{tokenType}</Text>
-                </View>
-
-                <View style={styles.detailRow}>
-                    <Text style={styles.detailLabel}>Amount</Text>
-                    <Text style={styles.detailValue}>
-                        {amountNum.toLocaleString(undefined, {
-                            minimumFractionDigits: 2,
-                            maximumFractionDigits: 2,
-                        })}{" "}
-                        {tokenType}
+        <View style={styles.container}>
+            <ScrollView
+                style={styles.scrollView}
+                contentContainerStyle={styles.content}
+                showsVerticalScrollIndicator={false}
+            >
+                <View style={styles.header}>
+                    <View style={styles.iconContainer}>
+                        <Ionicons name="send" size={48} color="#00B14F" />
+                    </View>
+                    <Text style={styles.title}>Review Transfer</Text>
+                    <Text style={styles.subtitle}>
+                        Please confirm the details before sending
                     </Text>
                 </View>
 
-                <View style={styles.detailRow}>
-                    <Text style={styles.detailLabel}>Transaction Fee</Text>
-                    <Text style={styles.detailValue}>
-                        {fee.toLocaleString(undefined, {
-                            minimumFractionDigits: 2,
-                            maximumFractionDigits: 2,
-                        })}{" "}
-                        {tokenType}
-                    </Text>
-                </View>
-
-                {note && (
+                {/* Transfer Details */}
+                <View style={styles.detailsCard}>
                     <View style={styles.detailRow}>
-                        <Text style={styles.detailLabel}>Note</Text>
-                        <Text style={[styles.detailValue, styles.noteValue]}>{note}</Text>
+                        <Text style={styles.detailLabel}>Recipient</Text>
+                        <Text style={styles.detailValue}>{recipientEmail}</Text>
+                    </View>
+
+                    <View style={styles.detailRow}>
+                        <Text style={styles.detailLabel}>Token Type</Text>
+                        <Text style={styles.detailValue}>{tokenType}</Text>
+                    </View>
+
+                    <View style={styles.detailRow}>
+                        <Text style={styles.detailLabel}>Amount</Text>
+                        <Text style={styles.detailValue}>
+                            {amountNum.toLocaleString(undefined, {
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2,
+                            })}{" "}
+                            {tokenType}
+                        </Text>
+                    </View>
+
+                    <View style={styles.detailRow}>
+                        <Text style={styles.detailLabel}>Transaction Fee</Text>
+                        <Text style={styles.detailValue}>
+                            {fee.toLocaleString(undefined, {
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2,
+                            })}{" "}
+                            {tokenType}
+                        </Text>
+                    </View>
+
+                    {note && (
+                        <View style={styles.detailRow}>
+                            <Text style={styles.detailLabel}>Note</Text>
+                            <Text style={[styles.detailValue, styles.noteValue]}>{note}</Text>
+                        </View>
+                    )}
+
+                    <View style={[styles.detailRow, styles.totalRow]}>
+                        <Text style={styles.totalLabel}>Total Amount</Text>
+                        <Text style={styles.totalValue}>
+                            {total.toLocaleString(undefined, {
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2,
+                            })}{" "}
+                            {tokenType}
+                        </Text>
+                    </View>
+                </View>
+
+                {/* Security Info */}
+                <View style={styles.securityCard}>
+                    <Ionicons name="shield-checkmark" size={20} color="#00B14F" />
+                    <View style={styles.securityText}>
+                        <Text style={styles.securityTitle}>Secure Transfer</Text>
+                        <Text style={styles.securityDesc}>
+                            This transaction is encrypted and secure
+                        </Text>
+                    </View>
+                </View>
+
+                {/* Error Message */}
+                {error && (
+                    <View style={styles.errorCard}>
+                        <Ionicons name="alert-circle" size={20} color="#EF4444" />
+                        <Text style={styles.errorText}>{error}</Text>
                     </View>
                 )}
 
-                <View style={[styles.detailRow, styles.totalRow]}>
-                    <Text style={styles.totalLabel}>Total Amount</Text>
-                    <Text style={styles.totalValue}>
-                        {total.toLocaleString(undefined, {
-                            minimumFractionDigits: 2,
-                            maximumFractionDigits: 2,
-                        })}{" "}
-                        {tokenType}
-                    </Text>
+            </ScrollView>
+
+            <SafeAreaView edges={["bottom"]} style={styles.footerWrapper}>
+                <View style={styles.footer}>
+                    <View style={styles.buttonContainer}>
+                        <TouchableOpacity
+                            style={styles.cancelBtn}
+                            onPress={() => router.back()}
+                            disabled={loading || authenticating}
+                            activeOpacity={0.7}
+                        >
+                            <Text style={styles.cancelBtnText}>Back</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            style={[
+                                styles.confirmBtn,
+                                (loading || authenticating) && styles.confirmBtnDisabled,
+                            ]}
+                            onPress={handleBiometricAuth}
+                            disabled={loading || authenticating}
+                            activeOpacity={0.8}
+                        >
+                            {loading || authenticating ? (
+                                <ActivityIndicator size="small" color="#FFFFFF" />
+                            ) : (
+                                <>
+                                    <Ionicons name="checkmark-circle" size={20} color="#FFFFFF" />
+                                    <Text style={styles.confirmBtnText}>Confirm Transfer</Text>
+                                </>
+                            )}
+                        </TouchableOpacity>
+                    </View>
                 </View>
-            </View>
-
-            {/* Security Info */}
-            <View style={styles.securityCard}>
-                <Ionicons name="shield-checkmark" size={20} color="#00B14F" />
-                <View style={styles.securityText}>
-                    <Text style={styles.securityTitle}>Secure Transfer</Text>
-                    <Text style={styles.securityDesc}>
-                        This transaction is encrypted and secure
-                    </Text>
-                </View>
-            </View>
-
-            {/* Error Message */}
-            {error && (
-                <View style={styles.errorCard}>
-                    <Ionicons name="alert-circle" size={20} color="#EF4444" />
-                    <Text style={styles.errorText}>{error}</Text>
-                </View>
-            )}
-
-            {/* Action Buttons */}
-            <View style={styles.buttonContainer}>
-                <TouchableOpacity
-                    style={styles.cancelBtn}
-                    onPress={() => router.back()}
-                    disabled={loading || authenticating}
-                    activeOpacity={0.7}
-                >
-                    <Text style={styles.cancelBtnText}>Back</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                    style={[
-                        styles.confirmBtn,
-                        (loading || authenticating) && styles.confirmBtnDisabled,
-                    ]}
-                    onPress={handleBiometricAuth}
-                    disabled={loading || authenticating}
-                    activeOpacity={0.8}
-                >
-                    {loading || authenticating ? (
-                        <ActivityIndicator size="small" color="#FFFFFF" />
-                    ) : (
-                        <>
-                            <Ionicons name="checkmark-circle" size={20} color="#FFFFFF" />
-                            <Text style={styles.confirmBtnText}>Confirm Transfer</Text>
-                        </>
-                    )}
-                </TouchableOpacity>
-            </View>
-
-            <View style={styles.bottomSpacer} />
-        </ScrollView>
+            </SafeAreaView>
+        </View>
     );
 }
 
@@ -215,9 +223,13 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: "#FFFFFF",
     },
+    scrollView: {
+        flex: 1,
+    },
     content: {
         paddingHorizontal: 20,
         paddingTop: 20,
+        paddingBottom: 24,
     },
     header: {
         alignItems: "center",
@@ -333,7 +345,6 @@ const styles = StyleSheet.create({
     buttonContainer: {
         flexDirection: "row",
         gap: 12,
-        marginBottom: 12,
     },
     cancelBtn: {
         flex: 1,
@@ -367,7 +378,14 @@ const styles = StyleSheet.create({
         fontWeight: "600",
         color: "#FFFFFF",
     },
-    bottomSpacer: {
-        height: 40,
+    footerWrapper: {
+        backgroundColor: "#FFFFFF",
+        borderTopWidth: 1,
+        borderTopColor: "#E5E7EB",
+    },
+    footer: {
+        paddingHorizontal: 20,
+        paddingTop: 16,
+        paddingBottom: 24,
     },
 });

@@ -7,7 +7,7 @@ const {
   PLATFORM_FEES,
 } = require("../config/constants");
 const { ApiError } = require("../utils/errors");
-const platformService = require("./platformService");
+// const platformService = require("./platformService");
 const { generateTransactionReference } = require("../utils/helpers");
 const { ethers } = require("ethers");
 const crypto = require("crypto");
@@ -216,6 +216,7 @@ const walletService = {
       // Collect platform fee to platform wallet
       let feeWalletId = null;
       if (fee > 0) {
+        const platformService = require("./platformService");
         const feeWallet = await platformService.collectFee({
           tokenType: token_type,
           feeAmount: fee,
@@ -294,6 +295,7 @@ const walletService = {
       // Collect platform swap fee to platform wallet (in source token)
       let feeWalletId = null;
       if (swapFee > 0) {
+        const platformService = require("./platformService");
         const feeWallet = await platformService.collectFee({
           tokenType: fromToken,
           feeAmount: swapFee,

@@ -42,7 +42,7 @@ export function TokenDistributionChart({ data = [] }: TokenDistributionChartProp
                                     color: 'hsl(var(--popover-foreground))'
                                 }}
                                 itemStyle={{ color: 'hsl(var(--popover-foreground))' }}
-                                formatter={(value: number) => `$${value.toFixed(2)}`}
+                                formatter={(value: any) => `$${Number(value).toFixed(2)}`}
                             />
                             <Legend
                                 verticalAlign="bottom"

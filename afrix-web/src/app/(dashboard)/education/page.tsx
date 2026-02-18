@@ -63,19 +63,6 @@ export default function EducationPage() {
         fetchUsersWithEducation(params, true);
     };
 
-    const handleReset = async () => {
-        if (!actionDialog.user || !resetReason) return;
-        setIsActionLoading(true);
-        try {
-            await resetUserProgress(actionDialog.user.user_id, actionDialog.user.module, resetReason);
-            setActionDialog({ open: false, user: null });
-            setResetReason("");
-        } catch (err) {
-            // Error handled in hook
-        } finally {
-            setIsActionLoading(false);
-        }
-    };
 
     return (
         <div className="flex flex-col gap-6">

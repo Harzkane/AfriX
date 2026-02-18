@@ -139,7 +139,7 @@ export default function EscrowDetailPage() {
                             <div className="flex items-center gap-2 mt-1">
                                 {getStatusBadge(escrow.status)}
                                 {isExpired && escrow.status === "locked" && (
-                                    <AlertTriangle className="h-4 w-4 text-red-500" title="Expired" />
+                                    <AlertTriangle className="h-4 w-4 text-red-500" />
                                 )}
                             </div>
                         </div>

@@ -300,11 +300,11 @@ export default function EducationScreen() {
                     <RefreshControl refreshing={progressLoading} onRefresh={onRefresh} tintColor="#00B14F" />
                 }
             >
-                {/* Gamified Header */}
-                <LinearGradient
-                    colors={["#111827", "#1F2937"]}
-                    style={styles.headerGradient}
-                >
+                <View style={styles.headerWrapper}>
+                    <LinearGradient
+                        colors={["#00B14F", "#008F40"]}
+                        style={styles.headerGradient}
+                    />
                     <SafeAreaView edges={["top"]} style={styles.headerContent}>
                         <View style={styles.headerTop}>
                             <TouchableOpacity
@@ -314,43 +314,55 @@ export default function EducationScreen() {
                                 <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
                             </TouchableOpacity>
                             <Text style={styles.headerTitle}>Education Center</Text>
-                            <View style={{ width: 40 }} />
-                        </View>
-
-                        <View style={styles.statsContainer}>
-                            <View style={styles.levelCircle}>
-                                <Text style={styles.levelLabel}>LEVEL</Text>
-                                <Text style={styles.levelValue}>{currentLevel}</Text>
-                            </View>
-                            <View style={styles.statsContent}>
-                                <View style={styles.statsRow}>
-                                    <Text style={styles.badgeName}>
-                                        {currentBadge?.name || "Novice"}
-                                    </Text>
-                                    <Text style={styles.xpText}>
-                                        {totalXP} / {nextLevelXP} XP
-                                    </Text>
-                                </View>
-                                <View style={styles.progressBarBg}>
-                                    <LinearGradient
-                                        colors={["#00B14F", "#34D399"]}
-                                        start={{ x: 0, y: 0 }}
-                                        end={{ x: 1, y: 0 }}
-                                        style={[
-                                            styles.progressBarFill,
-                                            { width: `${Math.min(progressToNextLevel * 100, 100)}%` },
-                                        ]}
-                                    />
-                                </View>
-                                <Text style={styles.nextLevelText}>
-                                    {Math.round(nextLevelXP - totalXP)} XP to next level
-                                </Text>
-                            </View>
+                            <View style={styles.headerSpacer} />
                         </View>
                     </SafeAreaView>
-                </LinearGradient>
+                </View>
 
-                <View style={styles.modulesContainer}>
+                <View style={styles.contentContainer}>
+                    <LinearGradient
+                        colors={["#F7FFF9", "#FFFFFF"]}
+                        style={styles.summaryCard}
+                    >
+                        <Text style={styles.summaryEyebrow}>Learning Journey</Text>
+                        <Text style={styles.summaryTitle}>Build confidence with every completed module</Text>
+                        <Text style={styles.summaryText}>
+                            Learn the basics of tokens, agents, value, and security while earning XP as you progress.
+                        </Text>
+                    </LinearGradient>
+
+                    <View style={styles.statsContainer}>
+                        <View style={styles.levelCircle}>
+                            <Text style={styles.levelLabel}>LEVEL</Text>
+                            <Text style={styles.levelValue}>{currentLevel}</Text>
+                        </View>
+                        <View style={styles.statsContent}>
+                            <View style={styles.statsRow}>
+                                <Text style={styles.badgeName}>
+                                    {currentBadge?.name || "Novice"}
+                                </Text>
+                                <Text style={styles.xpText}>
+                                    {totalXP} / {nextLevelXP} XP
+                                </Text>
+                            </View>
+                            <View style={styles.progressBarBg}>
+                                <LinearGradient
+                                    colors={["#00B14F", "#34D399"]}
+                                    start={{ x: 0, y: 0 }}
+                                    end={{ x: 1, y: 0 }}
+                                    style={[
+                                        styles.progressBarFill,
+                                        { width: `${Math.min(progressToNextLevel * 100, 100)}%` },
+                                    ]}
+                                />
+                            </View>
+                            <Text style={styles.nextLevelText}>
+                                {Math.round(nextLevelXP - totalXP)} XP to next level
+                            </Text>
+                        </View>
+                    </View>
+
+                    <View style={styles.modulesContainer}>
                     <Text style={styles.sectionTitle}>Learning Modules</Text>
                     {MODULES.map((module, index) => {
                         const isCompleted = completedModules.includes(module.id);
@@ -408,6 +420,7 @@ export default function EducationScreen() {
                             </TouchableOpacity>
                         );
                     })}
+                    </View>
                 </View>
             </ScrollView>
 
@@ -450,6 +463,12 @@ export default function EducationScreen() {
                                     />
                                 </View>
                                 <Text style={styles.modalTitle}>{selectedModule.title}</Text>
+                                <View style={styles.modalSummaryCard}>
+                                    <Text style={styles.modalSummaryEyebrow}>Lesson Overview</Text>
+                                    <Text style={styles.modalSummaryText}>
+                                        Read through this lesson carefully, then take the quiz to unlock your XP reward.
+                                    </Text>
+                                </View>
                                 <View style={styles.markdownContainer}>
                                     <Markdown style={markdownStyles}>
                                         {selectedModule.content}
@@ -510,9 +529,12 @@ export default function EducationScreen() {
                                     <Ionicons name="help-circle" size={48} color={selectedModule.color} />
                                 </View>
                                 <Text style={styles.modalTitle}>{quiz.title}</Text>
-                                <Text style={styles.quizSubtitle}>
-                                    Pass with {quiz.passingScore}% or higher
-                                </Text>
+                                <View style={styles.modalSummaryCard}>
+                                    <Text style={styles.modalSummaryEyebrow}>Quiz Challenge</Text>
+                                    <Text style={styles.quizSubtitle}>
+                                        Pass with {quiz.passingScore}% or higher
+                                    </Text>
+                                </View>
                                 {quizError ? (
                                     <Text style={styles.quizError}>{quizError}</Text>
                                 ) : null}
@@ -562,53 +584,95 @@ export default function EducationScreen() {
 
                         {modalStep === "result" && submitResult && (
                             <View style={styles.modalContent}>
-                                <View
-                                    style={[
-                                        styles.modalIconBox,
-                                        {
-                                            backgroundColor: submitResult.passed
-                                                ? "#D1FAE515"
-                                                : "#FEF2F215",
-                                        },
-                                    ]}
-                                >
-                                    <Ionicons
-                                        name={submitResult.passed ? "checkmark-circle" : "close-circle"}
-                                        size={64}
-                                        color={submitResult.passed ? "#059669" : "#DC2626"}
-                                    />
-                                </View>
-                                <Text style={styles.modalTitle}>
-                                    {submitResult.passed ? "Module complete!" : "Not quite"}
-                                </Text>
-                                <Text style={styles.resultScore}>
-                                    Score: {submitResult.score}% ({submitResult.correct}/{submitResult.total})
-                                </Text>
-                                <Text style={styles.resultMessage}>{submitResult.message}</Text>
-                                {!submitResult.passed && (
-                                    <Text style={styles.attemptsLeft}>
-                                        Attempts left: {submitResult.attempts_left}
-                                    </Text>
-                                )}
-                                <TouchableOpacity
-                                    style={[
-                                        styles.completeButton,
-                                        { backgroundColor: selectedModule.color },
-                                    ]}
-                                    onPress={handleCloseModal}
-                                >
-                                    <Text style={styles.completeButtonText}>
-                                        {submitResult.passed ? "Done" : "Back to modules"}
-                                    </Text>
-                                </TouchableOpacity>
-                                {!submitResult.passed && (
-                                    <TouchableOpacity
-                                        style={styles.tryAgainButton}
-                                        onPress={handleTakeQuiz}
-                                        disabled={quizLoading}
-                                    >
-                                        <Text style={styles.tryAgainButtonText}>Try again</Text>
-                                    </TouchableOpacity>
+                                {submitResult.passed ? (
+                                    <>
+                                        <View style={styles.completionHero}>
+                                            <View style={styles.completionRing}>
+                                                <View style={styles.completionInner}>
+                                                    <Ionicons
+                                                        name="checkmark"
+                                                        size={56}
+                                                        color="#059669"
+                                                    />
+                                                </View>
+                                            </View>
+                                            <Text style={styles.modalTitle}>Module complete!</Text>
+                                            <Text style={styles.completionSubtitle}>
+                                                You passed the quiz and unlocked your learning reward for this module.
+                                            </Text>
+                                        </View>
+
+                                        <View style={styles.rewardCard}>
+                                            <View style={styles.rewardHeader}>
+                                                <Text style={styles.rewardEyebrow}>Reward Earned</Text>
+                                                <View style={styles.rewardXpPill}>
+                                                    <Ionicons name="flash" size={14} color="#B45309" />
+                                                    <Text style={styles.rewardXpText}>+{selectedModule.xp} XP</Text>
+                                                </View>
+                                            </View>
+                                            <Text style={styles.rewardTitle}>{selectedModule.title}</Text>
+                                            <Text style={styles.resultMessage}>{submitResult.message}</Text>
+                                        </View>
+
+                                        <View style={styles.resultScoreCard}>
+                                            <Text style={styles.resultScoreLabel}>Score</Text>
+                                            <Text style={styles.resultScore}>
+                                                {submitResult.score}% ({submitResult.correct}/{submitResult.total})
+                                            </Text>
+                                        </View>
+
+                                        <TouchableOpacity
+                                            style={[
+                                                styles.completeButton,
+                                                { backgroundColor: selectedModule.color },
+                                            ]}
+                                            onPress={handleCloseModal}
+                                        >
+                                            <Text style={styles.completeButtonText}>Done</Text>
+                                        </TouchableOpacity>
+                                    </>
+                                ) : (
+                                    <>
+                                        <View
+                                            style={[
+                                                styles.modalIconBox,
+                                                { backgroundColor: "#FEF2F215" },
+                                            ]}
+                                        >
+                                            <Ionicons
+                                                name="close-circle"
+                                                size={64}
+                                                color="#DC2626"
+                                            />
+                                        </View>
+                                        <Text style={styles.modalTitle}>Not quite</Text>
+                                        <View style={styles.resultScoreCard}>
+                                            <Text style={styles.resultScoreLabel}>Score</Text>
+                                            <Text style={styles.resultScore}>
+                                                {submitResult.score}% ({submitResult.correct}/{submitResult.total})
+                                            </Text>
+                                        </View>
+                                        <Text style={styles.resultMessage}>{submitResult.message}</Text>
+                                        <Text style={styles.attemptsLeft}>
+                                            Attempts left: {submitResult.attempts_left}
+                                        </Text>
+                                        <TouchableOpacity
+                                            style={[
+                                                styles.completeButton,
+                                                { backgroundColor: selectedModule.color },
+                                            ]}
+                                            onPress={handleCloseModal}
+                                        >
+                                            <Text style={styles.completeButtonText}>Back to modules</Text>
+                                        </TouchableOpacity>
+                                        <TouchableOpacity
+                                            style={styles.tryAgainButton}
+                                            onPress={handleTakeQuiz}
+                                            disabled={quizLoading}
+                                        >
+                                            <Text style={styles.tryAgainButtonText}>Try again</Text>
+                                        </TouchableOpacity>
+                                    </>
                                 )}
                             </View>
                         )}
@@ -627,8 +691,17 @@ const styles = StyleSheet.create({
     scrollContent: {
         paddingBottom: 40,
     },
+    headerWrapper: {
+        zIndex: 10,
+        elevation: 8,
+        backgroundColor: "#00B14F",
+    },
     headerGradient: {
-        paddingBottom: 30,
+        position: "absolute",
+        top: 0,
+        left: 0,
+        right: 0,
+        height: 120,
     },
     headerContent: {
         paddingHorizontal: 20,
@@ -637,30 +710,68 @@ const styles = StyleSheet.create({
         flexDirection: "row",
         justifyContent: "space-between",
         alignItems: "center",
-        marginBottom: 24,
         marginTop: 10,
+        paddingBottom: 20,
     },
     backButton: {
         width: 40,
         height: 40,
         borderRadius: 20,
-        backgroundColor: "rgba(255,255,255,0.1)",
+        backgroundColor: "rgba(255,255,255,0.2)",
         alignItems: "center",
         justifyContent: "center",
     },
     headerTitle: {
-        fontSize: 20,
+        fontSize: 22,
         fontWeight: "700",
         color: "#FFFFFF",
+        letterSpacing: -0.4,
+    },
+    headerSpacer: {
+        width: 40,
+    },
+    contentContainer: {
+        paddingHorizontal: 20,
+        paddingTop: 58,
+    },
+    summaryCard: {
+        borderRadius: 22,
+        padding: 18,
+        marginTop: -22,
+        marginBottom: 14,
+        borderWidth: 1,
+        borderColor: "#E6F4EA",
+    },
+    summaryEyebrow: {
+        fontSize: 11,
+        fontWeight: "800",
+        color: "#00B14F",
+        textTransform: "uppercase",
+        letterSpacing: 0.5,
+        marginBottom: 6,
+    },
+    summaryTitle: {
+        fontSize: 22,
+        fontWeight: "800",
+        color: "#111827",
+        letterSpacing: -0.5,
+    },
+    summaryText: {
+        fontSize: 13,
+        lineHeight: 20,
+        color: "#6B7280",
+        fontWeight: "500",
+        marginTop: 6,
     },
     statsContainer: {
         flexDirection: "row",
         alignItems: "center",
-        backgroundColor: "rgba(255,255,255,0.1)",
-        borderRadius: 20,
+        backgroundColor: "#111827",
+        borderRadius: 24,
         padding: 16,
         borderWidth: 1,
-        borderColor: "rgba(255,255,255,0.1)",
+        borderColor: "#1F2937",
+        marginBottom: 16,
     },
     levelCircle: {
         width: 60,
@@ -722,8 +833,7 @@ const styles = StyleSheet.create({
         color: "#9CA3AF",
     },
     modulesContainer: {
-        padding: 20,
-        marginTop: -10,
+        paddingTop: 2,
     },
     sectionTitle: {
         fontSize: 18,
@@ -738,13 +848,8 @@ const styles = StyleSheet.create({
         borderRadius: 20,
         padding: 16,
         marginBottom: 16,
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.05,
-        shadowRadius: 8,
-        elevation: 2,
         borderWidth: 1,
-        borderColor: "#F3F4F6",
+        borderColor: "#EAF0F5",
     },
     moduleCardLocked: {
         opacity: 0.8,
@@ -803,7 +908,9 @@ const styles = StyleSheet.create({
     },
     modalHeader: {
         alignItems: "flex-end",
-        padding: 16,
+        paddingHorizontal: 16,
+        paddingTop: 16,
+        paddingBottom: 12,
         borderBottomWidth: 1,
         borderBottomColor: "#F3F4F6",
     },
@@ -818,6 +925,28 @@ const styles = StyleSheet.create({
     modalContent: {
         padding: 24,
         paddingBottom: 40,
+    },
+    modalSummaryCard: {
+        backgroundColor: "#F7FFF9",
+        borderRadius: 18,
+        padding: 16,
+        borderWidth: 1,
+        borderColor: "#E6F4EA",
+        marginBottom: 24,
+    },
+    modalSummaryEyebrow: {
+        fontSize: 11,
+        fontWeight: "800",
+        color: "#00B14F",
+        textTransform: "uppercase",
+        letterSpacing: 0.5,
+        marginBottom: 6,
+    },
+    modalSummaryText: {
+        fontSize: 14,
+        lineHeight: 20,
+        color: "#6B7280",
+        fontWeight: "500",
     },
     modalIconBox: {
         width: 64,
@@ -836,6 +965,11 @@ const styles = StyleSheet.create({
         textAlign: "center",
     },
     markdownContainer: {
+        backgroundColor: "#FFFFFF",
+        borderRadius: 20,
+        borderWidth: 1,
+        borderColor: "#EAF0F5",
+        padding: 18,
         marginBottom: 32,
     },
     completeButton: {
@@ -878,8 +1012,8 @@ const styles = StyleSheet.create({
     quizSubtitle: {
         fontSize: 14,
         color: "#6B7280",
-        marginBottom: 20,
-        textAlign: "center",
+        textAlign: "left",
+        fontWeight: "500",
     },
     quizError: {
         fontSize: 14,
@@ -888,10 +1022,15 @@ const styles = StyleSheet.create({
     },
     questionBlock: {
         marginBottom: 24,
+        backgroundColor: "#FFFFFF",
+        borderRadius: 20,
+        borderWidth: 1,
+        borderColor: "#EAF0F5",
+        padding: 16,
     },
     questionText: {
         fontSize: 16,
-        fontWeight: "600",
+        fontWeight: "700",
         color: "#111827",
         marginBottom: 12,
     },
@@ -908,19 +1047,112 @@ const styles = StyleSheet.create({
         borderColor: "transparent",
     },
     optionRowSelected: {
-        backgroundColor: "#EFF6FF",
-        borderColor: "#3B82F6",
+        backgroundColor: "#F0FDF4",
+        borderColor: "#00B14F",
     },
     optionText: {
         fontSize: 15,
         color: "#374151",
         flex: 1,
     },
-    resultScore: {
+    resultScoreCard: {
+        backgroundColor: "#F9FAFB",
+        borderRadius: 18,
+        paddingVertical: 14,
+        paddingHorizontal: 18,
+        marginBottom: 12,
+        borderWidth: 1,
+        borderColor: "#E5E7EB",
+        alignItems: "center",
+        alignSelf: "stretch",
+    },
+    completionHero: {
+        alignItems: "center",
+        marginBottom: 20,
+    },
+    completionRing: {
+        width: 124,
+        height: 124,
+        borderRadius: 62,
+        backgroundColor: "#D1FAE5",
+        alignItems: "center",
+        justifyContent: "center",
+        marginBottom: 20,
+    },
+    completionInner: {
+        width: 98,
+        height: 98,
+        borderRadius: 49,
+        backgroundColor: "#F0FDF4",
+        alignItems: "center",
+        justifyContent: "center",
+        borderWidth: 1,
+        borderColor: "#A7F3D0",
+    },
+    completionSubtitle: {
+        fontSize: 15,
+        color: "#6B7280",
+        textAlign: "center",
+        lineHeight: 22,
+        marginTop: -8,
+    },
+    rewardCard: {
+        backgroundColor: "#F7FFF9",
+        borderRadius: 20,
+        padding: 18,
+        borderWidth: 1,
+        borderColor: "#D9FBE7",
+        marginBottom: 14,
+        alignSelf: "stretch",
+    },
+    rewardHeader: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+        marginBottom: 10,
+        gap: 12,
+    },
+    rewardEyebrow: {
+        fontSize: 11,
+        fontWeight: "800",
+        color: "#00B14F",
+        textTransform: "uppercase",
+        letterSpacing: 0.5,
+    },
+    rewardXpPill: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 6,
+        backgroundColor: "#FFFBEB",
+        borderRadius: 999,
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+        borderWidth: 1,
+        borderColor: "#FEF3C7",
+    },
+    rewardXpText: {
+        fontSize: 12,
+        fontWeight: "800",
+        color: "#B45309",
+    },
+    rewardTitle: {
         fontSize: 18,
         fontWeight: "700",
         color: "#111827",
         marginBottom: 8,
+    },
+    resultScoreLabel: {
+        fontSize: 11,
+        fontWeight: "800",
+        color: "#6B7280",
+        textTransform: "uppercase",
+        letterSpacing: 0.5,
+        marginBottom: 6,
+    },
+    resultScore: {
+        fontSize: 18,
+        fontWeight: "700",
+        color: "#111827",
         textAlign: "center",
     },
     resultMessage: {

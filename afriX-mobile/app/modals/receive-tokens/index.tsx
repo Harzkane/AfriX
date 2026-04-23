@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
     View,
     StyleSheet,
@@ -16,12 +16,10 @@ import QRCode from "react-native-qrcode-svg";
 import * as Clipboard from "expo-clipboard";
 import * as Haptics from "expo-haptics";
 import { useAuthStore, useWalletStore } from "@/stores";
-import apiClient from "@/services/apiClient";
 
 export default function ReceiveTokensScreen() {
     const router = useRouter();
     const [tokenType, setTokenType] = useState<"NT" | "CT" | "USDT">("NT");
-    const [startTime] = useState(new Date());
 
     const { user } = useAuthStore();
     const { getWalletByType } = useWalletStore();
@@ -90,12 +88,20 @@ export default function ReceiveTokensScreen() {
                 contentContainerStyle={styles.content}
                 showsVerticalScrollIndicator={false}
             >
-                <Text style={styles.subtitle}>
-                    Share your QR code or email to receive tokens
-                </Text>
+                <LinearGradient
+                    colors={["#F7FFF9", "#FFFFFF"]}
+                    style={styles.heroCard}
+                >
+                    <Text style={styles.heroEyebrow}>Receive Instantly</Text>
+                    <Text style={styles.heroTitle}>Share your receive details</Text>
+                    <Text style={styles.heroSubtitle}>
+                        Let someone scan your QR code or use your email to send tokens directly to your AfriToken wallet.
+                    </Text>
+                </LinearGradient>
 
                 {/* Token Type Selector */}
                 <View style={styles.section}>
+                    <Text style={styles.sectionEyebrow}>Token Selection</Text>
                     <Text style={styles.label}>Select Token Type</Text>
                     <View style={styles.tokenSelector}>
                         <TouchableOpacity
@@ -106,11 +112,19 @@ export default function ReceiveTokensScreen() {
                             onPress={() => setTokenType("NT")}
                             activeOpacity={0.7}
                         >
-                            <Ionicons
-                                name="cash-outline"
-                                size={20}
-                                color={tokenType === "NT" ? "#00B14F" : "#9CA3AF"}
-                            />
+                            <Text style={styles.tokenEyebrow}>Domestic</Text>
+                            <View
+                                style={[
+                                    styles.tokenIcon,
+                                    tokenType === "NT" && styles.tokenIconActive,
+                                ]}
+                            >
+                                <Ionicons
+                                    name="cash-outline"
+                                    size={24}
+                                    color={tokenType === "NT" ? "#00B14F" : "#9CA3AF"}
+                                />
+                            </View>
                             <Text
                                 style={[
                                     styles.tokenText,
@@ -129,11 +143,19 @@ export default function ReceiveTokensScreen() {
                             onPress={() => setTokenType("CT")}
                             activeOpacity={0.7}
                         >
-                            <Ionicons
-                                name="leaf-outline"
-                                size={20}
-                                color={tokenType === "CT" ? "#10B981" : "#9CA3AF"}
-                            />
+                            <Text style={styles.tokenEyebrow}>Regional</Text>
+                            <View
+                                style={[
+                                    styles.tokenIcon,
+                                    tokenType === "CT" && styles.tokenIconActive,
+                                ]}
+                            >
+                                <Ionicons
+                                    name="leaf-outline"
+                                    size={24}
+                                    color={tokenType === "CT" ? "#10B981" : "#9CA3AF"}
+                                />
+                            </View>
                             <Text
                                 style={[
                                     styles.tokenText,
@@ -152,11 +174,19 @@ export default function ReceiveTokensScreen() {
                             onPress={() => setTokenType("USDT")}
                             activeOpacity={0.7}
                         >
-                            <Ionicons
-                                name="logo-usd"
-                                size={20}
-                                color={tokenType === "USDT" ? "#3B82F6" : "#9CA3AF"}
-                            />
+                            <Text style={styles.tokenEyebrow}>Reserve</Text>
+                            <View
+                                style={[
+                                    styles.tokenIcon,
+                                    tokenType === "USDT" && styles.tokenIconActive,
+                                ]}
+                            >
+                                <Ionicons
+                                    name="logo-usd"
+                                    size={24}
+                                    color={tokenType === "USDT" ? "#3B82F6" : "#9CA3AF"}
+                                />
+                            </View>
                             <Text
                                 style={[
                                     styles.tokenText,
@@ -298,12 +328,43 @@ const styles = StyleSheet.create({
         paddingTop: 20,
         paddingBottom: 24,
     },
-    subtitle: {
-        fontSize: 14,
-        color: "#9CA3AF",
+    heroCard: {
+        borderRadius: 24,
+        padding: 20,
+        marginBottom: 28,
+        borderWidth: 1,
+        borderColor: "#E6F4EA",
+    },
+    heroEyebrow: {
+        fontSize: 11,
+        fontWeight: "800",
+        color: "#00B14F",
+        textTransform: "uppercase",
+        letterSpacing: 0.5,
+        marginBottom: 8,
+    },
+    heroTitle: {
+        fontSize: 24,
+        fontWeight: "700",
+        color: "#111827",
+        marginBottom: 8,
+        letterSpacing: -0.4,
+    },
+    heroSubtitle: {
+        fontSize: 15,
+        color: "#6B7280",
+        lineHeight: 22,
     },
     section: {
         marginBottom: 24,
+    },
+    sectionEyebrow: {
+        fontSize: 11,
+        fontWeight: "800",
+        color: "#00B14F",
+        textTransform: "uppercase",
+        letterSpacing: 0.5,
+        marginBottom: 6,
     },
     label: {
         fontSize: 15,
@@ -317,24 +378,46 @@ const styles = StyleSheet.create({
     },
     tokenOption: {
         flex: 1,
-        flexDirection: "row",
         alignItems: "center",
         justifyContent: "center",
-        gap: 8,
-        backgroundColor: "#F9FAFB",
+        backgroundColor: "#FFFFFF",
         borderWidth: 2,
-        borderColor: "#E5E7EB",
-        borderRadius: 12,
-        paddingVertical: 12,
+        borderColor: "#F3F4F6",
+        borderRadius: 20,
+        padding: 14,
+        minWidth: 0,
+        // minHeight: 146,
     },
     tokenOptionActive: {
         borderColor: "#00B14F",
         backgroundColor: "#F0FDF4",
     },
+    tokenIcon: {
+        width: 40,
+        height: 40,
+        borderRadius: 12,
+        backgroundColor: "#F9FAFB",
+        alignItems: "center",
+        justifyContent: "center",
+        marginBottom: 10,
+    },
+    tokenIconActive: {
+        backgroundColor: "#FFFFFF",
+    },
+    tokenEyebrow: {
+        fontSize: 10,
+        fontWeight: "800",
+        color: "#9CA3AF",
+        textTransform: "uppercase",
+        letterSpacing: 0.3,
+        marginBottom: 8,
+        textAlign: "center",
+    },
     tokenText: {
         fontSize: 14,
         fontWeight: "600",
         color: "#6B7280",
+        textAlign: "center",
     },
     tokenTextActive: {
         color: "#00B14F",
@@ -362,9 +445,9 @@ const styles = StyleSheet.create({
         color: "#6B7280",
     },
     addressCard: {
-        backgroundColor: "#F9FAFB",
-        padding: 16,
-        borderRadius: 12,
+        backgroundColor: "#FBFCFD",
+        padding: 18,
+        borderRadius: 18,
         marginBottom: 16,
         borderWidth: 1,
         borderColor: "#E5E7EB",
@@ -403,8 +486,8 @@ const styles = StyleSheet.create({
         alignItems: "flex-start",
         gap: 12,
         backgroundColor: "#EFF6FF",
-        padding: 16,
-        borderRadius: 12,
+        padding: 18,
+        borderRadius: 18,
         marginBottom: 24,
         borderWidth: 1,
         borderColor: "#BFDBFE",
@@ -445,7 +528,7 @@ const styles = StyleSheet.create({
         gap: 8,
         backgroundColor: "#00B14F",
         paddingVertical: 16,
-        borderRadius: 12,
+        borderRadius: 16,
     },
     shareBtnText: {
         fontSize: 16,
@@ -456,7 +539,7 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: "#F9FAFB",
         paddingVertical: 16,
-        borderRadius: 12,
+        borderRadius: 16,
         alignItems: "center",
         borderWidth: 1,
         borderColor: "#E5E7EB",

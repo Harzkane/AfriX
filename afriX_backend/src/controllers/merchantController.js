@@ -209,8 +209,9 @@ const merchantController = {
   createPaymentRequest: async (req, res, next) => {
     try {
       const userId = req.user.id;
-      const { amount, currency, description, customer_email, reference } =
+      const { amount, currency, token_type, description, customer_email, reference } =
         req.body;
+      const tokenType = token_type || currency || null;
 
       if (!amount || amount <= 0) {
         throw new ValidationError("Valid amount is required");
@@ -227,14 +228,16 @@ const merchantController = {
         });
       }
 
+      const paymentTokenType = tokenType || merchant.default_token_type;
+
       // Create payment transaction
       const transaction = await Transaction.create({
         from_user_id: null, // Will be filled when customer pays
-        receiver_id: userId,
+        to_user_id: userId,
         merchant_id: merchant.id,
         amount,
-        token_type: currency || merchant.default_token_type, // ← Changed from 'currency'
-        type: TRANSACTION_TYPES.COLLECTION, // ← Changed from 'transaction_type'
+        token_type: paymentTokenType,
+        type: TRANSACTION_TYPES.COLLECTION,
         status: TRANSACTION_STATUS.PENDING,
         description: description || `Payment to ${merchant.display_name}`,
         reference: reference || `MER-${Date.now()}`,
@@ -250,7 +253,8 @@ const merchantController = {
         transaction_id: transaction.id,
         merchant_id: merchant.id,
         amount,
-        currency: currency || merchant.default_token_type,
+        currency: paymentTokenType,
+        token_type: paymentTokenType,
       };
 
       const qrCode = await generateQR(JSON.stringify(paymentData));
@@ -262,7 +266,8 @@ const merchantController = {
           payment_url: `https://afritoken.com/pay/${transaction.id}`,
           qr_code: qrCode,
           amount,
-          currency: currency || merchant.default_token_type,
+          currency: paymentTokenType,
+          token_type: paymentTokenType,
           expires_at: new Date(Date.now() + 30 * 60 * 1000), // 30 minutes
         },
         message: "Payment request created successfully",
@@ -452,8 +457,16 @@ const merchantController = {
 
   getDashboardSummary: async (req, res) => {
     try {
-      const merchantId = req.user.id;
-      const summary = await merchantService.getDashboardSummary(merchantId);
+      const merchant = await Merchant.findOne({ where: { user_id: req.user.id } });
+
+      if (!merchant) {
+        return res.status(404).json({
+          success: false,
+          message: "Merchant profile not found",
+        });
+      }
+
+      const summary = await merchantService.getDashboardSummary(merchant.id);
       res.status(200).json(summary);
     } catch (error) {
       res.status(500).json({ error: error.message });

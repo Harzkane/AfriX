@@ -7,13 +7,10 @@ import {
   ScrollView,
   ActivityIndicator,
   TouchableOpacity,
-  Image,
-  Platform,
 } from "react-native";
-import { useFocusEffect } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import { useAuthStore, useNotificationStore } from "@/stores";
 import { useAgentStore } from "@/stores/slices/agentSlice";
-import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -29,7 +26,7 @@ export default function ProfileScreen() {
     if (user) {
       fetchAgentStats();
     }
-  }, [user]);
+  }, [fetchAgentStats, user]);
 
   useFocusEffect(
     React.useCallback(() => {
@@ -55,7 +52,7 @@ export default function ProfileScreen() {
     if (!name) return "U";
     return name
       .split(" ")
-      .map((n) => n[0])
+      .map((part) => part[0])
       .join("")
       .toUpperCase()
       .slice(0, 2);
@@ -82,25 +79,19 @@ export default function ProfileScreen() {
     showChevron = true,
     badge,
   }: any) => (
-    <TouchableOpacity
-      style={styles.actionItem}
-      onPress={onPress}
-      activeOpacity={0.7}
-    >
+    <TouchableOpacity style={styles.actionItem} onPress={onPress} activeOpacity={0.7}>
       <View style={[styles.actionIconBox, { backgroundColor: bgColor }]}>
         <Ionicons name={icon} size={20} color={color} />
       </View>
       <View style={styles.actionLabelRow}>
         <Text style={[styles.actionLabel, { color }]}>{label}</Text>
-        {badge != null && badge > 0 && (
+        {badge != null && badge > 0 ? (
           <View style={styles.badge}>
             <Text style={styles.badgeText}>{badge > 99 ? "99+" : badge}</Text>
           </View>
-        )}
+        ) : null}
       </View>
-      {showChevron && (
-        <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
-      )}
+      {showChevron ? <Ionicons name="chevron-forward" size={20} color="#9CA3AF" /> : null}
     </TouchableOpacity>
   );
 
@@ -110,8 +101,7 @@ export default function ProfileScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
-        {/* Header Section */}
-        <View style={styles.header}>
+        <View style={styles.headerWrapper}>
           <LinearGradient
             colors={["#00B14F", "#008F40"]}
             style={styles.headerGradient}
@@ -122,17 +112,31 @@ export default function ProfileScreen() {
               <TouchableOpacity
                 onPress={() => router.push("/(tabs)/profile/edit")}
                 style={styles.editButton}
+                activeOpacity={0.8}
               >
-                <Ionicons name="pencil" size={20} color="#FFFFFF" />
+                <Ionicons name="pencil" size={18} color="#FFFFFF" />
               </TouchableOpacity>
             </View>
+          </SafeAreaView>
+        </View>
 
-            <View style={styles.profileCard}>
+        <View style={styles.contentContainer}>
+          <LinearGradient
+            colors={["#F7FFF9", "#FFFFFF"]}
+            style={styles.summaryCard}
+          >
+            <Text style={styles.summaryEyebrow}>Account Overview</Text>
+            <Text style={styles.summaryTitle}>Manage your AfriX profile with confidence</Text>
+            <Text style={styles.summaryText}>
+              Keep your account details current, monitor your verification level, and access settings, notifications, and support in one place.
+            </Text>
+          </LinearGradient>
+
+          <View style={styles.profileCard}>
+            <View style={styles.profileTopRow}>
               <View style={styles.avatarContainer}>
                 <View style={styles.avatar}>
-                  <Text style={styles.avatarText}>
-                    {getInitials(user.full_name)}
-                  </Text>
+                  <Text style={styles.avatarText}>{getInitials(user.full_name)}</Text>
                 </View>
                 <View style={styles.verificationBadge}>
                   <Ionicons
@@ -142,19 +146,22 @@ export default function ProfileScreen() {
                   />
                 </View>
               </View>
-              <Text style={styles.userName}>{user.full_name || "User"}</Text>
-              <Text style={styles.userEmail}>{user.email}</Text>
-              <View style={styles.roleTag}>
-                <Text style={styles.roleText}>
-                  {user.role?.toUpperCase() || "USER"}
-                </Text>
+
+              <View style={styles.profileIdentity}>
+                <Text style={styles.userName}>{user.full_name || "User"}</Text>
+                <Text style={styles.userEmail}>{user.email}</Text>
+                <View style={styles.metaPillsRow}>
+                  <View style={styles.roleTag}>
+                    <Text style={styles.roleText}>{user.role?.toUpperCase() || "USER"}</Text>
+                  </View>
+                  <View style={styles.levelPill}>
+                    <Text style={styles.levelPillText}>Level {user.verification_level || 0}</Text>
+                  </View>
+                </View>
               </View>
             </View>
-          </SafeAreaView>
-        </View>
+          </View>
 
-        <View style={styles.contentContainer}>
-          {/* Account Status Card */}
           <View style={styles.sectionCard}>
             <Text style={styles.sectionTitle}>Account Status</Text>
             <View style={styles.cardContent}>
@@ -181,7 +188,6 @@ export default function ProfileScreen() {
             </View>
           </View>
 
-          {/* Agent Section */}
           <View style={styles.sectionCard}>
             <Text style={styles.sectionTitle}>Agent Center</Text>
             <View style={styles.cardContent}>
@@ -213,7 +219,6 @@ export default function ProfileScreen() {
             </View>
           </View>
 
-          {/* Settings Section */}
           <View style={styles.sectionCard}>
             <Text style={styles.sectionTitle}>Settings</Text>
             <View style={styles.cardContent}>
@@ -244,8 +249,8 @@ export default function ProfileScreen() {
             </View>
           </View>
 
-          {/* Support & Logout */}
           <View style={styles.sectionCard}>
+            <Text style={styles.sectionTitle}>Support</Text>
             <View style={styles.cardContent}>
               <ActionItem
                 icon="help-circle-outline"
@@ -275,7 +280,7 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F3F4F6",
+    backgroundColor: "#F9FAFB",
   },
   loadingContainer: {
     flex: 1,
@@ -292,32 +297,33 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
   },
-  header: {
-    marginBottom: 60,
+  headerWrapper: {
+    zIndex: 10,
+    elevation: 8,
+    backgroundColor: "#00B14F",
   },
   headerGradient: {
     position: "absolute",
     top: 0,
     left: 0,
     right: 0,
-    height: 220,
-    borderBottomLeftRadius: 5,
-    borderBottomRightRadius: 5,
+    height: 120,
   },
   headerContent: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
   },
   headerTop: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 20,
     marginTop: 10,
+    paddingBottom: 20,
   },
   headerTitle: {
     fontSize: 24,
     fontWeight: "800",
     color: "#FFFFFF",
+    letterSpacing: -0.5,
   },
   editButton: {
     width: 40,
@@ -327,22 +333,54 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  contentContainer: {
+    paddingHorizontal: 16,
+    paddingTop: 50,
+  },
+  summaryCard: {
+    borderRadius: 22,
+    padding: 18,
+    marginTop: -34,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: "#E6F4EA",
+  },
+  summaryEyebrow: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: "#00B14F",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+    marginBottom: 6,
+  },
+  summaryTitle: {
+    fontSize: 22,
+    fontWeight: "800",
+    color: "#111827",
+    letterSpacing: -0.5,
+  },
+  summaryText: {
+    fontSize: 13,
+    lineHeight: 20,
+    color: "#6B7280",
+    fontWeight: "500",
+    marginTop: 6,
+  },
   profileCard: {
     backgroundColor: "#FFFFFF",
     borderRadius: 24,
-    padding: 24,
-    alignItems: "center",
+    padding: 20,
+    marginBottom: 14,
     borderWidth: 1,
-    borderColor: "#E5E7EB",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    elevation: 2,
+    borderColor: "#EAF0F5",
+  },
+  profileTopRow: {
+    flexDirection: "row",
+    gap: 16,
+    alignItems: "center",
   },
   avatarContainer: {
     position: "relative",
-    marginBottom: 16,
   },
   avatar: {
     width: 86,
@@ -367,6 +405,9 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 2,
   },
+  profileIdentity: {
+    flex: 1,
+  },
   userName: {
     fontSize: 22,
     fontWeight: "800",
@@ -379,11 +420,17 @@ const styles = StyleSheet.create({
     fontWeight: "500",
     marginBottom: 12,
   },
+  metaPillsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    flexWrap: "wrap",
+  },
   roleTag: {
     backgroundColor: "#F3F4F6",
     paddingHorizontal: 16,
     paddingVertical: 6,
-    borderRadius: 12,
+    borderRadius: 999,
     borderWidth: 1,
     borderColor: "#E5E7EB",
   },
@@ -393,15 +440,26 @@ const styles = StyleSheet.create({
     color: "#4B5563",
     letterSpacing: 0.5,
   },
-  contentContainer: {
-    paddingHorizontal: 20,
-    marginTop: -40,
+  levelPill: {
+    backgroundColor: "#ECFDF3",
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "#D1FAE5",
+  },
+  levelPillText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#059669",
+    letterSpacing: 0.4,
+    textTransform: "uppercase",
   },
   sectionCard: {
     backgroundColor: "#FFFFFF",
     borderRadius: 20,
     padding: 20,
-    marginBottom: 16,
+    marginBottom: 14,
     borderWidth: 1,
     borderColor: "#E5E7EB",
   },
@@ -490,9 +548,9 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "500",
     marginTop: 10,
-    marginBottom: 20,
+    // marginBottom: 20,
   },
   bottomSpacer: {
-    height: 100, // Extra space for lifted tab bar
+    height: 20,
   },
 });

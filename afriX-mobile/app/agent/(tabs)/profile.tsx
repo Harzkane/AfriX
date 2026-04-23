@@ -8,7 +8,21 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useAuthStore } from "@/stores";
 import { useAgentStore } from "@/stores/slices/agentSlice";
-import { getCountryByCode } from "@/constants/countries";
+import { getCountryByCode, stripLeadingZero } from "@/constants/countries";
+
+const normalizeLocalPhoneInput = (value: string) =>
+    stripLeadingZero(value).replace(/\D/g, "").slice(0, 15);
+
+const formatPhoneForDisplay = (value: string) => {
+    const digits = normalizeLocalPhoneInput(value);
+
+    if (!digits) return "";
+    if (digits.length <= 3) return digits;
+    if (digits.length <= 6) return `${digits.slice(0, 3)} ${digits.slice(3)}`;
+    if (digits.length <= 10) return `${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6)}`;
+
+    return `${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6, 10)} ${digits.slice(10)}`;
+};
 
 export default function AgentProfile() {
     const router = useRouter();
@@ -22,6 +36,8 @@ export default function AgentProfile() {
         fetchWithdrawalRequests,
         loading,
     } = useAgentStore();
+    const countryCode = (user as any)?.country_code || (user as any)?.country || "";
+    const countryInfo = countryCode ? getCountryByCode(countryCode) : null;
 
     const loadData = useCallback(async () => {
         await Promise.all([
@@ -101,6 +117,15 @@ export default function AgentProfile() {
         return stars;
     };
 
+    const formatContactNumber = (value?: string | null) => {
+        if (!value?.trim()) return "N/A";
+
+        const formatted = formatPhoneForDisplay(value);
+        if (!formatted) return "N/A";
+
+        return countryInfo ? `${countryInfo.dialCode} ${formatted}` : formatted;
+    };
+
     return (
         <View style={styles.container}>
             <View style={styles.headerWrapper}>
@@ -131,13 +156,23 @@ export default function AgentProfile() {
             >
 
                 {/* Profile Header Card */}
-                <Surface style={styles.profileCard}>
+                <LinearGradient
+                    colors={["#FFFFFF", "#F7FFF9"]}
+                    style={styles.profileCard}
+                >
+                    <View style={styles.profileEyebrowRow}>
+                        <View style={styles.profileEyebrow}>
+                            <Ionicons name="sparkles" size={14} color="#00B14F" />
+                            <Text style={styles.profileEyebrowText}>Agent Identity</Text>
+                        </View>
+                    </View>
                     <View style={styles.avatarContainer}>
                         <View style={[styles.avatar, { backgroundColor: "#F5F3FF" }]}>
                             <Ionicons name="person" size={40} color="#7C3AED" />
                         </View>
                         <View style={styles.profileInfo}>
                             <Text style={styles.profileName}>{user?.full_name || "Agent"}</Text>
+                            <Text style={styles.profileSubtitle}>{user?.email || "Agent account"}</Text>
                             <View style={styles.ratingContainer}>
                                 <View style={styles.stars}>
                                     {renderStars(Math.round(parseFloat(dashboardData?.agent?.rating || "5")))}
@@ -162,7 +197,23 @@ export default function AgentProfile() {
                             </Text>
                         </View>
                     </View>
-                </Surface>
+                    <View style={styles.profileSnapshotRow}>
+                        <View style={styles.profileSnapshotItem}>
+                            <Text style={styles.profileSnapshotLabel}>Total Reviews</Text>
+                            <Text style={styles.profileSnapshotValue}>{stats?.total_reviews || 0}</Text>
+                        </View>
+                        <View style={styles.profileSnapshotDivider} />
+                        <View style={styles.profileSnapshotItem}>
+                            <Text style={styles.profileSnapshotLabel}>Success Rate</Text>
+                            <Text style={styles.profileSnapshotValue}>{dashboardData?.performance?.success_rate || "100%"}</Text>
+                        </View>
+                        <View style={styles.profileSnapshotDivider} />
+                        <View style={styles.profileSnapshotItem}>
+                            <Text style={styles.profileSnapshotLabel}>Avg Response</Text>
+                            <Text style={styles.profileSnapshotValue}>{dashboardData?.performance?.response_time || "5"} min</Text>
+                        </View>
+                    </View>
+                </LinearGradient>
 
                 {/* Personal Information */}
                 <View style={styles.section}>
@@ -194,7 +245,7 @@ export default function AgentProfile() {
                             </View>
                             <View style={styles.infoContent}>
                                 <Text style={styles.infoLabel}>Phone Number</Text>
-                                <Text style={styles.infoValue}>{user?.phone_number || "N/A"}</Text>
+                                <Text style={styles.infoValue}>{formatContactNumber(user?.phone_number)}</Text>
                             </View>
                         </View>
                         <View style={styles.divider} />
@@ -204,7 +255,9 @@ export default function AgentProfile() {
                             </View>
                             <View style={styles.infoContent}>
                                 <Text style={styles.infoLabel}>WhatsApp</Text>
-                                <Text style={styles.infoValue}>{(user as any)?.whatsapp_number || user?.phone_number || "N/A"}</Text>
+                                <Text style={styles.infoValue}>
+                                    {formatContactNumber((user as any)?.whatsapp_number || user?.phone_number)}
+                                </Text>
                             </View>
                         </View>
                         <View style={styles.divider} />
@@ -215,11 +268,7 @@ export default function AgentProfile() {
                             <View style={styles.infoContent}>
                                 <Text style={styles.infoLabel}>Country</Text>
                                 <Text style={styles.infoValue}>
-                                    {(() => {
-                                        const code = (user as any)?.country_code || (user as any)?.country || "";
-                                        const country = code ? getCountryByCode(code) : null;
-                                        return country ? `${country.name} (${country.code})` : "N/A";
-                                    })()}
+                                    {countryInfo ? `${countryInfo.name} (${countryInfo.code})` : "N/A"}
                                 </Text>
                             </View>
                         </View>
@@ -290,7 +339,11 @@ export default function AgentProfile() {
                                     </View>
                                     <View style={styles.infoContent}>
                                         <Text style={styles.infoLabel}>Mobile Money Number</Text>
-                                        <Text style={styles.infoValue}>{(user as any)?.mobile_money_number || "—"}</Text>
+                                        <Text style={styles.infoValue}>
+                                            {formatContactNumber((user as any)?.mobile_money_number) === "N/A"
+                                                ? "—"
+                                                : formatContactNumber((user as any)?.mobile_money_number)}
+                                        </Text>
                                     </View>
                                 </View>
                             </>
@@ -316,6 +369,10 @@ export default function AgentProfile() {
                 <View style={styles.section}>
                     <Text style={styles.sectionTitle}>Financial Summary</Text>
                     <Surface style={styles.card}>
+                        <View style={styles.financialIntro}>
+                            <Text style={styles.financialIntroTitle}>Live account position</Text>
+                            <Text style={styles.financialIntroText}>A quick view of your current deposit exposure, earnings, and withdrawal readiness.</Text>
+                        </View>
                         <View style={styles.financialGrid}>
                             <View style={styles.financialItem}>
                                 <Text style={styles.financialLabel}>Total Deposit</Text>
@@ -398,6 +455,10 @@ export default function AgentProfile() {
                 <View style={styles.section}>
                     <Text style={styles.sectionTitle}>Performance Metrics</Text>
                     <Surface style={styles.card}>
+                        <View style={styles.financialIntro}>
+                            <Text style={styles.financialIntroTitle}>Service quality</Text>
+                            <Text style={styles.financialIntroText}>Metrics that summarize your consistency, responsiveness, and customer trust.</Text>
+                        </View>
                         <View style={styles.performanceGrid}>
                             <View style={styles.performanceItem}>
                                 <View style={[styles.performanceIcon, { backgroundColor: "#F5F3FF" }]}>
@@ -598,16 +659,33 @@ const styles = StyleSheet.create({
     content: {
         padding: 16,
         paddingBottom: 24,
-        paddingTop: 40,
+        paddingTop: 28,
     },
     profileCard: {
-        backgroundColor: "#FFFFFF",
         borderRadius: 24,
         padding: 20,
         marginBottom: 24,
         marginTop: 10,
         borderWidth: 1,
-        borderColor: "#F3F4F6",
+        borderColor: "#EAF0F5",
+    },
+    profileEyebrowRow: {
+        marginBottom: 14,
+    },
+    profileEyebrow: {
+        alignSelf: "flex-start",
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 6,
+        backgroundColor: "#ECFDF3",
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+        borderRadius: 999,
+    },
+    profileEyebrowText: {
+        fontSize: 12,
+        fontWeight: "700",
+        color: "#059669",
     },
     avatarContainer: {
         flexDirection: "row",
@@ -629,7 +707,13 @@ const styles = StyleSheet.create({
         fontSize: 22,
         fontWeight: "800",
         color: "#111827",
-        marginBottom: 6,
+        marginBottom: 4,
+    },
+    profileSubtitle: {
+        fontSize: 13,
+        color: "#6B7280",
+        fontWeight: "500",
+        marginBottom: 8,
     },
     ratingContainer: {
         flexDirection: "row",
@@ -650,7 +734,7 @@ const styles = StyleSheet.create({
         gap: 12,
         paddingTop: 16,
         borderTopWidth: 1,
-        borderTopColor: "#F3F4F6",
+        borderTopColor: "#EEF2F7",
     },
     badge: {
         flexDirection: "row",
@@ -671,11 +755,45 @@ const styles = StyleSheet.create({
         height: 8,
         borderRadius: 4,
     },
+    profileSnapshotRow: {
+        marginTop: 16,
+        flexDirection: "row",
+        alignItems: "center",
+        backgroundColor: "#FFFFFF",
+        borderRadius: 18,
+        borderWidth: 1,
+        borderColor: "#EEF2F7",
+        paddingHorizontal: 14,
+        paddingVertical: 14,
+    },
+    profileSnapshotItem: {
+        flex: 1,
+        alignItems: "center",
+    },
+    profileSnapshotDivider: {
+        width: 1,
+        alignSelf: "stretch",
+        backgroundColor: "#EEF2F7",
+    },
+    profileSnapshotLabel: {
+        fontSize: 11,
+        fontWeight: "700",
+        color: "#6B7280",
+        textTransform: "uppercase",
+        letterSpacing: 0.4,
+        marginBottom: 4,
+    },
+    profileSnapshotValue: {
+        fontSize: 14,
+        fontWeight: "800",
+        color: "#111827",
+        textAlign: "center",
+    },
     section: {
         marginBottom: 24,
     },
     sectionTitle: {
-        fontSize: 16,
+        fontSize: 15,
         fontWeight: "700",
         color: "#6B7280",
         marginBottom: 12,
@@ -685,10 +803,10 @@ const styles = StyleSheet.create({
     },
     card: {
         backgroundColor: "#FFFFFF",
-        borderRadius: 20,
-        padding: 12,
+        borderRadius: 22,
+        padding: 14,
         borderWidth: 1,
-        borderColor: "#F3F4F6",
+        borderColor: "#EAF0F5",
     },
     infoRow: {
         flexDirection: "row",
@@ -736,8 +854,24 @@ const styles = StyleSheet.create({
     },
     divider: {
         height: 1,
-        backgroundColor: "#F9FAFB",
+        backgroundColor: "#F1F5F9",
         marginLeft: 52,
+    },
+    financialIntro: {
+        paddingHorizontal: 4,
+        paddingBottom: 14,
+    },
+    financialIntroTitle: {
+        fontSize: 14,
+        fontWeight: "700",
+        color: "#111827",
+    },
+    financialIntroText: {
+        fontSize: 12,
+        lineHeight: 18,
+        color: "#6B7280",
+        fontWeight: "500",
+        marginTop: 4,
     },
     financialGrid: {
         flexDirection: "row",

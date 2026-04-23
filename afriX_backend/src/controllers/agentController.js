@@ -13,6 +13,7 @@ const { ApiError } = require("../utils/errors");
 const agentService = require("../services/agentService");
 const AgentKyc = require("../models/AgentKyc");
 const { uploadToR2 } = require("../services/r2Service");
+const { annotateTransactionFee } = require("../utils/transactionFeePresentation");
 
 /**
  * Compute total minted and burned per token type from Transaction table (source of truth).
@@ -464,7 +465,7 @@ const agentController = {
         },
         limit: 10,
         order: [['created_at', 'DESC']],
-        attributes: ['id', 'type', 'amount', 'token_type', 'status', 'created_at', 'to_user_id', 'from_user_id'],
+        attributes: ['id', 'type', 'amount', 'token_type', 'status', 'fee', 'created_at', 'to_user_id', 'from_user_id'],
         include: [
           {
             model: User,
@@ -487,7 +488,7 @@ const agentController = {
         },
         limit: 5,
         order: [['created_at', 'DESC']],
-        attributes: ['id', 'amount', 'created_at', 'metadata']
+        attributes: ['id', 'amount', 'status', 'created_at', 'metadata']
       });
 
       // Get performance metrics
@@ -534,7 +535,7 @@ const agentController = {
                 ? ((outstandingUsdt / agent.deposit_usd) * 100).toFixed(2) + "%"
                 : "0%",
           },
-          recent_transactions: recentTxs,
+          recent_transactions: recentTxs.map((tx) => annotateTransactionFee(tx)),
           deposit_history: depositHistory,
           performance: {
             total_transactions: totalTransactions,

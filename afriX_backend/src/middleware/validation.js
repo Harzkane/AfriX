@@ -358,7 +358,7 @@ const validateMerchantUpdate = (req, res, next) => {
     business_phone: Joi.string().max(20).optional(),
     city: Joi.string().max(100).optional(),
     address: Joi.string().optional(),
-    default_currency: Joi.string().valid("NT", "CT", "USDT").optional(),
+    default_token_type: Joi.string().valid("NT", "CT", "USDT").optional(),
     webhook_url: Joi.string().uri().optional(),
   });
 
@@ -382,9 +382,12 @@ const validatePaymentRequest = (req, res, next) => {
       "any.required": "Amount is required",
     }),
     currency: Joi.string().valid("NT", "CT", "USDT").optional(),
+    token_type: Joi.string().valid("NT", "CT", "USDT").optional(),
+    merchant_id: Joi.string().uuid().optional(),
     description: Joi.string().max(500).optional(),
     customer_email: Joi.string().email().optional(),
     reference: Joi.string().max(100).optional(),
+    metadata: Joi.object().optional(),
   });
 
   const { error } = schema.validate(req.body);

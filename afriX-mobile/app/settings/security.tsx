@@ -47,43 +47,46 @@ export default function SecurityScreen() {
     const [otp, setOtp] = useState("");
     const [secret, setSecret] = useState("");
     const [loading, setLoading] = useState(false);
-    const [step, setStep] = useState<"setup" | "verify">("setup");
 
     const handleBiometricToggle = async (value: boolean) => {
         if (value) {
             setBiometricLoading(true);
             try {
-                // Face ID is not supported in Expo Go – require a development build
                 if (Constants.appOwnership === "expo") {
                     Alert.alert(
                         "Use a development build",
-                        "Biometric login (Face ID / Touch ID) does not work in Expo Go. Build the app with: npx expo run:ios"
+                        "Biometric login does not work in Expo Go. Build the app with: npx expo run:ios"
                     );
                     setBiometricLoading(false);
                     return;
                 }
+
                 const hasHardware = await LocalAuthentication.hasHardwareAsync();
                 const isEnrolled = await LocalAuthentication.isEnrolledAsync();
+
                 if (!hasHardware || !isEnrolled) {
                     Alert.alert(
                         "Not available",
-                        "Biometric login is not available on this device. Set up Face ID or Touch ID in your device settings. If you use Expo Go, you need a development build (npx expo run:ios) for Face ID."
+                        "Biometric login is not available on this device. Set up Face ID or Touch ID in your device settings first."
                     );
                     setBiometricLoading(false);
                     return;
                 }
+
                 const result = await LocalAuthentication.authenticateAsync({
                     promptMessage: "Verify identity to enable biometric login",
                     cancelLabel: "Cancel",
                     fallbackLabel: "Use password",
                     disableDeviceFallback: true,
                 });
+
                 if (result.success) {
                     await SecureStore.setItemAsync(BIOMETRIC_LOGIN_KEY, "true");
                     setBiometricsEnabled(true);
                 } else {
                     setBiometricsEnabled(false);
                     const errorMsg = (result as { error?: string }).error;
+
                     if (errorMsg === "user_cancel" || errorMsg === "system_cancel") {
                         Alert.alert("Cancelled", "Authentication was cancelled.");
                     } else if (errorMsg === "lockout") {
@@ -94,7 +97,7 @@ export default function SecurityScreen() {
                     } else {
                         Alert.alert(
                             "Couldn’t enable",
-                            "Biometric authentication failed. Try again or use a development build if you are testing."
+                            "Biometric authentication failed. Try again when your device biometrics are available."
                         );
                     }
                 }
@@ -102,7 +105,7 @@ export default function SecurityScreen() {
                 setBiometricsEnabled(false);
                 Alert.alert(
                     "Couldn’t enable",
-                    "Biometric login could not be enabled. If you use Expo Go, build the app with: npx expo run:ios"
+                    "Biometric login could not be enabled on this device."
                 );
             } finally {
                 setBiometricLoading(false);
@@ -115,14 +118,12 @@ export default function SecurityScreen() {
 
     const handle2FAToggle = async (value: boolean) => {
         if (value) {
-            // Enable 2FA
             try {
                 setLoading(true);
                 const response = await apiClient.post("/auth/2fa/setup");
                 if (response.data.success) {
                     setQrCode(response.data.data.qr_code);
                     setSecret(response.data.data.secret);
-                    setStep("setup");
                     setShow2FAModal(true);
                 }
             } catch (error) {
@@ -132,7 +133,6 @@ export default function SecurityScreen() {
                 setLoading(false);
             }
         } else {
-            // Disable 2FA: show modal for password + optional 6-digit code
             setDisablePassword("");
             setDisableOtp("");
             setShowDisable2FAModal(true);
@@ -144,6 +144,7 @@ export default function SecurityScreen() {
             Alert.alert("Error", "Enter your account password.");
             return;
         }
+
         try {
             setLoading(true);
             const body: { password: string; token?: string } = { password: disablePassword.trim() };
@@ -198,6 +199,8 @@ export default function SecurityScreen() {
         type = "switch",
         onPress,
         disabled = false,
+        tint = "#4B5563",
+        iconBg = "#F3F4F6",
     }: any) => (
         <TouchableOpacity
             style={styles.settingItem}
@@ -205,12 +208,12 @@ export default function SecurityScreen() {
             disabled={type === "switch"}
             activeOpacity={0.7}
         >
-            <View style={styles.settingIcon}>
-                <Ionicons name={icon} size={22} color="#4B5563" />
+            <View style={[styles.settingIcon, { backgroundColor: iconBg }]}>
+                <Ionicons name={icon} size={20} color={tint} />
             </View>
             <View style={styles.settingContent}>
                 <Text style={styles.settingTitle}>{title}</Text>
-                {subtitle && <Text style={styles.settingSubtitle}>{subtitle}</Text>}
+                {subtitle ? <Text style={styles.settingSubtitle}>{subtitle}</Text> : null}
             </View>
             {type === "switch" ? (
                 <Switch
@@ -218,7 +221,7 @@ export default function SecurityScreen() {
                     onValueChange={onValueChange}
                     disabled={disabled}
                     trackColor={{ false: "#E5E7EB", true: "#00B14F" }}
-                    thumbColor={"#FFFFFF"}
+                    thumbColor="#FFFFFF"
                 />
             ) : (
                 <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
@@ -238,16 +241,28 @@ export default function SecurityScreen() {
                         <TouchableOpacity
                             onPress={() => router.replace("/(tabs)/profile")}
                             style={styles.backButton}
+                            activeOpacity={0.8}
                         >
                             <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
                         </TouchableOpacity>
                         <Text style={styles.headerTitle}>Security</Text>
-                        <View style={{ width: 40 }} />
+                        <View style={styles.headerSpacer} />
                     </View>
                 </SafeAreaView>
             </View>
 
-            <ScrollView contentContainerStyle={styles.content}>
+            <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+                <LinearGradient
+                    colors={["#F7FFF9", "#FFFFFF"]}
+                    style={styles.summaryCard}
+                >
+                    <Text style={styles.summaryEyebrow}>Account Protection</Text>
+                    <Text style={styles.summaryTitle}>Strengthen how your account stays secure</Text>
+                    <Text style={styles.summaryText}>
+                        Manage biometric login, two-factor authentication, and password controls from one protected place.
+                    </Text>
+                </LinearGradient>
+
                 <View style={styles.section}>
                     <Text style={styles.sectionHeader}>Authentication</Text>
                     <View style={styles.card}>
@@ -258,14 +273,18 @@ export default function SecurityScreen() {
                             value={biometricsEnabled}
                             onValueChange={handleBiometricToggle}
                             disabled={biometricLoading}
+                            tint="#00B14F"
+                            iconBg="#ECFDF3"
                         />
                         <View style={styles.divider} />
                         <SettingItem
                             icon="shield-checkmark-outline"
                             title="Two-Factor Auth (2FA)"
-                            subtitle="Add an extra layer of security"
+                            subtitle="Add an extra layer of login security"
                             value={twoFactorEnabled}
                             onValueChange={handle2FAToggle}
+                            tint="#3B82F6"
+                            iconBg="#EFF6FF"
                         />
                     </View>
                 </View>
@@ -279,6 +298,8 @@ export default function SecurityScreen() {
                             subtitle="Update your account password"
                             type="link"
                             onPress={() => router.push("/settings/change-password")}
+                            tint="#8B5CF6"
+                            iconBg="#F3E8FF"
                         />
                     </View>
                 </View>
@@ -294,12 +315,13 @@ export default function SecurityScreen() {
                             onPress={() =>
                                 Alert.alert("Coming Soon", "Device management coming soon")
                             }
+                            tint="#F59E0B"
+                            iconBg="#FEF3C7"
                         />
                     </View>
                 </View>
             </ScrollView>
 
-            {/* 2FA Setup Modal */}
             <Modal visible={show2FAModal} animationType="slide" presentationStyle="pageSheet">
                 <View style={styles.modalContainer}>
                     <View style={styles.modalHeader}>
@@ -310,7 +332,9 @@ export default function SecurityScreen() {
                     </View>
 
                     <ScrollView contentContainerStyle={styles.modalContent}>
-                        <Text style={styles.stepText}>1. Scan this QR code with your Authenticator App (Google Auth, Authy, etc.)</Text>
+                        <Text style={styles.stepText}>
+                            1. Scan this QR code with your authenticator app.
+                        </Text>
                         {qrCode ? (
                             <Image source={{ uri: qrCode }} style={styles.qrCode} />
                         ) : (
@@ -349,23 +373,34 @@ export default function SecurityScreen() {
                             onPress={verifyAndEnable2FA}
                             disabled={loading}
                         >
-                            <Text style={styles.verifyButtonText}>{loading ? "Verifying..." : "Verify & Enable"}</Text>
+                            <Text style={styles.verifyButtonText}>
+                                {loading ? "Verifying..." : "Verify & Enable"}
+                            </Text>
                         </TouchableOpacity>
                     </ScrollView>
                 </View>
             </Modal>
 
-            {/* Disable 2FA Modal */}
             <Modal visible={showDisable2FAModal} animationType="slide" presentationStyle="pageSheet">
                 <View style={styles.modalContainer}>
                     <View style={styles.modalHeader}>
                         <Text style={styles.modalTitle}>Disable 2FA</Text>
-                        <TouchableOpacity onPress={() => { setShowDisable2FAModal(false); setDisablePassword(""); setDisableOtp(""); }}>
+                        <TouchableOpacity
+                            onPress={() => {
+                                setShowDisable2FAModal(false);
+                                setDisablePassword("");
+                                setDisableOtp("");
+                            }}
+                        >
                             <Ionicons name="close" size={24} color="#111827" />
                         </TouchableOpacity>
                     </View>
+
                     <ScrollView contentContainerStyle={styles.modalContent}>
-                        <Text style={styles.stepText}>Enter your account password. You can also enter the current 6-digit code from your authenticator app for extra verification.</Text>
+                        <Text style={styles.stepText}>
+                            Enter your account password. You can also add the current 6-digit authenticator code for extra verification.
+                        </Text>
+
                         <Text style={styles.secretText}>Account password</Text>
                         <TextInput
                             style={styles.otpInput}
@@ -376,21 +411,25 @@ export default function SecurityScreen() {
                             autoCapitalize="none"
                             autoCorrect={false}
                         />
+
                         <Text style={styles.secretText}>6-digit code (optional)</Text>
                         <TextInput
                             style={styles.otpInput}
                             value={disableOtp}
-                            onChangeText={(t) => setDisableOtp(t.replace(/\D/g, "").slice(0, 6))}
+                            onChangeText={(text) => setDisableOtp(text.replace(/\D/g, "").slice(0, 6))}
                             placeholder="000000"
                             keyboardType="number-pad"
                             maxLength={6}
                         />
+
                         <TouchableOpacity
                             style={[styles.verifyButton, loading && styles.buttonDisabled]}
                             onPress={handleDisable2FASubmit}
                             disabled={loading}
                         >
-                            <Text style={styles.verifyButtonText}>{loading ? "Disabling..." : "Disable 2FA"}</Text>
+                            <Text style={styles.verifyButtonText}>
+                                {loading ? "Disabling..." : "Disable 2FA"}
+                            </Text>
                         </TouchableOpacity>
                     </ScrollView>
                 </View>
@@ -402,9 +441,11 @@ export default function SecurityScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: "#F3F4F6",
+        backgroundColor: "#F9FAFB",
     },
     scrollContent: {
+        paddingHorizontal: 20,
+        paddingTop: 58,
         paddingBottom: 40,
     },
     headerWrapper: {
@@ -417,7 +458,7 @@ const styles = StyleSheet.create({
         top: 0,
         left: 0,
         right: 0,
-        height: 120,
+        // height: 120,
     },
     headerContent: {
         paddingHorizontal: 20,
@@ -438,34 +479,61 @@ const styles = StyleSheet.create({
         backgroundColor: "rgba(255,255,255,0.2)",
     },
     headerTitle: {
-        fontSize: 20,
+        fontSize: 22,
         fontWeight: "700",
         color: "#FFFFFF",
+        letterSpacing: -0.4,
     },
-    content: {
-        padding: 20,
-        paddingTop: 40,
+    headerSpacer: {
+        width: 40,
+    },
+    summaryCard: {
+        borderRadius: 22,
+        padding: 18,
+        marginTop: -22,
+        marginBottom: 18,
+        borderWidth: 1,
+        borderColor: "#E6F4EA",
+    },
+    summaryEyebrow: {
+        fontSize: 11,
+        fontWeight: "800",
+        color: "#00B14F",
+        textTransform: "uppercase",
+        letterSpacing: 0.5,
+        marginBottom: 6,
+    },
+    summaryTitle: {
+        fontSize: 22,
+        fontWeight: "800",
+        color: "#111827",
+        letterSpacing: -0.5,
+    },
+    summaryText: {
+        fontSize: 13,
+        lineHeight: 20,
+        color: "#6B7280",
+        fontWeight: "500",
+        marginTop: 6,
     },
     section: {
-        marginBottom: 24,
+        marginBottom: 18,
     },
     sectionHeader: {
-        fontSize: 14,
-        fontWeight: "600",
+        fontSize: 12,
+        fontWeight: "800",
         color: "#6B7280",
-        marginBottom: 12,
+        marginBottom: 10,
         marginLeft: 4,
         textTransform: "uppercase",
+        letterSpacing: 0.4,
     },
     card: {
         backgroundColor: "#FFFFFF",
-        borderRadius: 16,
+        borderRadius: 20,
         padding: 8,
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.05,
-        shadowRadius: 8,
-        elevation: 2,
+        borderWidth: 1,
+        borderColor: "#E5E7EB",
     },
     settingItem: {
         flexDirection: "row",
@@ -473,10 +541,9 @@ const styles = StyleSheet.create({
         padding: 16,
     },
     settingIcon: {
-        width: 36,
-        height: 36,
-        borderRadius: 10,
-        backgroundColor: "#F3F4F6",
+        width: 40,
+        height: 40,
+        borderRadius: 12,
         alignItems: "center",
         justifyContent: "center",
         marginRight: 12,
@@ -486,20 +553,20 @@ const styles = StyleSheet.create({
     },
     settingTitle: {
         fontSize: 16,
-        fontWeight: "500",
+        fontWeight: "600",
         color: "#111827",
         marginBottom: 2,
     },
     settingSubtitle: {
         fontSize: 12,
         color: "#6B7280",
+        lineHeight: 18,
     },
     divider: {
         height: 1,
         backgroundColor: "#F3F4F6",
-        marginLeft: 64,
+        marginLeft: 68,
     },
-    // Modal Styles
     modalContainer: {
         flex: 1,
         backgroundColor: "#FFFFFF",
@@ -513,7 +580,7 @@ const styles = StyleSheet.create({
         borderBottomColor: "#F3F4F6",
     },
     modalTitle: {
-        fontSize: 18,
+        fontSize: 20,
         fontWeight: "700",
         color: "#111827",
     },
@@ -522,11 +589,12 @@ const styles = StyleSheet.create({
         alignItems: "center",
     },
     stepText: {
-        fontSize: 16,
+        fontSize: 15,
         color: "#374151",
         textAlign: "center",
         marginBottom: 20,
         fontWeight: "500",
+        lineHeight: 22,
     },
     qrCode: {
         width: 200,
@@ -541,15 +609,19 @@ const styles = StyleSheet.create({
         borderRadius: 12,
     },
     secretText: {
+        width: "100%",
         fontSize: 14,
         color: "#6B7280",
         marginBottom: 8,
+        fontWeight: "600",
     },
     secretCodeTouchable: {
+        width: "100%",
         backgroundColor: "#F3F4F6",
         padding: 12,
-        borderRadius: 8,
+        borderRadius: 12,
         marginBottom: 32,
+        alignItems: "center",
     },
     secretCode: {
         fontSize: 20,
@@ -570,14 +642,14 @@ const styles = StyleSheet.create({
     },
     otpInput: {
         width: "100%",
-        height: 56,
+        minHeight: 56,
         borderWidth: 1,
         borderColor: "#D1D5DB",
         borderRadius: 12,
         paddingHorizontal: 16,
-        fontSize: 24,
+        fontSize: 20,
         textAlign: "center",
-        letterSpacing: 8,
+        letterSpacing: 6,
         marginBottom: 24,
         color: "#111827",
     },

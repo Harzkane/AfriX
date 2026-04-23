@@ -15,9 +15,15 @@ import {
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { LinearGradient } from "expo-linear-gradient";
 import QRCode from "react-native-qrcode-svg";
 import apiClient from "@/services/apiClient";
 import { useAgentStore } from "@/stores/slices/agentSlice";
+
+type DepositFieldErrors = {
+    amount?: string;
+    txHash?: string;
+};
 
 export default function AgentDepositScreen() {
     const router = useRouter();
@@ -25,6 +31,7 @@ export default function AgentDepositScreen() {
     const [txHash, setTxHash] = useState("");
     const [amount, setAmount] = useState("");
     const [loading, setLoading] = useState(false);
+    const [fieldErrors, setFieldErrors] = useState<DepositFieldErrors>({});
 
     // TODO: Get this from backend/agent profile
     // const depositAddress = "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb"; //original test wallet
@@ -36,28 +43,93 @@ export default function AgentDepositScreen() {
         Alert.alert("Copied!", "Deposit address copied to clipboard");
     };
 
+    const validateAmount = (value: string) => {
+        const trimmedValue = value.trim();
+
+        if (!trimmedValue) {
+            return "Please enter deposit amount";
+        }
+
+        const depositAmount = parseFloat(trimmedValue);
+        if (isNaN(depositAmount)) {
+            return "Enter a valid deposit amount";
+        }
+
+        if (depositAmount < minimumDeposit) {
+            return `Minimum deposit is $${minimumDeposit} USDT`;
+        }
+
+        return "";
+    };
+
+    const validateTxHash = (value: string) => {
+        const trimmedValue = value.trim();
+
+        if (!trimmedValue) {
+            return "Please enter transaction hash";
+        }
+
+        if (!trimmedValue.startsWith("0x")) {
+            return "Transaction hash must start with 0x";
+        }
+
+        if (!/^0x[a-fA-F0-9]{64}$/.test(trimmedValue)) {
+            return "Enter a valid 66-character transaction hash";
+        }
+
+        return "";
+    };
+
+    const sanitizeAmountInput = (value: string) => {
+        const sanitized = value.replace(/[^0-9.]/g, "");
+        const parts = sanitized.split(".");
+
+        if (parts.length <= 1) {
+            return sanitized;
+        }
+
+        return `${parts[0]}.${parts.slice(1).join("")}`;
+    };
+
+    const handleAmountChange = (value: string) => {
+        const nextAmount = sanitizeAmountInput(value);
+        setAmount(nextAmount);
+        setFieldErrors((current) => ({
+            ...current,
+            amount: nextAmount ? validateAmount(nextAmount) : "",
+        }));
+    };
+
+    const handleTxHashChange = (value: string) => {
+        const nextHash = value.trim().replace(/\s+/g, "");
+        setTxHash(nextHash);
+        setFieldErrors((current) => ({
+            ...current,
+            txHash: nextHash ? validateTxHash(nextHash) : "",
+        }));
+    };
+
+    const validateForm = () => {
+        const nextErrors = {
+            amount: validateAmount(amount),
+            txHash: validateTxHash(txHash),
+        };
+
+        setFieldErrors(nextErrors);
+        return !nextErrors.amount && !nextErrors.txHash;
+    };
+
+    const isFormComplete = amount.trim().length > 0 && txHash.trim().length > 0;
+    const isFormValid =
+        isFormComplete && !validateAmount(amount) && !validateTxHash(txHash);
+
     const handleSubmit = async () => {
-        // Validation
-        if (!amount.trim()) {
-            Alert.alert("Error", "Please enter deposit amount");
+        if (!validateForm()) {
+            Alert.alert("Error", "Please correct the highlighted fields");
             return;
         }
 
-        const depositAmount = parseFloat(amount);
-        if (isNaN(depositAmount) || depositAmount < minimumDeposit) {
-            Alert.alert("Error", `Minimum deposit is $${minimumDeposit} USDT`);
-            return;
-        }
-
-        if (!txHash.trim()) {
-            Alert.alert("Error", "Please enter transaction hash");
-            return;
-        }
-
-        if (!txHash.startsWith("0x") || txHash.length !== 66) {
-            Alert.alert("Error", "Invalid transaction hash format");
-            return;
-        }
+        const depositAmount = parseFloat(amount.trim());
 
         setLoading(true);
 
@@ -83,9 +155,28 @@ export default function AgentDepositScreen() {
             );
         } catch (error: any) {
             const raw = error.response?.data?.message || error.message || "";
-            const message = raw.includes("already been used")
-                ? "This deposit was already applied. Each transaction can only be used once."
-                : raw || "Deposit could not be verified. Please try again.";
+            let message = raw || "Deposit could not be verified. Please try again.";
+
+            if (raw.includes("already been used")) {
+                message =
+                    "This deposit was already applied. Each transaction can only be used once.";
+            } else if (
+                raw.includes("Transaction not found or not confirmed") ||
+                raw.includes("could not confirm this transaction yet")
+            ) {
+                message =
+                    "We could not confirm this transaction yet. Please wait for blockchain confirmation and try again.";
+            } else if (raw.includes("Transaction failed on blockchain")) {
+                message =
+                    "This blockchain transaction failed and cannot be used for deposit verification.";
+            } else if (raw.includes("No USDT transfer to treasury found")) {
+                message =
+                    "No USDT transfer to the platform deposit address was found in this transaction.";
+            } else if (raw.includes("Amount mismatch")) {
+                message =
+                    "The amount you entered does not match the confirmed blockchain transfer.";
+            }
+
             Alert.alert("Deposit failed", message);
         } finally {
             setLoading(false);
@@ -110,36 +201,42 @@ export default function AgentDepositScreen() {
             >
                 <ScrollView contentContainerStyle={styles.content}>
                     {/* Progress Indicator */}
-                    <View style={styles.progressContainer}>
-                        <View style={styles.progressStep}>
-                            <View style={[styles.progressDot, styles.progressDotComplete]}>
-                                <Ionicons name="checkmark" size={20} color="#FFFFFF" />
+                    <View style={styles.progressWrap}>
+                        <View style={styles.progressContainer}>
+                            <View style={styles.progressStep}>
+                                <View style={[styles.progressDot, styles.progressDotComplete]}>
+                                    <Ionicons name="checkmark" size={20} color="#FFFFFF" />
+                                </View>
+                                <Text style={styles.progressLabel}>Register</Text>
                             </View>
-                            <Text style={styles.progressLabel}>Register</Text>
-                        </View>
-                        <View style={[styles.progressLine, styles.progressLineActive]} />
-                        <View style={styles.progressStep}>
-                            <View style={[styles.progressDot, styles.progressDotComplete]}>
-                                <Ionicons name="checkmark" size={20} color="#FFFFFF" />
+                            <View style={[styles.progressLine, styles.progressLineActive]} />
+                            <View style={styles.progressStep}>
+                                <View style={[styles.progressDot, styles.progressDotComplete]}>
+                                    <Ionicons name="checkmark" size={20} color="#FFFFFF" />
+                                </View>
+                                <Text style={styles.progressLabel}>KYC</Text>
                             </View>
-                            <Text style={styles.progressLabel}>KYC</Text>
-                        </View>
-                        <View style={[styles.progressLine, styles.progressLineActive]} />
-                        <View style={styles.progressStep}>
-                            <View style={[styles.progressDot, styles.progressDotActive]}>
-                                <Text style={styles.progressNumber}>3</Text>
+                            <View style={[styles.progressLine, styles.progressLineActive]} />
+                            <View style={styles.progressStep}>
+                                <View style={[styles.progressDot, styles.progressDotActive]}>
+                                    <Text style={styles.progressNumber}>3</Text>
+                                </View>
+                                <Text style={styles.progressLabel}>Deposit</Text>
                             </View>
-                            <Text style={styles.progressLabel}>Deposit</Text>
                         </View>
                     </View>
 
                     {/* Introduction */}
-                    <View style={styles.introSection}>
+                    <LinearGradient
+                        colors={["#F7FFF9", "#FFFFFF"]}
+                        style={styles.introSection}
+                    >
+                        <Text style={styles.introEyebrow}>Account Activation</Text>
                         <Text style={styles.introTitle}>Almost There! 🎉</Text>
                         <Text style={styles.introDescription}>
                             Make your security deposit to activate your agent account and start earning.
                         </Text>
-                    </View>
+                    </LinearGradient>
 
                     {/* Deposit Info */}
                     <View style={styles.infoCard}>
@@ -189,30 +286,50 @@ export default function AgentDepositScreen() {
                         <View style={styles.inputGroup}>
                             <Text style={styles.label}>Amount (USDT) *</Text>
                             <TextInput
-                                style={styles.input}
+                                style={[styles.input, fieldErrors.amount ? styles.inputError : null]}
                                 placeholder={`Minimum ${minimumDeposit}`}
                                 value={amount}
-                                onChangeText={setAmount}
+                                onChangeText={handleAmountChange}
+                                onBlur={() =>
+                                    setFieldErrors((current) => ({
+                                        ...current,
+                                        amount: validateAmount(amount),
+                                    }))
+                                }
                                 keyboardType="decimal-pad"
                             />
-                            <Text style={styles.helperText}>
-                                This will be your minting capacity
-                            </Text>
+                            {fieldErrors.amount ? (
+                                <Text style={styles.errorText}>{fieldErrors.amount}</Text>
+                            ) : (
+                                <Text style={styles.helperText}>
+                                    This will be your minting capacity
+                                </Text>
+                            )}
                         </View>
 
                         <View style={styles.inputGroup}>
                             <Text style={styles.label}>Transaction Hash *</Text>
                             <TextInput
-                                style={styles.input}
+                                style={[styles.input, fieldErrors.txHash ? styles.inputError : null]}
                                 placeholder="0x..."
                                 value={txHash}
-                                onChangeText={setTxHash}
+                                onChangeText={handleTxHashChange}
+                                onBlur={() =>
+                                    setFieldErrors((current) => ({
+                                        ...current,
+                                        txHash: validateTxHash(txHash),
+                                    }))
+                                }
                                 autoCapitalize="none"
                                 autoCorrect={false}
                             />
-                            <Text style={styles.helperText}>
-                                Enter the transaction hash from your wallet
-                            </Text>
+                            {fieldErrors.txHash ? (
+                                <Text style={styles.errorText}>{fieldErrors.txHash}</Text>
+                            ) : (
+                                <Text style={styles.helperText}>
+                                    Enter the transaction hash from your wallet
+                                </Text>
+                            )}
                         </View>
                     </View>
 
@@ -229,9 +346,12 @@ export default function AgentDepositScreen() {
                 {/* Footer */}
                 <View style={styles.footer}>
                     <TouchableOpacity
-                        style={[styles.submitButton, loading && styles.submitButtonDisabled]}
+                        style={[
+                            styles.submitButton,
+                            (!isFormValid || loading) && styles.submitButtonDisabled,
+                        ]}
                         onPress={handleSubmit}
-                        disabled={loading}
+                        disabled={!isFormValid || loading}
                     >
                         {loading ? (
                             <ActivityIndicator color="#FFFFFF" />
@@ -273,11 +393,18 @@ const styles = StyleSheet.create({
     content: {
         padding: 20,
     },
+    progressWrap: {
+        backgroundColor: "#FFFFFF",
+        borderRadius: 22,
+        borderWidth: 1,
+        borderColor: "#EAF0F5",
+        padding: 16,
+        marginBottom: 24,
+    },
     progressContainer: {
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "center",
-        marginBottom: 32,
     },
     progressStep: {
         alignItems: "center",
@@ -319,6 +446,18 @@ const styles = StyleSheet.create({
     introSection: {
         marginBottom: 24,
         alignItems: "center",
+        borderRadius: 22,
+        padding: 20,
+        borderWidth: 1,
+        borderColor: "#E6F4EA",
+    },
+    introEyebrow: {
+        fontSize: 11,
+        fontWeight: "800",
+        color: "#00B14F",
+        textTransform: "uppercase",
+        letterSpacing: 0.5,
+        marginBottom: 8,
     },
     introTitle: {
         fontSize: 24,
@@ -334,10 +473,12 @@ const styles = StyleSheet.create({
         lineHeight: 24,
     },
     infoCard: {
-        backgroundColor: "#F9FAFB",
-        borderRadius: 12,
-        padding: 16,
+        backgroundColor: "#FBFCFD",
+        borderRadius: 18,
+        padding: 18,
         marginBottom: 16,
+        borderWidth: 1,
+        borderColor: "#EAF0F5",
     },
     infoRow: {
         flexDirection: "row",
@@ -359,7 +500,7 @@ const styles = StyleSheet.create({
         alignItems: "flex-start",
         backgroundColor: "#FEF2F2",
         padding: 16,
-        borderRadius: 12,
+        borderRadius: 16,
         borderWidth: 1,
         borderColor: "#FEE2E2",
         marginBottom: 24,
@@ -385,19 +526,19 @@ const styles = StyleSheet.create({
         alignItems: "center",
         padding: 20,
         backgroundColor: "#FFFFFF",
-        borderRadius: 12,
+        borderRadius: 18,
         borderWidth: 1,
-        borderColor: "#E5E7EB",
+        borderColor: "#EAF0F5",
         marginBottom: 16,
     },
     addressContainer: {
         flexDirection: "row",
         alignItems: "center",
-        backgroundColor: "#F9FAFB",
+        backgroundColor: "#FBFCFD",
         padding: 12,
-        borderRadius: 8,
+        borderRadius: 14,
         borderWidth: 1,
-        borderColor: "#E5E7EB",
+        borderColor: "#EAF0F5",
     },
     addressText: {
         flex: 1,
@@ -416,33 +557,45 @@ const styles = StyleSheet.create({
         marginBottom: 20,
     },
     label: {
-        fontSize: 14,
-        fontWeight: "600",
-        color: "#374151",
+        fontSize: 12,
+        fontWeight: "800",
+        color: "#4B5563",
         marginBottom: 8,
+        textTransform: "uppercase",
+        letterSpacing: 0.5,
     },
     input: {
         borderWidth: 1,
-        borderColor: "#D1D5DB",
-        borderRadius: 8,
-        padding: 12,
+        borderColor: "#EAF0F5",
+        borderRadius: 14,
+        padding: 14,
         fontSize: 16,
         color: "#111827",
         backgroundColor: "#FFFFFF",
+    },
+    inputError: {
+        borderColor: "#FCA5A5",
+        backgroundColor: "#FFFBFB",
     },
     helperText: {
         fontSize: 12,
         color: "#6B7280",
         marginTop: 4,
     },
+    errorText: {
+        fontSize: 12,
+        color: "#DC2626",
+        marginTop: 6,
+        fontWeight: "500",
+    },
     infoBanner: {
         flexDirection: "row",
         alignItems: "flex-start",
         backgroundColor: "#F0FDF4",
         padding: 16,
-        borderRadius: 12,
+        borderRadius: 16,
         borderWidth: 1,
-        borderColor: "#00B14F",
+        borderColor: "#D8F3E3",
     },
     infoText: {
         fontSize: 14,
@@ -454,13 +607,14 @@ const styles = StyleSheet.create({
     footer: {
         padding: 16,
         borderTopWidth: 1,
-        borderTopColor: "#F3F4F6",
+        borderTopColor: "#EAF0F5",
+        backgroundColor: "#FFFFFF",
     },
     submitButton: {
         flexDirection: "row",
         backgroundColor: "#00B14F",
         paddingVertical: 16,
-        borderRadius: 12,
+        borderRadius: 16,
         alignItems: "center",
         justifyContent: "center",
         gap: 8,

@@ -1,24 +1,35 @@
 // src/hooks/useIncomingTransferListener.ts
 import { useEffect, useRef, useState } from "react";
+import { AppState, AppStateStatus } from "react-native";
 import { useRouter, usePathname } from "expo-router";
-import { useAuthStore } from "@/stores";
+import { useAuthStore, useWalletStore } from "@/stores";
 import apiClient from "@/services/apiClient";
 
 export function useIncomingTransferListener() {
     const router = useRouter();
     const pathname = usePathname();
     const { user, isAuthenticated } = useAuthStore();
+    const { fetchWallets } = useWalletStore();
     const [startTime] = useState(new Date());
     const lastSeenTxId = useRef<string | null>(null);
+    const appStateRef = useRef<AppStateStatus>(AppState.currentState);
+    const pathnameRef = useRef(pathname);
+
+    useEffect(() => {
+        pathnameRef.current = pathname;
+    }, [pathname]);
 
     useEffect(() => {
         if (!isAuthenticated || !user?.id) return;
 
         let isMounted = true;
-        const POLL_INTERVAL = 10000; // 10 seconds for global polling
+        let intervalId: ReturnType<typeof setInterval> | null = null;
+        const POLL_INTERVAL = 30000; // 30 seconds to reduce background load
 
         const checkIncomingTransfers = async () => {
             try {
+                if (appStateRef.current !== "active") return;
+
                 // Fetch the most recent transaction
                 const response = await apiClient.get("/transactions?limit=1");
                 if (!isMounted) return;
@@ -40,6 +51,9 @@ export function useIncomingTransferListener() {
                     console.log("🔔 Global: Incoming transfer detected!", latestTx.id);
                     lastSeenTxId.current = latestTx.id;
 
+                    // Refresh balances as soon as we detect the transfer.
+                    await fetchWallets();
+
                     // Extract sender info
                     const fromUser = latestTx.fromUser;
                     const agent = latestTx.agent;
@@ -51,7 +65,7 @@ export function useIncomingTransferListener() {
                     const timestamp = latestTx.created_at || latestTx.createdAt;
 
                     // Only navigate if we're not already on the success screen
-                    if (pathname !== "/modals/receive-tokens/success") {
+                    if (pathnameRef.current !== "/modals/receive-tokens/success") {
                         router.push({
                             pathname: "/modals/receive-tokens/success",
                             params: {
@@ -74,13 +88,39 @@ export function useIncomingTransferListener() {
             }
         };
 
-        // Run immediately then start interval
-        checkIncomingTransfers();
-        const intervalId = setInterval(checkIncomingTransfers, POLL_INTERVAL);
+        const startPolling = () => {
+            if (intervalId) return;
+            checkIncomingTransfers();
+            intervalId = setInterval(checkIncomingTransfers, POLL_INTERVAL);
+        };
+
+        const stopPolling = () => {
+            if (!intervalId) return;
+            clearInterval(intervalId);
+            intervalId = null;
+        };
+
+        const handleAppStateChange = (nextAppState: AppStateStatus) => {
+            appStateRef.current = nextAppState;
+
+            if (nextAppState === "active") {
+                startPolling();
+                return;
+            }
+
+            stopPolling();
+        };
+
+        if (appStateRef.current === "active") {
+            startPolling();
+        }
+
+        const subscription = AppState.addEventListener("change", handleAppStateChange);
 
         return () => {
             isMounted = false;
-            clearInterval(intervalId);
+            stopPolling();
+            subscription.remove();
         };
-    }, [isAuthenticated, user?.id, startTime, pathname]);
+    }, [isAuthenticated, user?.id, startTime, router, fetchWallets]);
 }

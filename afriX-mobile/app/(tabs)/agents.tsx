@@ -29,7 +29,7 @@ export default function AgentsScreen() {
 
     useEffect(() => {
         fetchAgents(countryCode, sort);
-    }, [countryCode, sort]);
+    }, [countryCode, fetchAgents, sort]);
 
     const onRefresh = async () => {
         setRefreshing(true);
@@ -46,8 +46,7 @@ export default function AgentsScreen() {
 
     return (
         <View style={styles.container}>
-            {/* Header Section */}
-            <View style={styles.header}>
+            <View style={styles.headerWrapper}>
                 <LinearGradient
                     colors={["#00B14F", "#008F40"]}
                     style={styles.headerGradient}
@@ -64,33 +63,53 @@ export default function AgentsScreen() {
                             <Text style={styles.title}>Agents</Text>
                             <View style={{ width: 40 }} />
                         </View>
-                        <Text style={styles.subtitle}>
-                            Find trusted agents in your country
-                        </Text>
                     </View>
                 </SafeAreaView>
             </View>
 
-            {/* Sort */}
-            <View style={styles.sortRow}>
-                {(["rating", "fastest", "capacity"] as const).map((key) => (
-                    <TouchableOpacity
-                        key={key}
-                        style={[styles.sortBtn, sort === key && styles.sortBtnActive]}
-                        onPress={() => setSort(key)}
-                        activeOpacity={0.7}
-                    >
-                        <Text style={[styles.sortBtnText, sort === key && styles.sortBtnTextActive]}>
-                            {key === "rating" ? "Best rated" : key === "fastest" ? "Fastest" : "Highest capacity"}
-                        </Text>
-                    </TouchableOpacity>
-                ))}
+            <View style={styles.controlsContainer}>
+                <LinearGradient
+                    colors={["#F7FFF9", "#FFFFFF"]}
+                    style={styles.summaryCard}
+                >
+                    <Text style={styles.summaryEyebrow}>Agent Network</Text>
+                    <Text style={styles.summaryTitle}>Find trusted agents near you</Text>
+                    <Text style={styles.summaryText}>
+                        Compare verified agents by rating, response speed, and transaction capacity before you continue.
+                    </Text>
+                    <View style={styles.summaryMetaRow}>
+                        <View style={styles.summaryMetaPill}>
+                            <Text style={styles.summaryMetaValue}>{agents.length}</Text>
+                            <Text style={styles.summaryMetaLabel}>Available</Text>
+                        </View>
+                        <View style={styles.summaryMetaPill}>
+                            <Text style={styles.summaryMetaValue}>{countryCode}</Text>
+                            <Text style={styles.summaryMetaLabel}>Country</Text>
+                        </View>
+                    </View>
+                </LinearGradient>
+
+                <View style={styles.sortPanel}>
+                    {(["rating", "fastest", "capacity"] as const).map((key) => (
+                        <TouchableOpacity
+                            key={key}
+                            style={[styles.sortBtn, sort === key && styles.sortBtnActive]}
+                            onPress={() => setSort(key)}
+                            activeOpacity={0.7}
+                        >
+                            <Text style={[styles.sortBtnText, sort === key && styles.sortBtnTextActive]}>
+                                {key === "rating" ? "Best rated" : key === "fastest" ? "Fastest" : "Capacity"}
+                            </Text>
+                        </TouchableOpacity>
+                    ))}
+                </View>
             </View>
 
             {/* Agents List */}
             {loading ? (
                 <View style={styles.loadingContainer}>
                     <ActivityIndicator size="large" color="#00B14F" />
+                    <Text style={styles.loadingText}>Loading available agents...</Text>
                 </View>
             ) : (
                 <FlatList
@@ -134,20 +153,22 @@ export default function AgentsScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: "#F3F4F6",
+        backgroundColor: "#F9FAFB",
     },
-    header: {
-        marginBottom: 20,
+    headerWrapper: {
+        zIndex: 10,
+        elevation: 8,
+        backgroundColor: "#00B14F",
     },
     headerGradient: {
         position: "absolute",
         top: 0,
         left: 0,
         right: 0,
-        height: 140,
+        height: 120,
     },
     headerContent: {
-        paddingHorizontal: 20,
+        paddingHorizontal: 16,
     },
     headerTop: {
         paddingBottom: 20,
@@ -171,37 +192,101 @@ const styles = StyleSheet.create({
         fontSize: 24,
         fontWeight: "700",
         color: "#FFFFFF",
-    },
-    subtitle: {
-        fontSize: 14,
-        color: "#FFFFFF",
-        opacity: 0.9,
-        marginLeft: 0,
-        textAlign: "center",
+        letterSpacing: -0.5,
     },
     loadingContainer: {
         flex: 1,
         justifyContent: "center",
         alignItems: "center",
+        paddingHorizontal: 24,
     },
-    sortRow: {
+    loadingText: {
+        marginTop: 12,
+        fontSize: 14,
+        color: "#6B7280",
+        fontWeight: "500",
+    },
+    controlsContainer: {
+        paddingHorizontal: 16,
+        paddingTop: 50,
+        paddingBottom: 8,
+    },
+    summaryCard: {
+        borderRadius: 22,
+        padding: 18,
+        marginTop: -34,
+        marginBottom: 14,
+        borderWidth: 1,
+        borderColor: "#E6F4EA",
+    },
+    summaryEyebrow: {
+        fontSize: 11,
+        fontWeight: "800",
+        color: "#00B14F",
+        textTransform: "uppercase",
+        letterSpacing: 0.5,
+        marginBottom: 6,
+    },
+    summaryTitle: {
+        fontSize: 22,
+        fontWeight: "800",
+        color: "#111827",
+        letterSpacing: -0.5,
+    },
+    summaryText: {
+        fontSize: 13,
+        lineHeight: 20,
+        color: "#6B7280",
+        fontWeight: "500",
+        marginTop: 6,
+    },
+    summaryMetaRow: {
         flexDirection: "row",
-        gap: 8,
-        paddingHorizontal: 20,
-        marginBottom: 8,
-        justifyContent: "center",
+        gap: 10,
+        marginTop: 14,
+    },
+    summaryMetaPill: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 6,
+        backgroundColor: "#FFFFFF",
+        borderRadius: 999,
+        paddingVertical: 8,
+        paddingHorizontal: 12,
+        borderWidth: 1,
+        borderColor: "#EAF0F5",
+    },
+    summaryMetaValue: {
+        fontSize: 14,
+        fontWeight: "800",
+        color: "#111827",
+    },
+    summaryMetaLabel: {
+        fontSize: 12,
+        fontWeight: "600",
+        color: "#6B7280",
+    },
+    sortPanel: {
+        flexDirection: "row",
+        backgroundColor: "#FFFFFF",
+        borderRadius: 18,
+        padding: 6,
+        gap: 6,
+        borderWidth: 1,
+        borderColor: "#EAF0F5",
     },
     sortBtn: {
-        paddingHorizontal: 12,
-        paddingVertical: 8,
-        borderRadius: 8,
-        backgroundColor: "#E5E7EB",
+        flex: 1,
+        paddingHorizontal: 10,
+        paddingVertical: 12,
+        borderRadius: 12,
+        alignItems: "center",
     },
     sortBtnActive: {
         backgroundColor: "#00B14F",
     },
     sortBtnText: {
-        fontSize: 13,
+        fontSize: 14,
         fontWeight: "600",
         color: "#6B7280",
     },
@@ -209,23 +294,27 @@ const styles = StyleSheet.create({
         color: "#FFFFFF",
     },
     listContent: {
-        padding: 20,
+        padding: 16,
         paddingTop: 8,
+        paddingBottom: 100,
     },
     emptyState: {
         alignItems: "center",
         justifyContent: "center",
         paddingVertical: 80,
+        paddingHorizontal: 24,
     },
     emptyText: {
         fontSize: 16,
         color: "#6B7280",
         marginTop: 16,
         fontWeight: "600",
+        textAlign: "center",
     },
     emptySubtext: {
         fontSize: 14,
         color: "#9CA3AF",
         marginTop: 4,
+        textAlign: "center",
     },
 });

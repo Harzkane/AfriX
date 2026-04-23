@@ -4,45 +4,95 @@ import { useState, useCallback } from "react";
 import api from "@/lib/api";
 import { toast } from "sonner";
 
+type RequestParams = Record<string, string | number | boolean | undefined>;
+
+const getErrorMessage = (error: unknown, fallback: string) => {
+    if (
+        typeof error === "object" &&
+        error !== null &&
+        "response" in error &&
+        typeof (error as { response?: unknown }).response === "object" &&
+        (error as { response?: { data?: unknown } }).response?.data &&
+        typeof (error as { response?: { data?: { error?: unknown } } }).response?.data?.error === "string"
+    ) {
+        return (error as { response?: { data?: { error?: string } } }).response?.data?.error || fallback;
+    }
+
+    return fallback;
+};
+
 export interface Dispute {
     id: string;
-    escrow_id: string;
-    transaction_id: string;
+    escrow_id?: string;
+    transaction_id?: string;
+    mint_request_id?: string;
+    opened_by_user_id?: string;
+    agent_id?: string;
+    reference?: string;
     reason: string;
-    details: string;
-    status: 'open' | 'resolved';
+    details?: string;
+    status: 'open' | 'resolved' | 'escalated';
     escalation_level: 'auto' | 'level_1' | 'level_2' | 'level_3';
     created_at: string;
+    updated_at?: string;
     user?: {
         id: string;
         full_name: string;
         email: string;
+        phone_number?: string;
     };
     agent?: {
         id: string;
         tier: string;
         rating: number;
+        deposit_usd?: number;
+        available_capacity?: number;
     };
     mintRequest?: {
         id: string;
-        payment_proof_url: string;
+        amount?: string | number;
+        token_type?: string;
+        payment_proof_url?: string;
+        user_bank_reference?: string;
+        rejection_reason?: string;
         status: string;
+        created_at?: string;
+        updated_at?: string;
     };
     escrow?: {
-        amount: number;
+        id?: string;
+        amount: number | string;
         token_type: string;
         status: string;
-        burnRequest?: {
+        transaction?: {
             id: string;
-            fiat_proof_url: string;
+            reference: string;
+            type: string;
+            amount: string | number;
             status: string;
         };
+        burnRequest?: {
+            id: string;
+            fiat_proof_url?: string;
+            status: string;
+            rejection_reason?: string;
+        };
     };
+    transaction_summary?: {
+        id?: string;
+        reference?: string;
+        type?: string;
+        amount?: string | number;
+        token_type?: string;
+        status?: string;
+        created_at?: string;
+        updated_at?: string;
+    } | null;
     resolution?: {
         action: string;
-        notes: string;
+        notes?: string;
         resolved_by: string;
-    }
+    } | null;
 }
 
 export interface DisputeStats {
@@ -69,7 +119,7 @@ export function useDisputes() {
         }
     }, []);
 
-    const fetchDisputes = useCallback(async (params: any = {}) => {
+    const fetchDisputes = useCallback(async (params: RequestParams = {}) => {
         setIsLoading(true);
         setError(null);
         try {
@@ -84,8 +134,8 @@ export function useDisputes() {
                 offset: params.offset || 0,
                 has_more: false
             });
-        } catch (err: any) {
-            setError(err.response?.data?.error || "Failed to load disputes");
+        } catch (err: unknown) {
+            setError(getErrorMessage(err, "Failed to load disputes"));
             toast.error("Failed to load disputes");
         } finally {
             setIsLoading(false);
@@ -99,8 +149,8 @@ export function useDisputes() {
             const res = await api.get(`/admin/operations/disputes/${id}`);
             setCurrentDispute(res.data.data);
             return res.data.data;
-        } catch (err: any) {
-            setError(err.response?.data?.error || "Failed to load dispute");
+        } catch (err: unknown) {
+            setError(getErrorMessage(err, "Failed to load dispute"));
             toast.error("Failed to load dispute details");
             return null;
         } finally {
@@ -116,8 +166,8 @@ export function useDisputes() {
             });
             toast.success("Dispute escalated successfully");
             await fetchDispute(id);
-        } catch (err: any) {
-            toast.error(err.response?.data?.error || "Failed to escalate dispute");
+        } catch (err: unknown) {
+            toast.error(getErrorMessage(err, "Failed to escalate dispute"));
             throw err;
         }
     };
@@ -131,8 +181,8 @@ export function useDisputes() {
             });
             toast.success("Dispute resolved successfully");
             await fetchDispute(id);
-        } catch (err: any) {
-            toast.error(err.response?.data?.error || "Failed to resolve dispute");
+        } catch (err: unknown) {
+            toast.error(getErrorMessage(err, "Failed to resolve dispute"));
             throw err;
         }
     };

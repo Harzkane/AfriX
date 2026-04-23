@@ -4,6 +4,56 @@ import apiClient from "@/services/apiClient";
 import { API_ENDPOINTS } from "@/constants/api";
 import { AgentState } from "../types/agent.types";
 
+const REQUEST_STATUS_PRIORITY: Record<string, number> = {
+  proof_submitted: 4,
+  escrowed: 3,
+  pending: 2,
+  disputed: 1,
+};
+
+const getRequestIdentity = (request: any) =>
+  String(
+    request?.request_id ||
+      request?.metadata?.request_id ||
+      request?.id ||
+      ""
+  );
+
+const scoreRequest = (request: any) => {
+  const statusScore =
+    REQUEST_STATUS_PRIORITY[String(request?.status || "").toLowerCase()] || 0;
+  const proofScore = request?.payment_proof_url || request?.fiat_proof_url ? 2 : 0;
+  const typeScore = request?.type ? 1 : 0;
+
+  return statusScore + proofScore + typeScore;
+};
+
+const dedupeRequests = (requests: any[]) => {
+  const deduped = new Map<string, any>();
+
+  requests.forEach((request) => {
+    const identity = getRequestIdentity(request);
+    if (!identity) return;
+
+    const current = deduped.get(identity);
+    if (!current || scoreRequest(request) > scoreRequest(current)) {
+      deduped.set(identity, request);
+    }
+  });
+
+  return Array.from(deduped.values());
+};
+
+const isActionableRequest = (request: any) => {
+  const status = String(request?.status || "").toLowerCase();
+
+  return (
+    (status === "pending" || status === "proof_submitted" || status === "escrowed") &&
+    !(new Date(request?.expires_at).getTime() < Date.now()) &&
+    status !== "disputed"
+  );
+};
+
 export const useAgentStore = create<AgentState>((set, get) => ({
   stats: null,
   pendingRequests: [],
@@ -69,16 +119,14 @@ export const useAgentStore = create<AgentState>((set, get) => ({
     try {
       // Use agent-specific endpoint
       const { data } = await apiClient.get(API_ENDPOINTS.AGENTS.REQUESTS);
-      const allRequests = data.data || [];
+      const allRequests = dedupeRequests(data.data || []);
 
-      // Filter for pending requests
-      const pending = allRequests.filter((r: any) =>
-        (r.status === 'pending' || r.status === 'proof_submitted' || r.status === 'escrowed') &&
-        !(new Date(r.expires_at).getTime() < Date.now()) &&
-        r.status !== 'disputed'
+      const pending = allRequests.filter((request: any) =>
+        isActionableRequest(request)
       );
+      const history = allRequests.filter((request: any) => !isActionableRequest(request));
 
-      set({ pendingRequests: pending, loading: false });
+      set({ pendingRequests: pending, history, loading: false });
 
       // Update stats count
       set((state) => ({

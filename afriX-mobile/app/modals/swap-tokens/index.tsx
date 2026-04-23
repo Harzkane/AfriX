@@ -172,9 +172,16 @@ export default function SwapTokensScreen() {
                     showsVerticalScrollIndicator={false}
                     keyboardShouldPersistTaps="handled"
                 >
-                    <Text style={styles.subtitle}>
-                        Exchange your tokens at the current rate
-                    </Text>
+                    <LinearGradient
+                        colors={["#F7FFF9", "#FFFFFF"]}
+                        style={styles.heroCard}
+                    >
+                        <Text style={styles.heroEyebrow}>Instant Conversion</Text>
+                        <Text style={styles.heroTitle}>Swap tokens in one flow</Text>
+                        <Text style={styles.heroSubtitle}>
+                            Choose the token you want to convert, review the live estimate, and continue to confirm your swap.
+                        </Text>
+                    </LinearGradient>
 
                     {/* From Token */}
                     <View style={styles.swapCard}>
@@ -387,14 +394,37 @@ const styles = StyleSheet.create({
         paddingTop: 20,
         paddingBottom: 24,
     },
-    subtitle: {
-        fontSize: 14,
-        color: "#9CA3AF",
+    heroCard: {
+        borderRadius: 24,
+        padding: 20,
+        marginBottom: 24,
+        borderWidth: 1,
+        borderColor: "#E6F4EA",
+    },
+    heroEyebrow: {
+        fontSize: 11,
+        fontWeight: "800",
+        color: "#00B14F",
+        textTransform: "uppercase",
+        letterSpacing: 0.5,
+        marginBottom: 8,
+    },
+    heroTitle: {
+        fontSize: 24,
+        fontWeight: "700",
+        color: "#111827",
+        marginBottom: 8,
+        letterSpacing: -0.4,
+    },
+    heroSubtitle: {
+        fontSize: 15,
+        color: "#6B7280",
+        lineHeight: 22,
     },
     swapCard: {
-        backgroundColor: "#F9FAFB",
+        backgroundColor: "#FBFCFD",
         padding: 20,
-        borderRadius: 16,
+        borderRadius: 20,
         borderWidth: 1,
         borderColor: "#E5E7EB",
     },
@@ -402,9 +432,11 @@ const styles = StyleSheet.create({
         marginBottom: 16,
     },
     selectorLabel: {
-        fontSize: 13,
-        fontWeight: "600",
-        color: "#6B7280",
+        fontSize: 11,
+        fontWeight: "800",
+        color: "#00B14F",
+        textTransform: "uppercase",
+        letterSpacing: 0.5,
         marginBottom: 12,
     },
     tokenOptions: {
@@ -419,9 +451,9 @@ const styles = StyleSheet.create({
         gap: 6,
         backgroundColor: "#FFFFFF",
         borderWidth: 2,
-        borderColor: "#E5E7EB",
-        borderRadius: 10,
-        paddingVertical: 10,
+        borderColor: "#F3F4F6",
+        borderRadius: 14,
+        paddingVertical: 12,
     },
     tokenOptionActive: {
         borderColor: "#00B14F",
@@ -448,7 +480,7 @@ const styles = StyleSheet.create({
         color: "#111827",
     },
     amountInputOutline: {
-        borderRadius: 12,
+        borderRadius: 16,
         borderWidth: 2,
         borderColor: "#E5E7EB",
     },
@@ -465,7 +497,7 @@ const styles = StyleSheet.create({
         backgroundColor: "#EFF6FF",
         paddingHorizontal: 12,
         paddingVertical: 6,
-        borderRadius: 6,
+        borderRadius: 8,
         borderWidth: 1,
         borderColor: "#BFDBFE",
     },
@@ -485,9 +517,9 @@ const styles = StyleSheet.create({
         zIndex: 1,
     },
     swapDirectionBtn: {
-        width: 48,
-        height: 48,
-        borderRadius: 24,
+        width: 54,
+        height: 54,
+        borderRadius: 27,
         backgroundColor: "#FFFFFF",
         borderWidth: 2,
         borderColor: "#00B14F",
@@ -511,7 +543,7 @@ const styles = StyleSheet.create({
     receiveAmount: {
         backgroundColor: "#FFFFFF",
         padding: 16,
-        borderRadius: 12,
+        borderRadius: 16,
         borderWidth: 2,
         borderColor: "#E5E7EB",
         minHeight: 60,
@@ -524,8 +556,8 @@ const styles = StyleSheet.create({
     },
     rateCard: {
         backgroundColor: "#EFF6FF",
-        padding: 16,
-        borderRadius: 12,
+        padding: 18,
+        borderRadius: 18,
         marginTop: 16,
         marginBottom: 16,
         borderWidth: 1,
@@ -551,8 +583,8 @@ const styles = StyleSheet.create({
         alignItems: "center",
         gap: 12,
         backgroundColor: "#FFFBEB",
-        padding: 12,
-        borderRadius: 8,
+        padding: 14,
+        borderRadius: 14,
         marginBottom: 16,
         borderWidth: 1,
         borderColor: "#FDE68A",
@@ -568,8 +600,8 @@ const styles = StyleSheet.create({
         alignItems: "flex-start",
         gap: 12,
         backgroundColor: "#EFF6FF",
-        padding: 16,
-        borderRadius: 12,
+        padding: 18,
+        borderRadius: 18,
         marginBottom: 24,
         borderWidth: 1,
         borderColor: "#BFDBFE",
@@ -606,7 +638,7 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: "#F9FAFB",
         paddingVertical: 16,
-        borderRadius: 12,
+        borderRadius: 16,
         alignItems: "center",
         borderWidth: 1,
         borderColor: "#E5E7EB",
@@ -624,7 +656,7 @@ const styles = StyleSheet.create({
         justifyContent: "center",
         gap: 8,
         paddingVertical: 16,
-        borderRadius: 12,
+        borderRadius: 16,
     },
     continueBtnDisabled: {
         backgroundColor: "#E5E7EB",

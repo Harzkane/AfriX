@@ -4,6 +4,7 @@ const { Transaction } = require("../models");
 const { Merchant } = require("../models");
 const { Wallet } = require("../models");
 const { User } = require("../models");
+const { sequelize } = require("../models");
 const {
   TRANSACTION_TYPES,
   TRANSACTION_STATUS,
@@ -26,12 +27,19 @@ const paymentController = {
    */
   async processPayment(req, res, next) {
     try {
-      const { merchant_id, amount, currency, description, metadata } = req.body;
+      const {
+        merchant_id,
+        amount,
+        currency,
+        token_type,
+        description,
+        metadata,
+      } = req.body;
       const user_id = req.user.id;
+      const tokenType = token_type || currency;
 
-      // ✅ Validate currency using TOKEN_TYPES
       const validCurrencies = Object.values(TOKEN_TYPES);
-      if (!validCurrencies.includes(currency)) {
+      if (!validCurrencies.includes(tokenType)) {
         throw new ApiError(
           `Invalid currency. Supported currencies are: ${validCurrencies.join(
             ", "
@@ -48,11 +56,11 @@ const paymentController = {
 
       // Find user wallet with matching currency
       const userWallet = await Wallet.findOne({
-        where: { user_id, currency },
+        where: { user_id, token_type: tokenType },
       });
 
       if (!userWallet) {
-        throw new ApiError(`You don't have a ${currency} wallet`, 400);
+        throw new ApiError(`You don't have a ${tokenType} wallet`, 400);
       }
 
       // Check if user has sufficient balance
@@ -68,30 +76,50 @@ const paymentController = {
         throw new ApiError("Merchant settlement wallet not found", 500);
       }
 
+      if (merchantWallet.token_type !== tokenType) {
+        throw new ApiError(
+          `Merchant settlement wallet does not accept ${tokenType}`,
+          400
+        );
+      }
+
       // Calculate fee
       const feePercentage = merchant.payment_fee_percent || 1.5; // Default to 1.5%
       const fee = (parseFloat(amount) * feePercentage) / 100;
       const netAmount = parseFloat(amount) - fee;
 
-      // Create transaction
-      const transaction = await Transaction.create({
-        reference: generateTransactionReference(),
-        type: TRANSACTION_TYPES.COLLECTION,
-        status: TRANSACTION_STATUS.COMPLETED,
-        amount,
-        fee: fee.toString(),
-        currency,
-        description: description || `Payment to ${merchant.business_name}`,
-        metadata: metadata || {},
-        from_user_id: user_id,
-        to_user_id: merchant.user_id,
-        from_wallet_id: userWallet.id,
-        to_wallet_id: merchantWallet.id,
-      });
+      const transaction = await sequelize.transaction(async (dbTransaction) => {
+        const createdTransaction = await Transaction.create(
+          {
+            reference: generateTransactionReference(),
+            type: TRANSACTION_TYPES.COLLECTION,
+            status: TRANSACTION_STATUS.COMPLETED,
+            amount,
+            fee: fee.toString(),
+            token_type: tokenType,
+            merchant_id: merchant.id,
+            description: description || `Payment to ${merchant.business_name}`,
+            metadata: metadata || {},
+            from_user_id: user_id,
+            to_user_id: merchant.user_id,
+            from_wallet_id: userWallet.id,
+            to_wallet_id: merchantWallet.id,
+            processed_at: new Date(),
+          },
+          { transaction: dbTransaction }
+        );
 
-      // Update wallet balances
-      await userWallet.decrement("balance", { by: amount });
-      await merchantWallet.increment("balance", { by: netAmount });
+        await userWallet.decrement("balance", {
+          by: amount,
+          transaction: dbTransaction,
+        });
+        await merchantWallet.increment("balance", {
+          by: netAmount,
+          transaction: dbTransaction,
+        });
+
+        return createdTransaction;
+      });
 
       res.status(200).json({
         success: true,
@@ -102,7 +130,8 @@ const paymentController = {
           amount,
           fee: fee.toString(),
           net_amount: netAmount.toString(),
-          currency,
+          currency: tokenType,
+          token_type: tokenType,
           status: transaction.status,
           timestamp: transaction.created_at,
         },
@@ -137,12 +166,11 @@ const paymentController = {
             model: User,
             as: "toUser",
             attributes: ["id", "full_name", "email"],
-            include: [
-              {
-                model: Merchant,
-                attributes: ["id", "business_name", "display_name", "logo_url"],
-              },
-            ],
+          },
+          {
+            model: Merchant,
+            as: "merchant",
+            attributes: ["id", "business_name", "display_name", "logo_url"],
           },
         ],
       });
@@ -167,7 +195,8 @@ const paymentController = {
           reference: transaction.reference,
           amount: transaction.amount,
           fee: transaction.fee,
-          currency: transaction.currency,
+          currency: transaction.token_type,
+          token_type: transaction.token_type,
           description: transaction.description,
           status: transaction.status,
           created_at: transaction.created_at,
@@ -178,12 +207,12 @@ const paymentController = {
                 email: transaction.fromUser.email,
               }
             : null,
-          merchant: transaction.toUser?.Merchant
+          merchant: transaction.merchant
             ? {
-                id: transaction.toUser.Merchant.id,
-                business_name: transaction.toUser.Merchant.business_name,
-                display_name: transaction.toUser.Merchant.display_name,
-                logo_url: transaction.toUser.Merchant.logo_url,
+                id: transaction.merchant.id,
+                business_name: transaction.merchant.business_name,
+                display_name: transaction.merchant.display_name,
+                logo_url: transaction.merchant.logo_url,
               }
             : null,
         },

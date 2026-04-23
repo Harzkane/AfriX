@@ -23,6 +23,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Loader2 } from "lucide-react";
 import { format } from "date-fns";
+import type { ComponentProps } from "react";
 
 export default function DisputesPage() {
     const { disputes, isLoading, fetchDisputes } = useOperations();
@@ -30,14 +31,14 @@ export default function DisputesPage() {
     const [escalationFilter, setEscalationFilter] = useState("all");
 
     useEffect(() => {
-        const params: any = {};
+        const params: Record<string, string> = {};
         if (statusFilter !== "all") params.status = statusFilter;
         if (escalationFilter !== "all") params.escalation_level = escalationFilter;
         fetchDisputes(params);
     }, [statusFilter, escalationFilter, fetchDisputes]);
 
     const getStatusBadge = (status: string) => {
-        const variants: Record<string, { variant: any; className: string }> = {
+        const variants: Record<string, { variant: ComponentProps<typeof Badge>["variant"]; className: string }> = {
             open: { variant: "outline", className: "bg-yellow-500/10 text-yellow-600" },
             resolved: { variant: "default", className: "bg-green-600" },
             escalated: { variant: "destructive", className: "" },
@@ -81,9 +82,9 @@ export default function DisputesPage() {
                             </SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="all">All Levels</SelectItem>
-                                <SelectItem value="level_1">Level 1</SelectItem>
-                                <SelectItem value="level_2">Level 2</SelectItem>
-                                <SelectItem value="level_3">Level 3</SelectItem>
+                                <SelectItem value="user_requested">User Requested</SelectItem>
+                                <SelectItem value="admin">Admin Review</SelectItem>
+                                <SelectItem value="arbitration">Arbitration</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>

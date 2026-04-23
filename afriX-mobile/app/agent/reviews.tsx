@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, TextInput, Alert, Modal, KeyboardAvoidingView, Platform, ScrollView } from "react-native";
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, TextInput, Alert, Modal, KeyboardAvoidingView, Platform } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -64,14 +64,14 @@ export default function Reviews() {
 
     const renderItem = ({ item }: { item: AgentReview }) => (
         <View style={styles.card}>
+            <View style={styles.cardAccent} />
             <View style={styles.cardHeader}>
                 <View style={styles.userInfo}>
                     <View style={styles.avatarPlaceholder}>
-                        <Text style={styles.avatarText}>
-                            {item.user?.full_name?.charAt(0) || "U"}
-                        </Text>
+                        <Ionicons name="person" size={18} color="#7C3AED" />
                     </View>
                     <View>
+                        <Text style={styles.reviewEyebrow}>Customer Review</Text>
                         <Text style={styles.userName}>{item.user?.full_name || "Unknown User"}</Text>
                         <View style={styles.ratingContainer}>
                             {[1, 2, 3, 4, 5].map((star) => (
@@ -93,6 +93,7 @@ export default function Reviews() {
             )}
 
             <View style={styles.transactionInfo}>
+                <Text style={styles.transactionLabel}>Transaction</Text>
                 <Text style={styles.transactionText}>
                     {item.transaction?.type} • {item.transaction?.amount} {item.transaction?.token_type}
                 </Text>
@@ -112,7 +113,7 @@ export default function Reviews() {
                     onPress={() => handleReply(item)}
                 >
                     <Ionicons name="arrow-undo-outline" size={16} color="#7C3AED" />
-                    <Text style={styles.replyButtonText}>Reply</Text>
+                    <Text style={styles.replyButtonText}>Reply to Review</Text>
                 </TouchableOpacity>
             )}
         </View>
@@ -141,6 +142,18 @@ export default function Reviews() {
                 renderItem={renderItem}
                 keyExtractor={(item) => item.id}
                 contentContainerStyle={styles.listContent}
+                ListHeaderComponent={
+                    <LinearGradient
+                        colors={["#F7FFF9", "#FFFFFF"]}
+                        style={styles.summaryCard}
+                    >
+                        <Text style={styles.summaryEyebrow}>Agent Reputation</Text>
+                        <Text style={styles.summaryTitle}>Customer Reviews</Text>
+                        <Text style={styles.summaryText}>
+                            Read customer feedback, monitor satisfaction, and reply to reviews that need your voice.
+                        </Text>
+                    </LinearGradient>
+                }
                 refreshControl={
                     <RefreshControl
                         refreshing={loading}
@@ -153,8 +166,13 @@ export default function Reviews() {
                 }
                 ListEmptyComponent={
                     <View style={styles.emptyState}>
-                        <Ionicons name="star-outline" size={48} color="#9CA3AF" />
+                        <View style={styles.emptyIconWrap}>
+                            <Ionicons name="star-outline" size={28} color="#00B14F" />
+                        </View>
                         <Text style={styles.emptyText}>No reviews yet</Text>
+                        <Text style={styles.emptySubtext}>
+                            Customer ratings and feedback will appear here after completed transactions.
+                        </Text>
                     </View>
                 }
             />
@@ -248,14 +266,53 @@ const styles = StyleSheet.create({
     },
     listContent: {
         padding: 16,
+        paddingBottom: 32,
+    },
+    summaryCard: {
+        borderRadius: 22,
+        padding: 18,
+        marginTop: 6,
+        marginBottom: 16,
+        borderWidth: 1,
+        borderColor: "#E6F4EA",
+    },
+    summaryEyebrow: {
+        fontSize: 11,
+        fontWeight: "800",
+        color: "#00B14F",
+        textTransform: "uppercase",
+        letterSpacing: 0.5,
+        marginBottom: 6,
+    },
+    summaryTitle: {
+        fontSize: 22,
+        fontWeight: "800",
+        color: "#111827",
+        letterSpacing: -0.5,
+    },
+    summaryText: {
+        fontSize: 13,
+        lineHeight: 20,
+        color: "#6B7280",
+        fontWeight: "500",
+        marginTop: 6,
     },
     card: {
         backgroundColor: "white",
-        borderRadius: 12,
-        padding: 16,
+        borderRadius: 22,
+        padding: 18,
         marginBottom: 12,
         borderWidth: 1,
-        borderColor: "#E5E7EB",
+        borderColor: "#EAF0F5",
+        overflow: "hidden",
+    },
+    cardAccent: {
+        position: "absolute",
+        top: 0,
+        left: 0,
+        right: 0,
+        height: 4,
+        backgroundColor: "#00B14F",
     },
     cardHeader: {
         flexDirection: "row",
@@ -271,15 +328,20 @@ const styles = StyleSheet.create({
         width: 40,
         height: 40,
         borderRadius: 20,
-        backgroundColor: "#F3F4F6",
+        backgroundColor: "#F5F3FF",
+        borderWidth: 1,
+        borderColor: "#E9DDFD",
         alignItems: "center",
         justifyContent: "center",
         marginRight: 12,
     },
-    avatarText: {
-        fontSize: 16,
-        fontWeight: "bold",
+    reviewEyebrow: {
+        fontSize: 11,
+        fontWeight: "800",
         color: "#6B7280",
+        textTransform: "uppercase",
+        letterSpacing: 0.4,
+        marginBottom: 4,
     },
     userName: {
         fontSize: 16,
@@ -301,27 +363,40 @@ const styles = StyleSheet.create({
         marginBottom: 12,
     },
     transactionInfo: {
-        backgroundColor: "#F9FAFB",
-        padding: 8,
-        borderRadius: 8,
+        backgroundColor: "#FBFCFD",
+        padding: 12,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: "#F1F5F9",
         marginBottom: 12,
     },
-    transactionText: {
-        fontSize: 12,
+    transactionLabel: {
+        fontSize: 11,
+        fontWeight: "800",
         color: "#6B7280",
+        textTransform: "uppercase",
+        letterSpacing: 0.4,
+        marginBottom: 4,
+    },
+    transactionText: {
+        fontSize: 13,
+        color: "#4B5563",
+        fontWeight: "600",
     },
     replyButton: {
         flexDirection: "row",
         alignItems: "center",
         alignSelf: "flex-start",
-        paddingVertical: 6,
-        paddingHorizontal: 12,
-        borderRadius: 16,
+        paddingVertical: 8,
+        paddingHorizontal: 14,
+        borderRadius: 999,
         backgroundColor: "#F5F3FF",
+        borderWidth: 1,
+        borderColor: "#E9DDFD",
     },
     replyButtonText: {
         fontSize: 14,
-        fontWeight: "500",
+        fontWeight: "700",
         color: "#7C3AED",
         marginLeft: 6,
     },
@@ -354,10 +429,28 @@ const styles = StyleSheet.create({
         justifyContent: "center",
         paddingVertical: 48,
     },
+    emptyIconWrap: {
+        width: 56,
+        height: 56,
+        borderRadius: 28,
+        backgroundColor: "#F0FDF4",
+        alignItems: "center",
+        justifyContent: "center",
+        marginBottom: 16,
+    },
     emptyText: {
-        marginTop: 12,
-        fontSize: 14,
+        fontSize: 15,
         color: "#6B7280",
+        fontWeight: "700",
+    },
+    emptySubtext: {
+        marginTop: 8,
+        fontSize: 13,
+        lineHeight: 20,
+        color: "#9CA3AF",
+        fontWeight: "500",
+        textAlign: "center",
+        maxWidth: 260,
     },
     modalOverlay: {
         flex: 1,
@@ -366,8 +459,8 @@ const styles = StyleSheet.create({
     },
     modalContent: {
         backgroundColor: "white",
-        borderTopLeftRadius: 20,
-        borderTopRightRadius: 20,
+        borderTopLeftRadius: 24,
+        borderTopRightRadius: 24,
         padding: 20,
         minHeight: 300,
     },
@@ -390,7 +483,7 @@ const styles = StyleSheet.create({
     input: {
         borderWidth: 1,
         borderColor: "#E5E7EB",
-        borderRadius: 12,
+        borderRadius: 14,
         padding: 12,
         fontSize: 16,
         minHeight: 100,

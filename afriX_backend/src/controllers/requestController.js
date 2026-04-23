@@ -1,5 +1,5 @@
 // src/controllers/requestController.js
-const { MintRequest, BurnRequest, Agent, sequelize } = require("../models");
+const { MintRequest, BurnRequest, Agent, Dispute, sequelize } = require("../models");
 const escrowService = require("../services/escrowService");
 const transactionService = require("../services/transactionService");
 const { deliver } = require("../services/notificationService");
@@ -323,9 +323,27 @@ const requestController = {
         throw new ApiError("Access denied", 403);
       }
 
+      const latestDispute = await Dispute.findOne({
+        where: { mint_request_id: request.id },
+        attributes: [
+          "id",
+          "status",
+          "escalation_level",
+          "reason",
+          "details",
+          "created_at",
+          "updated_at",
+          "resolution",
+        ],
+        order: [["created_at", "DESC"]],
+      });
+
       res.json({
         success: true,
-        data: request,
+        data: {
+          ...request.toJSON(),
+          latest_dispute: latestDispute ? latestDispute.toJSON() : null,
+        },
       });
     } catch (error) {
       next(error);
@@ -435,7 +453,7 @@ const requestController = {
 
       // Update status
       mintRequest.status = MINT_REQUEST_STATUS.REJECTED;
-      // Note: We don't store rejection_reason in DB yet, but we send it in push
+      mintRequest.rejection_reason = reason;
       await mintRequest.save();
 
       await deliver(mintRequest.user_id, "MINT_REJECTED", {
@@ -597,6 +615,7 @@ const requestController = {
 
       // Update status
       burnRequest.status = BURN_REQUEST_STATUS.REJECTED;
+      burnRequest.rejection_reason = reason;
       await burnRequest.save();
 
       await deliver(burnRequest.user_id, "BURN_REJECTED", {

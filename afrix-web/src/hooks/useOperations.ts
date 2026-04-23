@@ -3,24 +3,71 @@
 import { useState, useEffect, useCallback } from "react";
 import api from "@/lib/api";
 
+type RequestParams = Record<string, string | number | boolean | undefined>;
+
+const getErrorMessage = (error: unknown, fallback: string) => {
+    if (
+        typeof error === "object" &&
+        error !== null &&
+        "response" in error &&
+        typeof (error as { response?: unknown }).response === "object" &&
+        (error as { response?: { data?: unknown } }).response?.data &&
+        typeof (error as { response?: { data?: { error?: unknown } } }).response?.data?.error === "string"
+    ) {
+        return (error as { response?: { data?: { error?: string } } }).response?.data?.error || fallback;
+    }
+
+    return fallback;
+};
+
 // Types
 export interface Dispute {
     id: string;
-    escrow_id: string;
+    escrow_id?: string;
+    mint_request_id?: string;
     opened_by_user_id: string;
-    agent_id: string;
+    agent_id?: string;
     reason: string;
     status: string;
     escalation_level: string;
     resolution: Record<string, unknown> | null;
+    details?: string;
     created_at: string;
     updated_at: string;
+    reference?: string;
+    transaction_summary?: {
+        id?: string;
+        reference?: string;
+        type?: string;
+        amount?: string | number;
+        token_type?: string;
+        status?: string;
+        created_at?: string;
+        updated_at?: string;
+    } | null;
     escrow?: {
         id: string;
         amount: string;
         token_type: string;
         status: string;
         transaction?: { id: string; reference: string; type: string; amount: string; status: string };
+        burnRequest?: {
+            id: string;
+            fiat_proof_url?: string;
+            status: string;
+            rejection_reason?: string;
+        };
+    };
+    mintRequest?: {
+        id: string;
+        amount: string;
+        token_type: string;
+        status: string;
+        payment_proof_url?: string;
+        user_bank_reference?: string;
+        rejection_reason?: string;
+        created_at?: string;
+        updated_at?: string;
     };
     user?: {
         id: string;
@@ -184,63 +231,63 @@ export function useOperations() {
                 escrows: escrowRes.data.data,
                 requests: requestRes.data.data,
             });
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error("Failed to fetch operations stats:", err);
-            setError(err.response?.data?.error || "Failed to load stats");
+            setError(getErrorMessage(err, "Failed to load stats"));
         }
     }, []);
 
     // Fetch disputes
-    const fetchDisputes = useCallback(async (params: any = {}) => {
+    const fetchDisputes = useCallback(async (params: RequestParams = {}) => {
         setIsLoading(true);
         setError(null);
         try {
             const res = await api.get("/admin/operations/disputes", { params });
             setDisputes(res.data.data);
-        } catch (err: any) {
-            setError(err.response?.data?.error || "Failed to load disputes");
+        } catch (err: unknown) {
+            setError(getErrorMessage(err, "Failed to load disputes"));
         } finally {
             setIsLoading(false);
         }
     }, []);
 
     // Fetch escrows
-    const fetchEscrows = useCallback(async (params: any = {}) => {
+    const fetchEscrows = useCallback(async (params: RequestParams = {}) => {
         setIsLoading(true);
         setError(null);
         try {
             const res = await api.get("/admin/operations/escrows", { params });
             setEscrows(res.data.data);
-        } catch (err: any) {
-            setError(err.response?.data?.error || "Failed to load escrows");
+        } catch (err: unknown) {
+            setError(getErrorMessage(err, "Failed to load escrows"));
         } finally {
             setIsLoading(false);
         }
     }, []);
 
     // Fetch mint requests
-    const fetchMintRequests = useCallback(async (params: any = {}) => {
+    const fetchMintRequests = useCallback(async (params: RequestParams = {}) => {
         setIsLoading(true);
         setError(null);
         try {
             const res = await api.get("/admin/operations/requests/mint", { params });
             setMintRequests(res.data.data);
-        } catch (err: any) {
-            setError(err.response?.data?.error || "Failed to load mint requests");
+        } catch (err: unknown) {
+            setError(getErrorMessage(err, "Failed to load mint requests"));
         } finally {
             setIsLoading(false);
         }
     }, []);
 
     // Fetch burn requests
-    const fetchBurnRequests = useCallback(async (params: any = {}) => {
+    const fetchBurnRequests = useCallback(async (params: RequestParams = {}) => {
         setIsLoading(true);
         setError(null);
         try {
             const res = await api.get("/admin/operations/requests/burn", { params });
             setBurnRequests(res.data.data);
-        } catch (err: any) {
-            setError(err.response?.data?.error || "Failed to load burn requests");
+        } catch (err: unknown) {
+            setError(getErrorMessage(err, "Failed to load burn requests"));
         } finally {
             setIsLoading(false);
         }
@@ -251,7 +298,7 @@ export function useOperations() {
         try {
             const res = await api.get(`/admin/operations/disputes/${id}`);
             return res.data.data as Dispute;
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error("Failed to fetch dispute:", err);
             return null;
         }
@@ -270,7 +317,7 @@ export function useOperations() {
         try {
             const res = await api.get(`/admin/operations/escrows/${id}`);
             return res.data.data as Escrow;
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error("Failed to fetch escrow:", err);
             return null;
         }
@@ -285,7 +332,7 @@ export function useOperations() {
         try {
             const res = await api.get(`/admin/operations/requests/mint/${id}`);
             return res.data.data as MintRequest;
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error("Failed to fetch mint request:", err);
             return null;
         }
@@ -296,7 +343,7 @@ export function useOperations() {
         try {
             const res = await api.get(`/admin/operations/requests/burn/${id}`);
             return res.data.data as BurnRequest;
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error("Failed to fetch burn request:", err);
             return null;
         }

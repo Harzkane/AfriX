@@ -1,5 +1,5 @@
 // app/modals/swap-tokens/confirm.tsx
-import React, { useState } from "react";
+import React from "react";
 import {
     View,
     StyleSheet,
@@ -65,6 +65,14 @@ export default function ConfirmSwapScreen() {
                 <Text style={styles.title}>Confirm Swap</Text>
                 <Text style={styles.subtitle}>
                     Please review the swap details before confirming
+                </Text>
+            </View>
+
+            <View style={styles.summaryCard}>
+                <Text style={styles.summaryEyebrow}>Final Review</Text>
+                <Text style={styles.summaryTitle}>Everything looks ready</Text>
+                <Text style={styles.summaryText}>
+                    Check the tokens, exchange rate, and fee below before submitting this instant conversion.
                 </Text>
             </View>
 
@@ -188,7 +196,7 @@ const styles = StyleSheet.create({
     },
     header: {
         alignItems: "center",
-        marginBottom: 32,
+        marginBottom: 24,
     },
     iconContainer: {
         width: 80,
@@ -210,13 +218,41 @@ const styles = StyleSheet.create({
         color: "#9CA3AF",
         textAlign: "center",
     },
+    summaryCard: {
+        backgroundColor: "#F7FFF9",
+        padding: 20,
+        borderRadius: 20,
+        marginBottom: 24,
+        borderWidth: 1,
+        borderColor: "#E6F4EA",
+    },
+    summaryEyebrow: {
+        fontSize: 11,
+        fontWeight: "800",
+        color: "#00B14F",
+        textTransform: "uppercase",
+        letterSpacing: 0.5,
+        marginBottom: 8,
+    },
+    summaryTitle: {
+        fontSize: 22,
+        fontWeight: "700",
+        color: "#111827",
+        marginBottom: 8,
+        letterSpacing: -0.4,
+    },
+    summaryText: {
+        fontSize: 14,
+        color: "#6B7280",
+        lineHeight: 21,
+    },
     swapFlow: {
         marginBottom: 24,
     },
     tokenCard: {
-        backgroundColor: "#F9FAFB",
+        backgroundColor: "#FBFCFD",
         padding: 20,
-        borderRadius: 16,
+        borderRadius: 20,
         borderWidth: 1,
         borderColor: "#E5E7EB",
     },
@@ -240,8 +276,8 @@ const styles = StyleSheet.create({
     },
     detailsCard: {
         backgroundColor: "#EFF6FF",
-        padding: 16,
-        borderRadius: 12,
+        padding: 18,
+        borderRadius: 18,
         marginBottom: 16,
         borderWidth: 1,
         borderColor: "#BFDBFE",
@@ -266,8 +302,8 @@ const styles = StyleSheet.create({
         alignItems: "flex-start",
         gap: 12,
         backgroundColor: "#EFF6FF",
-        padding: 16,
-        borderRadius: 12,
+        padding: 18,
+        borderRadius: 18,
         marginBottom: 16,
         borderWidth: 1,
         borderColor: "#BFDBFE",
@@ -291,8 +327,8 @@ const styles = StyleSheet.create({
         alignItems: "center",
         gap: 12,
         backgroundColor: "#FEF2F2",
-        padding: 12,
-        borderRadius: 8,
+        padding: 14,
+        borderRadius: 14,
         marginBottom: 16,
         borderWidth: 1,
         borderColor: "#FEE2E2",
@@ -320,7 +356,7 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: "#F9FAFB",
         paddingVertical: 16,
-        borderRadius: 12,
+        borderRadius: 16,
         alignItems: "center",
         borderWidth: 1,
         borderColor: "#E5E7EB",
@@ -338,7 +374,7 @@ const styles = StyleSheet.create({
         justifyContent: "center",
         gap: 8,
         paddingVertical: 16,
-        borderRadius: 12,
+        borderRadius: 16,
     },
     confirmBtnDisabled: {
         backgroundColor: "#9CA3AF",

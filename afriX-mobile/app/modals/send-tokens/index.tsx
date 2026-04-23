@@ -1,5 +1,5 @@
 // app/modals/send-tokens/index.tsx
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import {
     View,
     StyleSheet,
@@ -9,7 +9,7 @@ import {
     TouchableOpacity,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Text, TextInput, Button } from "react-native-paper";
+import { Text, TextInput } from "react-native-paper";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -17,6 +17,7 @@ import { useTransferStore, useWalletStore } from "@/stores";
 
 export default function SendTokensScreen() {
     const router = useRouter();
+    const scrollViewRef = useRef<ScrollView | null>(null);
     const [email, setEmail] = useState("");
     const [emailError, setEmailError] = useState("");
 
@@ -50,11 +51,20 @@ export default function SendTokensScreen() {
         router.back();
     };
 
+    const handleEmailFocus = () => {
+        setTimeout(() => {
+            scrollViewRef.current?.scrollTo({
+                y: 500,
+                animated: true,
+            });
+        }, 120);
+    };
+
     return (
         <KeyboardAvoidingView
-            behavior={Platform.OS === "ios" ? "padding" : "height"}
+            behavior={Platform.OS === "ios" ? "padding" : "padding"}
             style={styles.keyboardView}
-            keyboardVerticalOffset={Platform.OS === "ios" ? -8 : 12}
+            keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 72}
         >
             <View style={styles.container}>
                 <View style={styles.headerWrapper}>
@@ -74,17 +84,26 @@ export default function SendTokensScreen() {
                 </View>
 
                 <ScrollView
+                    ref={scrollViewRef}
                     style={styles.container}
                     contentContainerStyle={styles.content}
                     showsVerticalScrollIndicator={false}
                     keyboardShouldPersistTaps="handled"
                 >
-                    <Text style={styles.subtitle}>
-                        Transfer tokens to another AfriToken user
-                    </Text>
+                    <LinearGradient
+                        colors={["#F7FFF9", "#FFFFFF"]}
+                        style={styles.heroCard}
+                    >
+                        <Text style={styles.heroEyebrow}>Wallet Transfer</Text>
+                        <Text style={styles.heroTitle}>Send tokens instantly</Text>
+                        <Text style={styles.heroSubtitle}>
+                            Choose the token you want to send, enter the recipient, and continue to complete the transfer securely.
+                        </Text>
+                    </LinearGradient>
 
                     {/* Token Type Selector */}
                     <View style={styles.section}>
+                        <Text style={styles.sectionEyebrow}>Token Selection</Text>
                         <Text style={styles.label}>Select Token Type</Text>
                         <View style={styles.tokenSelector}>
                             <TouchableOpacity
@@ -95,6 +114,7 @@ export default function SendTokensScreen() {
                                 onPress={() => setTokenType("NT")}
                                 activeOpacity={0.7}
                             >
+                                <Text style={styles.tokenEyebrow}>Domestic</Text>
                                 <View
                                     style={[
                                         styles.tokenIcon,
@@ -126,6 +146,7 @@ export default function SendTokensScreen() {
                                 onPress={() => setTokenType("CT")}
                                 activeOpacity={0.7}
                             >
+                                <Text style={styles.tokenEyebrow}>Regional</Text>
                                 <View
                                     style={[
                                         styles.tokenIcon,
@@ -157,6 +178,7 @@ export default function SendTokensScreen() {
                                 onPress={() => setTokenType("USDT")}
                                 activeOpacity={0.7}
                             >
+                                <Text style={styles.tokenEyebrow}>Reserve</Text>
                                 <View
                                     style={[
                                         styles.tokenIcon,
@@ -191,6 +213,7 @@ export default function SendTokensScreen() {
                                 tokenType === "USDT" && styles.balanceCardUSDT,
                             ]}
                         >
+                            <Text style={styles.balanceEyebrow}>Available Wallet Position</Text>
                             <Text style={styles.balanceLabel}>Available Balance</Text>
                             <Text style={styles.balanceAmount}>
                                 {parseFloat(wallet.available_balance).toLocaleString(undefined, {
@@ -204,7 +227,8 @@ export default function SendTokensScreen() {
 
                     {/* Recipient Email Input */}
                     <View style={styles.section}>
-                        <Text style={styles.label}>Recipient's Email</Text>
+                        <Text style={styles.sectionEyebrow}>Recipient Details</Text>
+                        <Text style={styles.label}>Recipient&apos;s Email</Text>
                         <View style={styles.inputWrapper}>
                             <Ionicons
                                 name="mail-outline"
@@ -224,6 +248,7 @@ export default function SendTokensScreen() {
                                 placeholderTextColor="#9CA3AF"
                                 autoCapitalize="none"
                                 autoCorrect={false}
+                                onFocus={handleEmailFocus}
                                 style={styles.input}
                                 outlineStyle={styles.inputOutline}
                                 contentStyle={styles.inputContent}
@@ -233,6 +258,9 @@ export default function SendTokensScreen() {
                         {emailError ? (
                             <Text style={styles.errorText}>{emailError}</Text>
                         ) : null}
+                        <Text style={styles.inputHint}>
+                            Use the recipient&apos;s AfriToken account email or scan their QR code below.
+                        </Text>
 
                         {/* OR Divider */}
                         <View style={styles.divider}>
@@ -343,13 +371,43 @@ const styles = StyleSheet.create({
         paddingTop: 20,
         paddingBottom: 24,
     },
-    subtitle: {
-        fontSize: 14,
-        color: "#9CA3AF",
-        marginBottom: 32,
+    heroCard: {
+        borderRadius: 24,
+        padding: 20,
+        marginBottom: 28,
+        borderWidth: 1,
+        borderColor: "#E6F4EA",
+    },
+    heroEyebrow: {
+        fontSize: 11,
+        fontWeight: "800",
+        color: "#00B14F",
+        textTransform: "uppercase",
+        letterSpacing: 0.5,
+        marginBottom: 8,
+    },
+    heroTitle: {
+        fontSize: 24,
+        fontWeight: "700",
+        color: "#111827",
+        marginBottom: 8,
+        letterSpacing: -0.4,
+    },
+    heroSubtitle: {
+        fontSize: 15,
+        color: "#6B7280",
+        lineHeight: 22,
     },
     section: {
         marginBottom: 24,
+    },
+    sectionEyebrow: {
+        fontSize: 11,
+        fontWeight: "800",
+        color: "#00B14F",
+        textTransform: "uppercase",
+        letterSpacing: 0.5,
+        marginBottom: 6,
     },
     label: {
         fontSize: 15,
@@ -366,7 +424,7 @@ const styles = StyleSheet.create({
         backgroundColor: "#FFFFFF",
         borderWidth: 2,
         borderColor: "#F3F4F6",
-        borderRadius: 16,
+        borderRadius: 20,
         padding: 16,
         alignItems: "center",
     },
@@ -386,6 +444,14 @@ const styles = StyleSheet.create({
     tokenIconActive: {
         backgroundColor: "#FFFFFF",
     },
+    tokenEyebrow: {
+        fontSize: 10,
+        fontWeight: "800",
+        color: "#9CA3AF",
+        textTransform: "uppercase",
+        letterSpacing: 0.5,
+        marginBottom: 8,
+    },
     tokenName: {
         fontSize: 12,
         fontWeight: "600",
@@ -404,7 +470,7 @@ const styles = StyleSheet.create({
     balanceCard: {
         backgroundColor: "#F0FDF4",
         padding: 20,
-        borderRadius: 16,
+        borderRadius: 20,
         marginBottom: 24,
         borderWidth: 1,
         borderColor: "#D1FAE5",
@@ -416,6 +482,14 @@ const styles = StyleSheet.create({
     balanceCardUSDT: {
         backgroundColor: "#EFF6FF",
         borderColor: "#BFDBFE",
+    },
+    balanceEyebrow: {
+        fontSize: 11,
+        color: "#059669",
+        fontWeight: "800",
+        textTransform: "uppercase",
+        letterSpacing: 0.5,
+        marginBottom: 6,
     },
     balanceLabel: {
         fontSize: 13,
@@ -451,6 +525,11 @@ const styles = StyleSheet.create({
     inputContent: {
         paddingLeft: 40,
         color: "#111827",
+    },
+    inputHint: {
+        fontSize: 12,
+        color: "#6B7280",
+        marginTop: 8,
     },
     errorText: {
         fontSize: 12,

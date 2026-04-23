@@ -23,14 +23,14 @@ export function RequiresAttention({ pending }: RequiresAttentionProps) {
             label: "Pending KYC Approvals",
             count: pending.kyc_approvals,
             severity: "high" as const,
-            link: "/agents?status=pending"
+            link: "/agents?tab=pending_kyc"
         },
         {
             icon: AlertCircle,
             label: "Critical Disputes (Level 3)",
             count: pending.critical_disputes,
             severity: "critical" as const,
-            link: "/disputes?level=3"
+            link: "/disputes?tab=escalated"
         },
         {
             icon: DollarSign,

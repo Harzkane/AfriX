@@ -54,6 +54,13 @@ export default function BuyTokensLayout() {
           gestureEnabled: false,
         }}
       />
+      <Stack.Screen
+        name="rate-agent"
+        options={{
+          headerShown: false,
+          headerTitle: "Rate Agent",
+        }}
+      />
     </Stack>
   );
 }

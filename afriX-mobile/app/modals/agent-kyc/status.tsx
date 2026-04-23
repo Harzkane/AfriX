@@ -125,6 +125,10 @@ export default function KycStatusScreen() {
             <ScrollView contentContainerStyle={styles.content}>
                 {/* Status Card */}
                 <View style={styles.statusCard}>
+                    <View style={styles.statusEyebrow}>
+                        <Ionicons name="shield-checkmark" size={14} color={config.iconColor} />
+                        <Text style={[styles.statusEyebrowText, { color: config.iconColor }]}>Verification Progress</Text>
+                    </View>
                     <View style={[styles.statusIcon, { backgroundColor: config.iconBg }]}>
                         <Ionicons name={config.icon as any} size={48} color={config.iconColor} />
                     </View>
@@ -160,7 +164,7 @@ export default function KycStatusScreen() {
                             <View style={styles.timelineDot} />
                             <View style={styles.timelineContent}>
                                 <Text style={styles.timelineTitle}>Approval Decision</Text>
-                                <Text style={styles.timelineDesc}>You'll be notified once reviewed</Text>
+                                <Text style={styles.timelineDesc}>You will be notified once reviewed</Text>
                             </View>
                         </View>
 
@@ -179,7 +183,7 @@ export default function KycStatusScreen() {
                     <View style={styles.infoBanner}>
                         <Ionicons name="notifications-outline" size={20} color="#00B14F" />
                         <Text style={styles.infoText}>
-                            We'll send you a notification once your KYC is reviewed. You can also check back here anytime.
+                            We will send you a notification once your KYC is reviewed. You can also check back here anytime.
                         </Text>
                     </View>
                 )}
@@ -280,6 +284,26 @@ const styles = StyleSheet.create({
         alignItems: "center",
         marginBottom: 32,
         marginTop: 20,
+        backgroundColor: "#FFFFFF",
+        borderRadius: 24,
+        padding: 22,
+        borderWidth: 1,
+        borderColor: "#EAF0F5",
+    },
+    statusEyebrow: {
+        alignSelf: "flex-start",
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 6,
+        backgroundColor: "#F8FAFC",
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+        borderRadius: 999,
+        marginBottom: 16,
+    },
+    statusEyebrowText: {
+        fontSize: 12,
+        fontWeight: "700",
     },
     statusIcon: {
         width: 96,
@@ -310,6 +334,11 @@ const styles = StyleSheet.create({
     },
     timeline: {
         marginBottom: 24,
+        backgroundColor: "#FFFFFF",
+        borderRadius: 22,
+        borderWidth: 1,
+        borderColor: "#EAF0F5",
+        padding: 18,
     },
     timelineItem: {
         flexDirection: "row",
@@ -347,9 +376,9 @@ const styles = StyleSheet.create({
         alignItems: "flex-start",
         backgroundColor: "#F0FDF4",
         padding: 16,
-        borderRadius: 12,
+        borderRadius: 16,
         borderWidth: 1,
-        borderColor: "#00B14F",
+        borderColor: "#D8F3E3",
     },
     infoText: {
         fontSize: 14,
@@ -361,7 +390,7 @@ const styles = StyleSheet.create({
     rejectionCard: {
         backgroundColor: "#FEF2F2",
         padding: 16,
-        borderRadius: 12,
+        borderRadius: 16,
         borderWidth: 1,
         borderColor: "#FEE2E2",
     },
@@ -379,13 +408,14 @@ const styles = StyleSheet.create({
     footer: {
         padding: 16,
         borderTopWidth: 1,
-        borderTopColor: "#F3F4F6",
+        borderTopColor: "#EAF0F5",
+        backgroundColor: "#FFFFFF",
     },
     depositButton: {
         flexDirection: "row",
         backgroundColor: "#00B14F",
         paddingVertical: 16,
-        borderRadius: 12,
+        borderRadius: 16,
         alignItems: "center",
         justifyContent: "center",
         gap: 8,
@@ -399,7 +429,7 @@ const styles = StyleSheet.create({
         flexDirection: "row",
         backgroundColor: "#EF4444",
         paddingVertical: 16,
-        borderRadius: 12,
+        borderRadius: 16,
         alignItems: "center",
         justifyContent: "center",
         gap: 8,
@@ -412,7 +442,7 @@ const styles = StyleSheet.create({
     homeButton: {
         backgroundColor: "#F3F4F6",
         paddingVertical: 16,
-        borderRadius: 12,
+        borderRadius: 16,
         alignItems: "center",
     },
     homeButtonText: {

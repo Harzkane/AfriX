@@ -8,7 +8,9 @@ import {
     ArrowLeft,
     ShieldAlert,
     AlertTriangle,
-    Coins
+    Coins,
+    Hash,
+    FileText,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -49,6 +51,28 @@ export default function DisputeDetailPage() {
         );
     }
 
+    const displayReference =
+        currentDispute.escrow?.transaction?.reference ||
+        currentDispute.transaction_summary?.reference ||
+        currentDispute.reference ||
+        currentDispute.mintRequest?.user_bank_reference ||
+        currentDispute.transaction_id ||
+        currentDispute.id;
+    const displayAmount =
+        currentDispute.transaction_summary?.amount ??
+        currentDispute.escrow?.amount ??
+        currentDispute.mintRequest?.amount;
+    const displayTokenType =
+        currentDispute.transaction_summary?.token_type ||
+        currentDispute.escrow?.token_type ||
+        currentDispute.mintRequest?.token_type;
+    const isMintDispute = !!currentDispute.mintRequest && !currentDispute.escrow;
+    const userRoleLabel = isMintDispute ? "Buyer" : "Seller";
+    const amountLabel = isMintDispute ? "Request Amount" : "Escrow Amount";
+    const agentProvidedNote =
+        currentDispute.mintRequest?.rejection_reason ||
+        currentDispute.escrow?.burnRequest?.rejection_reason;
+
     const handleAction = async () => {
         if (!actionDialog) return;
 
@@ -75,13 +99,25 @@ export default function DisputeDetailPage() {
         // Set default messages
         switch (action) {
             case 'refund':
-                setNotes("Proof of payment not provided or invalid. Refunding burner.");
+                setNotes(
+                    isMintDispute
+                        ? "Crediting the user with the owed tokens after dispute review."
+                        : "Refunding the user's escrowed tokens after dispute review."
+                );
                 break;
             case 'complete':
-                setNotes("Agent provided valid proof of payment. Finalizing transaction.");
+                setNotes(
+                    isMintDispute
+                        ? "Closing the mint dispute in the agent's favor. No token credit will be applied."
+                        : "Agent provided valid fiat proof. Releasing the burn settlement."
+                );
                 break;
             case 'penalize':
-                setNotes("Agent failed to comply with terms. Penalizing and refunding.");
+                setNotes(
+                    isMintDispute
+                        ? "Crediting the user and applying an agent penalty after dispute review."
+                        : "Refunding the user and applying an agent penalty after dispute review."
+                );
                 break;
             case 'escalate':
                 setNotes("Escalated for administrative review.");
@@ -118,13 +154,39 @@ export default function DisputeDetailPage() {
                     <CardContent className="space-y-4">
                         <div className="grid gap-3">
                             <div className="p-3 bg-muted rounded-md">
+                                <h4 className="font-semibold text-sm mb-1 flex items-center gap-2">
+                                    <Hash className="h-4 w-4" /> Reference
+                                </h4>
+                                <p className="text-sm break-all font-mono">{displayReference}</p>
+                            </div>
+                            <div className="p-3 bg-muted rounded-md">
                                 <h4 className="font-semibold text-sm mb-1">Reason</h4>
                                 <p className="text-sm">{currentDispute.reason}</p>
                             </div>
-                            <div className="p-3 bg-muted rounded-md">
-                                <h4 className="font-semibold text-sm mb-1">Description</h4>
-                                <p className="text-sm">{currentDispute.details}</p>
-                            </div>
+                            {currentDispute.details && (
+                                <div className="p-3 bg-muted rounded-md">
+                                    <h4 className="font-semibold text-sm mb-1">Description</h4>
+                                    <p className="text-sm">{currentDispute.details}</p>
+                                </div>
+                            )}
+                            {agentProvidedNote && (
+                                <div className="p-3 bg-muted rounded-md">
+                                    <h4 className="font-semibold text-sm mb-1">Agent Note</h4>
+                                    <p className="text-sm">{agentProvidedNote}</p>
+                                </div>
+                            )}
+                            {currentDispute.transaction_summary && (
+                                <div className="p-3 bg-muted rounded-md">
+                                    <h4 className="font-semibold text-sm mb-1 flex items-center gap-2">
+                                        <FileText className="h-4 w-4" /> Transaction Summary
+                                    </h4>
+                                    <p className="text-sm">
+                                        Type: {currentDispute.transaction_summary.type || "N/A"}<br />
+                                        Status: {currentDispute.transaction_summary.status || "N/A"}<br />
+                                        Record ID: {currentDispute.transaction_summary.id || "N/A"}
+                                    </p>
+                                </div>
+                            )}
 
                             {/* Evidence / Proof Section */}
                             {(currentDispute.mintRequest?.payment_proof_url || currentDispute.escrow?.burnRequest?.fiat_proof_url) && (
@@ -168,11 +230,11 @@ export default function DisputeDetailPage() {
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <div className="flex justify-between border-b pb-2">
-                            <span className="font-medium text-sm">Escrow Amount</span>
-                            <span>{currentDispute.escrow?.amount} {currentDispute.escrow?.token_type}</span>
+                            <span className="font-medium text-sm">{amountLabel}</span>
+                            <span>{displayAmount != null ? Number(displayAmount).toLocaleString() : "N/A"} {displayTokenType || ""}</span>
                         </div>
                         <div className="flex justify-between border-b pb-2">
-                            <span className="font-medium text-sm">Complainant (Buyer)</span>
+                            <span className="font-medium text-sm">Complainant ({userRoleLabel})</span>
                             <span>{currentDispute.user?.full_name}</span>
                         </div>
                         <div className="flex justify-between border-b pb-2">
@@ -188,20 +250,20 @@ export default function DisputeDetailPage() {
                                         className="bg-blue-600 hover:bg-blue-700 text-xs px-2"
                                         onClick={() => openActionDialog('refund')}
                                     >
-                                        Refund Complainant
+                                        {isMintDispute ? "Credit User Tokens" : "Refund User Tokens"}
                                     </Button>
                                     <Button
                                         className="bg-green-600 hover:bg-green-700 text-xs px-2"
                                         onClick={() => openActionDialog('complete')}
                                     >
-                                        Finalize (Favor Agent)
+                                        {isMintDispute ? "Close in Agent's Favor" : "Release Settlement"}
                                     </Button>
                                     <Button
                                         variant="destructive"
                                         className="text-xs px-2"
                                         onClick={() => openActionDialog('penalize')}
                                     >
-                                        Penalize Agent
+                                        {isMintDispute ? "Credit User + Penalize" : "Refund + Penalize"}
                                     </Button>
                                     <Button
                                         variant="outline"
@@ -220,9 +282,21 @@ export default function DisputeDetailPage() {
             <Dialog open={!!actionDialog} onOpenChange={(open) => !open && setActionDialog(null)}>
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>Confirm Action: {actionDialog?.toUpperCase()}</DialogTitle>
+                        <DialogTitle>
+                            Confirm Action: {
+                                actionDialog === "refund"
+                                    ? isMintDispute ? "Credit User Tokens" : "Refund User Tokens"
+                                    : actionDialog === "complete"
+                                        ? isMintDispute ? "Close in Agent's Favor" : "Release Settlement"
+                                        : actionDialog === "penalize"
+                                            ? isMintDispute ? "Credit User + Penalize Agent" : "Refund User + Penalize Agent"
+                                            : actionDialog?.toUpperCase()
+                            }
+                        </DialogTitle>
                         <DialogDescription>
-                            Please provide a reason or notes for this action.
+                            {isMintDispute
+                                ? "Use language that reflects token crediting, dispute closure, or agent penalty rather than fiat settlement."
+                                : "Use language that reflects escrow refund, settlement release, or agent penalty."}
                         </DialogDescription>
                     </DialogHeader>
                     <div className="py-2">

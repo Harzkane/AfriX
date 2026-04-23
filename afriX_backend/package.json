@@ -13,7 +13,8 @@
     "logs": "tail -f logs/app.log",
     "db:drop": "npx sequelize-cli db:drop --config ./src/config/config.js --env development",
     "db:create": "npx sequelize-cli db:create --config ./src/config/config.js --env development",
-    "seed:disputes": "node create_dispute_tests.js"
+    "seed:disputes": "node create_dispute_tests.js",
+    "seed:kaalis-merchant": "node src/scripts/create_kaalis_merchant.js"
   },
   "keywords": [
     "blockchain",

@@ -1,6 +1,22 @@
 import { useState, useEffect, useCallback } from "react";
 import api from "@/lib/api";
 
+type QueryParams = Record<string, string | number | boolean>;
+type ApiErrorLike = {
+    message?: string;
+    response?: {
+        data?: {
+            error?: string;
+            message?: string;
+        };
+    };
+};
+
+function getErrorMessage(error: unknown, fallback: string) {
+    const err = error as ApiErrorLike;
+    return err.response?.data?.error || err.response?.data?.message || err.message || fallback;
+}
+
 export interface Transaction {
     id: string;
     reference: string;
@@ -8,6 +24,11 @@ export interface Transaction {
     status: string;
     amount: string;
     fee: string;
+    fee_amount?: string | number;
+    fee_kind?: string;
+    fee_label?: string | null;
+    platform_fee?: string | number;
+    agent_commission?: string | number;
     token_type: string;
     description?: string | null;
     metadata?: Record<string, unknown> | null;
@@ -70,6 +91,9 @@ export interface FinancialStats {
         };
         by_type: Record<string, { count: number; total_amount: string }>;
         total_fees_collected: string;
+        total_recorded_charges?: string;
+        total_platform_fees_collected?: string;
+        total_agent_commissions_recorded?: string;
         recent_24h: number;
     };
     wallets: {
@@ -101,35 +125,35 @@ export function useFinancials() {
                 wallets: walletStatsRes.data.data,
             });
             setPlatformFeeBalances(platformFeesRes.data?.data?.balances ?? { NT: 0, CT: 0, USDT: 0 });
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error("Failed to fetch financial stats:", err);
-            setError(err.message || "Failed to load financial statistics");
+            setError(getErrorMessage(err, "Failed to load financial statistics"));
         }
     }, []);
 
-    const fetchTransactions = useCallback(async (params: any = {}) => {
+    const fetchTransactions = useCallback(async (params: QueryParams = {}) => {
         setIsLoading(true);
         try {
             const res = await api.get("/admin/financial/transactions", { params });
             setTransactions(res.data.data);
             return res.data;
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error("Failed to fetch transactions:", err);
-            setError(err.message || "Failed to load transactions");
+            setError(getErrorMessage(err, "Failed to load transactions"));
         } finally {
             setIsLoading(false);
         }
     }, []);
 
-    const fetchWallets = useCallback(async (params: any = {}) => {
+    const fetchWallets = useCallback(async (params: QueryParams = {}) => {
         setIsLoading(true);
         try {
             const res = await api.get("/admin/financial/wallets", { params });
             setWallets(res.data.data);
             return res.data;
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error("Failed to fetch wallets:", err);
-            setError(err.message || "Failed to load wallets");
+            setError(getErrorMessage(err, "Failed to load wallets"));
         } finally {
             setIsLoading(false);
         }
@@ -148,7 +172,7 @@ export function useFinancials() {
         try {
             const res = await api.get(`/admin/financial/transactions/${id}`);
             return res.data.data as Transaction;
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error("Failed to fetch transaction:", err);
             return null;
         }
@@ -158,7 +182,7 @@ export function useFinancials() {
         try {
             const res = await api.get(`/admin/financial/wallets/${id}`);
             return res.data.data as { wallet: Wallet; recent_transactions: Transaction[] };
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error("Failed to fetch wallet:", err);
             return null;
         }
@@ -169,7 +193,7 @@ export function useFinancials() {
             await api.post(`/admin/financial/transactions/${id}/refund`, { reason });
             fetchStats();
             return true;
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error("Failed to refund transaction:", err);
             throw err;
         }
@@ -179,7 +203,7 @@ export function useFinancials() {
         try {
             await api.post(`/admin/financial/transactions/${id}/flag`, { reason, severity: severity || "medium" });
             return true;
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error("Failed to flag transaction:", err);
             throw err;
         }

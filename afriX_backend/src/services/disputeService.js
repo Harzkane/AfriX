@@ -11,10 +11,12 @@
 
 const { sequelize } = require("../config/database");
 const { Dispute, Escrow, Transaction, Agent } = require("../models");
+const { deliver } = require("./notificationService");
 const {
   DISPUTE_STATUS,
   DISPUTE_ESCALATION_LEVELS,
   ESCROW_STATUS,
+  NOTIFICATION_EVENT_TYPES,
 } = require("../config/constants");
 const { ApiError } = require("../utils/errors");
 
@@ -193,29 +195,70 @@ const disputeService = {
         const mintRequest = await MintRequest.findByPk(dispute.mint_request_id, { transaction: t });
         if (!mintRequest) throw new ApiError("Mint Request not found", 404);
 
-        if (action === "complete") {
-          // Finalize mint (release tokens to user)
+        if (action === "refund" || action === "penalize_agent") {
+          // For mint disputes, resolving in the user's favor means minting the owed tokens.
           const transactionService = require("./transactionService");
           const tx = await transactionService.processAgentMint(
             mintRequest.user_id,
             mintRequest.agent_id,
             mintRequest.amount,
             mintRequest.token_type,
-            { request_id: mintRequest.id, admin_resolved: true, notes: options.notes },
+            {
+              request_id: mintRequest.id,
+              admin_resolved: true,
+              dispute_id: dispute.id,
+              resolution_action: action,
+              notes: options.notes,
+              description: "Admin dispute resolution credit",
+            },
             t
           ); // Note: transactionService handles its own transaction internally, 
           // but we should pass 't' if possible. Current processAgentMint doesn't support it.
           // For now, we rely on its internal transaction.
 
           mintRequest.status = MINT_REQUEST_STATUS.CONFIRMED;
+          mintRequest.rejection_reason = null;
           await mintRequest.save({ transaction: t });
           resultData = { ...resultData, tx, mintRequest };
-        } else if (action === "refund" || action === "penalize_agent") {
-          // Action "refund" for Mint means agent didn't pay? No, in mint user pays.
-          // Refund means user gets tokens? No, user gets fiat back? 
-          // System can't automate fiat refund. We just reject the request.
-          mintRequest.status = MINT_REQUEST_STATUS.REJECTED;
-          await mintRequest.save({ transaction: t });
+
+          await deliver(mintRequest.user_id, NOTIFICATION_EVENT_TYPES.DISPUTE_RESOLVED, {
+            title: "Dispute Resolved",
+            message:
+              action === "penalize_agent"
+                ? `Your dispute was resolved in your favor. ${mintRequest.amount} ${mintRequest.token_type} has been credited and the agent was penalized.`
+                : `Your dispute was resolved in your favor. ${mintRequest.amount} ${mintRequest.token_type} has been credited to your wallet.`,
+            data: {
+              disputeId: dispute.id,
+              requestId: mintRequest.id,
+              transactionId: tx.id,
+              action,
+              amount: mintRequest.amount,
+              token_type: mintRequest.token_type,
+              admin_resolved: true,
+            },
+          });
+
+          if (mintRequest.agent_id) {
+            const agent = await Agent.findByPk(mintRequest.agent_id, { transaction: t });
+            if (agent?.user_id) {
+              await deliver(agent.user_id, NOTIFICATION_EVENT_TYPES.DISPUTE_RESOLVED, {
+                title: "Dispute Resolved",
+                message:
+                  action === "penalize_agent"
+                    ? `A dispute on ${mintRequest.amount} ${mintRequest.token_type} was resolved in the user's favor and a penalty was applied.`
+                    : `A dispute on ${mintRequest.amount} ${mintRequest.token_type} was resolved in the user's favor.`,
+                data: {
+                  disputeId: dispute.id,
+                  requestId: mintRequest.id,
+                  transactionId: tx.id,
+                  action,
+                  amount: mintRequest.amount,
+                  token_type: mintRequest.token_type,
+                  admin_resolved: true,
+                },
+              });
+            }
+          }
 
           if (action === "penalize_agent") {
             const penalty = parseFloat(options.penalty_amount_usd || 0);
@@ -224,8 +267,15 @@ const disputeService = {
               agent.deposit_usd = Math.max(0, agent.deposit_usd - penalty);
               agent.available_capacity = Math.max(0, agent.available_capacity - penalty);
               await agent.save({ transaction: t });
+              resultData.agent = agent;
             }
           }
+        } else if (action === "complete") {
+          // For mint disputes, resolving in the agent's favor closes the request without minting tokens.
+          mintRequest.status = MINT_REQUEST_STATUS.REJECTED;
+          mintRequest.rejection_reason = options.notes || mintRequest.rejection_reason || "Resolved in favor of agent";
+          await mintRequest.save({ transaction: t });
+          resultData = { ...resultData, mintRequest };
         }
       }
 

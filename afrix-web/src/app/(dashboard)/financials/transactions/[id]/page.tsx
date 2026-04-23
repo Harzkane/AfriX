@@ -36,6 +36,14 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 
+type ApiErrorLike = {
+    response?: {
+        data?: {
+            error?: string;
+        };
+    };
+};
+
 const TYPE_LABELS: Record<string, string> = {
     mint: "Agent issued tokens to user",
     burn: "User sold tokens back to agent",
@@ -74,8 +82,9 @@ export default function TransactionDetailPage() {
             setReason("");
             const updated = await fetchTransaction(tx.id);
             setTx(updated ?? null);
-        } catch (e: any) {
-            toast.error(e.response?.data?.error || "Refund failed");
+        } catch (e: unknown) {
+            const error = e as ApiErrorLike;
+            toast.error(error.response?.data?.error || "Refund failed");
         } finally {
             setActionLoading(false);
         }
@@ -89,8 +98,9 @@ export default function TransactionDetailPage() {
             toast.success("Transaction flagged");
             setFlagOpen(false);
             setReason("");
-        } catch (e: any) {
-            toast.error(e.response?.data?.error || "Flag failed");
+        } catch (e: unknown) {
+            const error = e as ApiErrorLike;
+            toast.error(error.response?.data?.error || "Flag failed");
         } finally {
             setActionLoading(false);
         }
@@ -123,6 +133,10 @@ export default function TransactionDetailPage() {
 
     const typeHint = TYPE_LABELS[tx.type?.toLowerCase()] || "Value movement";
     const hasBlockchain = tx.network || tx.tx_hash;
+
+    const feeAmount = parseFloat(String(tx.fee_amount ?? tx.fee ?? "0"));
+    const feeLabel = tx.fee_label || "Fee";
+    const showNetAfterFee = ["platform_fee", "transaction_fee", "none"].includes(tx.fee_kind || "transaction_fee");
 
     return (
         <div className="flex flex-col gap-6">
@@ -200,13 +214,15 @@ export default function TransactionDetailPage() {
                             <span className="text-xl font-bold font-mono">{parseFloat(tx.amount).toLocaleString()} {tx.token_type}</span>
                         </div>
                         <div className="flex items-center justify-between">
-                            <span className="text-muted-foreground">Fee</span>
-                            <span className="font-mono">{parseFloat(tx.fee || "0").toLocaleString()}</span>
+                            <span className="text-muted-foreground">{feeLabel}</span>
+                            <span className="font-mono">{feeAmount.toLocaleString()}</span>
                         </div>
-                        <div className="pt-2 border-t flex items-center justify-between">
-                            <span className="text-muted-foreground">Net (after fee)</span>
-                            <span className="font-mono font-medium">{((parseFloat(tx.amount) - parseFloat(tx.fee || "0"))).toLocaleString()} {tx.token_type}</span>
-                        </div>
+                        {showNetAfterFee ? (
+                            <div className="pt-2 border-t flex items-center justify-between">
+                                <span className="text-muted-foreground">Net (after fee)</span>
+                                <span className="font-mono font-medium">{((parseFloat(tx.amount) - feeAmount)).toLocaleString()} {tx.token_type}</span>
+                            </div>
+                        ) : null}
                     </CardContent>
                 </Card>
 

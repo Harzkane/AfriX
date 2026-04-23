@@ -41,9 +41,9 @@ export default function NotificationScreen() {
 
     const [pushEnabled, setPushEnabled] = useState(user?.push_notifications_enabled ?? true);
     const [emailEnabled, setEmailEnabled] = useState(user?.email_notifications_enabled ?? true);
-    const [smsEnabled, setSmsEnabled] = useState(user?.sms_notifications_enabled ?? false);
 
     const [transactions, setTransactions] = useState(true);
+    const [requests, setRequests] = useState(true);
     const [security, setSecurity] = useState(true);
     const [agentUpdates, setAgentUpdates] = useState(true);
     const [marketing, setMarketing] = useState(false);
@@ -54,80 +54,75 @@ export default function NotificationScreen() {
             try {
                 const res = await apiClient.get<{ success: boolean; data: NotificationSettingsData }>("/notifications/settings");
                 if (cancelled || !res.data?.data) return;
-                const d = res.data.data;
-                setPushEnabled(d.push?.enabled ?? true);
-                setEmailEnabled(d.email?.enabled ?? true);
-                setTransactions(d.push?.transactions ?? true);
-                setSecurity(d.push?.security ?? true);
-                setAgentUpdates(d.push?.agentUpdates ?? true);
-                setMarketing(d.push?.marketing ?? false);
-            } catch (e) {
-                console.error("Fetch notification settings:", e);
+                const data = res.data.data;
+                setPushEnabled(data.push?.enabled ?? true);
+                setEmailEnabled(data.email?.enabled ?? true);
+                setTransactions(data.push?.transactions ?? true);
+                setRequests(data.push?.requests ?? true);
+                setSecurity(data.push?.security ?? true);
+                setAgentUpdates(data.push?.agentUpdates ?? true);
+                setMarketing(data.push?.marketing ?? false);
+            } catch (error) {
+                console.error("Fetch notification settings:", error);
             } finally {
                 if (!cancelled) setLoadingSettings(false);
             }
         })();
-        return () => { cancelled = true; };
+        return () => {
+            cancelled = true;
+        };
     }, []);
 
-    const handleToggle = async (
-        type: "push" | "email" | "sms",
-        value: boolean
-    ) => {
+    const handleToggle = async (type: "push" | "email", value: boolean) => {
         try {
             setUpdating(true);
-            let fieldName = "";
+            const nextPushEnabled = type === "push" ? value : pushEnabled;
+            const nextEmailEnabled = type === "email" ? value : emailEnabled;
 
-            // 1. Optimistic Update
-            switch (type) {
-                case "push":
-                    setPushEnabled(value);
-                    fieldName = "push_notifications_enabled";
-                    break;
-                case "email":
-                    setEmailEnabled(value);
-                    fieldName = "email_notifications_enabled";
-                    break;
-                case "sms":
-                    setSmsEnabled(value);
-                    fieldName = "sms_notifications_enabled";
-                    break;
-            }
+            if (type === "push") setPushEnabled(value);
+            if (type === "email") setEmailEnabled(value);
 
-            // 2. Call Backend
-            await apiClient.put("/users/profile", {
-                [fieldName]: value,
+            await apiClient.put("/notifications/settings", {
+                push: {
+                    enabled: nextPushEnabled,
+                    transactions,
+                    requests,
+                    agentUpdates,
+                    security,
+                    marketing,
+                },
+                email: {
+                    enabled: nextEmailEnabled,
+                    transactionReceipts: transactions,
+                    agentUpdates,
+                    security,
+                    marketing,
+                },
             });
 
-            // 3. Update Global Store
             if (user) {
                 setUser({
                     ...user,
-                    [fieldName]: value,
+                    push_notifications_enabled: nextPushEnabled,
+                    email_notifications_enabled: nextEmailEnabled,
                 });
             }
         } catch (error) {
             console.error("Failed to update notification settings:", error);
-            // Revert on error
-            switch (type) {
-                case "push":
-                    setPushEnabled(!value);
-                    break;
-                case "email":
-                    setEmailEnabled(!value);
-                    break;
-                case "sms":
-                    setSmsEnabled(!value);
-                    break;
-            }
+            if (type === "push") setPushEnabled(!value);
+            if (type === "email") setEmailEnabled(!value);
         } finally {
             setUpdating(false);
         }
     };
 
-    const handleAlertTypeToggle = async (key: "transactions" | "security" | "agentUpdates" | "marketing", value: boolean) => {
+    const handleAlertTypeToggle = async (
+        key: "transactions" | "requests" | "security" | "agentUpdates" | "marketing",
+        value: boolean
+    ) => {
         const setters: Record<string, (v: boolean) => void> = {
             transactions: setTransactions,
+            requests: setRequests,
             security: setSecurity,
             agentUpdates: setAgentUpdates,
             marketing: setMarketing,
@@ -139,7 +134,7 @@ export default function NotificationScreen() {
                 push: {
                     enabled: pushEnabled,
                     transactions: key === "transactions" ? value : transactions,
-                    requests: true,
+                    requests: key === "requests" ? value : requests,
                     agentUpdates: key === "agentUpdates" ? value : agentUpdates,
                     security: key === "security" ? value : security,
                     marketing: key === "marketing" ? value : marketing,
@@ -152,8 +147,8 @@ export default function NotificationScreen() {
                     marketing: key === "marketing" ? value : marketing,
                 },
             });
-        } catch (e) {
-            console.error("Update notification settings:", e);
+        } catch (error) {
+            console.error("Update notification settings:", error);
             setters[key](!value);
         } finally {
             setUpdating(false);
@@ -167,6 +162,8 @@ export default function NotificationScreen() {
         value,
         onValueChange,
         disabled,
+        tint = "#4B5563",
+        iconBg = "#F3F4F6",
     }: {
         icon: string;
         title: string;
@@ -174,21 +171,23 @@ export default function NotificationScreen() {
         value: boolean;
         onValueChange: (v: boolean) => void;
         disabled?: boolean;
+        tint?: string;
+        iconBg?: string;
     }) => (
         <View style={[styles.settingItem, disabled && styles.settingItemDisabled]}>
-            <View style={styles.settingIcon}>
-                <Ionicons name={icon as any} size={22} color="#4B5563" />
+            <View style={[styles.settingIcon, { backgroundColor: iconBg }]}>
+                <Ionicons name={icon as any} size={20} color={tint} />
             </View>
             <View style={styles.settingContent}>
                 <Text style={styles.settingTitle}>{title}</Text>
-                {subtitle && <Text style={styles.settingSubtitle}>{subtitle}</Text>}
+                {subtitle ? <Text style={styles.settingSubtitle}>{subtitle}</Text> : null}
             </View>
             <Switch
                 value={value}
                 onValueChange={onValueChange}
                 disabled={disabled}
                 trackColor={{ false: "#E5E7EB", true: "#00B14F" }}
-                thumbColor={"#FFFFFF"}
+                thumbColor="#FFFFFF"
             />
         </View>
     );
@@ -203,18 +202,30 @@ export default function NotificationScreen() {
                 <SafeAreaView edges={["top"]} style={styles.headerContent}>
                     <View style={styles.header}>
                         <TouchableOpacity
-                            onPress={() => router.back()}
+                            onPress={() => router.replace("/(tabs)/profile")}
                             style={styles.backButton}
+                            activeOpacity={0.8}
                         >
                             <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
                         </TouchableOpacity>
                         <Text style={styles.headerTitle}>Notifications</Text>
-                        <View style={{ width: 40 }} />
+                        <View style={styles.headerSpacer} />
                     </View>
                 </SafeAreaView>
             </View>
 
-            <ScrollView contentContainerStyle={styles.content}>
+            <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+                <LinearGradient
+                    colors={["#F7FFF9", "#FFFFFF"]}
+                    style={styles.summaryCard}
+                >
+                    <Text style={styles.summaryEyebrow}>Alert Preferences</Text>
+                    <Text style={styles.summaryTitle}>Control how AfriX keeps you informed</Text>
+                    <Text style={styles.summaryText}>
+                        Choose your preferred channels and decide which account, transaction, and promotional updates you want to receive.
+                    </Text>
+                </LinearGradient>
+
                 <View style={styles.section}>
                     <Text style={styles.sectionHeader}>Channels</Text>
                     <View style={styles.card}>
@@ -223,7 +234,10 @@ export default function NotificationScreen() {
                             title="Push Notifications"
                             subtitle="Receive alerts on this device"
                             value={pushEnabled}
-                            onValueChange={(v: boolean) => handleToggle("push", v)}
+                            onValueChange={(value: boolean) => handleToggle("push", value)}
+                            disabled={updating}
+                            tint="#00B14F"
+                            iconBg="#ECFDF3"
                         />
                         <View style={styles.divider} />
                         <SettingItem
@@ -231,26 +245,37 @@ export default function NotificationScreen() {
                             title="Email Notifications"
                             subtitle="Receive updates via email"
                             value={emailEnabled}
-                            onValueChange={(v: boolean) => handleToggle("email", v)}
+                            onValueChange={(value: boolean) => handleToggle("email", value)}
+                            disabled={updating}
+                            tint="#3B82F6"
+                            iconBg="#EFF6FF"
                         />
-                        <View style={styles.divider} />
-                        <SettingItem
-                            icon="chatbox-ellipses-outline"
-                            title="SMS Notifications"
-                            subtitle="Receive critical alerts via SMS"
-                            value={smsEnabled}
-                            onValueChange={(v: boolean) => handleToggle("sms", v)}
-                        />
+                    </View>
+                    <View style={styles.comingSoonCard}>
+                        <View style={styles.comingSoonIcon}>
+                            <Ionicons name="chatbox-ellipses-outline" size={18} color="#B45309" />
+                        </View>
+                        <View style={styles.comingSoonContent}>
+                            <View style={styles.comingSoonTitleRow}>
+                                <Text style={styles.comingSoonTitle}>SMS Notifications</Text>
+                                <View style={styles.comingSoonBadge}>
+                                    <Text style={styles.comingSoonBadgeText}>Coming soon</Text>
+                                </View>
+                            </View>
+                            <Text style={styles.comingSoonText}>
+                                Critical SMS alerts are planned, but they are not active yet on your account.
+                            </Text>
+                        </View>
                     </View>
                 </View>
 
                 <View style={styles.section}>
-                    <Text style={styles.sectionHeader}>Alert types</Text>
+                    <Text style={styles.sectionHeader}>Alert Types</Text>
                     {loadingSettings ? (
                         <View style={styles.card}>
                             <View style={styles.loadingRow}>
                                 <ActivityIndicator size="small" color="#00B14F" />
-                                <Text style={styles.loadingText}>Loading…</Text>
+                                <Text style={styles.loadingText}>Loading preferences...</Text>
                             </View>
                         </View>
                     ) : (
@@ -260,7 +285,21 @@ export default function NotificationScreen() {
                                 title="Transaction updates"
                                 subtitle="Mint, burn, and transfer notifications"
                                 value={transactions}
-                                onValueChange={(v) => handleAlertTypeToggle("transactions", v)}
+                                onValueChange={(value) => handleAlertTypeToggle("transactions", value)}
+                                disabled={updating}
+                                tint="#00B14F"
+                                iconBg="#ECFDF3"
+                            />
+                            <View style={styles.divider} />
+                            <SettingItem
+                                icon="git-pull-request-outline"
+                                title="Request updates"
+                                subtitle="Mint, burn, and dispute status changes"
+                                value={requests}
+                                onValueChange={(value) => handleAlertTypeToggle("requests", value)}
+                                disabled={updating || !pushEnabled}
+                                tint="#0F766E"
+                                iconBg="#CCFBF1"
                             />
                             <View style={styles.divider} />
                             <SettingItem
@@ -268,7 +307,10 @@ export default function NotificationScreen() {
                                 title="Security alerts"
                                 subtitle="Login and account changes"
                                 value={security}
-                                onValueChange={(v) => handleAlertTypeToggle("security", v)}
+                                onValueChange={(value) => handleAlertTypeToggle("security", value)}
+                                disabled={updating}
+                                tint="#DC2626"
+                                iconBg="#FEF2F2"
                             />
                             <View style={styles.divider} />
                             <SettingItem
@@ -276,7 +318,10 @@ export default function NotificationScreen() {
                                 title="Agent updates"
                                 subtitle="Withdrawals, reviews, and agent activity"
                                 value={agentUpdates}
-                                onValueChange={(v) => handleAlertTypeToggle("agentUpdates", v)}
+                                onValueChange={(value) => handleAlertTypeToggle("agentUpdates", value)}
+                                disabled={updating}
+                                tint="#8B5CF6"
+                                iconBg="#F3E8FF"
                             />
                             <View style={styles.divider} />
                             <SettingItem
@@ -284,7 +329,10 @@ export default function NotificationScreen() {
                                 title="Marketing & promos"
                                 subtitle="News and special offers"
                                 value={marketing}
-                                onValueChange={(v) => handleAlertTypeToggle("marketing", v)}
+                                onValueChange={(value) => handleAlertTypeToggle("marketing", value)}
+                                disabled={updating}
+                                tint="#F59E0B"
+                                iconBg="#FEF3C7"
                             />
                         </View>
                     )}
@@ -297,10 +345,12 @@ export default function NotificationScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: "#F3F4F6",
+        backgroundColor: "#F9FAFB",
     },
     headerWrapper: {
-        marginBottom: 20,
+        zIndex: 10,
+        elevation: 8,
+        backgroundColor: "#00B14F",
     },
     headerGradient: {
         position: "absolute",
@@ -328,32 +378,116 @@ const styles = StyleSheet.create({
         backgroundColor: "rgba(255,255,255,0.2)",
     },
     headerTitle: {
-        fontSize: 20,
+        fontSize: 22,
         fontWeight: "700",
         color: "#FFFFFF",
+        letterSpacing: -0.4,
     },
-    content: {
-        padding: 20,
+    headerSpacer: {
+        width: 40,
+    },
+    scrollContent: {
+        paddingHorizontal: 20,
+        paddingTop: 58,
+        paddingBottom: 40,
+    },
+    summaryCard: {
+        borderRadius: 22,
+        padding: 18,
+        marginTop: -22,
+        marginBottom: 18,
+        borderWidth: 1,
+        borderColor: "#E6F4EA",
+    },
+    summaryEyebrow: {
+        fontSize: 11,
+        fontWeight: "800",
+        color: "#00B14F",
+        textTransform: "uppercase",
+        letterSpacing: 0.5,
+        marginBottom: 6,
+    },
+    summaryTitle: {
+        fontSize: 22,
+        fontWeight: "800",
+        color: "#111827",
+        letterSpacing: -0.5,
+    },
+    summaryText: {
+        fontSize: 13,
+        lineHeight: 20,
+        color: "#6B7280",
+        fontWeight: "500",
+        marginTop: 6,
     },
     section: {
-        marginBottom: 24,
+        marginBottom: 18,
     },
     sectionHeader: {
-        fontSize: 14,
-        fontWeight: "600",
+        fontSize: 12,
+        fontWeight: "800",
         color: "#6B7280",
-        marginBottom: 12,
+        marginBottom: 10,
         marginLeft: 4,
         textTransform: "uppercase",
-    },
-    comingSoon: {
-        fontSize: 12,
-        color: "#9CA3AF",
-        marginBottom: 8,
-        marginLeft: 4,
+        letterSpacing: 0.4,
     },
     settingItemDisabled: {
         opacity: 0.7,
+    },
+    comingSoonCard: {
+        marginTop: 12,
+        backgroundColor: "#FFFBEB",
+        borderRadius: 18,
+        borderWidth: 1,
+        borderColor: "#FDE68A",
+        padding: 16,
+        flexDirection: "row",
+        gap: 12,
+    },
+    comingSoonIcon: {
+        width: 38,
+        height: 38,
+        borderRadius: 12,
+        backgroundColor: "#FEF3C7",
+        alignItems: "center",
+        justifyContent: "center",
+    },
+    comingSoonContent: {
+        flex: 1,
+    },
+    comingSoonTitleRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: 8,
+        marginBottom: 6,
+    },
+    comingSoonTitle: {
+        fontSize: 14,
+        fontWeight: "700",
+        color: "#92400E",
+        flex: 1,
+    },
+    comingSoonBadge: {
+        backgroundColor: "#FFFFFF",
+        borderRadius: 999,
+        paddingHorizontal: 10,
+        paddingVertical: 4,
+        borderWidth: 1,
+        borderColor: "#FDE68A",
+    },
+    comingSoonBadgeText: {
+        fontSize: 11,
+        fontWeight: "700",
+        color: "#B45309",
+        textTransform: "uppercase",
+    },
+    comingSoonText: {
+        fontSize: 13,
+        lineHeight: 19,
+        color: "#B45309",
+        fontWeight: "500",
     },
     loadingRow: {
         flexDirection: "row",
@@ -365,16 +499,14 @@ const styles = StyleSheet.create({
     loadingText: {
         fontSize: 14,
         color: "#6B7280",
+        fontWeight: "500",
     },
     card: {
         backgroundColor: "#FFFFFF",
-        borderRadius: 16,
+        borderRadius: 20,
         padding: 8,
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.05,
-        shadowRadius: 8,
-        elevation: 2,
+        borderWidth: 1,
+        borderColor: "#E5E7EB",
     },
     settingItem: {
         flexDirection: "row",
@@ -382,10 +514,9 @@ const styles = StyleSheet.create({
         padding: 16,
     },
     settingIcon: {
-        width: 36,
-        height: 36,
-        borderRadius: 10,
-        backgroundColor: "#F3F4F6",
+        width: 40,
+        height: 40,
+        borderRadius: 12,
         alignItems: "center",
         justifyContent: "center",
         marginRight: 12,
@@ -396,17 +527,18 @@ const styles = StyleSheet.create({
     },
     settingTitle: {
         fontSize: 16,
-        fontWeight: "500",
+        fontWeight: "600",
         color: "#111827",
         marginBottom: 2,
     },
     settingSubtitle: {
         fontSize: 12,
         color: "#6B7280",
+        lineHeight: 18,
     },
     divider: {
         height: 1,
         backgroundColor: "#F3F4F6",
-        marginLeft: 64,
+        marginLeft: 68,
     },
 });

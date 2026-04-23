@@ -5,7 +5,6 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import {
     Wallet,
     ArrowUpRight,
-    ArrowDownLeft,
     TrendingUp,
     Activity,
     AlertCircle,
@@ -68,6 +67,11 @@ export default function FinancialsPage() {
     })) : [];
 
     const totalValue = walletDistributionData.reduce((acc, curr) => acc + curr.value, 0);
+    const totalPlatformFees = parseFloat(stats?.transactions.total_platform_fees_collected || "0");
+    const totalAgentCommissions = parseFloat(stats?.transactions.total_agent_commissions_recorded || "0");
+    const totalRecordedCharges = parseFloat(
+        stats?.transactions.total_recorded_charges || stats?.transactions.total_fees_collected || "0",
+    );
 
     return (
         <div className="flex-1 space-y-6 p-4 md:p-8 pt-6">
@@ -104,20 +108,32 @@ export default function FinancialsPage() {
                 </Card>
                 <Card className="hover:shadow-md transition-shadow border-l-4 border-l-green-500">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Platform Revenue</CardTitle>
+                        <CardTitle className="text-sm font-medium">Platform Fees</CardTitle>
                         <TrendingUp className="h-4 w-4 text-green-500" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">${parseFloat(stats?.transactions.total_fees_collected || "0").toLocaleString()}</div>
+                        <div className="text-2xl font-bold">${totalPlatformFees.toLocaleString()}</div>
                         <p className="text-xs text-muted-foreground">
-                            Cumulative facilitation fees
+                            Treasury-collected platform fees
                         </p>
                     </CardContent>
                 </Card>
                 <Card className="hover:shadow-md transition-shadow border-l-4 border-l-blue-500">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Agent Commissions</CardTitle>
+                        <ArrowUpRight className="h-4 w-4 text-blue-500" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">${totalAgentCommissions.toLocaleString()}</div>
+                        <p className="text-xs text-muted-foreground">
+                            Mint/burn commissions recorded
+                        </p>
+                    </CardContent>
+                </Card>
+                <Card className="hover:shadow-md transition-shadow border-l-4 border-l-purple-500">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">Active Wallets</CardTitle>
-                        <Wallet className="h-4 w-4 text-blue-500" />
+                        <Wallet className="h-4 w-4 text-purple-500" />
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold">{stats?.wallets.active.toLocaleString()}</div>
@@ -126,17 +142,17 @@ export default function FinancialsPage() {
                         </p>
                     </CardContent>
                 </Card>
-                <Card className="hover:shadow-md transition-shadow border-l-4 border-l-purple-500">
+                <Card className="hover:shadow-md transition-shadow border-l-4 border-l-amber-500">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Total NT Supply</CardTitle>
-                        <CreditCard className="h-4 w-4 text-purple-500" />
+                        <CardTitle className="text-sm font-medium">Total Recorded Charges</CardTitle>
+                        <CreditCard className="h-4 w-4 text-amber-500" />
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold">
-                            {parseFloat(stats?.wallets.balances_by_token["NT"]?.total_balance || "0").toLocaleString()}
+                            ${totalRecordedCharges.toLocaleString()}
                         </div>
                         <p className="text-xs text-muted-foreground">
-                            Circulating in {stats?.wallets.balances_by_token["NT"]?.wallet_count} wallets
+                            Platform fees plus agent commissions
                         </p>
                     </CardContent>
                 </Card>

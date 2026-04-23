@@ -22,6 +22,7 @@ const BurnRequest = sequelize.define(
     escrow_id: { type: DataTypes.UUID, allowNull: true }, // NEW
     fiat_proof_url: { type: DataTypes.STRING, allowNull: true },
     agent_bank_reference: { type: DataTypes.STRING, allowNull: true },
+    rejection_reason: { type: DataTypes.TEXT, allowNull: true },
     user_bank_account: { type: DataTypes.JSON, allowNull: false },
     expires_at: { type: DataTypes.DATE, allowNull: false },
   },

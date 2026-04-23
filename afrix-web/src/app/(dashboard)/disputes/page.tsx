@@ -1,7 +1,7 @@
 "use client";
 
-import { useDisputes } from "@/hooks/useDisputes";
-import { useEffect, useState } from "react";
+import { useDisputes, Dispute } from "@/hooks/useDisputes";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import {
     Table,
     TableBody,
@@ -19,12 +19,18 @@ import {
     ShieldAlert
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format } from "date-fns";
 import { Pagination } from "@/components/ui/pagination";
 
-export default function DisputesPage() {
+const VALID_TABS = new Set(["open", "escalated", "resolved", "all"]);
+
+function DisputesPageContent() {
+    const searchParams = useSearchParams();
+    const initialTab = searchParams.get("tab");
+    const startingTab = initialTab && VALID_TABS.has(initialTab) ? initialTab : "open";
+
     const {
         disputes,
         pagination,
@@ -35,29 +41,48 @@ export default function DisputesPage() {
     } = useDisputes();
     const router = useRouter();
 
-    const [activeTab, setActiveTab] = useState("open");
+    const [activeTab, setActiveTab] = useState(startingTab);
     const [currentPage, setCurrentPage] = useState(1);
     const limit = 15;
+
+    const getRawReference = (dispute: Dispute) =>
+        (
+            dispute.escrow?.transaction?.reference ||
+            dispute.transaction_summary?.reference ||
+            dispute.reference ||
+            dispute.mintRequest?.user_bank_reference ||
+            dispute.transaction_id ||
+            dispute.id
+        ).toString();
+
+    const getDisplayReference = (dispute: Dispute) => {
+        const fullReference = getRawReference(dispute);
+
+        return fullReference.length > 18
+            ? `${fullReference.slice(0, 8)}...${fullReference.slice(-4)}`
+            : fullReference;
+    };
 
     useEffect(() => {
         fetchStats();
     }, [fetchStats]);
 
-    useEffect(() => {
-        const params: any = {
+    const queryParams = useMemo(() => {
+        const params: Record<string, string | number> = {
             limit,
             offset: (currentPage - 1) * limit
         };
+
         if (activeTab === "open") params.status = "open";
         if (activeTab === "resolved") params.status = "resolved";
-        if (activeTab === "escalated") params.escalation_level = "arbitration"; // Filter by arbitration
-        fetchDisputes(params);
-    }, [activeTab, currentPage, fetchDisputes]);
+        if (activeTab === "escalated") params.escalation_level = "arbitration";
 
-    // Reset page on tab change
+        return params;
+    }, [activeTab, currentPage]);
+
     useEffect(() => {
-        setCurrentPage(1);
-    }, [activeTab]);
+        fetchDisputes(queryParams);
+    }, [fetchDisputes, queryParams]);
 
     return (
         <div className="flex flex-col gap-6">
@@ -68,7 +93,6 @@ export default function DisputesPage() {
                 </div>
             </div>
 
-            {/* Stats Cards */}
             <div className="grid gap-4 md:grid-cols-4">
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -108,7 +132,14 @@ export default function DisputesPage() {
                 </Card>
             </div>
 
-            <Tabs defaultValue="open" onValueChange={setActiveTab} className="space-y-4">
+            <Tabs
+                value={activeTab}
+                onValueChange={(value) => {
+                    setActiveTab(value);
+                    setCurrentPage(1);
+                }}
+                className="space-y-4"
+            >
                 <TabsList>
                     <TabsTrigger value="open">Open Disputes</TabsTrigger>
                     <TabsTrigger value="escalated">Escalated</TabsTrigger>
@@ -147,8 +178,8 @@ export default function DisputesPage() {
                                     ) : (
                                         disputes.map((dispute) => (
                                             <TableRow key={dispute.id}>
-                                                <TableCell className="font-mono text-sm">
-                                                    {dispute.transaction_id ? dispute.transaction_id.substring(0, 8) : "N/A"}
+                                                <TableCell className="font-mono text-sm" title={getRawReference(dispute)}>
+                                                    {getDisplayReference(dispute)}
                                                 </TableCell>
                                                 <TableCell>
                                                     <div className="flex flex-col">
@@ -157,12 +188,22 @@ export default function DisputesPage() {
                                                     </div>
                                                 </TableCell>
                                                 <TableCell>
-                                                    {dispute.escrow?.amount} {dispute.escrow?.token_type}
+                                                    {Number(
+                                                        dispute.transaction_summary?.amount ??
+                                                        dispute.escrow?.amount ??
+                                                        dispute.mintRequest?.amount ??
+                                                        0
+                                                    ).toLocaleString()}{" "}
+                                                    {dispute.transaction_summary?.token_type ||
+                                                        dispute.escrow?.token_type ||
+                                                        dispute.mintRequest?.token_type ||
+                                                        ""}
                                                 </TableCell>
                                                 <TableCell>
-                                                    {dispute.status === 'open' && <Badge variant="secondary">Open</Badge>}
-                                                    {dispute.status === 'resolved' && <Badge className="bg-green-600">Resolved</Badge>}
-                                                    {dispute.escalation_level !== 'auto' && <Badge variant="destructive" className="ml-2">{dispute.escalation_level}</Badge>}
+                                                    {dispute.status === "open" && <Badge variant="secondary">Open</Badge>}
+                                                    {dispute.status === "resolved" && <Badge className="bg-green-600">Resolved</Badge>}
+                                                    {dispute.status === "escalated" && <Badge variant="destructive">Escalated</Badge>}
+                                                    {dispute.escalation_level !== "auto" && <Badge variant="destructive" className="ml-2">{dispute.escalation_level}</Badge>}
                                                 </TableCell>
                                                 <TableCell className="text-sm text-muted-foreground">
                                                     {format(new Date(dispute.created_at), "MMM d, HH:mm")}
@@ -192,5 +233,17 @@ export default function DisputesPage() {
                 </TabsContent>
             </Tabs>
         </div>
+    );
+}
+
+export default function DisputesPage() {
+    return (
+        <Suspense fallback={
+            <div className="flex items-center justify-center p-8">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+        }>
+            <DisputesPageContent />
+        </Suspense>
     );
 }

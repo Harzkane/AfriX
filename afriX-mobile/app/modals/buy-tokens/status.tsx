@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { View, StyleSheet, ScrollView, RefreshControl, Modal, TextInput, TouchableOpacity, Alert, KeyboardAvoidingView, Platform, Dimensions, Image, Linking } from "react-native";
-import { Text, Button, ActivityIndicator, Card, Surface } from "react-native-paper";
+import { View, StyleSheet, ScrollView, RefreshControl, Modal, TextInput, TouchableOpacity, Alert, KeyboardAvoidingView, Platform, Image, Linking } from "react-native";
+import { Text, ActivityIndicator, Surface } from "react-native-paper";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useMintRequestStore, useWalletStore } from "@/stores";
 import { StatusTracker } from "@/components/ui/StatusTracker";
@@ -10,8 +10,6 @@ import { LinearGradient } from "expo-linear-gradient";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { formatDate } from "@/utils/format";
 import apiClient from "@/services/apiClient";
-
-const { width } = Dimensions.get("window");
 
 export default function MintStatusScreen() {
   const { requestId } = useLocalSearchParams<{ requestId: string }>();
@@ -57,7 +55,7 @@ export default function MintStatusScreen() {
     }, 10000);
 
     return () => clearInterval(interval);
-  }, [requestId]);
+  }, [checkStatus, requestId]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -138,16 +136,14 @@ export default function MintStatusScreen() {
         const { data } = await apiClient.get("/transactions/pending-review");
         const pending = data?.data?.transactions || data?.data || [];
 
-        const match = pending.find(
-          (tx: any) =>
-            tx.agent_id === currentRequest.agent_id &&
-            parseFloat(tx.amount) === parseFloat(currentRequest.amount) &&
-            tx.token_type === currentRequest.token_type &&
-            (tx.type || "").toLowerCase() === "mint"
+        const requestIdMatch = pending.find((tx: any) => tx.id === currentRequest.id);
+        const relatedRequestIdMatch = pending.find(
+          (tx: any) => tx.request_id === currentRequest.id
         );
+        const match = requestIdMatch || relatedRequestIdMatch;
 
         setCanRate(!!match);
-      } catch (e) {
+      } catch {
         setCanRate(true);
       }
     };
@@ -175,7 +171,10 @@ export default function MintStatusScreen() {
   const isCancelled = currentRequest.status === "cancelled" || currentRequest.status === "CANCELLED";
   const isRejected = currentRequest.status.toLowerCase() === "rejected";
   const isDisputed = currentRequest.status.toLowerCase() === "disputed";
-  const isFailed = isExpired || isCancelled || isRejected || isDisputed;
+  const hasExistingDispute = !!currentRequest.latest_dispute;
+  const hasResolvedDispute =
+    (currentRequest.latest_dispute?.status || "").toLowerCase() === "resolved";
+  const isFailed = isExpired || isCancelled || isRejected;
 
 
   const getStatusColor = (status: string) => {
@@ -205,15 +204,19 @@ export default function MintStatusScreen() {
           style={styles.headerGradient}
         />
         <SafeAreaView edges={["top"]} style={styles.headerContent}>
-          <View style={styles.header}>
+          <View style={styles.headerTop}>
             <TouchableOpacity
               onPress={() => router.push("/activity")}
               style={styles.backButton}
             >
               <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
             </TouchableOpacity>
-            <Text style={styles.headerTitle}>Mint Request Status</Text>
-            <View style={{ width: 40 }} />
+            <View style={styles.headerText}>
+              <Text style={styles.headerTitle}>Mint Request Status</Text>
+              <Text style={styles.headerSubtitle}>
+                Track progress and complete any next steps
+              </Text>
+            </View>
           </View>
         </SafeAreaView>
       </View>
@@ -227,6 +230,17 @@ export default function MintStatusScreen() {
         }
       >
         <View style={styles.mainContent}>
+          <LinearGradient
+            colors={["#F7FFF9", "#FFFFFF"]}
+            style={styles.summaryCard}
+          >
+            <Text style={styles.summaryEyebrow}>Live Status</Text>
+            <Text style={styles.summaryTitle}>Stay on top of this mint request</Text>
+            <Text style={styles.summaryText}>
+              Follow your request from proof submission to token confirmation and take action quickly if anything needs attention.
+            </Text>
+          </LinearGradient>
+
           {/* Status Header Chip */}
           <View style={styles.statusChipContainer}>
             <View style={[styles.statusBadge, { backgroundColor: getStatusColor(currentRequest.status) + "20" }]}>
@@ -326,7 +340,7 @@ export default function MintStatusScreen() {
               <View style={styles.messageContent}>
                 <Text style={[styles.messageTitle, { color: "#1E40AF" }]}>Pending Review</Text>
                 <Text style={[styles.messageText, { color: "#1E3A8A" }]}>
-                  The agent is currently verifying your payment. You will be notified once it's complete.
+                  The agent is currently verifying your payment. You will be notified once it&apos;s complete.
                 </Text>
               </View>
             </Surface>
@@ -353,10 +367,12 @@ export default function MintStatusScreen() {
                 </Text>
                 <Text style={styles.errorText}>
                   {isRejected
-                    ? "Your payment proof was rejected. If you have any concerns, you can open a dispute."
+                    ? hasResolvedDispute
+                      ? "This request was closed after dispute review. If you still need help, please contact support."
+                      : "Your payment proof was rejected. If you have any concerns, you can open a dispute."
                     : "This transaction was not completed within the time limit or was manually cancelled."}
                 </Text>
-                {isRejected && (
+                {isRejected && !hasExistingDispute && (
                   <TouchableOpacity
                     style={[styles.actionButton, { backgroundColor: "#EF4444", marginTop: 12 }]}
                     onPress={handleOpenDispute}
@@ -387,19 +403,17 @@ export default function MintStatusScreen() {
                 style={styles.primaryBtn}
                 onPress={async () => {
                   try {
-                    const { data } = await require("@/services/apiClient").default.get("/transactions");
-                    const transaction = data.data.transactions?.find((tx: any) =>
-                      tx.agent_id === currentRequest.agent_id &&
-                      parseFloat(tx.amount) === parseFloat(currentRequest.amount) &&
-                      tx.token_type === currentRequest.token_type &&
-                      tx.type === "mint"
+                    const { data } = await apiClient.get("/transactions/pending-review");
+                    const pending = data?.data?.transactions || data?.data || [];
+                    const transaction = pending.find(
+                      (tx: any) => tx.id === currentRequest.id || tx.request_id === currentRequest.id
                     );
 
                     router.replace({
                       pathname: "/modals/buy-tokens/rate-agent",
                       params: { transactionId: transaction?.id || currentRequest.id },
                     });
-                  } catch (e) {
+                  } catch {
                     router.replace({
                       pathname: "/modals/buy-tokens/rate-agent",
                       params: { transactionId: currentRequest.id },
@@ -423,6 +437,11 @@ export default function MintStatusScreen() {
                   <Ionicons name="refresh" size={20} color="#FFFFFF" />
                 </TouchableOpacity>
               </View>
+            ) : isDisputed ? (
+              <TouchableOpacity style={styles.secondaryBtn} onPress={handleGoHome}>
+                <Ionicons name="home-outline" size={20} color="#6B7280" />
+                <Text style={styles.secondaryBtnText}>Dashboard</Text>
+              </TouchableOpacity>
             ) : (
               <TouchableOpacity style={styles.secondaryBtn} onPress={handleGoHome}>
                 <Ionicons name="home-outline" size={20} color="#6B7280" />
@@ -454,8 +473,14 @@ export default function MintStatusScreen() {
           style={styles.modalOverlay}
         >
           <View style={styles.modalContent}>
+            <View style={styles.modalHandle} />
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Open Dispute</Text>
+              <View style={styles.modalTitleWrap}>
+                <View style={styles.modalIconWrap}>
+                  <Ionicons name="shield-outline" size={18} color="#F59E0B" />
+                </View>
+                <Text style={styles.modalTitle}>Open Dispute</Text>
+              </View>
               <TouchableOpacity onPress={() => setShowDisputeModal(false)}>
                 <Ionicons name="close" size={24} color="#111827" />
               </TouchableOpacity>
@@ -469,6 +494,7 @@ export default function MintStatusScreen() {
             <TextInput
               style={styles.input}
               placeholder="e.g., I have valid payment proof"
+              placeholderTextColor="#98A2B3"
               value={disputeReason}
               onChangeText={setDisputeReason}
               multiline
@@ -479,6 +505,7 @@ export default function MintStatusScreen() {
             <TextInput
               style={[styles.input, styles.textArea]}
               placeholder="Provide any additional information..."
+              placeholderTextColor="#98A2B3"
               value={disputeDetails}
               onChangeText={setDisputeDetails}
               multiline
@@ -518,31 +545,43 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
   headerWrapper: {
-    marginBottom: 0,
+    marginBottom: 8,
   },
   headerGradient: {
     position: "absolute",
     top: 0,
     left: 0,
     right: 0,
-    height: 140,
+    height: 118,
   },
   headerContent: {
     paddingHorizontal: 20,
   },
-  header: {
+  headerTop: {
     flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingBottom: 20,
-    marginTop: 10,
+    alignItems: "flex-start",
+    marginTop: 14,
+    paddingBottom: 0,
+  },
+  headerText: {
+    flex: 1,
   },
   headerTitle: {
-    fontSize: 20,
+    fontSize: 24,
     fontWeight: "700",
     color: "#FFFFFF",
+    marginBottom: 2,
+    letterSpacing: -0.5,
+  },
+  headerSubtitle: {
+    fontSize: 13,
+    color: "rgba(255, 255, 255, 0.9)",
+    fontWeight: "500",
+    lineHeight: 18,
   },
   backButton: {
+    marginRight: 12,
+    marginTop: 4,
     width: 40,
     height: 40,
     borderRadius: 20,
@@ -564,7 +603,34 @@ const styles = StyleSheet.create({
   },
   mainContent: {
     paddingHorizontal: 20,
-    marginTop: 40,
+    marginTop: 16,
+  },
+  summaryCard: {
+    borderRadius: 24,
+    padding: 20,
+    marginBottom: 18,
+    borderWidth: 1,
+    borderColor: "#E6F4EA",
+  },
+  summaryEyebrow: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: "#00B14F",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+    marginBottom: 8,
+  },
+  summaryTitle: {
+    fontSize: 22,
+    fontWeight: "700",
+    color: "#111827",
+    marginBottom: 8,
+    letterSpacing: -0.4,
+  },
+  summaryText: {
+    fontSize: 14,
+    color: "#6B7280",
+    lineHeight: 21,
   },
   statusChipContainer: {
     flexDirection: "row",
@@ -589,7 +655,7 @@ const styles = StyleSheet.create({
     fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
   },
   timerCard: {
-    borderRadius: 16,
+    borderRadius: 20,
     padding: 16,
     backgroundColor: "#FFFFFF",
     marginBottom: 16,
@@ -598,7 +664,7 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: "#FFFFFF",
-    borderRadius: 16,
+    borderRadius: 20,
     padding: 20,
     marginBottom: 16,
     borderWidth: 1,
@@ -659,7 +725,7 @@ const styles = StyleSheet.create({
   messageCard: {
     flexDirection: "row",
     padding: 16,
-    borderRadius: 16,
+    borderRadius: 20,
     marginBottom: 20,
     gap: 12,
     borderWidth: 1,
@@ -724,7 +790,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: 12,
-    borderRadius: 12,
+    borderRadius: 14,
     marginTop: 16,
     gap: 8,
   },
@@ -808,24 +874,46 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.4)",
+    backgroundColor: "rgba(15, 23, 42, 0.45)",
     justifyContent: "flex-end",
   },
   modalContent: {
     backgroundColor: "#FFFFFF",
-    borderTopLeftRadius: 30,
-    borderTopRightRadius: 30,
-    padding: 24,
-    paddingBottom: Platform.OS === 'ios' ? 40 : 24,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: Platform.OS === 'ios' ? 36 : 24,
+  },
+  modalHandle: {
+    alignSelf: "center",
+    width: 44,
+    height: 5,
+    borderRadius: 999,
+    backgroundColor: "#D0D5DD",
+    marginBottom: 16,
   },
   modalHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 20,
+    marginBottom: 16,
+  },
+  modalTitleWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  modalIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#FFF7E8",
   },
   modalTitle: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: "800",
     color: "#111827",
   },
@@ -842,10 +930,10 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   input: {
-    backgroundColor: "#F9FAFB",
+    backgroundColor: "#FBFCFD",
     borderWidth: 1,
-    borderColor: "#E5E7EB",
-    borderRadius: 12,
+    borderColor: "#E4E7EC",
+    borderRadius: 16,
     padding: 14,
     fontSize: 15,
     color: "#111827",
@@ -862,8 +950,8 @@ const styles = StyleSheet.create({
   },
   modalButton: {
     flex: 1,
-    height: 54,
-    borderRadius: 12,
+    height: 56,
+    borderRadius: 16,
     alignItems: "center",
     justifyContent: "center",
   },

@@ -14,6 +14,38 @@ const {
 const { ApiError } = require("../utils/errors");
 const { Op } = require("sequelize");
 
+const getDisputeReference = (dispute) =>
+  dispute?.escrow?.transaction?.reference ||
+  dispute?.mintRequest?.user_bank_reference ||
+  dispute?.mintRequest?.id ||
+  dispute?.transaction?.reference ||
+  dispute?.transaction_id ||
+  dispute?.mint_request_id ||
+  dispute?.escrow_id ||
+  null;
+
+const getDisputeTransactionSummary = (dispute) => {
+  if (dispute?.escrow?.transaction) {
+    return dispute.escrow.transaction;
+  }
+
+  if (dispute?.mintRequest) {
+    return {
+      id: dispute.mintRequest.id,
+      reference:
+        dispute.mintRequest.user_bank_reference || dispute.mintRequest.id,
+      type: "mint",
+      amount: dispute.mintRequest.amount,
+      token_type: dispute.mintRequest.token_type,
+      status: dispute.mintRequest.status,
+      created_at: dispute.mintRequest.created_at,
+      updated_at: dispute.mintRequest.updated_at,
+    };
+  }
+
+  return null;
+};
+
 const adminOperationsController = {
   // =====================================================
   // DISPUTE MANAGEMENT
@@ -104,6 +136,28 @@ const adminOperationsController = {
             model: Escrow,
             as: "escrow",
             attributes: ["id", "amount", "token_type", "status"],
+            include: [
+              {
+                model: Transaction,
+                as: "transaction",
+                attributes: ["id", "reference", "type", "amount", "status"],
+                required: false,
+              },
+            ],
+            required: false,
+          },
+          {
+            model: MintRequest,
+            as: "mintRequest",
+            attributes: [
+              "id",
+              "amount",
+              "token_type",
+              "status",
+              "rejection_reason",
+              "user_bank_reference",
+            ],
+            required: false,
           },
           {
             model: User,
@@ -122,9 +176,18 @@ const adminOperationsController = {
         order: [["created_at", "DESC"]],
       });
 
+      const disputesWithReference = disputes.rows.map((dispute) => {
+        const plainDispute = dispute.toJSON();
+
+        return {
+          ...plainDispute,
+          reference: getDisputeReference(plainDispute),
+        };
+      });
+
       res.status(200).json({
         success: true,
-        data: disputes.rows,
+        data: disputesWithReference,
         pagination: {
           total: disputes.count,
           limit: parseInt(limit),
@@ -160,14 +223,24 @@ const adminOperationsController = {
               {
                 model: BurnRequest,
                 as: "burnRequest",
-                attributes: ["id", "fiat_proof_url", "status"],
+                attributes: ["id", "fiat_proof_url", "status", "rejection_reason"],
               },
             ],
           },
           {
             model: MintRequest,
             as: "mintRequest",
-            attributes: ["id", "payment_proof_url", "status"],
+            attributes: [
+              "id",
+              "amount",
+              "token_type",
+              "status",
+              "payment_proof_url",
+              "user_bank_reference",
+              "rejection_reason",
+              "created_at",
+              "updated_at",
+            ],
           },
           {
             model: User,
@@ -195,7 +268,16 @@ const adminOperationsController = {
           .json({ success: false, error: "Dispute not found" });
       }
 
-      res.status(200).json({ success: true, data: dispute });
+      const plainDispute = dispute.toJSON();
+
+      res.status(200).json({
+        success: true,
+        data: {
+          ...plainDispute,
+          reference: getDisputeReference(plainDispute),
+          transaction_summary: getDisputeTransactionSummary(plainDispute),
+        },
+      });
     } catch (error) {
       console.error("Get dispute error:", error);
       res.status(500).json({ success: false, error: error.message });

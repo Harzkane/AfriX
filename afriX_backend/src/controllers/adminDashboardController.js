@@ -1,6 +1,6 @@
 // File: src/controllers/adminDashboardController.js
 const { User, Wallet, Transaction, Agent, Merchant, Dispute, Escrow, MintRequest, BurnRequest, WithdrawalRequest } = require("../models");
-const { USER_ROLES, TRANSACTION_STATUS, DISPUTE_STATUS, REQUEST_STATUS, ESCROW_STATUS, DISPUTE_ESCALATION_LEVELS } = require("../config/constants");
+const { USER_ROLES, TRANSACTION_TYPES, TRANSACTION_STATUS, DISPUTE_STATUS, REQUEST_STATUS, ESCROW_STATUS, DISPUTE_ESCALATION_LEVELS } = require("../config/constants");
 const { Op } = require("sequelize");
 const { sequelize } = require("../config/database");
 const platformService = require("../services/platformService");
@@ -170,6 +170,20 @@ async function getTransactionStatistics() {
     const totalFees = await Transaction.sum("fee", {
         where: { status: TRANSACTION_STATUS.COMPLETED }
     });
+    const platformFees = await Transaction.sum("fee", {
+        where: {
+            status: TRANSACTION_STATUS.COMPLETED,
+            fee_wallet_id: { [Op.ne]: null }
+        }
+    });
+    const agentCommissions = await Transaction.sum("fee", {
+        where: {
+            status: TRANSACTION_STATUS.COMPLETED,
+            type: { [Op.in]: [TRANSACTION_TYPES.MINT, TRANSACTION_TYPES.BURN] },
+            agent_id: { [Op.ne]: null }
+        }
+    });
+    const totalRecordedCharges = parseFloat(platformFees || 0) + parseFloat(agentCommissions || 0);
 
     // Volume History (Last 6 Months)
     const sixMonthsAgo = new Date();
@@ -211,9 +225,24 @@ async function getTransactionStatistics() {
         failed: failedTransactions,
         recent_24h: recent24hCount,
         total_fees: parseFloat(totalFees || 0).toFixed(2),
+        total_recorded_charges: totalRecordedCharges.toFixed(2),
+        total_platform_fees: parseFloat(platformFees || 0).toFixed(2),
+        total_agent_commissions: parseFloat(agentCommissions || 0).toFixed(2),
         volume_history: formattedHistory,
         status_distribution: statusDistribution
     };
+}
+
+function getFlaggedTransactionWhere(severity) {
+    const conditions = [
+        sequelize.literal("COALESCE((metadata->>'flagged')::boolean, false) = true")
+    ];
+
+    if (severity) {
+        conditions.push(sequelize.literal(`metadata->>'flag_severity' = '${severity}'`));
+    }
+
+    return { [Op.and]: conditions };
 }
 
 /**
@@ -360,9 +389,7 @@ async function getSecurityStatistics() {
 
     // Flagged transactions
     const flaggedTransactions = await Transaction.count({
-        where: {
-            'metadata.flagged': true
-        }
+        where: getFlaggedTransactionWhere()
     });
 
     return {
@@ -411,12 +438,7 @@ async function getPendingCounts() {
 
     // High severity flagged transactions
     const highSeverityFlags = await Transaction.count({
-        where: {
-            [Op.and]: [
-                { 'metadata.flagged': true },
-                { 'metadata.flag_severity': 'high' }
-            ]
-        }
+        where: getFlaggedTransactionWhere("high")
     });
 
     return {

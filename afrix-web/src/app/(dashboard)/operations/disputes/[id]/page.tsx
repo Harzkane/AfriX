@@ -7,14 +7,16 @@ import Link from "next/link";
 import {
     Loader2,
     ArrowLeft,
-    AlertCircle,
     User,
     Briefcase,
     Lock,
     FileText,
     ArrowUpCircle,
     CheckCircle,
-    DollarSign
+    DollarSign,
+    Hash,
+    Receipt,
+    ImageIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -40,6 +42,21 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 
+const getErrorMessage = (error: unknown, fallback: string) => {
+    if (
+        typeof error === "object" &&
+        error !== null &&
+        "response" in error &&
+        typeof (error as { response?: unknown }).response === "object" &&
+        (error as { response?: { data?: unknown } }).response?.data &&
+        typeof (error as { response?: { data?: { error?: unknown } } }).response?.data?.error === "string"
+    ) {
+        return (error as { response?: { data?: { error?: string } } }).response?.data?.error || fallback;
+    }
+
+    return fallback;
+};
+
 export default function DisputeDetailPage() {
     const { id } = useParams();
     const { fetchDispute, escalateDispute, resolveDispute } = useOperations();
@@ -47,7 +64,7 @@ export default function DisputeDetailPage() {
     const [loading, setLoading] = useState(true);
     const [escalateOpen, setEscalateOpen] = useState(false);
     const [resolveOpen, setResolveOpen] = useState(false);
-    const [escalationLevel, setEscalationLevel] = useState("level_2");
+    const [escalationLevel, setEscalationLevel] = useState("admin");
     const [escalationNotes, setEscalationNotes] = useState("");
     const [resolveAction, setResolveAction] = useState("refund");
     const [resolveNotes, setResolveNotes] = useState("");
@@ -74,8 +91,8 @@ export default function DisputeDetailPage() {
             setEscalationNotes("");
             const updated = await fetchDispute(dispute.id);
             setDispute(updated ?? null);
-        } catch (e: any) {
-            toast.error(e.response?.data?.error || "Escalation failed");
+        } catch (e: unknown) {
+            toast.error(getErrorMessage(e, "Escalation failed"));
         } finally {
             setActionLoading(false);
         }
@@ -100,8 +117,8 @@ export default function DisputeDetailPage() {
             setPenaltyAmount("");
             const updated = await fetchDispute(dispute.id);
             setDispute(updated ?? null);
-        } catch (e: any) {
-            toast.error(e.response?.data?.error || "Resolution failed");
+        } catch (e: unknown) {
+            toast.error(getErrorMessage(e, "Resolution failed"));
         } finally {
             setActionLoading(false);
         }
@@ -124,6 +141,38 @@ export default function DisputeDetailPage() {
             </div>
         );
     }
+
+    const transactionSummary = dispute.transaction_summary;
+    const isMintDispute = !!dispute.mintRequest && !dispute.escrow;
+    const amountLabel = isMintDispute ? "Request Amount" : "Escrow Amount";
+    const displayReference =
+        dispute.escrow?.transaction?.reference ||
+        transactionSummary?.reference ||
+        dispute.reference ||
+        dispute.mintRequest?.user_bank_reference ||
+        dispute.id;
+    const displayAmount =
+        transactionSummary?.amount ||
+        dispute.escrow?.amount ||
+        dispute.mintRequest?.amount;
+    const displayTokenType =
+        transactionSummary?.token_type ||
+        dispute.escrow?.token_type ||
+        dispute.mintRequest?.token_type;
+    const agentProvidedNote =
+        dispute.mintRequest?.rejection_reason ||
+        dispute.escrow?.burnRequest?.rejection_reason;
+    const resolveActionLabels = isMintDispute
+        ? {
+            refund: "Credit User Tokens",
+            penalize_agent: "Credit User + Penalize Agent",
+            complete: "Close in Agent's Favor",
+        }
+        : {
+            refund: "Refund User Tokens",
+            penalize_agent: "Refund User + Penalize Agent",
+            complete: "Release Burn Settlement",
+        };
 
     return (
         <div className="flex flex-col gap-6">
@@ -158,17 +207,35 @@ export default function DisputeDetailPage() {
                     <CardTitle className="flex items-center gap-2">
                         <FileText className="h-5 w-5" /> Overview
                     </CardTitle>
-                    <CardDescription>Dispute reason, status, and escalation level.</CardDescription>
+                    <CardDescription>Dispute reason, reference, and escalation level.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                    <div className="grid gap-4 sm:grid-cols-2">
+                        <div>
+                            <p className="text-xs text-muted-foreground uppercase">Reference</p>
+                            <p className="font-mono text-sm break-all">{displayReference}</p>
+                        </div>
+                        <div>
+                            <p className="text-xs text-muted-foreground uppercase">Type</p>
+                            <p className="font-medium">
+                                {transactionSummary?.type || (dispute.mintRequest ? "mint_request" : dispute.escrow ? "escrow" : "dispute")}
+                            </p>
+                        </div>
+                    </div>
                     <div>
                         <p className="text-xs text-muted-foreground uppercase">Reason</p>
                         <p className="font-medium">{dispute.reason}</p>
                     </div>
-                    {(dispute as any).details && (
+                    {dispute.details && (
                         <div>
                             <p className="text-xs text-muted-foreground uppercase">Details</p>
-                            <p className="text-sm text-muted-foreground">{(dispute as any).details}</p>
+                            <p className="text-sm text-muted-foreground">{dispute.details}</p>
+                        </div>
+                    )}
+                    {agentProvidedNote && (
+                        <div>
+                            <p className="text-xs text-muted-foreground uppercase">Agent Note</p>
+                            <p className="text-sm text-muted-foreground">{agentProvidedNote}</p>
                         </div>
                     )}
                     <div className="grid gap-4 sm:grid-cols-2">
@@ -239,6 +306,99 @@ export default function DisputeDetailPage() {
                 </Card>
             </div>
 
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                        <Receipt className="h-5 w-5" /> Transaction Details
+                    </CardTitle>
+                    <CardDescription>
+                        {isMintDispute
+                            ? "Underlying mint request data tied to this dispute."
+                            : "Underlying escrow and burn-settlement data tied to this dispute."}
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                        <div className="rounded-lg border bg-muted/30 p-4">
+                            <p className="text-xs text-muted-foreground uppercase">{amountLabel}</p>
+                            <p className="mt-1 text-lg font-semibold">
+                                {displayAmount != null ? Number(displayAmount).toLocaleString() : "N/A"} {displayTokenType || ""}
+                            </p>
+                        </div>
+                        <div className="rounded-lg border bg-muted/30 p-4">
+                            <p className="text-xs text-muted-foreground uppercase">Status</p>
+                            <p className="mt-1 text-lg font-semibold">
+                                {transactionSummary?.status || dispute.mintRequest?.status || dispute.escrow?.status || "N/A"}
+                            </p>
+                        </div>
+                        <div className="rounded-lg border bg-muted/30 p-4">
+                            <p className="text-xs text-muted-foreground uppercase">Record ID</p>
+                            <p className="mt-1 text-sm font-mono break-all">
+                                {transactionSummary?.id || dispute.mintRequest?.id || dispute.escrow?.transaction?.id || dispute.escrow?.id || "N/A"}
+                            </p>
+                        </div>
+                        <div className="rounded-lg border bg-muted/30 p-4">
+                            <p className="text-xs text-muted-foreground uppercase">Last Updated</p>
+                            <p className="mt-1 text-sm">
+                                {transactionSummary?.updated_at
+                                    ? format(new Date(transactionSummary.updated_at), "MMM d, yyyy HH:mm")
+                                    : format(new Date(dispute.updated_at), "MMM d, yyyy HH:mm")}
+                            </p>
+                        </div>
+                    </div>
+
+                    <div className="grid gap-4 md:grid-cols-2">
+                        <div className="rounded-lg border p-4 space-y-2">
+                            <p className="text-xs text-muted-foreground uppercase flex items-center gap-2">
+                                <Hash className="h-3.5 w-3.5" /> Reference Data
+                            </p>
+                            <p className="text-sm"><span className="font-medium">Display reference:</span> {displayReference}</p>
+                            {dispute.mintRequest?.user_bank_reference && (
+                                <p className="text-sm"><span className="font-medium">Bank reference:</span> {dispute.mintRequest.user_bank_reference}</p>
+                            )}
+                            {dispute.escrow?.transaction?.reference && (
+                                <p className="text-sm"><span className="font-medium">Escrow transaction ref:</span> {dispute.escrow.transaction.reference}</p>
+                            )}
+                        </div>
+
+                        <div className="rounded-lg border p-4 space-y-2">
+                            <p className="text-xs text-muted-foreground uppercase flex items-center gap-2">
+                                <DollarSign className="h-3.5 w-3.5" /> Linked Records
+                            </p>
+                            <p className="text-sm"><span className="font-medium">Mint request:</span> {dispute.mintRequest?.id || "N/A"}</p>
+                            <p className="text-sm"><span className="font-medium">Escrow:</span> {dispute.escrow?.id || "N/A"}</p>
+                            <p className="text-sm"><span className="font-medium">Transaction:</span> {dispute.escrow?.transaction?.id || transactionSummary?.id || "N/A"}</p>
+                        </div>
+                    </div>
+
+                    {dispute.mintRequest?.payment_proof_url && (
+                        <div className="rounded-lg border p-4 space-y-3">
+                            <p className="text-xs text-muted-foreground uppercase flex items-center gap-2">
+                                <ImageIcon className="h-3.5 w-3.5" /> Payment Proof
+                            </p>
+                            <Button variant="outline" size="sm" asChild>
+                                <a href={dispute.mintRequest.payment_proof_url} target="_blank" rel="noreferrer">
+                                    Open proof image
+                                </a>
+                            </Button>
+                        </div>
+                    )}
+
+                    {dispute.escrow?.burnRequest?.fiat_proof_url && (
+                        <div className="rounded-lg border p-4 space-y-3">
+                            <p className="text-xs text-muted-foreground uppercase flex items-center gap-2">
+                                <ImageIcon className="h-3.5 w-3.5" /> Fiat Proof
+                            </p>
+                            <Button variant="outline" size="sm" asChild>
+                                <a href={dispute.escrow.burnRequest.fiat_proof_url} target="_blank" rel="noreferrer">
+                                    Open proof image
+                                </a>
+                            </Button>
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
+
             {/* Linked escrow */}
             {dispute.escrow && (
                 <Card>
@@ -277,9 +437,9 @@ export default function DisputeDetailPage() {
                             <Select value={escalationLevel} onValueChange={setEscalationLevel}>
                                 <SelectTrigger><SelectValue /></SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="level_1">Level 1</SelectItem>
-                                    <SelectItem value="level_2">Level 2</SelectItem>
-                                    <SelectItem value="level_3">Level 3</SelectItem>
+                                    <SelectItem value="user_requested">User Requested</SelectItem>
+                                    <SelectItem value="admin">Admin Review</SelectItem>
+                                    <SelectItem value="arbitration">Arbitration</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
@@ -302,7 +462,11 @@ export default function DisputeDetailPage() {
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle>Resolve Dispute</DialogTitle>
-                        <DialogDescription>Choose resolution action. Refund user, penalize agent, or split.</DialogDescription>
+                        <DialogDescription>
+                            {isMintDispute
+                                ? "Choose whether to credit the user with tokens, apply an agent penalty, or close the case in the agent's favor."
+                                : "Choose whether to refund the user from escrow, apply an agent penalty, or release the burn settlement."}
+                        </DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4 py-2">
                         <div className="space-y-2">
@@ -310,9 +474,9 @@ export default function DisputeDetailPage() {
                             <Select value={resolveAction} onValueChange={setResolveAction}>
                                 <SelectTrigger><SelectValue /></SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="refund">Refund user</SelectItem>
-                                    <SelectItem value="penalize_agent">Penalize agent</SelectItem>
-                                    <SelectItem value="split">Split</SelectItem>
+                                    <SelectItem value="refund">{resolveActionLabels.refund}</SelectItem>
+                                    <SelectItem value="penalize_agent">{resolveActionLabels.penalize_agent}</SelectItem>
+                                    <SelectItem value="complete">{resolveActionLabels.complete}</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>

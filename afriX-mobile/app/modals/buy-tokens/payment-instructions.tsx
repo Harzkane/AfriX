@@ -13,16 +13,15 @@ import { useMintRequestStore, useAgentStore, useWalletStore } from "@/stores";
 import * as Clipboard from "expo-clipboard";
 import { Ionicons } from "@expo/vector-icons";
 import apiClient from "@/services/apiClient";
-import { formatAmount, formatAmountOrCompact } from "@/utils/format";
+import { formatAmountOrCompact } from "@/utils/format";
 import { LinearGradient } from "expo-linear-gradient";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function PaymentInstructionsScreen() {
-  const { tokenType, amount, agentId, agentName } = useLocalSearchParams<{
+  const { tokenType, amount, agentId } = useLocalSearchParams<{
     tokenType: string;
     amount: string;
     agentId: string;
-    agentName?: string;
   }>();
 
   const router = useRouter();
@@ -122,6 +121,17 @@ export default function PaymentInstructionsScreen() {
           </View>
         ) : (
           <>
+            <LinearGradient
+              colors={["#F7FFF9", "#FFFFFF"]}
+              style={styles.summaryCard}
+            >
+              <Text style={styles.summaryEyebrow}>Next Step</Text>
+              <Text style={styles.summaryTitle}>Pay the selected agent</Text>
+              <Text style={styles.summaryText}>
+                Review the agent details below, make the transfer, then continue to upload your payment proof.
+              </Text>
+            </LinearGradient>
+
             {/* Agent Details Card */}
             <View style={styles.card}>
               <View style={styles.cardHeader}>
@@ -391,14 +401,14 @@ const styles = StyleSheet.create({
     backgroundColor: "#F3F4F6",
   },
   headerWrapper: {
-    marginBottom: 20,
+    marginBottom: 8,
   },
   headerGradient: {
     position: "absolute",
     top: 0,
     left: 0,
     right: 0,
-    height: 140,
+    height: 70,
   },
   headerContent: {
     paddingHorizontal: 20,
@@ -407,7 +417,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-start",
     paddingTop: 10,
-    paddingBottom: 20,
+    paddingBottom: 3,
   },
   backButton: {
     marginRight: 12,
@@ -415,30 +425,59 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   headerText: {
-    marginTop: 40,
-
     flex: 1,
   },
   title: {
     fontSize: 24,
     fontWeight: "700",
     color: "#FFFFFF",
-    marginBottom: 4,
+    marginBottom: 2,
     letterSpacing: -0.5,
   },
   subtitle: {
-    fontSize: 14,
+    fontSize: 13,
     color: "rgba(255, 255, 255, 0.9)",
     fontWeight: "500",
+    lineHeight: 18,
   },
   list: {
     flex: 1,
+    paddingTop: 10,
+
+  },
+  summaryCard: {
+    marginHorizontal: 20,
+    marginBottom: 18,
+    borderRadius: 24,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: "#E6F4EA",
+  },
+  summaryEyebrow: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: "#00B14F",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+    marginBottom: 8,
+  },
+  summaryTitle: {
+    fontSize: 22,
+    fontWeight: "700",
+    color: "#111827",
+    marginBottom: 8,
+    letterSpacing: -0.4,
+  },
+  summaryText: {
+    fontSize: 14,
+    color: "#6B7280",
+    lineHeight: 21,
   },
   card: {
     marginHorizontal: 20,
     marginBottom: 16,
     backgroundColor: "#FFFFFF",
-    borderRadius: 16,
+    borderRadius: 20,
     borderWidth: 1,
     borderColor: "#F3F4F6",
     overflow: "hidden",
@@ -447,19 +486,19 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: 18,
+    paddingVertical: 14,
     backgroundColor: "#F9FAFB",
     borderBottomWidth: 1,
     borderBottomColor: "#F3F4F6",
   },
   cardTitle: {
-    fontSize: 14,
-    fontWeight: "600",
+    fontSize: 15,
+    fontWeight: "700",
     color: "#111827",
   },
   cardContent: {
-    padding: 16,
+    padding: 18,
     gap: 16,
   },
   divider: {
@@ -539,8 +578,8 @@ const styles = StyleSheet.create({
     gap: 8,
     backgroundColor: "#F9FAFB",
     paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
+    paddingVertical: 8,
+    borderRadius: 10,
   },
   phoneNumber: {
     fontSize: 14,
@@ -569,10 +608,10 @@ const styles = StyleSheet.create({
     marginHorizontal: 20,
     marginBottom: 16,
     backgroundColor: "#F0FDF4",
-    borderRadius: 16,
+    borderRadius: 20,
     borderWidth: 1,
     borderColor: "#D1FAE5",
-    padding: 16,
+    padding: 18,
   },
   instructionsHeader: {
     flexDirection: "row",
@@ -620,7 +659,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     backgroundColor: "#FFFBEB",
     padding: 16,
-    borderRadius: 12,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: "#FEF3C7",
   },
@@ -638,7 +677,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 20,
     marginBottom: 12,
     paddingVertical: 14,
-    borderRadius: 12,
+    borderRadius: 16,
     borderWidth: 2,
     borderColor: "#00B14F",
     backgroundColor: "#FFFFFF",
@@ -655,7 +694,7 @@ const styles = StyleSheet.create({
     gap: 8,
     marginHorizontal: 20,
     paddingVertical: 16,
-    borderRadius: 12,
+    borderRadius: 16,
     backgroundColor: "#00B14F",
     marginBottom: 20,
   },

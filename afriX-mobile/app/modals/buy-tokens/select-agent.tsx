@@ -72,20 +72,37 @@ export default function SelectAgentScreen() {
         </SafeAreaView>
       </View>
 
+      <LinearGradient
+        colors={["#F7FFF9", "#FFFFFF"]}
+        style={styles.summaryCard}
+      >
+        <Text style={styles.summaryEyebrow}>Agent Matching</Text>
+        <Text style={styles.summaryTitle}>Pick the best agent for this order</Text>
+        <Text style={styles.summaryText}>
+          Compare agent speed, capacity, and ratings before continuing to payment instructions.
+        </Text>
+      </LinearGradient>
+
       {/* Sort */}
-      <View style={styles.sortRow}>
-        {(["rating", "fastest", "capacity"] as const).map((key) => (
-          <TouchableOpacity
-            key={key}
-            style={[styles.sortBtn, sort === key && styles.sortBtnActive]}
-            onPress={() => setSort(key)}
-            activeOpacity={0.7}
-          >
-            <Text style={[styles.sortBtnText, sort === key && styles.sortBtnTextActive]}>
-              {key === "rating" ? "Best rated" : key === "fastest" ? "Fastest" : "Highest capacity"}
-            </Text>
-          </TouchableOpacity>
-        ))}
+      <View style={styles.sortSection}>
+        <View style={styles.sortHeader}>
+          <Text style={styles.sortEyebrow}>Sort Agents</Text>
+          <Text style={styles.sortHint}>{agents.length} available</Text>
+        </View>
+        <View style={styles.sortRow}>
+          {(["rating", "fastest", "capacity"] as const).map((key) => (
+            <TouchableOpacity
+              key={key}
+              style={[styles.sortBtn, sort === key && styles.sortBtnActive]}
+              onPress={() => setSort(key)}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.sortBtnText, sort === key && styles.sortBtnTextActive]}>
+                {key === "rating" ? "Best rated" : key === "fastest" ? "Fastest" : "Highest capacity"}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
       </View>
 
       {/* Agents List */}
@@ -136,7 +153,7 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
   headerWrapper: {
-    marginBottom: 20,
+    marginBottom: 8,
     zIndex: 5,
   },
   headerGradient: {
@@ -144,7 +161,7 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    height: 140,
+    height: 70,
   },
   headerContent: {
     paddingHorizontal: 20,
@@ -153,7 +170,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-start",
     paddingTop: 10,
-    paddingBottom: 20,
+    paddingBottom: 12,
   },
   backButton: {
     marginRight: 12,
@@ -164,35 +181,87 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   title: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: "700",
     color: "#FFFFFF",
-    marginBottom: 4,
+    marginBottom: 2,
     letterSpacing: -0.5,
   },
   subtitle: {
-    fontSize: 14,
+    fontSize: 13,
     color: "rgba(255, 255, 255, 0.9)",
     fontWeight: "500",
+    lineHeight: 18,
+  },
+  summaryCard: {
+    marginHorizontal: 20,
+    marginTop: 4,
+    marginBottom: 18,
+    borderRadius: 24,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: "#E6F4EA",
+  },
+  summaryEyebrow: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: "#00B14F",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+    marginBottom: 8,
+  },
+  summaryTitle: {
+    fontSize: 22,
+    fontWeight: "700",
+    color: "#111827",
+    marginBottom: 8,
+    letterSpacing: -0.4,
+  },
+  summaryText: {
+    fontSize: 14,
+    color: "#6B7280",
+    lineHeight: 21,
+  },
+  sortSection: {
+    paddingHorizontal: 20,
+    marginBottom: 12,
+  },
+  sortHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 10,
+  },
+  sortEyebrow: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: "#00B14F",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  sortHint: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#9CA3AF",
   },
   sortRow: {
     flexDirection: "row",
     gap: 8,
-    paddingHorizontal: 20,
-    marginBottom: 12,
-    marginTop: -10,
+    flexWrap: "wrap",
     justifyContent: "center",
     zIndex: 10,
-
   },
   sortBtn: {
     paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
-    backgroundColor: "#E5E7EB",
+    paddingVertical: 10,
+    borderRadius: 12,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
   },
   sortBtnActive: {
     backgroundColor: "#00B14F",
+    borderColor: "#00B14F",
   },
   sortBtnText: {
     fontSize: 13,
@@ -205,11 +274,16 @@ const styles = StyleSheet.create({
   list: {
     paddingHorizontal: 20,
     paddingBottom: 20,
-    paddingTop: 8,
+    paddingTop: 4,
   },
   empty: {
     alignItems: "center",
     paddingVertical: 80,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    paddingHorizontal: 24,
   },
   emptyIcon: {
     width: 96,

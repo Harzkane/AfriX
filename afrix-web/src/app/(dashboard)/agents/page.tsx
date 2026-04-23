@@ -1,7 +1,7 @@
 "use client";
 
 import { useAgents } from "@/hooks/useAgents";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import {
     Table,
     TableBody,
@@ -17,17 +17,20 @@ import {
     Briefcase,
     ShieldAlert,
     Wallet,
-    UserCheck,
-    Search
+    UserCheck
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { format } from "date-fns";
 import { Pagination } from "@/components/ui/pagination";
 
-export default function AgentsPage() {
+const VALID_TABS = new Set(["all", "pending_kyc", "active"]);
+
+function AgentsPageContent() {
+    const searchParams = useSearchParams();
+    const initialTab = searchParams.get("tab");
+    const startingTab = initialTab && VALID_TABS.has(initialTab) ? initialTab : "all";
+
     const {
         stats,
         agents,
@@ -38,7 +41,7 @@ export default function AgentsPage() {
     } = useAgents();
     const paginationTotal = pagination?.total ?? 0;
     const router = useRouter();
-    const [activeTab, setActiveTab] = useState("all");
+    const [activeTab, setActiveTab] = useState(startingTab);
     const [currentPage, setCurrentPage] = useState(1);
     const limit = 15;
 
@@ -46,27 +49,28 @@ export default function AgentsPage() {
         fetchStats();
     }, [fetchStats]);
 
-    useEffect(() => {
-        const params: any = {
+    const queryParams = useMemo(() => {
+        const params: { limit: number; offset: number; status?: string; verified?: boolean } = {
             limit,
             offset: (currentPage - 1) * limit
         };
+
         if (activeTab === "pending_kyc") {
             params.status = "pending";
             params.verified = false;
         } else if (activeTab === "active") {
             params.status = "active";
         }
-        fetchAgents(params);
-    }, [activeTab, currentPage, fetchAgents]);
 
-    // Reset to page 1 when tab changes
+        return params;
+    }, [activeTab, currentPage]);
+
     useEffect(() => {
-        setCurrentPage(1);
-    }, [activeTab]);
+        fetchAgents(queryParams);
+    }, [fetchAgents, queryParams]);
 
     const formatUsdt = (val: number | string | undefined) => {
-        return `${Number(val ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDT`;
+        return `${Number(val ?? 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDT`;
     };
 
     return (
@@ -78,7 +82,6 @@ export default function AgentsPage() {
                 </div>
             </div>
 
-            {/* Stats Cards */}
             <div className="grid gap-4 md:grid-cols-4">
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -122,7 +125,14 @@ export default function AgentsPage() {
                 </Card>
             </div>
 
-            <Tabs defaultValue="all" onValueChange={setActiveTab} className="space-y-4">
+            <Tabs
+                value={activeTab}
+                onValueChange={(value) => {
+                    setActiveTab(value);
+                    setCurrentPage(1);
+                }}
+                className="space-y-4"
+            >
                 <TabsList>
                     <TabsTrigger value="all">All Agents</TabsTrigger>
                     <TabsTrigger value="pending_kyc">Pending KYC</TabsTrigger>
@@ -196,7 +206,7 @@ export default function AgentsPage() {
                                                         <span className="text-sm">{agent.financial_summary?.utilization_percentage}%</span>
                                                         <div className="w-24 h-1.5 bg-secondary rounded-full mt-1">
                                                             <div
-                                                                className={`h-full rounded-full ${Number(agent.financial_summary?.utilization_percentage) > 80 ? 'bg-red-500' : 'bg-primary'}`}
+                                                                className={`h-full rounded-full ${Number(agent.financial_summary?.utilization_percentage) > 80 ? "bg-red-500" : "bg-primary"}`}
                                                                 style={{ width: `${Math.min(Number(agent.financial_summary?.utilization_percentage), 100)}%` }}
                                                             />
                                                         </div>
@@ -224,5 +234,17 @@ export default function AgentsPage() {
                 </TabsContent>
             </Tabs>
         </div>
+    );
+}
+
+export default function AgentsPage() {
+    return (
+        <Suspense fallback={
+            <div className="flex items-center justify-center p-8">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+        }>
+            <AgentsPageContent />
+        </Suspense>
     );
 }

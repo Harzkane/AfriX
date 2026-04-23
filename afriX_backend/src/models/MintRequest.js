@@ -20,6 +20,7 @@ const MintRequest = sequelize.define(
     },
     payment_proof_url: { type: DataTypes.STRING, allowNull: true },
     user_bank_reference: { type: DataTypes.STRING, allowNull: true },
+    rejection_reason: { type: DataTypes.TEXT, allowNull: true },
     expires_at: { type: DataTypes.DATE, allowNull: false },
   },
   { timestamps: true, createdAt: "created_at", updatedAt: "updated_at" }

@@ -4,6 +4,16 @@ import apiClient from "@/services/apiClient";
 import { API_ENDPOINTS } from "@/constants/api";
 import type { MintRequestState } from "@/stores/types/mintRequest.types";
 
+const isMintRequestStillActive = (req: any) => {
+  const status = (req?.status || "").toLowerCase();
+  const isActiveStatus = ["pending", "proof_submitted", "escrowed"].includes(status);
+
+  if (!isActiveStatus) return false;
+  if (!req?.expires_at) return true;
+
+  return new Date(req.expires_at).getTime() > Date.now();
+};
+
 export const useMintRequestStore = create<MintRequestState>()((set, get) => ({
   currentRequest: null,
   loading: false,
@@ -93,9 +103,7 @@ export const useMintRequestStore = create<MintRequestState>()((set, get) => ({
       const { data } = await apiClient.get(API_ENDPOINTS.REQUESTS.USER);
       if (data.success && data.data?.length > 0) {
         const mintRequests = (data.data as any[]).filter((r: any) => r.type === "mint");
-        const activeRequest = mintRequests.find((req: any) =>
-          ["pending", "proof_submitted", "escrowed"].includes((req.status || "").toLowerCase())
-        );
+        const activeRequest = mintRequests.find((req: any) => isMintRequestStillActive(req));
         set({ currentRequest: activeRequest ?? null });
       } else {
         set({ currentRequest: null });

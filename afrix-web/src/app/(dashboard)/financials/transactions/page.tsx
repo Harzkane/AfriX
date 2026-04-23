@@ -18,7 +18,7 @@ import {
     SelectValue
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import {
     ArrowUpDown,
     Download,
@@ -43,13 +43,22 @@ import {
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 
+type TransactionFilters = Record<string, string>;
+type ApiErrorLike = {
+    response?: {
+        data?: {
+            error?: string;
+        };
+    };
+};
+
 function TransactionsPageContent() {
     const searchParams = useSearchParams();
     const { transactions, isLoading, fetchTransactions, refundTransaction } = useFinancials();
     const [statusFilter, setStatusFilter] = useState(searchParams.get("status") || "all");
     const [typeFilter, setTypeFilter] = useState(searchParams.get("type") || "all");
     const [searchTerm, setSearchTerm] = useState(searchParams.get("reference") || "");
-    const [flaggedFilter, setFlaggedFilter] = useState(searchParams.get("flagged") || "all");
+    const flaggedFilter = searchParams.get("flagged") || "all";
 
     // Refund State
     const [isRefundLoading, setIsRefundLoading] = useState<string | null>(null);
@@ -59,7 +68,7 @@ function TransactionsPageContent() {
     const userIdFromUrl = searchParams.get("user_id") || "";
 
     useEffect(() => {
-        const params: any = {};
+        const params: TransactionFilters = {};
         if (statusFilter !== "all") params.status = statusFilter;
         if (typeFilter !== "all") params.type = typeFilter;
         if (flaggedFilter !== "all") params.flagged = flaggedFilter;
@@ -81,12 +90,13 @@ function TransactionsPageContent() {
             setRefundDialog(null);
             setRefundReason("");
             // Re-fetch to update UI
-            const params: any = {};
+            const params: TransactionFilters = {};
             if (statusFilter !== "all") params.status = statusFilter;
             if (typeFilter !== "all") params.type = typeFilter;
             fetchTransactions(params);
-        } catch (err: any) {
-            toast.error(err.response?.data?.error || "Failed to refund transaction");
+        } catch (err: unknown) {
+            const error = err as ApiErrorLike;
+            toast.error(error.response?.data?.error || "Failed to refund transaction");
         } finally {
             setIsRefundLoading(null);
         }
@@ -210,6 +220,10 @@ function TransactionsPageContent() {
                                 </TableRow>
                             ) : (
                                 transactions.map((tx: Transaction) => (
+                                    (() => {
+                                        const feeAmount = parseFloat(String(tx.fee_amount ?? tx.fee ?? "0"));
+                                        const feeLabel = tx.fee_label || "Fee";
+                                        return (
                                     <TableRow key={tx.id}>
                                         <TableCell className="text-xs whitespace-nowrap">
                                             {format(new Date(tx.created_at), "MMM d, yyyy")}
@@ -233,7 +247,7 @@ function TransactionsPageContent() {
                                         </TableCell>
                                         <TableCell className="text-right font-mono">
                                             <div className="font-bold">{parseFloat(tx.amount).toLocaleString()}</div>
-                                            <div className="text-[10px] text-muted-foreground">Fee: {parseFloat(tx.fee).toLocaleString()}</div>
+                                            <div className="text-[10px] text-muted-foreground">{feeLabel}: {feeAmount.toLocaleString()}</div>
                                         </TableCell>
                                         <TableCell className="text-center">
                                             {getStatusBadge(tx.status)}
@@ -257,6 +271,8 @@ function TransactionsPageContent() {
                                             )}
                                         </TableCell>
                                     </TableRow>
+                                        );
+                                    })()
                                 ))
                             )}
                         </TableBody>

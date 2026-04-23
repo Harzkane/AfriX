@@ -1,5 +1,6 @@
-import React from "react";
+import React, { useCallback, useEffect } from "react";
 import {
+  ActivityIndicator,
   ScrollView,
   StyleSheet,
   Text,
@@ -7,29 +8,49 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { Surface } from "react-native-paper";
 import { useAgentStore } from "@/stores/slices/agentSlice";
 import { formatAmount, formatDate } from "@/utils/format";
 
-export default function TransactionDetailsScreen() {
-  const { id } = useLocalSearchParams();
+export default function AgentWithdrawalDetailsScreen() {
+  const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const { dashboardData } = useAgentStore();
+  const { withdrawalRequests, fetchWithdrawalRequests, loading } =
+    useAgentStore();
 
-  const tx = dashboardData?.recent_transactions?.find((t: any) => t.id === id);
+  const loadHistory = useCallback(() => {
+    fetchWithdrawalRequests();
+  }, [fetchWithdrawalRequests]);
 
-  if (!tx) {
+  useEffect(() => {
+    if (!withdrawalRequests.length) {
+      loadHistory();
+    }
+  }, [loadHistory, withdrawalRequests.length]);
+
+  const request = withdrawalRequests.find((item) => item.id === id);
+
+  if (loading && !request) {
+    return (
+      <View style={styles.centerContainer}>
+        <ActivityIndicator size="large" color="#00B14F" />
+        <Text style={styles.loadingText}>Loading withdrawal details...</Text>
+      </View>
+    );
+  }
+
+  if (!request) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.errorContainer}>
           <View style={styles.errorIconWrap}>
             <Ionicons name="alert-circle-outline" size={28} color="#EF4444" />
           </View>
-          <Text style={styles.errorTitle}>Transaction unavailable</Text>
-          <Text style={styles.errorText}>Transaction not found</Text>
+          <Text style={styles.errorTitle}>Withdrawal unavailable</Text>
+          <Text style={styles.errorText}>Withdrawal request not found.</Text>
           <TouchableOpacity
             onPress={() => router.back()}
             style={styles.primaryButton}
@@ -42,26 +63,7 @@ export default function TransactionDetailsScreen() {
     );
   }
 
-  const normalizedType = String(tx.type || "").toLowerCase();
-  const isMint = normalizedType === "mint";
-  const isBurn = normalizedType === "burn";
-  const counterparty = isMint ? tx.toUser?.full_name : tx.fromUser?.full_name;
-  const tokenType = tx.token_type || "NT";
-  const commissionSource = tx.agent_commission ?? tx.fee_amount ?? tx.fee;
-  const commissionAmount =
-    commissionSource != null && commissionSource !== ""
-      ? String(commissionSource)
-      : tx.status === "completed"
-        ? (parseFloat(String(tx.amount || 0)) * 0.01).toString()
-        : "0";
-  const commissionLabel =
-    tx.fee_kind === "agent_commission"
-      ? tx.fee_label || "Agent Commission"
-      : "Commission earned";
-  const commission = formatAmount(commissionAmount, tokenType);
-  const amountDisplay = formatAmount(tx.amount, tokenType);
-  const statusColor = getStatusColor(tx.status);
-  const typeConfig = getTypeConfig(normalizedType);
+  const statusMeta = getWithdrawalStatusMeta(request.status);
 
   return (
     <View style={styles.container}>
@@ -79,7 +81,7 @@ export default function TransactionDetailsScreen() {
             >
               <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
             </TouchableOpacity>
-            <Text style={styles.headerTitle}>Transaction Details</Text>
+            <Text style={styles.headerTitle}>Withdrawal Details</Text>
             <View style={styles.headerSpacer} />
           </View>
         </SafeAreaView>
@@ -93,60 +95,45 @@ export default function TransactionDetailsScreen() {
           colors={["#F7FFF9", "#FFFFFF"]}
           style={styles.summaryCard}
         >
-          <Text style={styles.summaryEyebrow}>Agent Activity</Text>
-          <Text style={styles.summaryTitle}>{typeConfig.label} Transaction</Text>
+          <Text style={styles.summaryEyebrow}>Payout Record</Text>
+          <Text style={styles.summaryTitle}>Agent Withdrawal Request</Text>
           <Text style={styles.summaryText}>
-            Review the customer, settlement amount, earned commission, and
-            status for this agent-side transaction.
+            Review the amount, request status, payout timing, and any admin or
+            blockchain settlement details for this withdrawal.
           </Text>
 
           <View style={styles.summaryTopRow}>
             <View
               style={[
-                styles.typePill,
+                styles.statusBadge,
                 {
-                  backgroundColor: typeConfig.bg,
-                  borderColor: typeConfig.border,
+                  backgroundColor: statusMeta.tint,
+                  borderColor: statusMeta.border,
                 },
               ]}
             >
               <Ionicons
-                name={typeConfig.icon}
-                size={18}
-                color={typeConfig.color}
+                name={statusMeta.icon}
+                size={16}
+                color={statusMeta.color}
               />
-              <Text
-                style={[styles.typePillText, { color: typeConfig.color }]}
-              >
-                {typeConfig.label}
-              </Text>
-            </View>
-
-            <View
-              style={[
-                styles.statusPill,
-                { backgroundColor: `${statusColor}16` },
-              ]}
-            >
-              <Text style={[styles.statusText, { color: statusColor }]}>
-                {String(tx.status || "completed")
-                  .replace(/_/g, " ")
-                  .toUpperCase()}
+              <Text style={[styles.statusBadgeText, { color: statusMeta.color }]}>
+                {statusMeta.label}
               </Text>
             </View>
           </View>
 
           <View style={styles.amountContainer}>
             <View>
-              <Text style={styles.amountLabel}>Transaction Amount</Text>
+              <Text style={styles.amountLabel}>Requested Amount</Text>
               <Text style={styles.amountValue}>
-                {amountDisplay} {tokenType}
+                {formatAmount(request.amount_usd, "USDT")} USDT
               </Text>
             </View>
             <View style={styles.amountMeta}>
-              <Text style={styles.amountMetaLabel}>Created</Text>
+              <Text style={styles.amountMetaLabel}>Submitted</Text>
               <Text style={styles.amountMetaValue}>
-                {formatDate(tx.created_at, true)}
+                {formatDate(request.created_at, true)}
               </Text>
             </View>
           </View>
@@ -154,31 +141,34 @@ export default function TransactionDetailsScreen() {
 
         <Surface style={styles.card}>
           <View style={styles.cardAccent} />
-          <Text style={styles.cardTitle}>Transaction Summary</Text>
+          <Text style={styles.cardTitle}>Request Summary</Text>
 
           <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Flow</Text>
-            <Text style={styles.infoValue}>
-              {isMint ? "Mint to customer" : isBurn ? "Burn from customer" : tx.type}
-            </Text>
+            <Text style={styles.infoLabel}>Request ID</Text>
+            <Text style={styles.infoValue}>{request.id}</Text>
           </View>
 
           <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Counterparty</Text>
-            <Text style={styles.infoValue}>{counterparty || "User"}</Text>
+            <Text style={styles.infoLabel}>Agent ID</Text>
+            <Text style={styles.infoValue}>{request.agent_id}</Text>
           </View>
 
           <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Token</Text>
-            <Text style={styles.infoValue}>{tokenType}</Text>
+            <Text style={styles.infoLabel}>Status</Text>
+            <Text style={styles.infoValue}>{statusMeta.titleCaseLabel}</Text>
           </View>
 
           <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Reference</Text>
-            <Text style={styles.infoValue} numberOfLines={1}>
-              {tx.reference || "—"}
-            </Text>
+            <Text style={styles.infoLabel}>Created On</Text>
+            <Text style={styles.infoValue}>{formatDate(request.created_at, true)}</Text>
           </View>
+
+          {request.paid_at ? (
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Paid On</Text>
+              <Text style={styles.infoValue}>{formatDate(request.paid_at, true)}</Text>
+            </View>
+          ) : null}
         </Surface>
 
         <Surface style={styles.card}>
@@ -186,86 +176,90 @@ export default function TransactionDetailsScreen() {
           <Text style={styles.cardTitle}>Settlement Details</Text>
 
           <View style={styles.infoStrip}>
-            <Text style={styles.infoStripLabel}>{commissionLabel}</Text>
-            <Text style={[styles.infoStripValue, styles.successValue]}>
-              +{commission} {tokenType}
+            <Text style={styles.infoStripLabel}>Payout Amount</Text>
+            <Text style={styles.infoStripValue}>
+              {formatAmount(request.amount_usd, "USDT")} USDT
             </Text>
           </View>
 
           <View style={styles.infoStrip}>
-            <Text style={styles.infoStripLabel}>Status</Text>
-            <Text style={styles.infoStripValue}>
-              {String(tx.status || "completed")
-                .replace(/_/g, " ")
-                .toUpperCase()}
+            <Text style={styles.infoStripLabel}>Current Status</Text>
+            <Text style={[styles.infoStripValue, { color: statusMeta.color }]}>
+              {statusMeta.titleCaseLabel}
             </Text>
           </View>
 
-          <View style={styles.infoStrip}>
-            <Text style={styles.infoStripLabel}>Recorded On</Text>
-            <Text style={styles.infoStripValue}>
-              {formatDate(tx.created_at, true)}
-            </Text>
-          </View>
-        </Surface>
-
-        {tx.metadata ? (
-          <Surface style={styles.card}>
-            <View style={styles.cardAccent} />
-            <Text style={styles.cardTitle}>Additional Data</Text>
+          {request.paid_tx_hash ? (
             <View style={styles.noteBlock}>
-              <Text style={styles.noteLabel}>Metadata</Text>
-              <Text style={styles.metadataText}>
-                {JSON.stringify(tx.metadata, null, 2)}
+              <Text style={styles.noteLabel}>Paid Transaction Hash</Text>
+              <Text style={styles.hashText}>{request.paid_tx_hash}</Text>
+            </View>
+          ) : null}
+
+          {request.admin_notes ? (
+            <View
+              style={[
+                styles.messageBlock,
+                request.status === "rejected" ? styles.errorBlock : styles.neutralBlock,
+              ]}
+            >
+              <Text style={styles.noteLabel}>
+                {request.status === "rejected" ? "Rejection Reason" : "Admin Notes"}
+              </Text>
+              <Text
+                style={[
+                  styles.messageText,
+                  request.status === "rejected" && styles.errorMessageText,
+                ]}
+              >
+                {request.admin_notes}
               </Text>
             </View>
-          </Surface>
-        ) : null}
+          ) : null}
+        </Surface>
       </ScrollView>
     </View>
   );
 }
 
-const getTypeConfig = (type: string) => {
-  if (type === "mint") {
-    return {
-      label: "Mint",
-      icon: "arrow-up-circle" as const,
-      bg: "#F0FDF4",
-      color: "#00B14F",
-      border: "#DDF7E5",
-    };
-  }
-
-  if (type === "burn") {
-    return {
-      label: "Burn",
-      icon: "arrow-down-circle" as const,
-      bg: "#FFF8ED",
-      color: "#D97706",
-      border: "#FDE7C2",
-    };
-  }
-
-  return {
-    label: type || "Transaction",
-    icon: "cash" as const,
-    bg: "#F3F4F6",
-    color: "#6B7280",
-    border: "#E5E7EB",
-  };
-};
-
-const getStatusColor = (status: string) => {
+const getWithdrawalStatusMeta = (status?: string | null) => {
   switch (String(status || "").toLowerCase()) {
-    case "completed":
-      return "#00B14F";
     case "pending":
-      return "#F59E0B";
-    case "failed":
-      return "#EF4444";
+      return {
+        label: "PENDING",
+        titleCaseLabel: "Pending",
+        color: "#D97706",
+        tint: "#FFF8ED",
+        border: "#FDE7C2",
+        icon: "time-outline" as const,
+      };
+    case "approved":
+      return {
+        label: "APPROVED",
+        titleCaseLabel: "Approved",
+        color: "#2563EB",
+        tint: "#EFF6FF",
+        border: "#DBEAFE",
+        icon: "checkmark-done-outline" as const,
+      };
+    case "rejected":
+      return {
+        label: "REJECTED",
+        titleCaseLabel: "Rejected",
+        color: "#DC2626",
+        tint: "#FEF2F2",
+        border: "#FECACA",
+        icon: "close-circle-outline" as const,
+      };
     default:
-      return "#6B7280";
+      return {
+        label: "PAID",
+        titleCaseLabel: "Paid",
+        color: "#00B14F",
+        tint: "#F0FDF4",
+        border: "#DDF7E5",
+        icon: "cash-outline" as const,
+      };
   }
 };
 
@@ -353,30 +347,18 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: 14,
-    gap: 12,
   },
-  typePill: {
+  statusBadge: {
     flexDirection: "row",
     alignItems: "center",
+    gap: 6,
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 999,
-    gap: 6,
     borderWidth: 1,
   },
-  typePillText: {
+  statusBadgeText: {
     fontSize: 12,
-    fontWeight: "800",
-    letterSpacing: 0.4,
-    textTransform: "uppercase",
-  },
-  statusPill: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 999,
-  },
-  statusText: {
-    fontSize: 11,
     fontWeight: "800",
     letterSpacing: 0.4,
   },
@@ -491,10 +473,8 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     textAlign: "right",
   },
-  successValue: {
-    color: "#00B14F",
-  },
   noteBlock: {
+    marginTop: 4,
     backgroundColor: "#FBFCFD",
     borderRadius: 14,
     padding: 14,
@@ -509,11 +489,48 @@ const styles = StyleSheet.create({
     letterSpacing: 0.4,
     marginBottom: 6,
   },
-  metadataText: {
-    fontFamily: "monospace",
+  hashText: {
     fontSize: 12,
-    lineHeight: 18,
-    color: "#4B5563",
+    lineHeight: 19,
+    color: "#047857",
+    fontFamily: "monospace",
+    fontWeight: "600",
+  },
+  messageBlock: {
+    marginTop: 12,
+    borderRadius: 14,
+    padding: 14,
+    borderWidth: 1,
+  },
+  neutralBlock: {
+    backgroundColor: "#F8FAFC",
+    borderColor: "#E4E7EC",
+  },
+  errorBlock: {
+    backgroundColor: "#FEF2F2",
+    borderColor: "#FECACA",
+  },
+  messageText: {
+    fontSize: 14,
+    lineHeight: 21,
+    color: "#111827",
+    fontWeight: "500",
+  },
+  errorMessageText: {
+    color: "#B42318",
+  },
+  centerContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 24,
+    backgroundColor: "#F9FAFB",
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 15,
+    color: "#6B7280",
+    fontWeight: "500",
   },
   errorContainer: {
     flex: 1,

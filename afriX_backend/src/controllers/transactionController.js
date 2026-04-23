@@ -8,6 +8,7 @@ const {
 const { ApiError } = require("../utils/errors");
 const { generateTransactionReference } = require("../utils/helpers");
 const transactionService = require("../services/transactionService");
+const { annotateTransactionFee } = require("../utils/transactionFeePresentation");
 /**
  * Basic transaction controller for listing, retrieving and verifying transactions.
  * Heavy business logic should live in services (not here) — this is a pragmatic starting point.
@@ -52,7 +53,7 @@ const transactionController = {
         to_wallet_id: to_wallet_id || null,
       });
 
-      res.status(201).json({ success: true, data: tx });
+      res.status(201).json({ success: true, data: annotateTransactionFee(tx) });
     } catch (error) {
       next(error);
     }
@@ -104,7 +105,7 @@ const transactionController = {
         }
       }
 
-      res.json({ success: true, data: tx });
+      res.json({ success: true, data: annotateTransactionFee(tx) });
     } catch (error) {
       next(error);
     }
@@ -191,7 +192,7 @@ const transactionController = {
 
       // Map country codes to names for easier frontend display
       const transactions = result.rows.map(tx => {
-        const plain = tx.toJSON();
+        const plain = annotateTransactionFee(tx);
         if (plain.fromUser && plain.fromUser.country_code) {
           plain.fromUser.country_name = COUNTRY_DETAILS[plain.fromUser.country_code]?.name || plain.fromUser.country_code;
         }
@@ -232,7 +233,7 @@ const transactionController = {
         token_type,
         description
       );
-      res.status(201).json({ success: true, data: tx });
+      res.status(201).json({ success: true, data: annotateTransactionFee(tx) });
     } catch (error) {
       next(error);
     }
@@ -249,7 +250,7 @@ const transactionController = {
         token_type,
         description
       );
-      res.status(201).json({ success: true, data: tx });
+      res.status(201).json({ success: true, data: annotateTransactionFee(tx) });
     } catch (error) {
       next(error);
     }
@@ -315,7 +316,7 @@ const transactionController = {
         reviewedTransactionIds.map((r) => r.transaction_id)
       );
       const unreviewed = pendingTransactions.filter(
-        (tx) => !reviewedIds.has(tx.id)
+        (tx) => !reviewedIds.has(tx.id) && tx.metadata?.admin_resolved !== true
       );
 
       res.json({

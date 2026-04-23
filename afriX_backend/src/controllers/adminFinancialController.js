@@ -11,6 +11,7 @@ const {
 const { ApiError } = require("../utils/errors");
 const { Op } = require("sequelize");
 const { sequelize } = require("../config/database");
+const { annotateTransactionFee } = require("../utils/transactionFeePresentation");
 
 const adminFinancialController = {
   // =====================================================
@@ -85,6 +86,19 @@ const adminFinancialController = {
       const totalFees = await Transaction.sum("fee", {
         where: { status: TRANSACTION_STATUS.COMPLETED },
       });
+      const platformFees = await Transaction.sum("fee", {
+        where: {
+          status: TRANSACTION_STATUS.COMPLETED,
+          fee_wallet_id: { [Op.ne]: null },
+        },
+      });
+      const agentCommissions = await Transaction.sum("fee", {
+        where: {
+          status: TRANSACTION_STATUS.COMPLETED,
+          type: { [Op.in]: [TRANSACTION_TYPES.MINT, TRANSACTION_TYPES.BURN] },
+          agent_id: { [Op.ne]: null },
+        },
+      });
 
       res.status(200).json({
         success: true,
@@ -111,6 +125,9 @@ const adminFinancialController = {
           }, {}),
           recent_24h: recent24hCount,
           total_fees_collected: parseFloat(totalFees || 0).toFixed(2),
+          total_recorded_charges: parseFloat(totalFees || 0).toFixed(2),
+          total_platform_fees_collected: parseFloat(platformFees || 0).toFixed(2),
+          total_agent_commissions_recorded: parseFloat(agentCommissions || 0).toFixed(2),
         },
       });
     } catch (error) {
@@ -192,7 +209,7 @@ const adminFinancialController = {
 
       res.status(200).json({
         success: true,
-        data: transactions.rows,
+        data: transactions.rows.map((tx) => annotateTransactionFee(tx)),
         pagination: {
           total: transactions.count,
           limit: parseInt(limit),
@@ -257,7 +274,7 @@ const adminFinancialController = {
           .json({ success: false, error: "Transaction not found" });
       }
 
-      res.status(200).json({ success: true, data: transaction });
+      res.status(200).json({ success: true, data: annotateTransactionFee(transaction) });
     } catch (error) {
       console.error("Get transaction error:", error);
       res.status(500).json({ success: false, error: error.message });
@@ -771,6 +788,7 @@ const adminFinancialController = {
           summary: {
             total_transactions_with_fees: parseInt(totals?.total_count || 0),
             total_fees_collected: parseFloat(totals?.total_fees || 0),
+            total_platform_fees_collected: parseFloat(totals?.total_fees || 0),
           },
           by_type: byType.map((r) => ({
             type: r.type,

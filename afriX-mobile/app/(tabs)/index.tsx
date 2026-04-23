@@ -10,7 +10,7 @@ import {
   TouchableOpacity,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Card, Surface } from "react-native-paper";
+import { Surface } from "react-native-paper";
 import { useRouter } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
 import { useAuthStore, useWalletStore, useMintRequestStore, useBurnStore, useAgentStore, useNotificationStore } from "@/stores";
@@ -23,10 +23,14 @@ export default function DashboardScreen() {
   const { wallets, fetchWallets, loading, exchangeRates, fetchExchangeRates } = useWalletStore();
   const { currentRequest, checkStatus, fetchCurrentRequest } = useMintRequestStore();
   const { currentRequest: currentBurnRequest, fetchCurrentBurnRequestForUser } = useBurnStore();
-  const { fetchAgentStats } = useAgentStore();
+  const { fetchAgentStats, agentStatus } = useAgentStore();
   const { unreadCount, fetchUnreadCount } = useNotificationStore();
   const [lastUnread, setLastUnread] = useState<number | null>(null);
   const [bannerVisible, setBannerVisible] = useState(false);
+  const isAgentUser =
+    user?.role?.toLowerCase() === "agent" ||
+    user?.role?.toLowerCase() === "admin" ||
+    agentStatus === "active";
 
   const getInitials = (name?: string) => {
     if (!name) return "U";
@@ -39,53 +43,25 @@ export default function DashboardScreen() {
   };
 
   const DashboardAvatar = () => {
-    const { agentStatus } = useAgentStore();
-    const isAgent = user?.role?.toLowerCase() === "agent" ||
-      user?.role?.toLowerCase() === "admin" ||
-      agentStatus === "active";
     const isVerified = user?.email_verified;
-    const verificationLevel = user?.verification_level || 0;
-    const mintActive = currentRequest && ["pending", "proof_submitted"].includes(currentRequest.status?.toLowerCase());
-    const burnActive = currentBurnRequest && ["pending", "escrowed", "fiat_sent"].includes(currentBurnRequest.status?.toLowerCase());
-    const hasActiveRequest = mintActive || burnActive;
 
     return (
       <TouchableOpacity
         style={styles.avatarContainer}
         onPress={() => router.push("/(tabs)/profile")}
       >
-        {/* Agent Gold Ring (Outermost) */}
-        {isAgent && <View style={styles.agentRing} />}
+        {isAgentUser && <View style={styles.agentRing} />}
 
         <View style={styles.avatarMain}>
-          {/* Progress Ring Track */}
-          <View style={styles.progressTrack} />
-
-          {/* Dynamic Progress Ring (High Contrast White) */}
-          <View style={[
-            styles.progressRing,
-            { borderRightColor: verificationLevel >= 1 ? "#FFFFFF" : "transparent" },
-            { borderTopColor: verificationLevel >= 2 ? "#FFFFFF" : "transparent" },
-            { borderLeftColor: verificationLevel >= 3 ? "#FFFFFF" : "transparent" },
-            { borderBottomColor: verificationLevel >= 4 ? "#FFFFFF" : "transparent" },
-          ]} />
-
-          {/* Glassmorphism Avatar */}
           <View style={styles.avatarInner}>
             <Text style={styles.avatarInitials}>{getInitials(user?.full_name)}</Text>
           </View>
         </View>
 
-        {/* Verified Badge */}
         {isVerified && (
           <View style={styles.verifiedBadge}>
             <Ionicons name="checkmark-circle" size={14} color="#00B14F" />
           </View>
-        )}
-
-        {/* Notification Dot */}
-        {hasActiveRequest && (
-          <View style={styles.notificationDot} />
         )}
       </TouchableOpacity>
     );
@@ -93,8 +69,6 @@ export default function DashboardScreen() {
 
   const router = useRouter();
   const [recentTransactions, setRecentTransactions] = useState<any[]>([]);
-  const [refreshing, setRefreshing] = useState(false);
-
 
   // Fetch recent transactions
   const fetchRecentTransactions = async () => {
@@ -214,6 +188,65 @@ export default function DashboardScreen() {
   const ntWallet = wallets.find((w) => w.token_type === "NT");
   const ctWallet = wallets.find((w) => w.token_type === "CT");
   const usdtWallet = wallets.find((w) => w.token_type === "USDT");
+  const activeMintFlow = !!(
+    currentRequest &&
+    ["pending", "proof_submitted"].includes((currentRequest.status || "").toLowerCase())
+  );
+  const activeBurnFlow = !!(
+    currentBurnRequest &&
+    ["pending", "escrowed", "fiat_sent"].includes((currentBurnRequest.status || "").toLowerCase())
+  );
+  const activeFlowCount = [activeMintFlow, activeBurnFlow].filter(Boolean).length;
+  const fundedWalletCount = wallets.filter(
+    (wallet) => parseFloat(wallet.balance || "0") > 0
+  ).length;
+  const verificationLevel = user?.verification_level || 0;
+  const verificationConfig = {
+    0: {
+      label: "Unverified",
+      dailyLimit: "$0/day",
+      nextStep: "Verify your email to start trading",
+      icon: "mail-open-outline" as const,
+      tone: "warning" as const,
+    },
+    1: {
+      label: "Email Verified",
+      dailyLimit: "$100/day",
+      nextStep: "Add more profile verification to unlock higher limits",
+      icon: "checkmark-circle-outline" as const,
+      tone: "success" as const,
+    },
+    2: {
+      label: "Phone Verified",
+      dailyLimit: "$500/day",
+      nextStep: "Complete ID verification for the highest limits",
+      icon: "call-outline" as const,
+      tone: "info" as const,
+    },
+    3: {
+      label: "ID Verified",
+      dailyLimit: "$2,000/day",
+      nextStep: "You have access to the highest standard limits",
+      icon: "shield-checkmark-outline" as const,
+      tone: "success" as const,
+    },
+  } as const;
+  const currentVerification = verificationConfig[
+    verificationLevel as keyof typeof verificationConfig
+  ] || verificationConfig[0];
+  const verificationAccentStyle =
+    currentVerification.tone === "success"
+      ? styles.verificationAccentSuccess
+      : currentVerification.tone === "info"
+        ? styles.verificationAccentInfo
+        : styles.verificationAccentWarning;
+  const verificationIconStyle =
+    currentVerification.tone === "success"
+      ? styles.verificationIconSuccess
+      : currentVerification.tone === "info"
+        ? styles.verificationIconInfo
+        : styles.verificationIconWarning;
+  const shouldPromptProfile = verificationLevel < 3;
 
   return (
     <View style={styles.container}>
@@ -232,11 +265,27 @@ export default function DashboardScreen() {
           />
           <SafeAreaView edges={["top"]} style={styles.headerContent}>
             <View style={styles.header}>
-              <View>
+              <View style={styles.headerTextGroup}>
                 <Text style={styles.greeting}>Welcome back</Text>
                 <Text style={styles.userName}>
                   {user?.full_name || user?.email?.split("@")[0] || "User"}
                 </Text>
+                <View style={styles.headerStatusRow}>
+                  {user?.email_verified && (
+                    <View style={[styles.headerStatusChip, styles.headerStatusChipVerified]}>
+                      <Ionicons name="checkmark-circle" size={12} color="#047857" />
+                      <Text style={[styles.headerStatusText, styles.headerStatusTextVerified]}>Verified</Text>
+                    </View>
+                  )}
+                  {activeFlowCount > 0 && (
+                    <View style={styles.headerStatusChip}>
+                      <Ionicons name="time-outline" size={12} color="#FFFFFF" />
+                      <Text style={styles.headerStatusText}>
+                        {activeFlowCount} active {activeFlowCount === 1 ? "request" : "requests"}
+                      </Text>
+                    </View>
+                  )}
+                </View>
               </View>
               <View style={styles.headerRight}>
                 <TouchableOpacity
@@ -288,8 +337,221 @@ export default function DashboardScreen() {
             </TouchableOpacity>
           )}
 
+          {/* Wallet Overview */}
+          <View style={styles.balancesSection}>
+            <View style={styles.sectionLead}>
+              <Text style={styles.sectionEyebrow}>Wallet Overview</Text>
+              <Text style={styles.sectionLeadTitle}>Your balances at a glance</Text>
+              <Text style={styles.sectionLeadText}>
+                See what is currently available across your token wallets and compare your held value quickly.
+              </Text>
+            </View>
+            <View style={styles.walletRow}>
+              {ntWallet && (
+                <View style={styles.walletCard}>
+                  <Text style={styles.walletEyebrow}>Domestic Balance</Text>
+                  <View style={styles.walletHeader}>
+                    <View style={styles.tokenBadge}>
+                      <Ionicons name="cash-outline" size={16} color="#00B14F" />
+                    </View>
+                    <View>
+                      <Text style={styles.tokenLabel}>Naira Token</Text>
+                      <Text style={styles.tokenSymbol}>NT</Text>
+                    </View>
+                  </View>
+                  <Text style={styles.mainBalance}>
+                    {parseFloat(ntWallet.balance).toLocaleString(undefined, {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })}
+                  </Text>
+                  <View style={styles.availableRow}>
+                    <Text style={styles.availableLabel}>Available</Text>
+                    <Text style={styles.availableAmount}>
+                      {parseFloat(ntWallet.available_balance).toLocaleString(
+                        undefined,
+                        {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        }
+                      )}
+                    </Text>
+                  </View>
+                </View>
+              )}
+
+              {ctWallet && (
+                <View style={[styles.walletCard, styles.ctWalletCard]}>
+                  <Text style={styles.walletEyebrow}>Regional Balance</Text>
+                  <View style={styles.walletHeader}>
+                    <View style={[styles.tokenBadge, styles.ctBadge]}>
+                      <Ionicons name="leaf-outline" size={16} color="#10B981" />
+                    </View>
+                    <View>
+                      <Text style={styles.tokenLabel}>XOF Token</Text>
+                      <Text style={styles.tokenSymbol}>CT</Text>
+                    </View>
+                  </View>
+                  <Text style={styles.mainBalance}>
+                    {parseFloat(ctWallet.balance).toLocaleString(undefined, {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })}
+                  </Text>
+                  <View style={styles.availableRow}>
+                    <Text style={styles.availableLabel}>Available</Text>
+                    <Text style={styles.availableAmount}>
+                      {parseFloat(ctWallet.available_balance).toLocaleString(
+                        undefined,
+                        {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        }
+                      )}
+                    </Text>
+                  </View>
+                </View>
+              )}
+            </View>
+
+            {usdtWallet && (
+              <View style={[styles.walletCard, styles.usdtWalletCard]}>
+                <Text style={styles.walletEyebrow}>Reserve Balance</Text>
+                <View style={styles.walletHeader}>
+                  <View style={[styles.tokenBadge, styles.usdtBadge]}>
+                    <Ionicons name="logo-usd" size={16} color="#3B82F6" />
+                  </View>
+                  <View>
+                    <Text style={styles.tokenLabel}>USDT</Text>
+                    <Text style={styles.tokenSymbol}>Tether USD</Text>
+                  </View>
+                </View>
+
+                <View style={styles.balanceRow}>
+                  <Text style={styles.mainBalance}>
+                    {parseFloat(usdtWallet.balance).toLocaleString(undefined, {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })}
+                  </Text>
+
+                  <View style={styles.equivalentsContainer}>
+                    <Text style={styles.equivalentText}>
+                      ≈ {(parseFloat(usdtWallet.balance) * exchangeRates.USDT_TO_NT).toLocaleString(undefined, {
+                        maximumFractionDigits: 0,
+                      })} NT
+                    </Text>
+                    <Text style={styles.equivalentText}>
+                      ≈ {(parseFloat(usdtWallet.balance) * exchangeRates.USDT_TO_CT).toLocaleString(undefined, {
+                        maximumFractionDigits: 0,
+                      })} CT
+                    </Text>
+                  </View>
+                </View>
+                <View style={styles.availableRow}>
+                  <Text style={styles.availableLabel}>Available</Text>
+                  <Text style={styles.availableAmount}>
+                    {parseFloat(usdtWallet.available_balance).toLocaleString(
+                      undefined,
+                      {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      }
+                    )}
+                  </Text>
+                </View>
+              </View>
+            )}
+          </View>
+
+          <LinearGradient
+            colors={["#0E7A43", "#00B14F", "#26C26A"]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.overviewCard}
+          >
+            <View style={styles.overviewTopRow}>
+              <View style={styles.overviewBadge}>
+                <Ionicons name="sparkles" size={14} color="#E9FFE7" />
+                <Text style={styles.overviewBadgeText}>Home Overview</Text>
+              </View>
+              <Text style={styles.overviewContext}>
+                {wallets.length} wallet{wallets.length === 1 ? "" : "s"}
+              </Text>
+            </View>
+            <Text style={styles.overviewTitle}>Your AfriX balance hub</Text>
+            <Text style={styles.overviewSubtitle}>
+              Move money, monitor active exchange flows, and jump back into the actions you use most.
+            </Text>
+            <View style={styles.overviewStatsRow}>
+              <View style={styles.overviewStatBlock}>
+                <Text style={styles.overviewStatLabel}>Funded Wallets</Text>
+                <Text style={styles.overviewStatValue}>{fundedWalletCount}</Text>
+              </View>
+              <View style={styles.overviewDivider} />
+              <View style={styles.overviewStatBlock}>
+                <Text style={styles.overviewStatLabel}>Active Flows</Text>
+                <Text style={styles.overviewStatValue}>{activeFlowCount}</Text>
+              </View>
+              <View style={styles.overviewDivider} />
+              <View style={styles.overviewStatBlock}>
+                <Text style={styles.overviewStatLabel}>Unread</Text>
+                <Text style={styles.overviewStatValue}>{unreadCount}</Text>
+              </View>
+            </View>
+          </LinearGradient>
+
+          <View style={styles.verificationCard}>
+            <View style={styles.verificationHeader}>
+              <View style={[styles.verificationIconWrap, verificationIconStyle]}>
+                <Ionicons name={currentVerification.icon} size={18} color="#111827" />
+              </View>
+              <View style={styles.verificationHeaderText}>
+                <Text style={styles.verificationEyebrow}>Verification & Limits</Text>
+                <Text style={styles.verificationTitle}>{currentVerification.label}</Text>
+              </View>
+              <View style={[styles.verificationAccentPill, verificationAccentStyle]}>
+                <Text style={styles.verificationAccentText}>Level {verificationLevel}</Text>
+              </View>
+            </View>
+
+            <View style={styles.verificationBody}>
+              <View style={styles.verificationMetric}>
+                <Text style={styles.verificationMetricLabel}>Daily limit</Text>
+                <Text style={styles.verificationMetricValue}>{currentVerification.dailyLimit}</Text>
+              </View>
+              <View style={styles.verificationDivider} />
+              <View style={styles.verificationMetric}>
+                <Text style={styles.verificationMetricLabel}>Status</Text>
+                <Text style={styles.verificationMetricValue}>
+                  {user?.email_verified ? "Email confirmed" : "Action needed"}
+                </Text>
+              </View>
+            </View>
+
+            <Text style={styles.verificationHint}>{currentVerification.nextStep}</Text>
+
+            {shouldPromptProfile && (
+              <TouchableOpacity
+                style={styles.verificationAction}
+                activeOpacity={0.8}
+                onPress={() => router.push("/(tabs)/profile")}
+              >
+                <Text style={styles.verificationActionText}>Open profile</Text>
+                <Ionicons name="chevron-forward" size={16} color="#00B14F" />
+              </TouchableOpacity>
+            )}
+          </View>
+
           {/* Quick Actions Grid - Moved to top for prominence */}
           <View style={styles.actionsSection}>
+            <View style={styles.sectionLead}>
+              <Text style={styles.sectionEyebrow}>Quick Actions</Text>
+              <Text style={styles.sectionLeadTitle}>Start something in one tap</Text>
+              <Text style={styles.sectionLeadText}>
+                Buy, sell, transfer, or request tokens without digging through menus.
+              </Text>
+            </View>
             <View style={styles.actionsGrid}>
               {/* Row 1 - Primary Actions */}
               <TouchableOpacity
@@ -369,6 +631,32 @@ export default function DashboardScreen() {
             </View>
           </View>
 
+          {isAgentUser && (
+            <TouchableOpacity
+              style={styles.agentShortcutCard}
+              activeOpacity={0.85}
+              onPress={() => router.replace("/agent/dashboard")}
+            >
+              <LinearGradient
+                colors={["#F5F3FF", "#EDE9FE"]}
+                style={styles.agentShortcutGradient}
+              >
+                <View style={styles.agentShortcutContent}>
+                  <View style={styles.agentShortcutIcon}>
+                    <Ionicons name="briefcase" size={20} color="#7C3AED" />
+                  </View>
+                  <View style={styles.agentShortcutText}>
+                    <Text style={styles.agentShortcutTitle}>Agent Dashboard</Text>
+                    <Text style={styles.agentShortcutSubtitle}>
+                      Switch to your agent workspace
+                    </Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={20} color="#7C3AED" />
+                </View>
+              </LinearGradient>
+            </TouchableOpacity>
+          )}
+
           {/* Active Mint Alert */}
           {currentRequest &&
             ["pending", "proof_submitted"].includes(
@@ -431,128 +719,6 @@ export default function DashboardScreen() {
               </TouchableOpacity>
             )}
 
-          {/* Token Balances */}
-          <View style={styles.balancesSection}>
-            {/* Top Row: NT and CT */}
-            <View style={styles.walletRow}>
-              {/* NT Wallet */}
-              {ntWallet && (
-                <View style={styles.walletCard}>
-                  <View style={styles.walletHeader}>
-                    <View style={styles.tokenBadge}>
-                      <Ionicons name="cash-outline" size={16} color="#00B14F" />
-                    </View>
-                    <View>
-                      <Text style={styles.tokenLabel}>Naira Token</Text>
-                      <Text style={styles.tokenSymbol}>NT</Text>
-                    </View>
-                  </View>
-                  <Text style={styles.mainBalance}>
-                    {parseFloat(ntWallet.balance).toLocaleString(undefined, {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2,
-                    })}
-                  </Text>
-                  <View style={styles.availableRow}>
-                    <Text style={styles.availableLabel}>Available</Text>
-                    <Text style={styles.availableAmount}>
-                      {parseFloat(ntWallet.available_balance).toLocaleString(
-                        undefined,
-                        {
-                          minimumFractionDigits: 2,
-                          maximumFractionDigits: 2,
-                        }
-                      )}
-                    </Text>
-                  </View>
-                </View>
-              )}
-
-              {/* CT Wallet */}
-              {ctWallet && (
-                <View style={[styles.walletCard, styles.ctWalletCard]}>
-                  <View style={styles.walletHeader}>
-                    <View style={[styles.tokenBadge, styles.ctBadge]}>
-                      <Ionicons name="leaf-outline" size={16} color="#10B981" />
-                    </View>
-                    <View>
-                      <Text style={styles.tokenLabel}>XOF Token</Text>
-                      <Text style={styles.tokenSymbol}>CT</Text>
-                    </View>
-                  </View>
-                  <Text style={styles.mainBalance}>
-                    {parseFloat(ctWallet.balance).toLocaleString(undefined, {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2,
-                    })}
-                  </Text>
-                  <View style={styles.availableRow}>
-                    <Text style={styles.availableLabel}>Available</Text>
-                    <Text style={styles.availableAmount}>
-                      {parseFloat(ctWallet.available_balance).toLocaleString(
-                        undefined,
-                        {
-                          minimumFractionDigits: 2,
-                          maximumFractionDigits: 2,
-                        }
-                      )}
-                    </Text>
-                  </View>
-                </View>
-              )}
-            </View>
-
-            {/* USDT Wallet - Full width long card */}
-            {usdtWallet && (
-              <View style={[styles.walletCard, styles.usdtWalletCard]}>
-                <View style={styles.walletHeader}>
-                  <View style={[styles.tokenBadge, styles.usdtBadge]}>
-                    <Ionicons name="logo-usd" size={16} color="#3B82F6" />
-                  </View>
-                  <View>
-                    <Text style={styles.tokenLabel}>USDT</Text>
-                    <Text style={styles.tokenSymbol}>Tether USD</Text>
-                  </View>
-                </View>
-
-                <View style={styles.balanceRow}>
-                  <Text style={styles.mainBalance}>
-                    {parseFloat(usdtWallet.balance).toLocaleString(undefined, {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2,
-                    })}
-                  </Text>
-
-                  {/* Equivalents */}
-                  <View style={styles.equivalentsContainer}>
-                    <Text style={styles.equivalentText}>
-                      ≈ {(parseFloat(usdtWallet.balance) * exchangeRates.USDT_TO_NT).toLocaleString(undefined, {
-                        maximumFractionDigits: 0,
-                      })} NT
-                    </Text>
-                    <Text style={styles.equivalentText}>
-                      ≈ {(parseFloat(usdtWallet.balance) * exchangeRates.USDT_TO_CT).toLocaleString(undefined, {
-                        maximumFractionDigits: 0,
-                      })} CT
-                    </Text>
-                  </View>
-                </View>
-                <View style={styles.availableRow}>
-                  <Text style={styles.availableLabel}>Available</Text>
-                  <Text style={styles.availableAmount}>
-                    {parseFloat(usdtWallet.available_balance).toLocaleString(
-                      undefined,
-                      {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2,
-                      }
-                    )}
-                  </Text>
-                </View>
-              </View>
-            )}
-          </View>
-
           {/* Getting Started Card - Show for new users */}
           {recentTransactions.length === 0 && wallets.length > 0 && (
             <View style={styles.gettingStartedSection}>
@@ -568,7 +734,7 @@ export default function DashboardScreen() {
                     <View style={styles.gettingStartedText}>
                       <Text style={styles.gettingStartedTitle}>Get Started</Text>
                       <Text style={styles.gettingStartedSubtitle}>
-                        Welcome to AfriX! Here's how to begin
+                        Welcome to AfriX! Here&apos;s how to begin
                       </Text>
                     </View>
                   </View>
@@ -630,7 +796,10 @@ export default function DashboardScreen() {
           {/* Quick Tips Section - Show for new users */}
           {recentTransactions.length === 0 && (
             <View style={styles.tipsSection}>
-              <Text style={styles.sectionTitle}>Quick Tips</Text>
+              <View style={styles.sectionHeaderCompact}>
+                <Text style={styles.sectionTitle}>Quick Tips</Text>
+                <Text style={styles.sectionHint}>Helpful reminders</Text>
+              </View>
               <View style={styles.tipsGrid}>
                 <View style={styles.tipCard}>
                   <View style={[styles.tipIcon, { backgroundColor: "#F0FDF4" }]}>
@@ -669,7 +838,10 @@ export default function DashboardScreen() {
           {recentTransactions.length > 0 ? (
             <View style={styles.transactionsSection}>
               <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>Recent Transactions</Text>
+                <View>
+                  <Text style={styles.sectionEyebrow}>Activity Feed</Text>
+                  <Text style={styles.sectionTitle}>Recent Transactions</Text>
+                </View>
                 <TouchableOpacity onPress={() => router.push("/activity")}>
                   <Text style={styles.viewAllText}>View All</Text>
                 </TouchableOpacity>
@@ -865,6 +1037,36 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     marginTop: 2,
   },
+  headerTextGroup: {
+    flexShrink: 1,
+    paddingRight: 12,
+  },
+  headerStatusRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginTop: 10,
+  },
+  headerStatusChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: "rgba(255,255,255,0.14)",
+  },
+  headerStatusChipVerified: {
+    backgroundColor: "#ECFDF5",
+  },
+  headerStatusText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#FFFFFF",
+  },
+  headerStatusTextVerified: {
+    color: "#065F46",
+  },
   notificationBanner: {
     marginTop: -10,
     marginHorizontal: 16,
@@ -913,48 +1115,35 @@ const styles = StyleSheet.create({
   },
   // Avatar Styles
   avatarContainer: {
-    width: 60,
-    height: 60,
+    width: 54,
+    height: 54,
     justifyContent: "center",
     alignItems: "center",
     position: "relative",
   },
   agentRing: {
     position: "absolute",
-    width: 58,
-    height: 58,
-    borderRadius: 29,
+    width: 54,
+    height: 54,
+    borderRadius: 27,
     borderWidth: 2,
-    borderColor: "#F59E0B",
+    borderColor: "rgba(245, 158, 11, 0.9)",
   },
   avatarMain: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    padding: 3,
+    width: 46,
+    height: 46,
+    borderRadius: 23,
     justifyContent: "center",
     alignItems: "center",
-    position: "relative",
-  },
-  progressTrack: {
-    ...StyleSheet.absoluteFillObject,
-    borderRadius: 26,
-    borderWidth: 2,
-    borderColor: "rgba(255,255,255,0.15)",
-  },
-  progressRing: {
-    ...StyleSheet.absoluteFillObject,
-    borderRadius: 26,
-    borderWidth: 2,
-    transform: [{ rotate: "45deg" }],
+    backgroundColor: "rgba(255,255,255,0.12)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.18)",
   },
   avatarInner: {
     width: "100%",
     height: "100%",
-    borderRadius: 21,
-    backgroundColor: "rgba(255,255,255,0.15)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.3)",
+    borderRadius: 23,
+    backgroundColor: "rgba(255,255,255,0.2)",
     justifyContent: "center",
     alignItems: "center",
     overflow: "hidden",
@@ -966,8 +1155,8 @@ const styles = StyleSheet.create({
   },
   verifiedBadge: {
     position: "absolute",
-    bottom: 4,
-    right: 4,
+    bottom: -1,
+    right: -1,
     backgroundColor: "#FFFFFF",
     borderRadius: 10,
     width: 20,
@@ -977,31 +1166,211 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: "#00B14F",
   },
-  notificationDot: {
-    position: "absolute",
-    top: 6,
-    right: 6,
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: "#EF4444",
-    borderWidth: 2,
-    borderColor: "#FFFFFF",
-  },
   contentContainer: {
     paddingTop: 25,
+  },
+  overviewCard: {
+    marginHorizontal: 20,
+    marginBottom: 22,
+    borderRadius: 26,
+    padding: 20,
+  },
+  overviewTopRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 14,
+  },
+  overviewBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.16)",
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    gap: 6,
+  },
+  overviewBadgeText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#F0FDF4",
+  },
+  overviewContext: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "rgba(255,255,255,0.78)",
+  },
+  overviewTitle: {
+    fontSize: 24,
+    fontWeight: "700",
+    color: "#FFFFFF",
+    marginBottom: 8,
+    letterSpacing: -0.4,
+  },
+  overviewSubtitle: {
+    fontSize: 14,
+    lineHeight: 21,
+    color: "rgba(255,255,255,0.82)",
+    marginBottom: 18,
+  },
+  overviewStatsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.12)",
+    borderRadius: 18,
+    paddingVertical: 14,
+    paddingHorizontal: 10,
+  },
+  overviewStatBlock: {
+    flex: 1,
+    alignItems: "center",
+  },
+  overviewStatLabel: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: "rgba(255,255,255,0.72)",
+    marginBottom: 4,
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
+  },
+  overviewStatValue: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#FFFFFF",
+  },
+  overviewDivider: {
+    width: 1,
+    height: 28,
+    backgroundColor: "rgba(255,255,255,0.18)",
+  },
+  verificationCard: {
+    marginHorizontal: 20,
+    marginBottom: 22,
+    borderRadius: 22,
+    padding: 18,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+  },
+  verificationHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  verificationIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
+  },
+  verificationIconSuccess: {
+    backgroundColor: "#DCFCE7",
+  },
+  verificationIconInfo: {
+    backgroundColor: "#DBEAFE",
+  },
+  verificationIconWarning: {
+    backgroundColor: "#FEF3C7",
+  },
+  verificationHeaderText: {
+    flex: 1,
+  },
+  verificationEyebrow: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: "#00B14F",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+    marginBottom: 4,
+  },
+  verificationTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#111827",
+  },
+  verificationAccentPill: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+  },
+  verificationAccentSuccess: {
+    backgroundColor: "#ECFDF5",
+  },
+  verificationAccentInfo: {
+    backgroundColor: "#EFF6FF",
+  },
+  verificationAccentWarning: {
+    backgroundColor: "#FFFBEB",
+  },
+  verificationAccentText: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: "#065F46",
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
+  },
+  verificationBody: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F9FAFB",
+    borderRadius: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+  },
+  verificationMetric: {
+    flex: 1,
+  },
+  verificationMetricLabel: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#6B7280",
+    marginBottom: 4,
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
+  },
+  verificationMetricValue: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#111827",
+  },
+  verificationDivider: {
+    width: 1,
+    height: 34,
+    backgroundColor: "#E5E7EB",
+    marginHorizontal: 12,
+  },
+  verificationHint: {
+    fontSize: 13,
+    color: "#4B5563",
+    lineHeight: 19,
+    marginTop: 14,
+  },
+  verificationAction: {
+    marginTop: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-start",
+    gap: 4,
+  },
+  verificationActionText: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#00B14F",
   },
   alertCard: {
     marginHorizontal: 20,
     marginBottom: 24,
-    borderRadius: 12,
+    borderRadius: 18,
     backgroundColor: "#FFFBEB",
     borderWidth: 1,
     borderColor: "#FEF3C7",
   },
   alertContent: {
     flexDirection: "row",
-    padding: 16,
+    paddingVertical: 16,
+    paddingHorizontal: 18,
     alignItems: "center",
   },
   alertIcon: {
@@ -1118,7 +1487,7 @@ const styles = StyleSheet.create({
   balancesSection: {
     paddingHorizontal: 20,
     marginBottom: 32,
-    flexDirection: "column", // Changed to column to stack rows
+    flexDirection: "column",
   },
   walletRow: {
     flexDirection: "row",
@@ -1127,8 +1496,8 @@ const styles = StyleSheet.create({
   walletCard: {
     flex: 1,
     backgroundColor: "#F0FDF4",
-    borderRadius: 16,
-    padding: 16,
+    borderRadius: 20,
+    padding: 18,
     borderWidth: 1,
     borderColor: "#D1FAE5",
     minWidth: 0,
@@ -1145,7 +1514,15 @@ const styles = StyleSheet.create({
   walletHeader: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 16,
+    marginBottom: 14,
+  },
+  walletEyebrow: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: "#059669",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+    marginBottom: 10,
   },
   tokenBadge: {
     width: 28,
@@ -1218,6 +1595,68 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     marginTop: 8,
   },
+  sectionLead: {
+    marginBottom: 16,
+  },
+  sectionEyebrow: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: "#00B14F",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+    marginBottom: 6,
+  },
+  sectionLeadTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#111827",
+    marginBottom: 6,
+    letterSpacing: -0.3,
+  },
+  sectionLeadText: {
+    fontSize: 14,
+    color: "#6B7280",
+    lineHeight: 20,
+  },
+  agentShortcutCard: {
+    marginHorizontal: 20,
+    marginBottom: 16,
+    borderRadius: 20,
+    overflow: "hidden",
+  },
+  agentShortcutGradient: {
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "#DDD6FE",
+  },
+  agentShortcutContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 18,
+    paddingVertical: 16,
+  },
+  agentShortcutIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 14,
+    backgroundColor: "#FFFFFFB3",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 14,
+  },
+  agentShortcutText: {
+    flex: 1,
+  },
+  agentShortcutTitle: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#5B21B6",
+    marginBottom: 2,
+  },
+  agentShortcutSubtitle: {
+    fontSize: 13,
+    color: "#6D28D9",
+  },
   actionsGrid: {
     flexDirection: "row",
     gap: 12,
@@ -1227,7 +1666,7 @@ const styles = StyleSheet.create({
   primaryActionCard: {
     flex: 1,
     backgroundColor: "#FFFFFF",
-    borderRadius: 20,
+    borderRadius: 24,
     padding: 20,
     alignItems: "center",
     borderWidth: 1,
@@ -1273,7 +1712,7 @@ const styles = StyleSheet.create({
   secondaryActionCard: {
     flex: 1,
     backgroundColor: "#FFFFFF",
-    borderRadius: 16,
+    borderRadius: 18,
     padding: 14,
     alignItems: "center",
     borderWidth: 1,
@@ -1417,17 +1856,27 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     marginBottom: 24,
   },
+  sectionHeaderCompact: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-end",
+    marginBottom: 12,
+  },
+  sectionHint: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#9CA3AF",
+  },
   tipsGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 12,
-    marginTop: 12,
   },
   tipCard: {
     flex: 1,
     minWidth: "30%",
     backgroundColor: "#FFFFFF",
-    borderRadius: 16,
+    borderRadius: 18,
     padding: 16,
     alignItems: "center",
     borderWidth: 1,

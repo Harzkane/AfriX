@@ -1,0 +1,450 @@
+const crypto = require("crypto");
+const axios = require("axios");
+const { Op } = require("sequelize");
+const { sequelize, Transaction, Wallet, User, Merchant } = require("../models");
+const {
+  TOKEN_TYPES,
+  TRANSACTION_STATUS,
+  TRANSACTION_TYPES,
+} = require("../config/constants");
+const { ApiError } = require("../utils/errors");
+
+const buildReference = (idempotencyKey) => {
+  const hash = crypto.createHash("sha256").update(idempotencyKey).digest("hex");
+  return `KAALIS-${hash.slice(0, 24)}`;
+};
+
+const emitKaalisWebhook = async (payload) => {
+  const webhookUrl = process.env.KAALIS_AFRIEXCHANGE_WEBHOOK_URL;
+  const webhookSecret = process.env.KAALIS_AFRIEXCHANGE_WEBHOOK_SECRET;
+
+  if (!webhookUrl || !webhookSecret) {
+    return;
+  }
+
+  const timestamp = new Date().toISOString();
+  const rawBody = JSON.stringify(payload);
+  const signature = crypto
+    .createHmac("sha256", webhookSecret)
+    .update(`${timestamp}.${rawBody}`)
+    .digest("hex");
+
+  try {
+    await axios.post(webhookUrl, rawBody, {
+      headers: {
+        "content-type": "application/json",
+        "x-afriexchange-timestamp": timestamp,
+        "x-afriexchange-signature": `sha256=${signature}`,
+      },
+      timeout: 5000,
+    });
+  } catch (error) {
+    console.error("Failed to emit Kaalis webhook:", error.message);
+  }
+};
+
+const findUserAndWallet = async ({
+  userId,
+  walletAddress,
+  accountEmail,
+  tokenType,
+}) => {
+  const userWhere = userId ? { id: userId } : accountEmail ? { email: accountEmail } : null;
+  let user = userWhere ? await User.findOne({ where: userWhere }) : null;
+
+  let wallet = null;
+  if (user) {
+    wallet = await Wallet.findOne({
+      where: {
+        user_id: user.id,
+        token_type: tokenType,
+        is_active: true,
+        is_frozen: false,
+      },
+    });
+  }
+
+  if (!wallet && walletAddress) {
+    wallet = await Wallet.findOne({
+      where: {
+        blockchain_address: walletAddress,
+        token_type: tokenType,
+        is_active: true,
+        is_frozen: false,
+      },
+    });
+    if (wallet && !user) {
+      user = await User.findByPk(wallet.user_id);
+    }
+  }
+
+  return { user, wallet };
+};
+
+const authenticateKaalis = (req, res, next) => {
+  const configuredKey = process.env.KAALIS_INTEGRATION_API_KEY;
+  const providedKey = req.header("x-kaalis-api-key");
+
+  if (!configuredKey) {
+    return res.status(503).json({
+      success: false,
+      message: "Kaalis integration API key is not configured",
+    });
+  }
+
+  if (!providedKey || providedKey !== configuredKey) {
+    return res.status(401).json({
+      success: false,
+      message: "Invalid Kaalis integration API key",
+    });
+  }
+
+  next();
+};
+
+const kaalisIntegrationController = {
+  authenticateKaalis,
+
+  async createPayout(req, res, next) {
+    try {
+      const {
+        idempotencyKey,
+        kaalisPayoutId,
+        kaalisVendorId,
+        vendorAfriExchangeUserId,
+        vendorWalletAddress,
+        vendorAccountEmail,
+        amount,
+        tokenType = TOKEN_TYPES.CT,
+        country,
+        description,
+        metadata = {},
+      } = req.body;
+
+      if (!idempotencyKey || !kaalisPayoutId || !amount) {
+        throw new ApiError(
+          "idempotencyKey, kaalisPayoutId, and amount are required",
+          400
+        );
+      }
+
+      if (!Object.values(TOKEN_TYPES).includes(tokenType)) {
+        throw new ApiError("Invalid tokenType", 400);
+      }
+
+      if (parseFloat(amount) <= 0) {
+        throw new ApiError("Amount must be greater than 0", 400);
+      }
+
+      const reference = buildReference(idempotencyKey);
+      const existingTransaction = await Transaction.findOne({
+        where: { reference },
+      });
+
+      if (existingTransaction) {
+        return res.status(200).json({
+          success: true,
+          data: {
+            provider: "afriexchange",
+            payoutId: existingTransaction.id,
+            kaalisPayoutId,
+            status: existingTransaction.status,
+            reference: existingTransaction.reference,
+            idempotent: true,
+          },
+        });
+      }
+
+      const { user: vendorUser, wallet: vendorWallet } = await findUserAndWallet({
+        userId: vendorAfriExchangeUserId,
+        walletAddress: vendorWalletAddress,
+        accountEmail: vendorAccountEmail,
+        tokenType,
+      });
+
+      if (!vendorUser || !vendorWallet) {
+        throw new ApiError("Vendor AfriExchange wallet not found", 404);
+      }
+
+      const payoutTransaction = await sequelize.transaction(async (dbTransaction) => {
+        const createdTransaction = await Transaction.create(
+          {
+            reference,
+            type: TRANSACTION_TYPES.CREDIT,
+            status: TRANSACTION_STATUS.COMPLETED,
+            amount,
+            fee: 0,
+            token_type: tokenType,
+            description: description || "Kaalis vendor settlement",
+            metadata: {
+              ...metadata,
+              source: "kaalis",
+              idempotencyKey,
+              kaalisPayoutId,
+              kaalisVendorId,
+              country,
+            },
+            from_user_id: null,
+            to_user_id: vendorUser.id,
+            from_wallet_id: null,
+            to_wallet_id: vendorWallet.id,
+            processed_at: new Date(),
+          },
+          { transaction: dbTransaction }
+        );
+
+        await vendorWallet.increment("balance", {
+          by: amount,
+          transaction: dbTransaction,
+        });
+        await vendorWallet.increment("total_received", {
+          by: amount,
+          transaction: dbTransaction,
+        });
+        await vendorWallet.increment("transaction_count", {
+          by: 1,
+          transaction: dbTransaction,
+        });
+
+        return createdTransaction;
+      });
+
+      emitKaalisWebhook({
+        event: "payout.completed",
+        eventId: `afriexchange-payout-${payoutTransaction.id}-${payoutTransaction.status}`,
+        data: {
+          kaalisPayoutId,
+          kaalisVendorId,
+          payoutId: payoutTransaction.id,
+          reference: payoutTransaction.reference,
+          status: payoutTransaction.status,
+          amount: payoutTransaction.amount,
+          tokenType: payoutTransaction.token_type,
+          processedAt: payoutTransaction.processed_at,
+        },
+      });
+
+      res.status(201).json({
+        success: true,
+        data: {
+          provider: "afriexchange",
+          payoutId: payoutTransaction.id,
+          kaalisPayoutId,
+          status: payoutTransaction.status,
+          reference: payoutTransaction.reference,
+        },
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  async createCollection(req, res, next) {
+    try {
+      const {
+        idempotencyKey,
+        kaalisOrderId,
+        kaalisBuyerId,
+        buyerAfriExchangeUserId,
+        buyerWalletAddress,
+        buyerAccountEmail,
+        merchantId = process.env.KAALIS_AFRIEXCHANGE_MERCHANT_ID,
+        amount,
+        tokenType = TOKEN_TYPES.CT,
+        description,
+        metadata = {},
+      } = req.body;
+
+      if (!idempotencyKey || !kaalisOrderId || !amount) {
+        throw new ApiError(
+          "idempotencyKey, kaalisOrderId, and amount are required",
+          400
+        );
+      }
+
+      if (!merchantId) {
+        throw new ApiError("Kaalis AfriExchange merchant ID is not configured", 503);
+      }
+
+      if (!Object.values(TOKEN_TYPES).includes(tokenType)) {
+        throw new ApiError("Invalid tokenType", 400);
+      }
+
+      if (parseFloat(amount) <= 0) {
+        throw new ApiError("Amount must be greater than 0", 400);
+      }
+
+      const reference = buildReference(`collection-${idempotencyKey}`);
+      const existingTransaction = await Transaction.findOne({
+        where: { reference },
+      });
+
+      if (existingTransaction) {
+        return res.status(200).json({
+          success: true,
+          data: {
+            provider: "afriexchange",
+            collectionId: existingTransaction.id,
+            kaalisOrderId,
+            status: existingTransaction.status,
+            reference: existingTransaction.reference,
+            idempotent: true,
+          },
+        });
+      }
+
+      const merchant = await Merchant.findByPk(merchantId);
+      if (!merchant) {
+        const walletWithConfiguredId = await Wallet.findByPk(merchantId);
+        if (walletWithConfiguredId) {
+          throw new ApiError(
+            "Kaalis AfriExchange merchant not found. KAALIS_AFRIEXCHANGE_MERCHANT_ID is set to a wallet id; use the merchants.id value instead.",
+            400
+          );
+        }
+
+        throw new ApiError("Kaalis AfriExchange merchant not found", 404);
+      }
+
+      const merchantWallet = await Wallet.findByPk(merchant.settlement_wallet_id);
+      if (!merchantWallet || merchantWallet.token_type !== tokenType) {
+        throw new ApiError(
+          `Kaalis merchant settlement wallet does not accept ${tokenType}`,
+          400
+        );
+      }
+
+      const { user: buyerUser, wallet: buyerWallet } = await findUserAndWallet({
+        userId: buyerAfriExchangeUserId,
+        walletAddress: buyerWalletAddress,
+        accountEmail: buyerAccountEmail,
+        tokenType,
+      });
+
+      if (!buyerUser || !buyerWallet) {
+        throw new ApiError("Buyer AfriExchange wallet not found", 404);
+      }
+
+      if (parseFloat(buyerWallet.balance) < parseFloat(amount)) {
+        throw new ApiError("Insufficient buyer CT balance", 400);
+      }
+
+      const collectionTransaction = await sequelize.transaction(
+        async (dbTransaction) => {
+          const createdTransaction = await Transaction.create(
+            {
+              reference,
+              type: TRANSACTION_TYPES.COLLECTION,
+              status: TRANSACTION_STATUS.COMPLETED,
+              amount,
+              fee: 0,
+              token_type: tokenType,
+              merchant_id: merchant.id,
+              description: description || "Kaalis checkout collection",
+              metadata: {
+                ...metadata,
+                source: "kaalis",
+                idempotencyKey,
+                kaalisOrderId,
+                kaalisBuyerId,
+              },
+              from_user_id: buyerUser.id,
+              to_user_id: merchant.user_id,
+              from_wallet_id: buyerWallet.id,
+              to_wallet_id: merchantWallet.id,
+              processed_at: new Date(),
+            },
+            { transaction: dbTransaction }
+          );
+
+          await buyerWallet.decrement("balance", {
+            by: amount,
+            transaction: dbTransaction,
+          });
+          await buyerWallet.increment("total_sent", {
+            by: amount,
+            transaction: dbTransaction,
+          });
+          await buyerWallet.increment("transaction_count", {
+            by: 1,
+            transaction: dbTransaction,
+          });
+          await merchantWallet.increment("balance", {
+            by: amount,
+            transaction: dbTransaction,
+          });
+          await merchantWallet.increment("total_received", {
+            by: amount,
+            transaction: dbTransaction,
+          });
+          await merchantWallet.increment("transaction_count", {
+            by: 1,
+            transaction: dbTransaction,
+          });
+
+          return createdTransaction;
+        }
+      );
+
+      res.status(201).json({
+        success: true,
+        data: {
+          provider: "afriexchange",
+          collectionId: collectionTransaction.id,
+          kaalisOrderId,
+          status: collectionTransaction.status,
+          reference: collectionTransaction.reference,
+        },
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  async getPayout(req, res, next) {
+    try {
+      const { id } = req.params;
+      const isUuid =
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+          id
+        );
+      const where = isUuid
+        ? { [Op.or]: [{ id }, { reference: id }] }
+        : { reference: id };
+
+      const payout = await Transaction.findOne({
+        where,
+        include: [
+          {
+            model: Wallet,
+            as: "toWallet",
+            attributes: ["id", "user_id", "token_type", "balance"],
+          },
+        ],
+      });
+
+      if (!payout || payout.metadata?.source !== "kaalis") {
+        throw new ApiError("Kaalis payout not found", 404);
+      }
+
+      res.json({
+        success: true,
+        data: {
+          provider: "afriexchange",
+          payoutId: payout.id,
+          kaalisPayoutId: payout.metadata?.kaalisPayoutId,
+          status: payout.status,
+          reference: payout.reference,
+          amount: payout.amount,
+          tokenType: payout.token_type,
+          wallet: payout.toWallet,
+          processedAt: payout.processed_at,
+        },
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+};
+
+module.exports = kaalisIntegrationController;

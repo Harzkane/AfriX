@@ -21,6 +21,7 @@ const disputeRoutes = require("./routes/disputes");
 const educationRoutes = require("./routes/education");
 const configRoutes = require("./routes/config");
 const notificationRoutes = require("./routes/notifications");
+const integrationRoutes = require("./routes/integrations");
 
 // Import middleware
 const { sanitizeInput } = require("./middleware/validation");
@@ -92,6 +93,7 @@ app.use(`/api/${API_VERSION}/disputes`, disputeRoutes);
 app.use(`/api/${API_VERSION}/education`, educationRoutes);
 app.use(`/api/${API_VERSION}/config`, configRoutes);
 app.use(`/api/${API_VERSION}/notifications`, notificationRoutes);
+app.use(`/api/${API_VERSION}/integrations`, integrationRoutes);
 
 // ============================================
 // ROOT ENDPOINT

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import {
   View,
   StyleSheet,
@@ -19,6 +19,7 @@ const PRESET_AMOUNTS = [5000, 10000, 20000, 50000];
 
 export default function BuyTokensScreen() {
   const router = useRouter();
+  const scrollViewRef = useRef<ScrollView | null>(null);
   const params = useLocalSearchParams<{ amount?: string; tokenType?: string; agentId?: string; agentName?: string }>();
   const { getWalletByType } = useWalletStore();
 
@@ -66,6 +67,15 @@ export default function BuyTokensScreen() {
     }
   };
 
+  const handleAmountFocus = () => {
+    setTimeout(() => {
+      scrollViewRef.current?.scrollTo({
+        y: 500,
+        animated: true,
+      });
+    }, 120);
+  };
+
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -89,17 +99,26 @@ export default function BuyTokensScreen() {
           </SafeAreaView>
         </View>
         <ScrollView
+          ref={scrollViewRef}
           style={styles.container}
           contentContainerStyle={styles.content}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          <Text style={styles.subtitle}>
-            Purchase tokens through a verified agent
-          </Text>
+          <LinearGradient
+            colors={["#F7FFF9", "#FFFFFF"]}
+            style={styles.heroCard}
+          >
+            <Text style={styles.heroEyebrow}>Verified Purchase Flow</Text>
+            <Text style={styles.heroTitle}>Buy tokens with confidence</Text>
+            <Text style={styles.heroSubtitle}>
+              Choose the token you want, enter your amount, and continue to a verified agent for payment instructions.
+            </Text>
+          </LinearGradient>
 
           {/* Token Type Selector */}
           <View style={styles.section}>
+            <Text style={styles.sectionEyebrow}>Token Selection</Text>
             <Text style={styles.label}>Select Token Type</Text>
             <View style={styles.tokenSelector}>
               <TouchableOpacity
@@ -110,6 +129,7 @@ export default function BuyTokensScreen() {
                 onPress={() => setTokenType("NT")}
                 activeOpacity={0.7}
               >
+                <Text style={styles.tokenCardEyebrow}>Domestic</Text>
                 <View
                   style={[
                     styles.tokenIcon,
@@ -141,6 +161,7 @@ export default function BuyTokensScreen() {
                 onPress={() => setTokenType("CT")}
                 activeOpacity={0.7}
               >
+                <Text style={styles.tokenCardEyebrow}>Regional</Text>
                 <View
                   style={[
                     styles.tokenIcon,
@@ -174,6 +195,7 @@ export default function BuyTokensScreen() {
                 tokenType === "CT" && styles.balanceCardCT,
               ]}
             >
+              <Text style={styles.balanceEyebrow}>Current Wallet Position</Text>
               <Text style={styles.balanceLabel}>Current Balance</Text>
               <Text style={styles.balanceAmount}>
                 {parseFloat(wallet.balance).toLocaleString(undefined, {
@@ -193,6 +215,7 @@ export default function BuyTokensScreen() {
 
           {/* Amount Input */}
           <View style={styles.section}>
+            <Text style={styles.sectionEyebrow}>Purchase Amount</Text>
             <Text style={styles.label}>Amount to Buy</Text>
             <View style={styles.inputWrapper}>
               <Ionicons
@@ -205,6 +228,7 @@ export default function BuyTokensScreen() {
                 mode="outlined"
                 value={formatAmountForInput(amount, tokenType)}
                 onChangeText={(t) => setAmount(parseAmountInput(t, tokenType))}
+                onFocus={handleAmountFocus}
                 keyboardType="numeric"
                 placeholder="0.00"
                 placeholderTextColor="#9CA3AF"
@@ -213,6 +237,9 @@ export default function BuyTokensScreen() {
                 contentStyle={styles.inputContent}
               />
             </View>
+            <Text style={styles.inputHint}>
+              Enter the amount of {tokenType} you want the agent to deliver.
+            </Text>
 
             {/* Preset Amounts */}
             <View style={styles.presets}>
@@ -245,6 +272,7 @@ export default function BuyTokensScreen() {
               <Ionicons name="information-circle" size={20} color="#00B14F" />
               <Text style={styles.infoTitle}>Exchange Rate</Text>
             </View>
+            <Text style={styles.infoEyebrow}>Live Estimate</Text>
             <Text style={styles.infoText}>
               1 {tokenType} = {tokenType === "NT" ? "₦1.00" : "XOF 1.00"}
             </Text>
@@ -325,13 +353,43 @@ const styles = StyleSheet.create({
     paddingTop: 20,
     paddingBottom: 24,
   },
-  subtitle: {
-    fontSize: 14,
-    color: "#9CA3AF",
-    marginBottom: 32,
+  heroCard: {
+    borderRadius: 24,
+    padding: 20,
+    marginBottom: 28,
+    borderWidth: 1,
+    borderColor: "#E6F4EA",
+  },
+  heroEyebrow: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: "#00B14F",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+    marginBottom: 8,
+  },
+  heroTitle: {
+    fontSize: 24,
+    fontWeight: "700",
+    color: "#111827",
+    marginBottom: 8,
+    letterSpacing: -0.4,
+  },
+  heroSubtitle: {
+    fontSize: 15,
+    color: "#6B7280",
+    lineHeight: 22,
   },
   section: {
     marginBottom: 24,
+  },
+  sectionEyebrow: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: "#00B14F",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+    marginBottom: 6,
   },
   label: {
     fontSize: 15,
@@ -348,7 +406,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
     borderWidth: 2,
     borderColor: "#F3F4F6",
-    borderRadius: 16,
+    borderRadius: 20,
     padding: 20,
     alignItems: "center",
   },
@@ -368,6 +426,14 @@ const styles = StyleSheet.create({
   tokenIconActive: {
     backgroundColor: "#FFFFFF",
   },
+  tokenCardEyebrow: {
+    fontSize: 10,
+    fontWeight: "800",
+    color: "#9CA3AF",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+    marginBottom: 10,
+  },
   tokenName: {
     fontSize: 13,
     fontWeight: "600",
@@ -386,7 +452,7 @@ const styles = StyleSheet.create({
   balanceCard: {
     backgroundColor: "#F0FDF4",
     padding: 20,
-    borderRadius: 16,
+    borderRadius: 20,
     marginBottom: 24,
     borderWidth: 1,
     borderColor: "#D1FAE5",
@@ -394,6 +460,14 @@ const styles = StyleSheet.create({
   balanceCardCT: {
     backgroundColor: "#ECFDF5",
     borderColor: "#A7F3D0",
+  },
+  balanceEyebrow: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: "#059669",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+    marginBottom: 6,
   },
   balanceLabel: {
     fontSize: 13,
@@ -434,13 +508,18 @@ const styles = StyleSheet.create({
     color: "#111827",
   },
   inputOutline: {
-    borderRadius: 12,
+    borderRadius: 16,
     borderWidth: 2,
     borderColor: "#F3F4F6",
   },
   inputContent: {
     paddingLeft: 40,
     color: "#111827",
+  },
+  inputHint: {
+    fontSize: 12,
+    color: "#6B7280",
+    marginTop: 8,
   },
   presets: {
     flexDirection: "row",
@@ -451,7 +530,7 @@ const styles = StyleSheet.create({
   presetBtn: {
     paddingHorizontal: 16,
     paddingVertical: 10,
-    borderRadius: 10,
+    borderRadius: 12,
     backgroundColor: "#F9FAFB",
     borderWidth: 1,
     borderColor: "#E5E7EB",
@@ -469,9 +548,9 @@ const styles = StyleSheet.create({
     color: "#00B14F",
   },
   infoCard: {
-    backgroundColor: "#F9FAFB",
-    padding: 16,
-    borderRadius: 12,
+    backgroundColor: "#FBFCFD",
+    padding: 18,
+    borderRadius: 18,
     marginBottom: 24,
     borderWidth: 1,
     borderColor: "#E5E7EB",
@@ -486,6 +565,14 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "600",
     color: "#111827",
+  },
+  infoEyebrow: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: "#00B14F",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+    marginBottom: 8,
   },
   infoText: {
     fontSize: 15,
@@ -514,7 +601,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 8,
     paddingVertical: 16,
-    borderRadius: 12,
+    borderRadius: 16,
   },
   continueBtnDisabled: {
     backgroundColor: "#E5E7EB",

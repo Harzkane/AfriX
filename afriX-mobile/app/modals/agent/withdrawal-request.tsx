@@ -48,6 +48,10 @@ export default function WithdrawalRequest() {
         });
     };
 
+    const floorToCurrency = (value: number): number => {
+        return Math.floor((value + Number.EPSILON) * 100) / 100;
+    };
+
     // Helper to format input with commas as user types
     const formatInput = (value: string): string => {
         // Remove all non-numeric characters except decimal point
@@ -92,6 +96,7 @@ export default function WithdrawalRequest() {
         }, 0);
 
     const maxWithdrawable = Math.max(0, baseMaxWithdrawable - pendingReserved);
+    const safeMaxWithdrawable = floorToCurrency(maxWithdrawable);
 
     const withdrawalAddress = (user as any)?.withdrawal_address || "Not set";
 
@@ -108,8 +113,8 @@ export default function WithdrawalRequest() {
             return false;
         }
 
-        if (numValue > maxWithdrawable) {
-            setError(`Maximum withdrawable is $${formatCurrency(maxWithdrawable)}`);
+        if (numValue > safeMaxWithdrawable) {
+            setError(`Maximum withdrawable is $${formatCurrency(safeMaxWithdrawable)}`);
             return false;
         }
 
@@ -125,7 +130,7 @@ export default function WithdrawalRequest() {
     };
 
     const handleQuickSelect = (percentage: number) => {
-        const calculatedAmount = (maxWithdrawable * percentage / 100);
+        const calculatedAmount = floorToCurrency(safeMaxWithdrawable * percentage / 100);
         const rawValue = calculatedAmount.toFixed(2);
         const formatted = formatInput(rawValue);
         setAmount(rawValue);
@@ -196,6 +201,17 @@ export default function WithdrawalRequest() {
                     keyboardShouldPersistTaps="handled"
                     showsVerticalScrollIndicator={false}
                 >
+                    <LinearGradient
+                        colors={["#F7FFF9", "#FFFFFF"]}
+                        style={styles.introCard}
+                    >
+                        <Text style={styles.introEyebrow}>Withdrawal Planning</Text>
+                        <Text style={styles.introTitle}>Move Available Funds Safely</Text>
+                        <Text style={styles.introText}>
+                            Review your live withdrawal capacity, choose an amount, and submit a payout request to your saved wallet.
+                        </Text>
+                    </LinearGradient>
+
                     {/* Financial Summary */}
                     <View style={styles.summaryCard}>
                         <View style={styles.summaryHeader}>
@@ -217,7 +233,7 @@ export default function WithdrawalRequest() {
 
                         <View style={[styles.summaryRow, styles.maxWithdrawableRow]}>
                             <Text style={styles.maxWithdrawableLabel}>Max Withdrawable</Text>
-                            <Text style={styles.maxWithdrawableValue}>${formatCurrency(maxWithdrawable)}</Text>
+                            <Text style={styles.maxWithdrawableValue}>${formatCurrency(safeMaxWithdrawable)}</Text>
                         </View>
                     </View>
 
@@ -351,13 +367,41 @@ const styles = StyleSheet.create({
         padding: 16,
         paddingBottom: 100,
     },
+    introCard: {
+        borderRadius: 22,
+        padding: 18,
+        marginBottom: 20,
+        borderWidth: 1,
+        borderColor: "#E6F4EA",
+    },
+    introEyebrow: {
+        fontSize: 11,
+        fontWeight: "800",
+        color: "#00B14F",
+        textTransform: "uppercase",
+        letterSpacing: 0.5,
+        marginBottom: 6,
+    },
+    introTitle: {
+        fontSize: 22,
+        fontWeight: "800",
+        color: "#111827",
+        letterSpacing: -0.5,
+    },
+    introText: {
+        fontSize: 13,
+        lineHeight: 20,
+        color: "#6B7280",
+        fontWeight: "500",
+        marginTop: 6,
+    },
     summaryCard: {
         backgroundColor: "white",
-        borderRadius: 16,
-        padding: 16,
+        borderRadius: 22,
+        padding: 18,
         marginBottom: 24,
         borderWidth: 1,
-        borderColor: "#E5E7EB",
+        borderColor: "#EAF0F5",
     },
     summaryHeader: {
         flexDirection: "row",
@@ -367,7 +411,7 @@ const styles = StyleSheet.create({
     },
     summaryTitle: {
         fontSize: 16,
-        fontWeight: "600",
+        fontWeight: "700",
         color: "#111827",
     },
     summaryRow: {
@@ -387,17 +431,17 @@ const styles = StyleSheet.create({
     },
     divider: {
         height: 1,
-        backgroundColor: "#E5E7EB",
+        backgroundColor: "#EEF2F7",
         marginVertical: 8,
     },
     maxWithdrawableRow: {
-        backgroundColor: "#F3E8FF",
-        marginHorizontal: -16,
-        paddingHorizontal: 16,
+        backgroundColor: "#F6F5FF",
+        marginHorizontal: -18,
+        paddingHorizontal: 18,
         paddingVertical: 12,
-        marginBottom: -16,
-        borderBottomLeftRadius: 16,
-        borderBottomRightRadius: 16,
+        marginBottom: -18,
+        borderBottomLeftRadius: 22,
+        borderBottomRightRadius: 22,
     },
     maxWithdrawableLabel: {
         fontSize: 15,
@@ -413,18 +457,20 @@ const styles = StyleSheet.create({
         marginBottom: 24,
     },
     label: {
-        fontSize: 14,
-        fontWeight: "600",
-        color: "#374151",
+        fontSize: 12,
+        fontWeight: "800",
+        color: "#4B5563",
         marginBottom: 8,
+        textTransform: "uppercase",
+        letterSpacing: 0.5,
     },
     inputContainer: {
         flexDirection: "row",
         alignItems: "center",
         backgroundColor: "white",
-        borderRadius: 12,
+        borderRadius: 16,
         borderWidth: 1,
-        borderColor: "#E5E7EB",
+        borderColor: "#EAF0F5",
         paddingHorizontal: 12,
     },
     inputError: {
@@ -432,7 +478,7 @@ const styles = StyleSheet.create({
     },
     currencySymbol: {
         fontSize: 18,
-        fontWeight: "600",
+        fontWeight: "700",
         color: "#6B7280",
         marginRight: 4,
     },
@@ -458,10 +504,12 @@ const styles = StyleSheet.create({
         marginBottom: 24,
     },
     quickSelectLabel: {
-        fontSize: 14,
-        fontWeight: "600",
-        color: "#374151",
+        fontSize: 12,
+        fontWeight: "800",
+        color: "#4B5563",
         marginBottom: 8,
+        textTransform: "uppercase",
+        letterSpacing: 0.5,
     },
     quickSelectButtons: {
         flexDirection: "row",
@@ -470,24 +518,26 @@ const styles = StyleSheet.create({
     quickSelectButton: {
         flex: 1,
         backgroundColor: "white",
-        borderRadius: 8,
+        borderRadius: 999,
         borderWidth: 1,
-        borderColor: "#7C3AED",
+        borderColor: "#D7C7FA",
         paddingVertical: 10,
         alignItems: "center",
     },
     quickSelectButtonText: {
         fontSize: 14,
-        fontWeight: "600",
+        fontWeight: "700",
         color: "#7C3AED",
     },
     infoBox: {
         flexDirection: "row",
-        backgroundColor: "#F3E8FF",
-        padding: 12,
-        borderRadius: 12,
+        backgroundColor: "#F6F5FF",
+        padding: 14,
+        borderRadius: 16,
         gap: 8,
         marginTop: 8,
+        borderWidth: 1,
+        borderColor: "#E9DDFD",
     },
     infoContent: {
         flex: 1,
@@ -508,12 +558,12 @@ const styles = StyleSheet.create({
         padding: 16,
         backgroundColor: "white",
         borderTopWidth: 1,
-        borderTopColor: "#E5E7EB",
+        borderTopColor: "#EAF0F5",
     },
     submitButton: {
-        backgroundColor: "#7C3AED",
+        backgroundColor: "#00B14F",
         paddingVertical: 16,
-        borderRadius: 12,
+        borderRadius: 16,
         alignItems: "center",
     },
     submitButtonDisabled: {

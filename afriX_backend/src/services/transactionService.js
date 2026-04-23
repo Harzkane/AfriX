@@ -244,6 +244,7 @@ const transactionService = {
 
       const amountNum = parseFloat(amount);
       const amountUsdt = tokenAmountToUsdt(amount, token_type);
+      const isAdminResolved = metadata?.admin_resolved === true;
 
       // Check agent capacity (in USDT)
       if (parseFloat(agent.available_capacity) < amountUsdt) {
@@ -274,11 +275,14 @@ const transactionService = {
       agent.available_capacity -= amountUsdt;
       agent.total_minted += amountNum;
 
-      // Commission in token, convert to USDT for total_earnings
-      const commissionRate = agent.commission_rate || 0.01;
-      const commissionToken = amountNum * commissionRate;
-      const commissionUsdt = tokenAmountToUsdt(commissionToken, token_type);
-      agent.total_earnings = (parseFloat(agent.total_earnings) || 0) + commissionUsdt;
+      // Admin-resolved credits should not generate agent commission.
+      let commissionToken = 0;
+      if (!isAdminResolved) {
+        const commissionRate = agent.commission_rate || 0.01;
+        commissionToken = amountNum * commissionRate;
+        const commissionUsdt = tokenAmountToUsdt(commissionToken, token_type);
+        agent.total_earnings = (parseFloat(agent.total_earnings) || 0) + commissionUsdt;
+      }
 
       await userWallet.save({ transaction: innerT });
       await agent.save({ transaction: innerT });

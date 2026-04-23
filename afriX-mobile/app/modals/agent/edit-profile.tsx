@@ -8,6 +8,19 @@ import { useAuthStore } from "@/stores";
 import { useAgentStore } from "@/stores/slices/agentSlice";
 import { getCountryByCode, stripLeadingZero } from "@/constants/countries";
 
+const normalizeLocalPhoneInput = (value: string) =>
+    stripLeadingZero(value).replace(/\D/g, "").slice(0, 15);
+
+const formatPhoneForDisplay = (value: string) => {
+    const digits = normalizeLocalPhoneInput(value);
+
+    if (digits.length <= 3) return digits;
+    if (digits.length <= 6) return `${digits.slice(0, 3)} ${digits.slice(3)}`;
+    if (digits.length <= 10) return `${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6)}`;
+
+    return `${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6, 10)} ${digits.slice(10)}`;
+};
+
 export default function EditProfile() {
     const router = useRouter();
     const params = useLocalSearchParams();
@@ -35,8 +48,8 @@ export default function EditProfile() {
         if (user) {
             const phone = (user.phone_number || "").trim();
             const whatsapp = ((user as any).whatsapp_number || user.phone_number || "").trim();
-            setPhoneNumber(stripLeadingZero(phone));
-            setWhatsappNumber(stripLeadingZero(whatsapp));
+            setPhoneNumber(formatPhoneForDisplay(phone));
+            setWhatsappNumber(formatPhoneForDisplay(whatsapp));
         }
     }, [user]);
 
@@ -65,8 +78,8 @@ export default function EditProfile() {
         }
 
         try {
-            const phone = stripLeadingZero(phoneNumber.trim()).replace(/\D/g, "");
-            const whatsapp = (stripLeadingZero(whatsappNumber.trim()).replace(/\D/g, "") || phone);
+            const phone = normalizeLocalPhoneInput(phoneNumber.trim());
+            const whatsapp = normalizeLocalPhoneInput(whatsappNumber.trim()) || phone;
             await updateProfile({
                 phone_number: phone,
                 whatsapp_number: whatsapp,
@@ -112,6 +125,17 @@ export default function EditProfile() {
                     keyboardShouldPersistTaps="handled"
                     showsVerticalScrollIndicator={false}
                 >
+                    <LinearGradient
+                        colors={["#F7FFF9", "#FFFFFF"]}
+                        style={styles.summaryCard}
+                    >
+                        <Text style={styles.summaryEyebrow}>Agent Contact Profile</Text>
+                        <Text style={styles.summaryTitle}>Update Your Contact Details</Text>
+                        <Text style={styles.summaryText}>
+                            Keep your phone and WhatsApp details current so users can reach you quickly during exchange flows.
+                        </Text>
+                    </LinearGradient>
+
                     {countryInfo ? (
                         <View style={styles.countryRow}>
                             <Ionicons name="globe-outline" size={20} color="#6B7280" style={styles.countryIcon} />
@@ -134,7 +158,7 @@ export default function EditProfile() {
                                 style={styles.input}
                                 value={phoneNumber}
                                 onChangeText={(text) => {
-                                    setPhoneNumber(stripLeadingZero(text));
+                                    setPhoneNumber(formatPhoneForDisplay(text));
                                     if (errors.phone) setErrors({ ...errors, phone: undefined });
                                 }}
                                 placeholder="8012345678"
@@ -157,7 +181,7 @@ export default function EditProfile() {
                                 style={styles.input}
                                 value={whatsappNumber}
                                 onChangeText={(text) => {
-                                    setWhatsappNumber(stripLeadingZero(text));
+                                    setWhatsappNumber(formatPhoneForDisplay(text));
                                     if (errors.whatsapp) setErrors({ ...errors, whatsapp: undefined });
                                 }}
                                 placeholder="8012345678"
@@ -244,16 +268,44 @@ const styles = StyleSheet.create({
         padding: 16,
         paddingBottom: 100,
     },
+    summaryCard: {
+        borderRadius: 22,
+        padding: 18,
+        marginBottom: 20,
+        borderWidth: 1,
+        borderColor: "#E6F4EA",
+    },
+    summaryEyebrow: {
+        fontSize: 11,
+        fontWeight: "800",
+        color: "#00B14F",
+        textTransform: "uppercase",
+        letterSpacing: 0.5,
+        marginBottom: 6,
+    },
+    summaryTitle: {
+        fontSize: 22,
+        fontWeight: "800",
+        color: "#111827",
+        letterSpacing: -0.5,
+    },
+    summaryText: {
+        fontSize: 13,
+        lineHeight: 20,
+        color: "#6B7280",
+        fontWeight: "500",
+        marginTop: 6,
+    },
     countryRow: {
         flexDirection: "row",
         alignItems: "center",
-        backgroundColor: "#F9FAFB",
+        backgroundColor: "#FBFCFD",
         paddingVertical: 12,
         paddingHorizontal: 14,
-        borderRadius: 12,
+        borderRadius: 16,
         marginBottom: 20,
         borderWidth: 1,
-        borderColor: "#E5E7EB",
+        borderColor: "#EAF0F5",
     },
     countryIcon: {
         marginRight: 10,
@@ -273,18 +325,20 @@ const styles = StyleSheet.create({
         marginBottom: 24,
     },
     label: {
-        fontSize: 14,
-        fontWeight: "600",
-        color: "#374151",
+        fontSize: 12,
+        fontWeight: "800",
+        color: "#4B5563",
         marginBottom: 8,
+        textTransform: "uppercase",
+        letterSpacing: 0.5,
     },
     inputContainer: {
         flexDirection: "row",
         alignItems: "center",
         backgroundColor: "white",
-        borderRadius: 12,
+        borderRadius: 16,
         borderWidth: 1,
-        borderColor: "#E5E7EB",
+        borderColor: "#EAF0F5",
         paddingHorizontal: 12,
     },
     inputError: {
@@ -320,28 +374,31 @@ const styles = StyleSheet.create({
     },
     infoBox: {
         flexDirection: "row",
-        backgroundColor: "#F3E8FF",
-        padding: 12,
-        borderRadius: 12,
+        backgroundColor: "#F6F5FF",
+        padding: 14,
+        borderRadius: 16,
         gap: 8,
         marginTop: 8,
+        borderWidth: 1,
+        borderColor: "#E9DDFD",
     },
     infoText: {
         flex: 1,
         fontSize: 13,
         color: "#7C3AED",
         lineHeight: 18,
+        fontWeight: "500",
     },
     footer: {
         padding: 16,
         backgroundColor: "white",
         borderTopWidth: 1,
-        borderTopColor: "#E5E7EB",
+        borderTopColor: "#EAF0F5",
     },
     saveButton: {
-        backgroundColor: "#7C3AED",
+        backgroundColor: "#00B14F",
         paddingVertical: 16,
-        borderRadius: 12,
+        borderRadius: 16,
         alignItems: "center",
     },
     saveButtonDisabled: {

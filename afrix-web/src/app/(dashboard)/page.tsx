@@ -49,6 +49,11 @@ export default function Home() {
   const successRate = dashboard.transactions.total > 0
     ? (dashboard.transactions.completed / dashboard.transactions.total) * 100
     : 0;
+  const totalPlatformFees = parseFloat(dashboard.transactions.total_platform_fees || "0");
+  const totalAgentCommissions = parseFloat(dashboard.transactions.total_agent_commissions || "0");
+  const totalRecordedCharges = parseFloat(
+    dashboard.transactions.total_recorded_charges || dashboard.transactions.total_fees || "0",
+  );
 
   // Helper function for metric card colors
   const getMetricColor = (value: number, threshold: { warning: number; danger: number }) => {
@@ -60,11 +65,9 @@ export default function Home() {
   return (
     <>
       {/* Requires Attention Section */}
-      {dashboard.pending.total > 0 && (
-        <div className="mb-8">
-          <RequiresAttention pending={dashboard.pending} />
-        </div>
-      )}
+      <div className="mb-8">
+        <RequiresAttention pending={dashboard.pending} />
+      </div>
 
       {/* Main Metrics Grid */}
       <div className="grid gap-4 md:grid-cols-2 md:gap-8 lg:grid-cols-4 mb-8">
@@ -111,16 +114,16 @@ export default function Home() {
           </CardContent>
         </Card>
 
-        {/* Platform Revenue */}
+        {/* Platform Fees */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Platform Revenue</CardTitle>
+            <CardTitle className="text-sm font-medium">Platform Fees</CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${parseFloat(dashboard.transactions.total_fees).toLocaleString()}</div>
+            <div className="text-2xl font-bold">${totalPlatformFees.toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">
-              Total fees collected
+              Treasury-collected platform fees
             </p>
           </CardContent>
         </Card>
@@ -152,6 +155,20 @@ export default function Home() {
           </CardContent>
         </Card>
 
+        {/* Agent Commissions */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Agent Commissions</CardTitle>
+            <TrendingDown className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">${totalAgentCommissions.toLocaleString()}</div>
+            <p className="text-xs text-muted-foreground">
+              Mint/burn commissions recorded
+            </p>
+          </CardContent>
+        </Card>
+
         {/* Open Disputes */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -176,6 +193,20 @@ export default function Home() {
             <div className="text-2xl font-bold">{dashboard.transactions.recent_24h}</div>
             <p className="text-xs text-muted-foreground">
               {dashboard.transactions.pending} Pending
+            </p>
+          </CardContent>
+        </Card>
+
+        {/* Total Recorded Charges */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Recorded Charges</CardTitle>
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">${totalRecordedCharges.toLocaleString()}</div>
+            <p className="text-xs text-muted-foreground">
+              Platform fees plus agent commissions
             </p>
           </CardContent>
         </Card>

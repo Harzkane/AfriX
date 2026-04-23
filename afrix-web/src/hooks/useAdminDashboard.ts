@@ -1,6 +1,10 @@
 import { useState, useEffect } from "react";
 import api from "@/lib/api";
 
+type ApiErrorLike = {
+    message?: string;
+};
+
 interface DashboardData {
     users: {
         total: number;
@@ -23,6 +27,9 @@ interface DashboardData {
         failed: number;
         recent_24h: number;
         total_fees: string;
+        total_recorded_charges?: string;
+        total_platform_fees?: string;
+        total_agent_commissions?: string;
         volume_history: Array<{ name: string; transactions: number; activity: number }>;
         status_distribution: Array<{ name: string; value: number; color: string }>;
     };
@@ -103,6 +110,9 @@ export function useAdminDashboard(): UseDashboardReturn {
             failed: 0,
             recent_24h: 0,
             total_fees: "0.00",
+            total_recorded_charges: "0.00",
+            total_platform_fees: "0.00",
+            total_agent_commissions: "0.00",
             volume_history: [],
             status_distribution: []
         },
@@ -165,9 +175,10 @@ export function useAdminDashboard(): UseDashboardReturn {
             } else {
                 throw new Error("Failed to fetch dashboard data");
             }
-        } catch (err: any) {
+        } catch (err: unknown) {
+            const error = err as ApiErrorLike;
             console.error("Failed to fetch dashboard:", err);
-            setError(err.message || "Failed to load dashboard data");
+            setError(error.message || "Failed to load dashboard data");
         } finally {
             setIsLoading(false);
         }

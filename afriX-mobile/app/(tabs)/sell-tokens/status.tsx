@@ -10,10 +10,10 @@ import {
     Modal,
     TextInput,
     Platform,
-    Dimensions,
     RefreshControl,
     Image,
     Linking,
+    KeyboardAvoidingView,
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -24,8 +24,6 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Surface } from "react-native-paper";
 import { formatDate } from "@/utils/format";
 import apiClient from "@/services/apiClient";
-
-const { width } = Dimensions.get("window");
 
 export default function SellTokensStatusScreen() {
     const router = useRouter();
@@ -54,7 +52,7 @@ export default function SellTokensStatusScreen() {
         }, 10000);
 
         return () => clearInterval(interval);
-    }, [requestId]);
+    }, [fetchCurrentBurnRequest, requestId]);
 
     // Determine if this completed burn transaction is still eligible for rating.
     // We use /transactions/pending-review, which only returns completed mint/burn
@@ -70,16 +68,14 @@ export default function SellTokensStatusScreen() {
                 const { data } = await apiClient.get("/transactions/pending-review");
                 const pending = data?.data?.transactions || data?.data || [];
 
-                const match = pending.find(
-                    (tx: any) =>
-                        tx.agent_id === currentRequest.agent_id &&
-                        parseFloat(tx.amount) === parseFloat(currentRequest.amount) &&
-                        tx.token_type === currentRequest.token_type &&
-                        (tx.type || "").toLowerCase() === "burn"
+                const requestIdMatch = pending.find((tx: any) => tx.id === currentRequest.id);
+                const relatedRequestIdMatch = pending.find(
+                    (tx: any) => tx.request_id === currentRequest.id
                 );
+                const match = requestIdMatch || relatedRequestIdMatch;
 
                 setCanRate(!!match);
-            } catch (e) {
+            } catch {
                 // If the check fails, fall back to allowing rating.
                 setCanRate(true);
             }
@@ -221,6 +217,7 @@ export default function SellTokensStatusScreen() {
     const isRejected = currentRequest.status === BurnRequestStatus.REJECTED;
     const isDisputed = currentRequest.status === BurnRequestStatus.DISPUTED;
     const isFailed = isExpired || isRejected || isDisputed;
+    const isFiatSent = currentRequest.status === BurnRequestStatus.FIAT_SENT;
 
     const handleDismiss = () => {
         useBurnStore.getState().resetCurrentRequest();
@@ -236,15 +233,19 @@ export default function SellTokensStatusScreen() {
                     style={styles.headerGradient}
                 />
                 <SafeAreaView edges={["top"]} style={styles.headerContent}>
-                    <View style={styles.header}>
+                    <View style={styles.headerTop}>
                         <TouchableOpacity
                             onPress={() => router.push("/activity")}
                             style={styles.backButton}
                         >
                             <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
                         </TouchableOpacity>
-                        <Text style={styles.headerTitle}>Sell Request Status</Text>
-                        <View style={{ width: 40 }} />
+                        <View style={styles.headerText}>
+                            <Text style={styles.headerTitle}>Sell Request Status</Text>
+                            <Text style={styles.headerSubtitle}>
+                                Track your payout progress and confirm once the bank transfer lands.
+                            </Text>
+                        </View>
                     </View>
                 </SafeAreaView>
             </View>
@@ -257,35 +258,57 @@ export default function SellTokensStatusScreen() {
                     <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#00B14F" />
                 }
             >
-                {/* Main Status Card */}
-                <Surface style={styles.statusCard} elevation={0}>
-                    <View style={[styles.statusIconBg, { backgroundColor: getStatusColor(currentRequest.status) + "20" }]}>
-                        <Ionicons
-                            name={currentRequest.status === BurnRequestStatus.CONFIRMED ? "checkmark-circle" : "time"}
-                            size={40}
-                            color={getStatusColor(currentRequest.status)}
-                        />
+                <LinearGradient
+                    colors={["#F7FFF9", "#FFFFFF"]}
+                    style={styles.summaryCard}
+                >
+                    <Text style={styles.summaryEyebrow}>Live Status</Text>
+                    <Text style={styles.summaryTitle}>Stay on top of this sell request</Text>
+                    <Text style={styles.summaryText}>
+                        Follow escrow, payout, and confirmation steps so you can act quickly whenever the request needs your attention.
+                    </Text>
+                </LinearGradient>
+
+                <View style={styles.statusChipContainer}>
+                    <View style={[styles.statusBadge, { backgroundColor: getStatusColor(currentRequest.status) + "20" }]}>
+                        <Text style={[styles.statusBadgeText, { color: getStatusColor(currentRequest.status) }]}>
+                            {currentRequest.status.replace("_", " ").toUpperCase()}
+                        </Text>
                     </View>
-                    <Text style={[styles.statusTitle, { color: getStatusColor(currentRequest.status) }]}>
-                        {getStatusText(currentRequest.status)}
-                    </Text>
-                    <Text style={styles.amountText}>
-                        {parseFloat(currentRequest.amount).toLocaleString()} <Text style={styles.tokenSymbol}>{currentRequest.token_type}</Text>
-                    </Text>
-                    <View style={styles.refContainer}>
-                        <Text style={styles.refLabel}>Ref:</Text>
-                        <Text style={styles.refValue}>{currentRequest.id.split('-')[0].toUpperCase()}</Text>
+                    <Text style={styles.refText}>Ref: {currentRequest.id.split("-")[0].toUpperCase()}</Text>
+                </View>
+
+                <Surface style={styles.card} elevation={0}>
+                    <Text style={styles.cardTitle}>Transaction Details</Text>
+
+                    <View style={styles.detail}>
+                        <Text style={styles.detailLabel}>Amount to Sell</Text>
+                        <Text style={styles.detailValue}>
+                            {parseFloat(currentRequest.amount).toLocaleString()}{" "}
+                            <Text style={styles.tokenSymbol}>{currentRequest.token_type}</Text>
+                        </Text>
                     </View>
 
-                    <View style={styles.dateContainer}>
-                        <Ionicons name="calendar-outline" size={14} color="#9CA3AF" />
-                        <Text style={styles.dateText}>{formatDate(currentRequest.created_at, true)}</Text>
+                    <View style={styles.divider} />
+
+                    <View style={styles.detail}>
+                        <Text style={styles.detailLabel}>Current Status</Text>
+                        <Text style={[styles.detailText, { color: getStatusColor(currentRequest.status) }]}>
+                            {getStatusText(currentRequest.status)}
+                        </Text>
+                    </View>
+
+                    <View style={styles.divider} />
+
+                    <View style={styles.detail}>
+                        <Text style={styles.detailLabel}>Date Created</Text>
+                        <Text style={styles.detailText}>{formatDate(currentRequest.created_at, true)}</Text>
                     </View>
                 </Surface>
 
                 {/* Expiry / Error Banner */}
                 {isFailed && (
-                    <Surface style={[styles.instructionCard, {
+                    <Surface style={[styles.messageCard, styles.errorMessage, {
                         backgroundColor: isDisputed ? "#FFFBEB" : "#FEF2F2",
                         borderColor: isDisputed ? "#FEF3C7" : "#FEE2E2"
                     }]} elevation={0}>
@@ -294,11 +317,11 @@ export default function SellTokensStatusScreen() {
                             size={24}
                             color={isDisputed ? "#F59E0B" : "#EF4444"}
                         />
-                        <View style={{ flex: 1 }}>
-                            <Text style={[styles.instructionTitle, { color: isDisputed ? "#92400E" : "#991B1B" }]}>
+                        <View style={styles.messageContent}>
+                            <Text style={[styles.messageTitle, { color: isDisputed ? "#92400E" : "#991B1B" }]}>
                                 {isExpired ? "Request Expired" : isRejected ? "Request Rejected" : "Dispute Opened"}
                             </Text>
-                            <Text style={[styles.instructionText, { color: isDisputed ? "#92400E" : "#B91C1C" }]}>
+                            <Text style={[styles.messageText, { color: isDisputed ? "#92400E" : "#B91C1C" }]}>
                                 {isDisputed
                                     ? "This request expired after the agent claimed to have paid. A dispute has been automatically opened for admin review."
                                     : isExpired
@@ -311,7 +334,7 @@ export default function SellTokensStatusScreen() {
 
                 {/* Timeline Section */}
                 <Surface style={styles.card} elevation={0}>
-                    <Text style={styles.cardTitle}>Activity Progress</Text>
+                    <Text style={styles.cardTitle}>Tracking Progress</Text>
                     <View style={styles.timeline}>
                         {/* Step 1: Request Created */}
                         <View style={styles.timelineItem}>
@@ -401,13 +424,25 @@ export default function SellTokensStatusScreen() {
                     )}
 
                 {/* Info Card for status instructions */}
-                {currentRequest.status === BurnRequestStatus.FIAT_SENT && (
-                    <Surface style={styles.instructionCard} elevation={0}>
+                {isFiatSent && (
+                    <Surface style={[styles.messageCard, styles.warningMessage]} elevation={0}>
                         <Ionicons name="information-circle" size={24} color="#3B82F6" />
-                        <View style={{ flex: 1 }}>
-                            <Text style={styles.instructionTitle}>Payment Confirmation</Text>
-                            <Text style={styles.instructionText}>
+                        <View style={styles.messageContent}>
+                            <Text style={[styles.messageTitle, { color: "#1E40AF" }]}>Payment Confirmation</Text>
+                            <Text style={[styles.messageText, { color: "#1E3A8A" }]}>
                                 The agent claims the payment has been sent. Please verify the amount in your bank account before confirming.
+                            </Text>
+                        </View>
+                    </Surface>
+                )}
+
+                {isCompleted && (
+                    <Surface style={[styles.messageCard, styles.successMessage]} elevation={0}>
+                        <Ionicons name="checkmark-circle" size={24} color="#00B14F" />
+                        <View style={styles.messageContent}>
+                            <Text style={styles.successTitle}>Sell Request Completed</Text>
+                            <Text style={styles.successText}>
+                                Your {parseFloat(currentRequest.amount).toLocaleString()} {currentRequest.token_type} request has been completed and escrow has been released.
                             </Text>
                         </View>
                     </Surface>
@@ -416,7 +451,7 @@ export default function SellTokensStatusScreen() {
                 {/* Rate Experience (only for completed, unreviewed burn transactions) */}
                 {currentRequest.status === BurnRequestStatus.CONFIRMED && canRate && (
                     <TouchableOpacity
-                        style={styles.rateButton}
+                        style={styles.primaryBtn}
                         onPress={async () => {
                             try {
                                 const { data } = await apiClient.get("/transactions");
@@ -433,7 +468,7 @@ export default function SellTokensStatusScreen() {
                                     pathname: "/modals/buy-tokens/rate-agent",
                                     params: { transactionId: match?.id || currentRequest.id },
                                 });
-                            } catch (e) {
+                            } catch {
                                 router.replace({
                                     pathname: "/modals/buy-tokens/rate-agent",
                                     params: { transactionId: currentRequest.id },
@@ -442,28 +477,47 @@ export default function SellTokensStatusScreen() {
                         }}
                         activeOpacity={0.8}
                     >
+                        <Text style={styles.primaryBtnText}>Rate Experience</Text>
                         <Ionicons name="star" size={20} color="#FFFFFF" />
-                        <Text style={styles.rateButtonText}>Rate Experience</Text>
                     </TouchableOpacity>
                 )}
 
                 {/* Back to Dashboard / Dismiss Button */}
                 {isFailed ? (
-                    <TouchableOpacity
-                        style={styles.rateButton} // Reuse green button style for prominence
-                        onPress={handleDismiss}
-                    >
-                        <Text style={styles.rateButtonText}>Dismiss & Go Home</Text>
-                    </TouchableOpacity>
+                    <View style={styles.footerRow}>
+                        <TouchableOpacity
+                            style={styles.dismissBtn}
+                            onPress={handleDismiss}
+                        >
+                            <Text style={styles.dismissBtnText}>Dismiss</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={[styles.primaryBtn, { flex: 1 }]}
+                            onPress={() => router.replace("/(tabs)/sell-tokens")}
+                        >
+                            <Text style={styles.primaryBtnText}>Try Again</Text>
+                            <Ionicons name="refresh" size={20} color="#FFFFFF" />
+                        </TouchableOpacity>
+                    </View>
                 ) : (
-                    <TouchableOpacity
-                        style={styles.dashboardButton}
-                        onPress={() => router.replace("/(tabs)")}
-                    >
-                        <Ionicons name="home-outline" size={20} color="#6B7280" />
-                        <Text style={styles.dashboardButtonText}>Back to Dashboard</Text>
-                    </TouchableOpacity>
+                    !canRate && (
+                        <TouchableOpacity
+                            style={styles.secondaryBtn}
+                            onPress={() => router.replace("/(tabs)")}
+                        >
+                            <Ionicons name="home-outline" size={20} color="#6B7280" />
+                            <Text style={styles.secondaryBtnText}>Dashboard</Text>
+                        </TouchableOpacity>
+                    )
                 )}
+
+                <TouchableOpacity
+                    style={styles.helpLink}
+                    onPress={() => router.push("/(tabs)/profile")}
+                >
+                    <Text style={styles.helpLinkText}>Need help with this request?</Text>
+                    <Text style={styles.supportText}>Contact Support</Text>
+                </TouchableOpacity>
             </ScrollView>
 
             {/* Sticky Footer for current action */}
@@ -473,7 +527,7 @@ export default function SellTokensStatusScreen() {
                         style={styles.disputeActionBtn}
                         onPress={handleOpenDispute}
                     >
-                        <Text style={styles.disputeActionText}>I Didn't Receive It</Text>
+                        <Text style={styles.disputeActionText}>I Didn&apos;t Receive It</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                         style={styles.confirmActionBtn}
@@ -491,23 +545,33 @@ export default function SellTokensStatusScreen() {
                 transparent={true}
                 onRequestClose={() => setShowDisputeModal(false)}
             >
-                <View style={styles.modalOverlay}>
+                <KeyboardAvoidingView
+                    behavior={Platform.OS === "ios" ? "padding" : "height"}
+                    style={styles.modalOverlay}
+                >
                     <View style={styles.modalContent}>
+                        <View style={styles.modalHandle} />
                         <View style={styles.modalHeader}>
-                            <Text style={styles.modalTitle}>Open Dispute</Text>
+                            <View style={styles.modalTitleWrap}>
+                                <View style={styles.modalIconWrap}>
+                                    <Ionicons name="shield-outline" size={18} color="#F59E0B" />
+                                </View>
+                                <Text style={styles.modalTitle}>Open Dispute</Text>
+                            </View>
                             <TouchableOpacity onPress={() => setShowDisputeModal(false)}>
                                 <Ionicons name="close" size={24} color="#111827" />
                             </TouchableOpacity>
                         </View>
 
                         <Text style={styles.modalDescription}>
-                            Please explain why you didn't receive the payment. Our support team will investigate.
+                            Please explain why you didn&apos;t receive the payment. Our support team will investigate.
                         </Text>
 
                         <Text style={styles.inputLabel}>Reason *</Text>
                         <TextInput
                             style={styles.input}
                             placeholder="e.g., No payment received in my account"
+                            placeholderTextColor="#98A2B3"
                             value={disputeReason}
                             onChangeText={setDisputeReason}
                             multiline
@@ -518,6 +582,7 @@ export default function SellTokensStatusScreen() {
                         <TextInput
                             style={[styles.input, styles.textArea]}
                             placeholder="Provide any additional information..."
+                            placeholderTextColor="#98A2B3"
                             value={disputeDetails}
                             onChangeText={setDisputeDetails}
                             multiline
@@ -544,7 +609,7 @@ export default function SellTokensStatusScreen() {
                             </TouchableOpacity>
                         </View>
                     </View>
-                </View>
+                </KeyboardAvoidingView>
             </Modal>
         </View>
     );
@@ -559,31 +624,43 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     headerWrapper: {
-        marginBottom: 0,
+        marginBottom: 8,
     },
     headerGradient: {
         position: "absolute",
         top: 0,
         left: 0,
         right: 0,
-        height: 140,
+        height: 125,
     },
     headerContent: {
         paddingHorizontal: 20,
     },
-    header: {
+    headerTop: {
         flexDirection: "row",
-        justifyContent: "space-between",
-        alignItems: "center",
-        paddingBottom: 20,
+        alignItems: "flex-start",
         marginTop: 10,
+        paddingBottom: 0,
+    },
+    headerText: {
+        flex: 1,
     },
     headerTitle: {
-        fontSize: 18,
+        fontSize: 24,
         fontWeight: "700",
         color: "#FFFFFF",
+        marginBottom: 2,
+        letterSpacing: -0.5,
+    },
+    headerSubtitle: {
+        fontSize: 13,
+        color: "rgba(255, 255, 255, 0.9)",
+        fontWeight: "500",
+        lineHeight: 18,
     },
     backButton: {
+        marginRight: 12,
+        marginTop: 4,
         width: 40,
         height: 40,
         borderRadius: 20,
@@ -604,74 +681,57 @@ const styles = StyleSheet.create({
         fontWeight: "500",
     },
     content: {
-        padding: 20,
+        paddingHorizontal: 20,
         paddingBottom: 40,
     },
-    statusCard: {
-        backgroundColor: "#FFFFFF",
+    summaryCard: {
         borderRadius: 24,
-        padding: 24,
-        alignItems: "center",
+        padding: 20,
         marginBottom: 20,
-        marginTop: 10,
         borderWidth: 1,
-        borderColor: "#F3F4F6",
+        borderColor: "#E6F4EA",
     },
-    statusIconBg: {
-        width: 80,
-        height: 80,
-        borderRadius: 40,
+    summaryEyebrow: {
+        fontSize: 11,
+        fontWeight: "800",
+        color: "#00B14F",
+        textTransform: "uppercase",
+        letterSpacing: 0.5,
+        marginBottom: 8,
+    },
+    summaryTitle: {
+        fontSize: 22,
+        fontWeight: "700",
+        color: "#111827",
+        marginBottom: 8,
+        letterSpacing: -0.4,
+    },
+    summaryText: {
+        fontSize: 14,
+        color: "#6B7280",
+        lineHeight: 21,
+    },
+    statusChipContainer: {
+        flexDirection: "row",
+        justifyContent: "space-between",
         alignItems: "center",
-        justifyContent: "center",
         marginBottom: 16,
     },
-    statusTitle: {
-        fontSize: 20,
-        fontWeight: "800",
-        marginBottom: 8,
-        textAlign: "center",
-    },
-    amountText: {
-        fontSize: 24,
-        fontWeight: "800",
-        color: "#111827",
-        marginBottom: 12,
-    },
-    tokenSymbol: {
-        fontSize: 14,
-        fontWeight: "600",
-        color: "#6B7280",
-    },
-    refContainer: {
-        flexDirection: "row",
-        gap: 6,
-        alignItems: "center",
-        backgroundColor: "#F9FAFB",
+    statusBadge: {
         paddingHorizontal: 12,
-        paddingVertical: 4,
-        borderRadius: 12,
+        paddingVertical: 6,
+        borderRadius: 20,
     },
-    refLabel: {
+    statusBadgeText: {
         fontSize: 12,
-        color: "#9CA3AF",
-        fontWeight: "600",
+        fontWeight: "700",
+        letterSpacing: 0.5,
     },
-    refValue: {
+    refText: {
         fontSize: 12,
         color: "#6B7280",
         fontWeight: "700",
         fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
-    },
-    dateContainer: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 6,
-        marginTop: 12,
-    },
-    dateText: {
-        fontSize: 13,
-        color: "#9CA3AF",
-        fontWeight: "500",
     },
     card: {
         backgroundColor: "#FFFFFF",
@@ -686,6 +746,36 @@ const styles = StyleSheet.create({
         fontWeight: "700",
         color: "#111827",
         marginBottom: 20,
+    },
+    detail: {
+        gap: 6,
+    },
+    detailLabel: {
+        fontSize: 12,
+        fontWeight: "700",
+        color: "#6B7280",
+        textTransform: "uppercase",
+        letterSpacing: 0.4,
+    },
+    detailValue: {
+        fontSize: 24,
+        fontWeight: "800",
+        color: "#111827",
+    },
+    tokenSymbol: {
+        fontSize: 14,
+        fontWeight: "600",
+        color: "#6B7280",
+    },
+    detailText: {
+        fontSize: 14,
+        color: "#111827",
+        fontWeight: "600",
+    },
+    divider: {
+        height: 1,
+        backgroundColor: "#F3F4F6",
+        marginVertical: 16,
     },
     timeline: {
         paddingLeft: 4,
@@ -742,25 +832,47 @@ const styles = StyleSheet.create({
         color: "#6B7280",
         lineHeight: 18,
     },
-    instructionCard: {
-        backgroundColor: "#EFF6FF",
+    messageCard: {
         borderRadius: 16,
         padding: 16,
         flexDirection: "row",
         gap: 12,
-        borderWidth: 1,
-        borderColor: "#DBEAFE",
         marginBottom: 20,
     },
-    instructionTitle: {
+    messageContent: {
+        flex: 1,
+    },
+    messageTitle: {
         fontSize: 15,
         fontWeight: "700",
-        color: "#1E40AF",
         marginBottom: 4,
     },
-    instructionText: {
+    messageText: {
         fontSize: 13,
-        color: "#1E3A8A",
+        lineHeight: 18,
+    },
+    warningMessage: {
+        backgroundColor: "#EFF6FF",
+        borderWidth: 1,
+        borderColor: "#DBEAFE",
+    },
+    successMessage: {
+        backgroundColor: "#F0FDF4",
+        borderWidth: 1,
+        borderColor: "#D1FAE5",
+    },
+    errorMessage: {
+        borderWidth: 1,
+    },
+    successTitle: {
+        fontSize: 16,
+        fontWeight: "700",
+        color: "#166534",
+        marginBottom: 4,
+    },
+    successText: {
+        fontSize: 13,
+        color: "#166534",
         lineHeight: 18,
     },
     proofHint: {
@@ -781,7 +893,7 @@ const styles = StyleSheet.create({
         textAlign: "center",
         marginTop: 8,
     },
-    dashboardButton: {
+    secondaryBtn: {
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "center",
@@ -792,14 +904,13 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         borderColor: "#E5E7EB",
     },
-    dashboardButtonText: {
+    secondaryBtnText: {
         color: "#4B5563",
         fontWeight: "700",
         fontSize: 15,
     },
-    rateButton: {
-        marginTop: 16,
-        marginBottom: 8,
+    primaryBtn: {
+        marginTop: 4,
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "center",
@@ -814,10 +925,45 @@ const styles = StyleSheet.create({
         shadowRadius: 8,
         elevation: 4,
     },
-    rateButtonText: {
+    primaryBtnText: {
         color: "#FFFFFF",
         fontWeight: "700",
         fontSize: 15,
+    },
+    footerRow: {
+        flexDirection: "row",
+        gap: 12,
+        marginTop: 4,
+        marginBottom: 8,
+    },
+    dismissBtn: {
+        paddingHorizontal: 18,
+        justifyContent: "center",
+        alignItems: "center",
+        borderRadius: 16,
+        backgroundColor: "#FFFFFF",
+        borderWidth: 1,
+        borderColor: "#E5E7EB",
+    },
+    dismissBtnText: {
+        color: "#4B5563",
+        fontWeight: "700",
+        fontSize: 15,
+    },
+    helpLink: {
+        alignItems: "center",
+        paddingVertical: 18,
+    },
+    helpLinkText: {
+        fontSize: 14,
+        color: "#6B7280",
+        fontWeight: "500",
+        marginBottom: 2,
+    },
+    supportText: {
+        fontSize: 14,
+        color: "#00B14F",
+        fontWeight: "700",
     },
     stickyFooter: {
         flexDirection: "row",
@@ -888,24 +1034,46 @@ const styles = StyleSheet.create({
     },
     modalOverlay: {
         flex: 1,
-        backgroundColor: "rgba(0, 0, 0, 0.4)",
+        backgroundColor: "rgba(15, 23, 42, 0.45)",
         justifyContent: "flex-end",
     },
     modalContent: {
         backgroundColor: "#FFFFFF",
-        borderTopLeftRadius: 30,
-        borderTopRightRadius: 30,
-        padding: 24,
-        paddingBottom: Platform.OS === 'ios' ? 40 : 24,
+        borderTopLeftRadius: 28,
+        borderTopRightRadius: 28,
+        paddingHorizontal: 20,
+        paddingTop: 12,
+        paddingBottom: Platform.OS === 'ios' ? 36 : 24,
+    },
+    modalHandle: {
+        alignSelf: "center",
+        width: 44,
+        height: 5,
+        borderRadius: 999,
+        backgroundColor: "#D0D5DD",
+        marginBottom: 16,
     },
     modalHeader: {
         flexDirection: "row",
         justifyContent: "space-between",
         alignItems: "center",
-        marginBottom: 20,
+        marginBottom: 16,
+    },
+    modalTitleWrap: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 10,
+    },
+    modalIconWrap: {
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: "#FFF7E8",
     },
     modalTitle: {
-        fontSize: 22,
+        fontSize: 20,
         fontWeight: "800",
         color: "#111827",
     },
@@ -922,10 +1090,10 @@ const styles = StyleSheet.create({
         marginBottom: 8,
     },
     input: {
-        backgroundColor: "#F9FAFB",
+        backgroundColor: "#FBFCFD",
         borderWidth: 1,
-        borderColor: "#E5E7EB",
-        borderRadius: 12,
+        borderColor: "#E4E7EC",
+        borderRadius: 16,
         padding: 14,
         fontSize: 15,
         color: "#111827",
@@ -942,8 +1110,8 @@ const styles = StyleSheet.create({
     },
     modalButton: {
         flex: 1,
-        height: 54,
-        borderRadius: 12,
+        height: 56,
+        borderRadius: 16,
         alignItems: "center",
         justifyContent: "center",
     },

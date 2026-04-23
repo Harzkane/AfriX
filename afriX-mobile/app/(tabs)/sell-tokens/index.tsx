@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import {
     View,
     Text,
@@ -23,17 +23,13 @@ export default function SellTokensScreen() {
     const router = useRouter();
     const params = useLocalSearchParams();
     const { wallets } = useWalletStore();
+    const scrollViewRef = useRef<ScrollView | null>(null);
     const [amount, setAmount] = useState("");
     const [selectedToken, setSelectedToken] = useState("NT");
 
     // Check if agent is pre-selected from agent profile
     const preSelectedAgentId = params.agentId as string | undefined;
     const preSelectedAgentName = params.agentName as string | undefined;
-
-    const getBalance = (token: string) => {
-        const wallet = wallets.find((w) => w.token_type === token);
-        return wallet ? parseFloat(wallet.balance).toFixed(2) : "0.00";
-    };
 
     const getAvailableBalance = (token: string) => {
         const wallet = wallets.find((w) => w.token_type === token);
@@ -98,11 +94,20 @@ export default function SellTokensScreen() {
         }
     };
 
+    const handleAmountFocus = () => {
+        setTimeout(() => {
+            scrollViewRef.current?.scrollTo({
+                y: 500,
+                animated: true,
+            });
+        }, 120);
+    };
+
     return (
         <KeyboardAvoidingView
-            behavior={Platform.OS === "ios" ? "padding" : "height"}
+            behavior={Platform.OS === "ios" ? "padding" : "padding"}
             style={styles.keyboardView}
-            keyboardVerticalOffset={Platform.OS === "ios" ? -8 : 12}
+            keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 72}
         >
             <View style={styles.container}>
                 <View style={styles.headerWrapper}>
@@ -113,7 +118,7 @@ export default function SellTokensScreen() {
                     <SafeAreaView edges={["top"]} style={styles.headerContent}>
                         <View style={styles.header}>
                             <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-                                <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
+                                <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
                             </TouchableOpacity>
                             <Text style={styles.headerTitle}>Sell Tokens</Text>
                             <View style={{ width: 24 }} />
@@ -122,11 +127,24 @@ export default function SellTokensScreen() {
                 </View>
 
                 <ScrollView
+                    ref={scrollViewRef}
                     style={styles.scrollView}
                     contentContainerStyle={styles.content}
                     keyboardShouldPersistTaps="handled"
                     showsVerticalScrollIndicator={false}
                 >
+                    <LinearGradient
+                        colors={["#F7FFF9", "#FFFFFF"]}
+                        style={styles.heroCard}
+                    >
+                        <Text style={styles.heroEyebrow}>Redeem Through An Agent</Text>
+                        <Text style={styles.heroTitle}>Sell tokens securely</Text>
+                        <Text style={styles.heroSubtitle}>
+                            Choose the token you want to redeem, enter the amount, and continue to an agent who will settle your payout.
+                        </Text>
+                    </LinearGradient>
+
+                    <Text style={styles.sectionEyebrow}>Token Selection</Text>
                     <Text style={styles.label}>Select Token to Sell</Text>
                     <View style={styles.tokenContainer}>
                         {TOKENS.map((token) => (
@@ -138,6 +156,9 @@ export default function SellTokensScreen() {
                                 ]}
                                 onPress={() => setSelectedToken(token)}
                             >
+                                <Text style={styles.tokenEyebrow}>
+                                    {token === "NT" ? "Domestic" : token === "CT" ? "Regional" : "Reserve"}
+                                </Text>
                                 <Text
                                     style={[
                                         styles.tokenText,
@@ -150,6 +171,7 @@ export default function SellTokensScreen() {
                         ))}
                     </View>
 
+                    <Text style={styles.sectionEyebrow}>Redeem Amount</Text>
                     <Text style={styles.label}>Amount</Text>
                     <View style={styles.inputContainer}>
                         <TextInput
@@ -159,41 +181,13 @@ export default function SellTokensScreen() {
                             keyboardType="numeric"
                             value={formatAmountForInput(amount, tokenTypeForFormat)}
                             onChangeText={handleAmountChange}
-                            autoFocus
+                            onFocus={handleAmountFocus}
                         />
                         <Text style={styles.currencySuffix}>{selectedToken}</Text>
                     </View>
-
-                    {/* Preset Amounts + MAX */}
-                    <View style={styles.presets}>
-                        {PRESET_AMOUNTS.map((preset) => (
-                            <TouchableOpacity
-                                key={preset}
-                                style={[
-                                    styles.presetBtn,
-                                    amountNum === preset && styles.presetBtnActive,
-                                ]}
-                                onPress={() => handleSetPreset(preset)}
-                                activeOpacity={0.7}
-                            >
-                                <Text
-                                    style={[
-                                        styles.presetText,
-                                        amountNum === preset && styles.presetTextActive,
-                                    ]}
-                                >
-                                    {preset.toLocaleString()}
-                                </Text>
-                            </TouchableOpacity>
-                        ))}
-                        <TouchableOpacity
-                            style={styles.maxBtn}
-                            onPress={handleSetMax}
-                            activeOpacity={0.7}
-                        >
-                            <Text style={styles.maxBtnText}>MAX</Text>
-                        </TouchableOpacity>
-                    </View>
+                    <Text style={styles.inputHint}>
+                        Enter the amount of {selectedToken} you want the agent to buy from you.
+                    </Text>
 
                     <Text style={styles.balanceText}>
                         Available Balance: {formatAmount(availableBalance, selectedToken)} {selectedToken}
@@ -214,6 +208,40 @@ export default function SellTokensScreen() {
                         <Text style={styles.infoText}>
                             Tokens will be held in escrow until the agent confirms payment to your bank account.
                         </Text>
+                    </View>
+
+                    {/* Preset Amounts + MAX */}
+                    <View style={styles.presetsSection}>
+                        <Text style={styles.presetsLabel}>Quick Amounts</Text>
+                        <View style={styles.presets}>
+                            {PRESET_AMOUNTS.map((preset) => (
+                                <TouchableOpacity
+                                    key={preset}
+                                    style={[
+                                        styles.presetBtn,
+                                        amountNum === preset && styles.presetBtnActive,
+                                    ]}
+                                    onPress={() => handleSetPreset(preset)}
+                                    activeOpacity={0.7}
+                                >
+                                    <Text
+                                        style={[
+                                            styles.presetText,
+                                            amountNum === preset && styles.presetTextActive,
+                                        ]}
+                                    >
+                                        {preset.toLocaleString()}
+                                    </Text>
+                                </TouchableOpacity>
+                            ))}
+                            <TouchableOpacity
+                                style={styles.maxBtn}
+                                onPress={handleSetMax}
+                                activeOpacity={0.7}
+                            >
+                                <Text style={styles.maxBtnText}>MAX</Text>
+                            </TouchableOpacity>
+                        </View>
                     </View>
                 </ScrollView>
 
@@ -253,7 +281,7 @@ const styles = StyleSheet.create({
         top: 0,
         left: 0,
         right: 0,
-        height: 120,
+        height: 108,
     },
     headerContent: {
         paddingHorizontal: 16,
@@ -285,6 +313,41 @@ const styles = StyleSheet.create({
         padding: 20,
         paddingBottom: 24,
     },
+    heroCard: {
+        borderRadius: 24,
+        padding: 20,
+        marginBottom: 28,
+        borderWidth: 1,
+        borderColor: "#E6F4EA",
+    },
+    heroEyebrow: {
+        fontSize: 11,
+        fontWeight: "800",
+        color: "#00B14F",
+        textTransform: "uppercase",
+        letterSpacing: 0.5,
+        marginBottom: 6,
+    },
+    heroTitle: {
+        fontSize: 24,
+        fontWeight: "700",
+        color: "#111827",
+        marginBottom: 8,
+        letterSpacing: -0.4,
+    },
+    heroSubtitle: {
+        fontSize: 15,
+        color: "#6B7280",
+        lineHeight: 22,
+    },
+    sectionEyebrow: {
+        fontSize: 11,
+        fontWeight: "800",
+        color: "#00B14F",
+        textTransform: "uppercase",
+        letterSpacing: 0.5,
+        marginBottom: 6,
+    },
     label: {
         fontSize: 14,
         fontWeight: "500",
@@ -298,9 +361,9 @@ const styles = StyleSheet.create({
     },
     tokenButton: {
         flex: 1,
-        paddingVertical: 12,
-        borderRadius: 12,
-        backgroundColor: "#F9FAFB",
+        paddingVertical: 16,
+        borderRadius: 18,
+        backgroundColor: "#FFFFFF",
         borderWidth: 1,
         borderColor: "#E5E7EB",
         alignItems: "center",
@@ -313,6 +376,14 @@ const styles = StyleSheet.create({
         fontSize: 16,
         fontWeight: "600",
         color: "#374151",
+    },
+    tokenEyebrow: {
+        fontSize: 10,
+        fontWeight: "800",
+        color: "#9CA3AF",
+        textTransform: "uppercase",
+        letterSpacing: 0.5,
+        marginBottom: 6,
     },
     selectedTokenText: {
         color: "#00B14F",
@@ -337,6 +408,11 @@ const styles = StyleSheet.create({
         color: "#9CA3AF",
         marginLeft: 8,
     },
+    inputHint: {
+        fontSize: 12,
+        color: "#6B7280",
+        marginBottom: 12,
+    },
     balanceText: {
         fontSize: 14,
         color: "#6B7280",
@@ -346,7 +422,17 @@ const styles = StyleSheet.create({
         flexDirection: "row",
         flexWrap: "wrap",
         gap: 8,
-        marginBottom: 16,
+    },
+    presetsSection: {
+        marginTop: 20,
+    },
+    presetsLabel: {
+        fontSize: 12,
+        fontWeight: "700",
+        color: "#6B7280",
+        textTransform: "uppercase",
+        letterSpacing: 0.5,
+        marginBottom: 10,
     },
     presetBtn: {
         paddingHorizontal: 16,

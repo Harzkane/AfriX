@@ -30,6 +30,21 @@ export interface MintRequest {
     amount: string;
     token_type: string;
   };
+  latest_dispute?: {
+    id: string;
+    status: string;
+    escalation_level?: string;
+    reason?: string;
+    details?: string;
+    created_at: string;
+    updated_at: string;
+    resolution?: {
+      action?: string;
+      notes?: string | null;
+      resolved_by?: string;
+      penalty_amount_usd?: number;
+    } | null;
+  } | null;
 }
 
 export interface MintRequestState {

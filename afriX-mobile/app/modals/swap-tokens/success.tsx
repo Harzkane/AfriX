@@ -1,14 +1,16 @@
 // app/modals/swap-tokens/success.tsx
 import React, { useEffect } from "react";
-import { View, StyleSheet, TouchableOpacity } from "react-native";
+import { View, StyleSheet, TouchableOpacity, ScrollView } from "react-native";
 import { Text } from "react-native-paper";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useSwapStore } from "@/stores";
 import * as Haptics from "expo-haptics";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function SwapSuccessScreen() {
     const router = useRouter();
+    const insets = useSafeAreaInsets();
     const { fromToken, toToken, amount, estimatedReceive, swapFee, lastFee, lastReceivedAmount, reset } = useSwapStore();
 
     const amountNum = parseFloat(amount) || 0;
@@ -31,8 +33,13 @@ export default function SwapSuccessScreen() {
     };
 
     return (
-        <View style={styles.container}>
-            <View style={styles.content}>
+        <SafeAreaView style={styles.container} edges={["bottom"]}>
+            <ScrollView
+                bounces={false}
+                contentContainerStyle={[styles.scrollContent, { paddingBottom: Math.max(insets.bottom, 20) + 20 }]}
+                showsVerticalScrollIndicator={false}
+            >
+                <View style={styles.content}>
                 {/* Success Icon */}
                 <View style={styles.iconContainer}>
                     <View style={styles.successCircle}>
@@ -45,6 +52,14 @@ export default function SwapSuccessScreen() {
                 <Text style={styles.subtitle}>
                     Your tokens have been swapped successfully
                 </Text>
+
+                <View style={styles.summaryCard}>
+                    <Text style={styles.summaryEyebrow}>Completed</Text>
+                    <Text style={styles.summaryTitle}>Your balances are updated</Text>
+                    <Text style={styles.summaryText}>
+                        The conversion is complete and the received token amount is now reflected in your wallet.
+                    </Text>
+                </View>
 
                 {/* Swap Details */}
                 <View style={styles.detailsCard}>
@@ -110,8 +125,9 @@ export default function SwapSuccessScreen() {
                         <Text style={styles.doneBtnText}>Done</Text>
                     </TouchableOpacity>
                 </View>
-            </View>
-        </View>
+                </View>
+            </ScrollView>
+        </SafeAreaView>
     );
 }
 
@@ -120,18 +136,21 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: "#FFFFFF",
     },
+    scrollContent: {
+        flexGrow: 1,
+    },
     content: {
-        flex: 1,
+        flexGrow: 1,
         paddingHorizontal: 20,
-        paddingTop: 60,
+        // paddingTop: 60,
         alignItems: "center",
     },
     iconContainer: {
         marginBottom: 32,
     },
     successCircle: {
-        width: 120,
-        height: 120,
+        width: 100,
+        height: 100,
         borderRadius: 60,
         backgroundColor: "#00B14F",
         alignItems: "center",
@@ -152,14 +171,43 @@ const styles = StyleSheet.create({
     subtitle: {
         fontSize: 16,
         color: "#9CA3AF",
-        marginBottom: 40,
+        marginBottom: 24,
         textAlign: "center",
+    },
+    summaryCard: {
+        width: "100%",
+        backgroundColor: "#F7FFF9",
+        padding: 20,
+        borderRadius: 20,
+        marginBottom: 24,
+        borderWidth: 1,
+        borderColor: "#E6F4EA",
+    },
+    summaryEyebrow: {
+        fontSize: 11,
+        fontWeight: "800",
+        color: "#00B14F",
+        textTransform: "uppercase",
+        letterSpacing: 0.5,
+        marginBottom: 8,
+    },
+    summaryTitle: {
+        fontSize: 22,
+        fontWeight: "700",
+        color: "#111827",
+        marginBottom: 8,
+        letterSpacing: -0.4,
+    },
+    summaryText: {
+        fontSize: 14,
+        color: "#6B7280",
+        lineHeight: 21,
     },
     detailsCard: {
         width: "100%",
-        backgroundColor: "#F9FAFB",
+        backgroundColor: "#FBFCFD",
         padding: 24,
-        borderRadius: 16,
+        borderRadius: 20,
         marginBottom: 24,
         borderWidth: 1,
         borderColor: "#E5E7EB",
@@ -193,8 +241,8 @@ const styles = StyleSheet.create({
         alignItems: "center",
         gap: 12,
         backgroundColor: "#EFF6FF",
-        padding: 16,
-        borderRadius: 12,
+        padding: 18,
+        borderRadius: 18,
         marginBottom: 40,
         borderWidth: 1,
         borderColor: "#BFDBFE",
@@ -207,6 +255,7 @@ const styles = StyleSheet.create({
     buttonContainer: {
         width: "100%",
         gap: 12,
+        marginTop: "auto",
     },
     swapAgainBtn: {
         flexDirection: "row",
@@ -215,7 +264,7 @@ const styles = StyleSheet.create({
         gap: 8,
         backgroundColor: "#F0FDF4",
         paddingVertical: 16,
-        borderRadius: 12,
+        borderRadius: 16,
         borderWidth: 2,
         borderColor: "#00B14F",
     },
@@ -227,7 +276,7 @@ const styles = StyleSheet.create({
     doneBtn: {
         backgroundColor: "#00B14F",
         paddingVertical: 16,
-        borderRadius: 12,
+        borderRadius: 16,
         alignItems: "center",
     },
     doneBtnText: {

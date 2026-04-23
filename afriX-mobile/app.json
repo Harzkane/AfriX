@@ -11,6 +11,11 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.codewithharz.afriX",
+      "infoPlist": {
+        "LSApplicationQueriesSchemes": [
+          "whatsapp"
+        ]
+      },
       "config": {
         "usesNonExemptEncryption": false
       }
@@ -35,7 +40,7 @@
       "favicon": "./assets/images/favicon.png"
     },
     "extra": {
-      "apiUrl": "https://api.replace-me-with-render-url.com/v1"
+      "apiUrl": "https://afrix-iqvq.onrender.com/api/v1"
     },
     "plugins": [
       "expo-router",

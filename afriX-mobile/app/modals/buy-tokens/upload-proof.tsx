@@ -6,18 +6,14 @@ import {
   Alert,
   ScrollView,
   TouchableOpacity,
-  Platform,
-  Dimensions
 } from "react-native";
-import { Text, Button, Surface, ActivityIndicator } from "react-native-paper";
+import { Text, Surface, ActivityIndicator } from "react-native-paper";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import { useMintRequestStore } from "@/stores";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { SafeAreaView } from "react-native-safe-area-context";
-
-const { width } = Dimensions.get("window");
 
 export default function UploadProofScreen() {
   const { requestId } = useLocalSearchParams<{ requestId: string }>();
@@ -30,7 +26,7 @@ export default function UploadProofScreen() {
     if (status !== "granted") {
       Alert.alert(
         "Permission Required",
-        "Camera access is needed to take photos of payment proof"
+        "Camera access is needed to take photos of payment proof",
       );
       return false;
     }
@@ -42,7 +38,7 @@ export default function UploadProofScreen() {
     if (status !== "granted") {
       Alert.alert(
         "Permission Required",
-        "Photo library access is needed to select payment proof"
+        "Photo library access is needed to select payment proof",
       );
       return false;
     }
@@ -101,9 +97,9 @@ export default function UploadProofScreen() {
                 params: { requestId },
               }),
           },
-        ]
+        ],
       );
-    } catch (error) {
+    } catch {
       Alert.alert("Error", "Failed to upload proof. Please try again.");
     }
   };
@@ -123,14 +119,14 @@ export default function UploadProofScreen() {
               Alert.alert(
                 "Request Cancelled",
                 "Your mint request has been cancelled successfully.",
-                [{ text: "OK", onPress: () => router.back() }]
+                [{ text: "OK", onPress: () => router.back() }],
               );
             } catch (error: any) {
               Alert.alert("Error", error.message || "Failed to cancel request");
             }
           },
         },
-      ]
+      ],
     );
   };
 
@@ -150,8 +146,12 @@ export default function UploadProofScreen() {
             >
               <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
             </TouchableOpacity>
-            <Text style={styles.headerTitle}>Upload Proof</Text>
-            <View style={{ width: 40 }} />
+            <View style={styles.headerText}>
+              <Text style={styles.headerTitle}>Upload Proof</Text>
+              <Text style={styles.headerSubtitle}>
+                Share your payment receipt for agent review
+              </Text>
+            </View>
           </View>
         </SafeAreaView>
       </View>
@@ -161,12 +161,16 @@ export default function UploadProofScreen() {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.topTextContainer}>
+        <LinearGradient
+          colors={["#F7FFF9", "#FFFFFF"]}
+          style={styles.summaryCard}
+        >
+          <Text style={styles.summaryEyebrow}>Proof Submission</Text>
           <Text style={styles.title}>Submit Receipt</Text>
           <Text style={styles.subtitle}>
-            Upload a clear screenshot or photo of your payment confirmation.
+            Upload a clear screenshot or photo of your payment confirmation so the agent can verify your transfer quickly.
           </Text>
-        </View>
+        </LinearGradient>
 
         {/* Image Preview Area */}
         <Surface style={styles.previewSurface} elevation={0}>
@@ -184,7 +188,11 @@ export default function UploadProofScreen() {
           ) : (
             <View style={styles.placeholder}>
               <View style={styles.placeholderIconBg}>
-                <Ionicons name="cloud-upload-outline" size={48} color="#9CA3AF" />
+                <Ionicons
+                  name="cloud-upload-outline"
+                  size={48}
+                  color="#9CA3AF"
+                />
               </View>
               <Text style={styles.placeholderText}>No image selected yet</Text>
             </View>
@@ -221,15 +229,21 @@ export default function UploadProofScreen() {
           <Text style={styles.guidelinesTitle}>📸 Important Guidelines</Text>
           <View style={styles.guidelineItem}>
             <Ionicons name="checkmark-circle" size={18} color="#00B14F" />
-            <Text style={styles.guidelineText}>Recipient details must be visible</Text>
+            <Text style={styles.guidelineText}>
+              Recipient details must be visible
+            </Text>
           </View>
           <View style={styles.guidelineItem}>
             <Ionicons name="checkmark-circle" size={18} color="#00B14F" />
-            <Text style={styles.guidelineText}>Transaction ID should be clear</Text>
+            <Text style={styles.guidelineText}>
+              Transaction ID should be clear
+            </Text>
           </View>
           <View style={styles.guidelineItem}>
             <Ionicons name="checkmark-circle" size={18} color="#00B14F" />
-            <Text style={styles.guidelineText}>Amount must match your request</Text>
+            <Text style={styles.guidelineText}>
+              Amount must match your request
+            </Text>
           </View>
         </Surface>
 
@@ -237,7 +251,8 @@ export default function UploadProofScreen() {
         <View style={styles.warningBox}>
           <Ionicons name="alert-circle" size={20} color="#F59E0B" />
           <Text style={styles.warningText}>
-            Fake or manipulated receipts will lead to immediate account suspension.
+            Fake or manipulated receipts will lead to immediate account
+            suspension.
           </Text>
         </View>
 
@@ -253,7 +268,10 @@ export default function UploadProofScreen() {
 
         {/* Upload Action */}
         <TouchableOpacity
-          style={[styles.uploadBtn, (!imageUri || loading) && styles.disabledBtn]}
+          style={[
+            styles.uploadBtn,
+            (!imageUri || loading) && styles.disabledBtn,
+          ]}
           onPress={handleUpload}
           disabled={!imageUri || loading}
         >
@@ -280,32 +298,43 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   headerWrapper: {
-    marginBottom: 0,
+    marginBottom: 8,
   },
   headerGradient: {
     position: "absolute",
     top: 0,
     left: 0,
     right: 0,
-    height: 140,
+    height: 72,
   },
   headerContent: {
     paddingHorizontal: 20,
   },
   header: {
     flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingBottom: 20,
+    alignItems: "flex-start",
     marginTop: 10,
+    paddingBottom: 5,
+  },
+  headerText: {
+    flex: 1,
   },
   headerTitle: {
-    marginTop: 40,
-    fontSize: 18,
+    fontSize: 24,
     fontWeight: "700",
     color: "#FFFFFF",
+    marginBottom: 2,
+    letterSpacing: -0.5,
+  },
+  headerSubtitle: {
+    fontSize: 13,
+    color: "rgba(255, 255, 255, 0.9)",
+    fontWeight: "500",
+    lineHeight: 18,
   },
   backButton: {
+    marginRight: 12,
+    marginTop: 4,
     width: 40,
     height: 40,
     borderRadius: 20,
@@ -317,9 +346,20 @@ const styles = StyleSheet.create({
     padding: 20,
     paddingBottom: 40,
   },
-  topTextContainer: {
-    marginTop: 40,
+  summaryCard: {
+    borderRadius: 24,
+    padding: 20,
     marginBottom: 24,
+    borderWidth: 1,
+    borderColor: "#E6F4EA",
+  },
+  summaryEyebrow: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: "#00B14F",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+    marginBottom: 8,
   },
   title: {
     fontSize: 24,

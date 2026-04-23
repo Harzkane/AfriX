@@ -1,8 +1,13 @@
 // File: /Users/harz/Documents/backUps/AfriExchange/afriX_backend/src/services/merchantService.js
 
 const { Merchant, User, Wallet, Transaction } = require("../models");
-const { MERCHANT_STATUS, TRANSACTION_TYPES } = require("../config/constants");
+const {
+  MERCHANT_STATUS,
+  TRANSACTION_STATUS,
+  TRANSACTION_TYPES,
+} = require("../config/constants");
 const { ApiError } = require("../utils/errors");
+const { Op } = require("sequelize");
 const crypto = require("crypto");
 const QRCode = require("qrcode");
 
@@ -62,8 +67,8 @@ const merchantService = {
         },
         {
           model: Wallet,
-          as: "settlementWallet",
-          attributes: ["id", "balance", "currency"],
+          as: "wallet",
+          attributes: ["id", "balance", "token_type"],
         },
       ],
     });
@@ -115,6 +120,7 @@ const merchantService = {
       business_name: merchant.business_name,
       amount: amount.toString(),
       currency,
+      token_type: currency,
       description,
       timestamp: new Date().toISOString(),
     };

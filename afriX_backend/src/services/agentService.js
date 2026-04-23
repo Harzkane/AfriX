@@ -390,10 +390,32 @@ const agentService = {
       }
 
       // VERIFY DEPOSIT ON BLOCKCHAIN
-      const verification = await blockchainService.verifyDeposit(
-        txHash,
-        amountUsd
-      );
+      let verification;
+      try {
+        verification = await blockchainService.verifyDeposit(
+          txHash,
+          amountUsd
+        );
+      } catch (error) {
+        const rawMessage = error?.message || "Deposit verification failed";
+        let userMessage = rawMessage;
+
+        if (rawMessage.includes("Transaction not found or not confirmed")) {
+          userMessage =
+            "We could not confirm this transaction yet. Please wait a little longer for blockchain confirmation and try again.";
+        } else if (rawMessage.includes("Transaction failed on blockchain")) {
+          userMessage =
+            "This blockchain transaction failed and cannot be used for deposit verification.";
+        } else if (rawMessage.includes("No USDT transfer to treasury found")) {
+          userMessage =
+            "We could not find a USDT transfer to the platform deposit address in this transaction.";
+        } else if (rawMessage.includes("Amount mismatch")) {
+          userMessage =
+            "The submitted amount does not match the confirmed blockchain transfer amount.";
+        }
+
+        throw new ApiError(userMessage, 400);
+      }
 
       if (!verification.verified) {
         throw new ApiError("Deposit verification failed", 400);

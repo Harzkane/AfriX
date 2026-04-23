@@ -6,8 +6,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useAuthStore } from "@/stores";
 import { useAgentStore } from "@/stores/slices/agentSlice";
-import { isXOFCountry } from "@/constants/payment";
-import { XOF_MOBILE_MONEY_PROVIDERS } from "@/constants/payment";
+import { isXOFCountry, XOF_MOBILE_MONEY_PROVIDERS } from "@/constants/payment";
 import { getCountryByCode } from "@/constants/countries";
 
 export default function EditBankDetails() {
@@ -142,6 +141,17 @@ export default function EditBankDetails() {
                     keyboardShouldPersistTaps="handled"
                     showsVerticalScrollIndicator={false}
                 >
+                    <LinearGradient
+                        colors={["#F7FFF9", "#FFFFFF"]}
+                        style={styles.summaryCard}
+                    >
+                        <Text style={styles.summaryEyebrow}>Settlement Details</Text>
+                        <Text style={styles.summaryTitle}>Update Bank & Payout Details</Text>
+                        <Text style={styles.summaryText}>
+                            Keep your payout details accurate so deposits, withdrawals, and user settlements flow smoothly.
+                        </Text>
+                    </LinearGradient>
+
                     {countryInfo ? (
                         <View style={styles.countryRow}>
                             <Ionicons name="globe-outline" size={20} color="#6B7280" style={styles.countryIcon} />
@@ -346,16 +356,44 @@ const styles = StyleSheet.create({
         padding: 16,
         paddingBottom: 100,
     },
+    summaryCard: {
+        borderRadius: 22,
+        padding: 18,
+        marginBottom: 20,
+        borderWidth: 1,
+        borderColor: "#E6F4EA",
+    },
+    summaryEyebrow: {
+        fontSize: 11,
+        fontWeight: "800",
+        color: "#00B14F",
+        textTransform: "uppercase",
+        letterSpacing: 0.5,
+        marginBottom: 6,
+    },
+    summaryTitle: {
+        fontSize: 22,
+        fontWeight: "800",
+        color: "#111827",
+        letterSpacing: -0.5,
+    },
+    summaryText: {
+        fontSize: 13,
+        lineHeight: 20,
+        color: "#6B7280",
+        fontWeight: "500",
+        marginTop: 6,
+    },
     countryRow: {
         flexDirection: "row",
         alignItems: "center",
-        backgroundColor: "#F9FAFB",
+        backgroundColor: "#FBFCFD",
         paddingVertical: 12,
         paddingHorizontal: 14,
-        borderRadius: 12,
+        borderRadius: 16,
         marginBottom: 20,
         borderWidth: 1,
-        borderColor: "#E5E7EB",
+        borderColor: "#EAF0F5",
     },
     countryIcon: {
         marginRight: 10,
@@ -375,18 +413,20 @@ const styles = StyleSheet.create({
         marginBottom: 24,
     },
     label: {
-        fontSize: 14,
-        fontWeight: "600",
-        color: "#374151",
+        fontSize: 12,
+        fontWeight: "800",
+        color: "#4B5563",
         marginBottom: 8,
+        textTransform: "uppercase",
+        letterSpacing: 0.5,
     },
     inputContainer: {
         flexDirection: "row",
         alignItems: "center",
         backgroundColor: "white",
-        borderRadius: 12,
+        borderRadius: 16,
         borderWidth: 1,
-        borderColor: "#E5E7EB",
+        borderColor: "#EAF0F5",
         paddingHorizontal: 12,
         paddingVertical: 12,
     },
@@ -415,6 +455,7 @@ const styles = StyleSheet.create({
         fontSize: 12,
         color: "#6B7280",
         marginTop: 4,
+        lineHeight: 18,
     },
     pickerRow: {
         flexDirection: "row",
@@ -425,7 +466,7 @@ const styles = StyleSheet.create({
     chip: {
         paddingHorizontal: 12,
         paddingVertical: 8,
-        borderRadius: 8,
+        borderRadius: 999,
         backgroundColor: "#F3F4F6",
         borderWidth: 1,
         borderColor: "#E5E7EB",
@@ -442,28 +483,31 @@ const styles = StyleSheet.create({
     chipTextActive: { color: "#7C3AED" },
     warningBox: {
         flexDirection: "row",
-        backgroundColor: "#FEF3C7",
-        padding: 12,
-        borderRadius: 12,
+        backgroundColor: "#FFF8E7",
+        padding: 14,
+        borderRadius: 16,
         gap: 8,
         marginTop: 8,
+        borderWidth: 1,
+        borderColor: "#FDE7C2",
     },
     warningText: {
         flex: 1,
         fontSize: 13,
         color: "#F59E0B",
         lineHeight: 18,
+        fontWeight: "500",
     },
     footer: {
         padding: 16,
         backgroundColor: "white",
         borderTopWidth: 1,
-        borderTopColor: "#E5E7EB",
+        borderTopColor: "#EAF0F5",
     },
     saveButton: {
-        backgroundColor: "#7C3AED",
+        backgroundColor: "#00B14F",
         paddingVertical: 16,
-        borderRadius: 12,
+        borderRadius: 16,
         alignItems: "center",
     },
     saveButtonDisabled: {

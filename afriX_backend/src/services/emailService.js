@@ -130,8 +130,51 @@ async function sendTransactionReceipt(email, name, transaction) {
   return true;
 }
 
+async function sendAccountLinkVerificationCode(email, name, code) {
+  const subject = "Confirm your AfriExchange link request";
+  const html = `
+    <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #111827;">
+      <h2>Confirm your AfriExchange account link</h2>
+      <p>Hi ${name || "there"},</p>
+      <p>Use this one-time verification code to confirm that you own this AfriExchange account before linking it in Kaalis:</p>
+      <p style="font-size: 28px; font-weight: 700; letter-spacing: 6px; margin: 24px 0;">${code}</p>
+      <p>This code expires in 10 minutes.</p>
+      <p>If you did not start this link request, you can ignore this email.</p>
+      <p>AfriX</p>
+    </div>
+  `;
+  const text = `Hi ${name || "there"},\n\nUse this one-time verification code to confirm your AfriExchange link request in Kaalis: ${code}\n\nThis code expires in 10 minutes.\n\nIf you did not start this request, you can ignore this email.\n\nAfriX`;
+
+  if (resendClient) {
+    const { error } = await resendClient.emails.send({
+      from: FROM,
+      to: email,
+      subject,
+      html,
+      text,
+    });
+    if (error) {
+      console.error("Resend account link verification email error:", error);
+      throw error;
+    }
+    console.log(`Account link verification email sent to ${email} (Resend)`);
+    return true;
+  }
+
+  await transporter.sendMail({
+    from: process.env.EMAIL_FROM || "AfriX <noreply@afrix.com>",
+    to: email,
+    subject,
+    html,
+    text,
+  });
+  console.log(`Account link verification email sent to ${email} (nodemailer)`);
+  return true;
+}
+
 module.exports = {
   sendVerificationEmail,
   sendPasswordResetEmail,
   sendTransactionReceipt,
+  sendAccountLinkVerificationCode,
 };

@@ -8,6 +8,7 @@ This folder groups **AfriExchange Merchant** documentation (public adoption, Pat
 | If you need… | Open |
 |--------------|------|
 | Practical merchant setup quickstart | [`PATH_A_MERCHANT_QUICKSTART.md`](./PATH_A_MERCHANT_QUICKSTART.md) |
+| How to run the Path A seed / payer / pilot scripts | [`PATH_A_PILOT_SCRIPTS_GUIDE.md`](./PATH_A_PILOT_SCRIPTS_GUIDE.md) |
 | Standard single-merchant integration (Path A) | [`MERCHANT_PATH_A_STANDARD_INTEGRATION.md`](./MERCHANT_PATH_A_STANDARD_INTEGRATION.md) → then [`MERCHANT_INTEGRATION_GUIDE.md`](./MERCHANT_INTEGRATION_GUIDE.md) |
 | Marketplace / partner integration (Path B, Kaalis-style) | [`MERCHANT_PATH_B_PARTNER_MARKETPLACE_INTEGRATION.md`](./MERCHANT_PATH_B_PARTNER_MARKETPLACE_INTEGRATION.md) |
 | Go-live gates before “public” launch | [`MERCHANT_GO_PUBLIC_PHASE_GATES.md`](./MERCHANT_GO_PUBLIC_PHASE_GATES.md) |
@@ -32,6 +33,7 @@ This folder groups **AfriExchange Merchant** documentation (public adoption, Pat
 - `MERCHANT_PATH_A_STANDARD_INTEGRATION.md`
 - `MERCHANT_PATH_B_PARTNER_MARKETPLACE_INTEGRATION.md`
 - `PATH_A_MERCHANT_QUICKSTART.md`
+- `PATH_A_PILOT_SCRIPTS_GUIDE.md`
 - `TOKEN_STRATEGY_NOTE_CT_NT_USDT.md`
 
 **Outside this folder**

@@ -149,6 +149,30 @@ That command proves the live local stack can:
 - update collection status to `completed`
 - deliver and log `collection.completed` webhook events
 
+For **deployed / Render pilot testing**, the verifier now supports a dedicated remote mode:
+
+- uses an existing deployed merchant API key instead of local-only DB seeding
+- uses a real deployed payer login
+- updates the merchant webhook URL through the merchant API for the duration of the test
+
+Recommended remote pilot inputs:
+
+- `PATH_A_PILOT_API_URL`
+- `PATH_A_PILOT_WEBHOOK_URL`
+- `PATH_A_PILOT_MERCHANT_API_KEY`
+- `PATH_A_PILOT_MERCHANT_ID` optional but recommended
+- `PATH_A_PILOT_PAYER_EMAIL`
+- `PATH_A_PILOT_PAYER_PASSWORD`
+
+Supporting helper scripts now exist for a clean dedicated Path A pilot merchant:
+
+- `npm run seed:path-a-pilot-merchant`
+- `npm run reset:path-a-pilot-merchant-password`
+
+Operational note:
+
+- remote health checks can time out during Render cold starts, so the pilot script now uses a longer health timeout and retries before failing
+
 4. **Production operator checklist must be proven**
 
 Before public use, the team should prove these operational realities:

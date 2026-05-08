@@ -181,6 +181,30 @@ The recommended pattern is:
 - never expose the API key in frontend browser code
 - rotate keys carefully and update connected systems immediately
 
+### Remote pilot prerequisites
+
+If you are testing against the hosted AfriExchange backend instead of a local stack, use a dedicated deployed pilot merchant and a real deployed buyer login.
+
+Recommended pilot configuration:
+
+- `PATH_A_PILOT_API_URL=https://afrix-iqvq.onrender.com/api/v1`
+- `PATH_A_PILOT_WEBHOOK_URL=https://webhook.site/...` or your real merchant webhook endpoint
+- `PATH_A_PILOT_MERCHANT_API_KEY=<existing deployed merchant api key>`
+- `PATH_A_PILOT_MERCHANT_ID=<existing deployed merchant id>`
+- `PATH_A_PILOT_PAYER_EMAIL=<real deployed buyer account>`
+- `PATH_A_PILOT_PAYER_PASSWORD=<real deployed buyer password>`
+
+Supporting scripts for a dedicated pilot merchant:
+
+- `npm run seed:path-a-pilot-merchant`
+- `npm run reset:path-a-pilot-merchant-password`
+
+Important:
+
+- these scripts create or update a merchant in whichever database your current `.env` points to
+- for a deployed Render pilot merchant, they must point at the deployed PostgreSQL database
+- a remote pilot may take longer than a local one because Render health checks can be delayed by cold starts
+
 ---
 
 ## 6. Core backend flow

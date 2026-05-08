@@ -9,6 +9,7 @@ const educationService = require("../services/educationService");
 const {
   MINT_REQUEST_STATUS,
   BURN_REQUEST_STATUS,
+  DISPUTE_STATUS,
 } = require("../config/constants");
 
 const THIRTY_MINUTES = 30 * 60 * 1000;
@@ -115,7 +116,7 @@ const requestController = {
               {
                 model: require("../models/User"),
                 as: "user",
-                attributes: ["full_name"],
+                attributes: ["full_name", "email"],
               },
             ],
           },
@@ -146,6 +147,25 @@ const requestController = {
         order: [["created_at", "DESC"]],
       });
 
+      const burnEscrowIds = burnRequests
+        .map((request) => request.escrow_id)
+        .filter(Boolean);
+
+      const relatedDisputes = burnEscrowIds.length
+        ? await Dispute.findAll({
+            where: {
+              escrow_id: burnEscrowIds,
+            },
+            order: [["created_at", "DESC"]],
+          })
+        : [];
+
+      const latestDisputeByEscrowId = new Map();
+      relatedDisputes.forEach((dispute) => {
+        if (!dispute.escrow_id || latestDisputeByEscrowId.has(dispute.escrow_id)) return;
+        latestDisputeByEscrowId.set(dispute.escrow_id, dispute);
+      });
+
       // Format and combine requests
       const formattedMintRequests = mintRequests.map((r) => ({
         id: r.id,
@@ -160,20 +180,30 @@ const requestController = {
         expires_at: r.expires_at,
       }));
 
-      const formattedBurnRequests = burnRequests.map((r) => ({
-        id: r.id,
-        type: "burn",
-        agent_id: r.agent_id,
-        agent: r.agent,
-        amount: r.amount,
-        token_type: r.token_type,
-        status: r.status,
-        bank_account: r.user_bank_account,
-        fiat_proof_url: r.fiat_proof_url,
-        escrow_id: r.escrow_id,
-        created_at: r.created_at,
-        expires_at: r.expires_at,
-      }));
+      const formattedBurnRequests = burnRequests.map((r) => {
+        const latestDispute = r.escrow_id
+          ? latestDisputeByEscrowId.get(r.escrow_id)
+          : null;
+        const hasActiveDispute =
+          latestDispute &&
+          [DISPUTE_STATUS.OPEN, DISPUTE_STATUS.INVESTIGATING].includes(latestDispute.status);
+
+        return {
+          id: r.id,
+          type: "burn",
+          agent_id: r.agent_id,
+          agent: r.agent,
+          amount: r.amount,
+          token_type: r.token_type,
+          status: hasActiveDispute ? BURN_REQUEST_STATUS.DISPUTED : r.status,
+          bank_account: r.user_bank_account,
+          fiat_proof_url: r.fiat_proof_url,
+          escrow_id: r.escrow_id,
+          latest_dispute: latestDispute || null,
+          created_at: r.created_at,
+          expires_at: r.expires_at,
+        };
+      });
 
       // Combine and sort by created_at
       const allRequests = [...formattedMintRequests, ...formattedBurnRequests].sort(
@@ -745,9 +775,26 @@ const requestController = {
         throw new ApiError("Access denied", 403);
       }
 
+      const latestDispute = request.escrow_id
+        ? await Dispute.findOne({
+            where: { escrow_id: request.escrow_id },
+            order: [["created_at", "DESC"]],
+          })
+        : null;
+
+      const hasActiveDispute =
+        latestDispute &&
+        [DISPUTE_STATUS.OPEN, DISPUTE_STATUS.INVESTIGATING].includes(latestDispute.status);
+
+      const requestJson = request.toJSON();
+      if (hasActiveDispute) {
+        requestJson.status = BURN_REQUEST_STATUS.DISPUTED;
+      }
+      requestJson.latest_dispute = latestDispute ? latestDispute.toJSON() : null;
+
       res.json({
         success: true,
-        data: request,
+        data: requestJson,
       });
     } catch (error) {
       next(error);

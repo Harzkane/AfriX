@@ -3,12 +3,16 @@
 const Joi = require("joi");
 const { HTTP_STATUS, COUNTRIES } = require("../config/constants");
 
+const internalFriendlyEmail = Joi.string().email({
+  tlds: { allow: false },
+});
+
 /**
  * Validate registration input
  */
 const validateRegistration = (req, res, next) => {
   const schema = Joi.object({
-    email: Joi.string().email().required().messages({
+    email: internalFriendlyEmail.required().messages({
       "string.email": "Please provide a valid email address",
       "any.required": "Email is required",
     }),
@@ -90,7 +94,7 @@ const validateMerchantRegistration = (req, res, next) => {
         "any.required": "Business type is required",
       }),
     description: Joi.string().max(1000).optional().allow(""),
-    business_email: Joi.string().email().required().messages({
+    business_email: internalFriendlyEmail.required().messages({
       "string.email": "Please provide a valid business email",
       "any.required": "Business email is required",
     }),
@@ -151,7 +155,7 @@ const validateMerchantRegistration = (req, res, next) => {
  */
 const validateLogin = (req, res, next) => {
   const schema = Joi.object({
-    email: Joi.string().email().required().messages({
+    email: internalFriendlyEmail.required().messages({
       "string.email": "Please provide a valid email address",
       "any.required": "Email is required",
     }),
@@ -359,11 +363,22 @@ const validateMerchantUpdate = (req, res, next) => {
     city: Joi.string().max(100).optional(),
     address: Joi.string().optional(),
     default_token_type: Joi.string().valid("NT", "CT", "USDT").optional(),
-    webhook_url: Joi.string().uri().optional(),
+    webhook_url: Joi.string().trim().uri().allow("").optional(),
   });
+
+  if (req.body && typeof req.body.webhook_url === "string") {
+    req.body.webhook_url = req.body.webhook_url
+      .replace(/&#x2F;/gi, "/")
+      .replace(/&amp;/gi, "&")
+      .replace(/&lt;/gi, "<")
+      .replace(/&gt;/gi, ">")
+      .replace(/&quot;/gi, '"')
+      .replace(/&#x27;/gi, "'");
+  }
 
   const { error } = schema.validate(req.body);
   if (error) {
+    console.error("[VALIDATION ERROR in validateMerchantUpdate]:", error.details[0].message, "Payload:", req.body);
     return res.status(400).json({
       success: false,
       message: error.details[0].message,
@@ -384,6 +399,7 @@ const validatePaymentRequest = (req, res, next) => {
     currency: Joi.string().valid("NT", "CT", "USDT").optional(),
     token_type: Joi.string().valid("NT", "CT", "USDT").optional(),
     merchant_id: Joi.string().uuid().optional(),
+    transaction_id: Joi.string().uuid().optional(),
     description: Joi.string().max(500).optional(),
     customer_email: Joi.string().email().optional(),
     reference: Joi.string().max(100).optional(),

@@ -14,6 +14,37 @@ const buildReference = (idempotencyKey) => {
   return `KAALIS-${hash.slice(0, 24)}`;
 };
 
+const recordKaalisWebhookHealth = async ({
+  status,
+  event,
+  reference = "",
+  httpStatus = null,
+  error = "",
+}) => {
+  const merchantId = process.env.KAALIS_AFRIEXCHANGE_MERCHANT_ID;
+  if (!merchantId) {
+    return;
+  }
+
+  try {
+    await Merchant.update(
+      {
+        integration_health: {
+          last_webhook_attempt_at: new Date().toISOString(),
+          last_webhook_event: event || "",
+          last_webhook_reference: reference || "",
+          last_webhook_status: status || "",
+          last_webhook_http_status: httpStatus,
+          last_webhook_error: error || "",
+        },
+      },
+      { where: { id: merchantId } }
+    );
+  } catch (updateError) {
+    console.error("Failed to update Kaalis webhook health:", updateError.message);
+  }
+};
+
 const emitKaalisWebhook = async (payload) => {
   const webhookUrl = process.env.KAALIS_AFRIEXCHANGE_WEBHOOK_URL;
   const webhookSecret = process.env.KAALIS_AFRIEXCHANGE_WEBHOOK_SECRET;
@@ -30,7 +61,7 @@ const emitKaalisWebhook = async (payload) => {
     .digest("hex");
 
   try {
-    await axios.post(webhookUrl, rawBody, {
+    const response = await axios.post(webhookUrl, rawBody, {
       headers: {
         "content-type": "application/json",
         "x-afriexchange-timestamp": timestamp,
@@ -38,7 +69,21 @@ const emitKaalisWebhook = async (payload) => {
       },
       timeout: 5000,
     });
+
+    await recordKaalisWebhookHealth({
+      status: "delivered",
+      event: payload?.event,
+      reference: payload?.data?.reference || payload?.data?.kaalisPayoutId || "",
+      httpStatus: response.status,
+    });
   } catch (error) {
+    await recordKaalisWebhookHealth({
+      status: "failed",
+      event: payload?.event,
+      reference: payload?.data?.reference || payload?.data?.kaalisPayoutId || "",
+      httpStatus: error.response?.status || null,
+      error: error.message,
+    });
     console.error("Failed to emit Kaalis webhook:", error.message);
   }
 };

@@ -17,6 +17,7 @@ const {
   DISPUTE_ESCALATION_LEVELS,
   ESCROW_STATUS,
   NOTIFICATION_EVENT_TYPES,
+  BURN_REQUEST_STATUS,
 } = require("../config/constants");
 const { ApiError } = require("../utils/errors");
 
@@ -58,6 +59,18 @@ const disputeService = {
       let mintRequest = null;
       let finalAgentId = agentId;
 
+      const existingOpenDispute = await Dispute.findOne({
+        where: {
+          ...(escrowId ? { escrow_id: escrowId } : { mint_request_id: mintRequestId }),
+          status: [DISPUTE_STATUS.OPEN, DISPUTE_STATUS.INVESTIGATING],
+        },
+        transaction: t,
+      });
+
+      if (existingOpenDispute) {
+        throw new ApiError("A dispute is already open for this request", 400);
+      }
+
       // Step 1: Verify linked entity (Escrow OR MintRequest)
       if (escrowId) {
         escrow = await Escrow.findByPk(escrowId, { transaction: t });
@@ -66,6 +79,12 @@ const disputeService = {
         // Mark escrow as disputed
         escrow.status = ESCROW_STATUS.DISPUTED;
         await escrow.save({ transaction: t });
+
+        const BurnRequest = require("../models/BurnRequest");
+        await BurnRequest.update(
+          { status: BURN_REQUEST_STATUS.DISPUTED },
+          { where: { escrow_id: escrowId }, transaction: t }
+        );
 
         finalAgentId = finalAgentId || escrow.agent_id;
       } else if (mintRequestId) {

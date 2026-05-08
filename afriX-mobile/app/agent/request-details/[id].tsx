@@ -56,6 +56,11 @@ export default function RequestDetailsScreen() {
     isMint &&
     request.status === "proof_submitted" &&
     !isExpired;
+  const canUploadBurnProof =
+    !!request &&
+    isBurn &&
+    request.status === "escrowed" &&
+    !isExpired;
   const canReject =
     !!request &&
     (request.status === "pending" || request.status === "proof_submitted");
@@ -445,24 +450,26 @@ export default function RequestDetailsScreen() {
             </TouchableOpacity>
           ) : null
         ) : (
-          <TouchableOpacity
-            style={[
-              styles.primaryAction,
-              (uploading || isExpired) && styles.primaryActionDisabled,
-            ]}
-            onPress={handleUploadProof}
-            disabled={uploading || isExpired}
-            activeOpacity={0.85}
-          >
-            {uploading ? (
-              <ActivityIndicator color="#FFFFFF" />
-            ) : (
-              <>
-                <Text style={styles.primaryActionText}>Upload Payment Proof</Text>
-                <Ionicons name="cloud-upload" size={18} color="#FFFFFF" />
-              </>
-            )}
-          </TouchableOpacity>
+          canUploadBurnProof ? (
+            <TouchableOpacity
+              style={[
+                styles.primaryAction,
+                (uploading || isExpired) && styles.primaryActionDisabled,
+              ]}
+              onPress={handleUploadProof}
+              disabled={uploading || isExpired}
+              activeOpacity={0.85}
+            >
+              {uploading ? (
+                <ActivityIndicator color="#FFFFFF" />
+              ) : (
+                <>
+                  <Text style={styles.primaryActionText}>Upload Payment Proof</Text>
+                  <Ionicons name="cloud-upload" size={18} color="#FFFFFF" />
+                </>
+              )}
+            </TouchableOpacity>
+          ) : null
         )}
 
         {canReject ? (

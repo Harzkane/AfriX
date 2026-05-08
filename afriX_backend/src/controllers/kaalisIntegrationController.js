@@ -2,6 +2,7 @@ const crypto = require("crypto");
 const axios = require("axios");
 const { Op } = require("sequelize");
 const { sequelize, Transaction, Wallet, User, Merchant } = require("../models");
+const { sendAccountLinkVerificationCode } = require("../services/emailService");
 const {
   TOKEN_TYPES,
   TRANSACTION_STATUS,
@@ -13,6 +14,9 @@ const buildReference = (idempotencyKey) => {
   const hash = crypto.createHash("sha256").update(idempotencyKey).digest("hex");
   return `KAALIS-${hash.slice(0, 24)}`;
 };
+
+const linkVerificationSessions = new Map();
+const LINK_VERIFICATION_TTL_MS = 10 * 60 * 1000;
 
 const recordKaalisWebhookHealth = async ({
   status,
@@ -126,6 +130,125 @@ const findUserAndWallet = async ({
   return { user, wallet };
 };
 
+const resolveLinkedAccount = async ({
+  userId,
+  walletAddress,
+  accountEmail,
+  tokenType,
+}) => {
+  const normalizedEmail = accountEmail?.trim().toLowerCase() || "";
+  const normalizedWalletAddress = walletAddress?.trim() || "";
+  const normalizedUserId = userId?.trim() || "";
+
+  if (!normalizedUserId && !normalizedWalletAddress && !normalizedEmail) {
+    throw new ApiError(
+      "Provide an AfriExchange user ID, wallet address, or account email",
+      400
+    );
+  }
+
+  let resolvedUser = null;
+  let resolvedWallet = null;
+
+  if (normalizedUserId) {
+    const userById = await User.findByPk(normalizedUserId);
+    if (!userById) {
+      throw new ApiError("AfriExchange user not found for the provided user ID", 404);
+    }
+    resolvedUser = userById;
+  }
+
+  if (normalizedEmail) {
+    const userByEmail = await User.findOne({
+      where: { email: normalizedEmail },
+    });
+    if (!userByEmail) {
+      throw new ApiError("AfriExchange user not found for the provided account email", 404);
+    }
+
+    if (resolvedUser && resolvedUser.id !== userByEmail.id) {
+      throw new ApiError(
+        "Provided AfriExchange user ID and account email belong to different profiles",
+        400
+      );
+    }
+
+    resolvedUser = userByEmail;
+  }
+
+  if (normalizedWalletAddress) {
+    const walletByAddress = await Wallet.findOne({
+      where: {
+        blockchain_address: normalizedWalletAddress,
+        token_type: tokenType,
+        is_active: true,
+        is_frozen: false,
+      },
+    });
+
+    if (!walletByAddress) {
+      throw new ApiError(
+        `AfriExchange ${tokenType} wallet not found for the provided wallet address`,
+        404
+      );
+    }
+
+    const walletUser = await User.findByPk(walletByAddress.user_id);
+    if (!walletUser) {
+      throw new ApiError("AfriExchange wallet owner profile not found", 404);
+    }
+
+    if (resolvedUser && resolvedUser.id !== walletUser.id) {
+      throw new ApiError(
+        "Provided AfriExchange identifiers belong to different profiles",
+        400
+      );
+    }
+
+    resolvedUser = walletUser;
+    resolvedWallet = walletByAddress;
+  }
+
+  if (!resolvedUser) {
+    throw new ApiError("AfriExchange profile could not be resolved", 404);
+  }
+
+  if (!resolvedWallet) {
+    resolvedWallet = await Wallet.findOne({
+      where: {
+        user_id: resolvedUser.id,
+        token_type: tokenType,
+        is_active: true,
+        is_frozen: false,
+      },
+      order: [["created_at", "ASC"]],
+    });
+  }
+
+  if (!resolvedWallet) {
+    throw new ApiError(
+      `Resolved AfriExchange profile does not have an active ${tokenType} wallet`,
+      404
+    );
+  }
+
+  return {
+    user: resolvedUser,
+    wallet: resolvedWallet,
+  };
+};
+
+const generateVerificationCode = () =>
+  `${Math.floor(100000 + Math.random() * 900000)}`;
+
+const maskEmail = (email = "") => {
+  const [local, domain] = email.split("@");
+  if (!local || !domain) return email;
+  const start = local.slice(0, 2);
+  const end = local.length > 2 ? local.slice(-1) : "";
+  return `${start}${"*".repeat(Math.max(local.length - 3, 1))}${end}@${domain}`;
+};
+
 const authenticateKaalis = (req, res, next) => {
   const configuredKey = process.env.KAALIS_INTEGRATION_API_KEY;
   const providedKey = req.header("x-kaalis-api-key");
@@ -149,6 +272,156 @@ const authenticateKaalis = (req, res, next) => {
 
 const kaalisIntegrationController = {
   authenticateKaalis,
+
+  async verifyAccount(req, res, next) {
+    try {
+      const {
+        afriExchangeUserId,
+        walletAddress,
+        accountEmail,
+        tokenType = TOKEN_TYPES.CT,
+      } = req.body;
+
+      if (!Object.values(TOKEN_TYPES).includes(tokenType)) {
+        throw new ApiError("Invalid tokenType", 400);
+      }
+
+      const { user, wallet } = await resolveLinkedAccount({
+        userId: afriExchangeUserId,
+        walletAddress,
+        accountEmail,
+        tokenType,
+      });
+
+      return res.status(200).json({
+        success: true,
+        data: {
+          verified: true,
+          tokenType,
+          user: {
+            id: user.id,
+            email: user.email,
+          },
+          wallet: {
+            id: wallet.id,
+            blockchain_address: wallet.blockchain_address,
+            token_type: wallet.token_type,
+          },
+        },
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  async requestLinkVerification(req, res, next) {
+    try {
+      const {
+        afriExchangeUserId,
+        walletAddress,
+        accountEmail,
+        tokenType = TOKEN_TYPES.CT,
+      } = req.body;
+
+      if (!Object.values(TOKEN_TYPES).includes(tokenType)) {
+        throw new ApiError("Invalid tokenType", 400);
+      }
+
+      const { user, wallet } = await resolveLinkedAccount({
+        userId: afriExchangeUserId,
+        walletAddress,
+        accountEmail,
+        tokenType,
+      });
+
+      const requestId = crypto.randomUUID();
+      const code = generateVerificationCode();
+      const expiresAt = Date.now() + LINK_VERIFICATION_TTL_MS;
+
+      linkVerificationSessions.set(requestId, {
+        requestId,
+        code,
+        tokenType,
+        userId: user.id,
+        email: user.email,
+        walletId: wallet.id,
+        walletAddress: wallet.blockchain_address,
+        expiresAt,
+        attempts: 0,
+      });
+
+      await sendAccountLinkVerificationCode(user.email, user.full_name, code);
+
+      return res.status(200).json({
+        success: true,
+        data: {
+          requestId,
+          expiresInSeconds: Math.floor(LINK_VERIFICATION_TTL_MS / 1000),
+          maskedEmail: maskEmail(user.email),
+        },
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  async confirmLinkVerification(req, res, next) {
+    try {
+      const { requestId, code } = req.body;
+
+      if (!requestId || !code) {
+        throw new ApiError("requestId and code are required", 400);
+      }
+
+      const session = linkVerificationSessions.get(requestId);
+      if (!session) {
+        throw new ApiError("Link verification request not found or expired", 404);
+      }
+
+      if (session.expiresAt < Date.now()) {
+        linkVerificationSessions.delete(requestId);
+        throw new ApiError("Link verification code has expired", 410);
+      }
+
+      session.attempts += 1;
+      if (session.attempts > 5) {
+        linkVerificationSessions.delete(requestId);
+        throw new ApiError("Too many invalid verification attempts", 429);
+      }
+
+      if (String(code).trim() !== session.code) {
+        throw new ApiError("Invalid verification code", 400);
+      }
+
+      linkVerificationSessions.delete(requestId);
+
+      const user = await User.findByPk(session.userId);
+      const wallet = await Wallet.findByPk(session.walletId);
+
+      if (!user || !wallet) {
+        throw new ApiError("Resolved AfriExchange account is no longer available", 404);
+      }
+
+      return res.status(200).json({
+        success: true,
+        data: {
+          verified: true,
+          tokenType: session.tokenType,
+          user: {
+            id: user.id,
+            email: user.email,
+          },
+          wallet: {
+            id: wallet.id,
+            blockchain_address: wallet.blockchain_address,
+            token_type: wallet.token_type,
+          },
+        },
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
 
   async createPayout(req, res, next) {
     try {

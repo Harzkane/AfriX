@@ -1,5 +1,5 @@
 // cd /Users/harz/Documents/backUps/izmir/AfriExchange/afriX_backend
-// npm run reset:path-a
+// npm run pilot:path-a
 
 require("dotenv").config();
 
@@ -21,6 +21,11 @@ const API_BASE_URL =
   process.env.PATH_A_PILOT_API_URL || process.env.API_BASE_URL || "http://localhost:5001/api/v1";
 const WEBHOOK_PORT = Number(process.env.PATH_A_PILOT_WEBHOOK_PORT || 9998);
 const EXTERNAL_WEBHOOK_URL = process.env.PATH_A_PILOT_WEBHOOK_URL || "";
+const REMOTE_MODE =
+  process.env.PATH_A_PILOT_REMOTE_MODE === "true" ||
+  /^https?:\/\/(?!localhost\b)(?!127\.0\.0\.1\b)/i.test(API_BASE_URL);
+const REMOTE_MERCHANT_API_KEY = process.env.PATH_A_PILOT_MERCHANT_API_KEY || "";
+const REMOTE_MERCHANT_ID = process.env.PATH_A_PILOT_MERCHANT_ID || "";
 const MERCHANT_EMAIL =
   process.env.PATH_A_PILOT_MERCHANT_EMAIL || "path_a_pilot_merchant@example.com";
 const MERCHANT_PASSWORD =
@@ -31,8 +36,12 @@ const PAYER_PASSWORD =
   process.env.PATH_A_PILOT_PAYER_PASSWORD || "PathA-Buyer-Password-123!";
 const TOKEN_TYPE = TOKEN_TYPES.CT;
 const PAYMENT_AMOUNT = Number(process.env.PATH_A_PILOT_AMOUNT || 150);
+const HEALTH_TIMEOUT_MS = Number(process.env.PATH_A_PILOT_HEALTH_TIMEOUT_MS || 20000);
+const HEALTH_RETRIES = Number(process.env.PATH_A_PILOT_HEALTH_RETRIES || 3);
 
 const makeWalletAddress = () => `0x${crypto.randomBytes(20).toString("hex")}`;
+const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
 const buildPhoneNumber = (email) => {
   const digits = crypto
     .createHash("sha256")
@@ -66,8 +75,6 @@ app.post("/webhooks/afriexchange", (req, res) => {
 
   res.status(200).json({ ok: true });
 });
-
-const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 async function ensureUser({
   email,
@@ -183,10 +190,221 @@ async function loginUser(email, password) {
 
 async function assertApiHealthy() {
   const healthUrl = API_BASE_URL.replace(/\/api\/v\d+$/, "") + "/health";
-  await axios.get(healthUrl, { timeout: 5000 });
+  let lastError;
+
+  for (let attempt = 1; attempt <= HEALTH_RETRIES; attempt += 1) {
+    try {
+      await axios.get(healthUrl, { timeout: HEALTH_TIMEOUT_MS });
+      return;
+    } catch (error) {
+      lastError = error;
+      if (attempt < HEALTH_RETRIES) {
+        console.log(
+          `Health check attempt ${attempt}/${HEALTH_RETRIES} failed, retrying in 2s...`
+        );
+        await wait(2000);
+      }
+    }
+  }
+
+  throw lastError;
 }
 
-async function run() {
+async function getMerchantProfile(headers) {
+  const response = await axios.get(`${API_BASE_URL}/merchants/profile`, { headers });
+  return response.data?.data;
+}
+
+async function updateMerchantProfile(headers, payload) {
+  const response = await axios.put(`${API_BASE_URL}/merchants/profile`, payload, { headers });
+  return response.data?.data;
+}
+
+async function getMerchantTransaction(headers, transactionId) {
+  const response = await axios.get(`${API_BASE_URL}/merchants/transactions/${transactionId}`, {
+    headers,
+  });
+  return response.data?.data;
+}
+
+async function getWebhookDeliveryLog(headers) {
+  const response = await axios.get(`${API_BASE_URL}/merchants/webhook-delivery-log`, { headers });
+  return response.data?.data?.log || [];
+}
+
+async function runRemoteMode() {
+  let currentStep = "boot";
+  let originalWebhookUrl = null;
+  let merchantHeaders = null;
+  let merchant = null;
+
+  try {
+    currentStep = "api_health";
+    console.log(`Checking API health at ${API_BASE_URL} ...`);
+    await assertApiHealthy();
+
+    if (!REMOTE_MERCHANT_API_KEY.trim()) {
+      throw new Error(
+        "Remote mode requires PATH_A_PILOT_MERCHANT_API_KEY for an existing deployed merchant."
+      );
+    }
+
+    if (!EXTERNAL_WEBHOOK_URL.trim()) {
+      throw new Error(
+        "Remote mode requires PATH_A_PILOT_WEBHOOK_URL because the deployed backend cannot call localhost."
+      );
+    }
+
+    console.log("Running Path A pilot in remote API mode");
+
+    merchantHeaders = {
+      Authorization: `Bearer ${REMOTE_MERCHANT_API_KEY}`,
+      "Content-Type": "application/json",
+    };
+
+    currentStep = "merchant_profile_api_key_auth";
+    merchant = await getMerchantProfile(merchantHeaders);
+    if (!merchant?.id) {
+      throw new Error("Merchant API key auth failed: merchant profile response missing id");
+    }
+    if (REMOTE_MERCHANT_ID && merchant.id !== REMOTE_MERCHANT_ID) {
+      throw new Error(
+        `Merchant API key resolved merchant ${merchant.id}, expected ${REMOTE_MERCHANT_ID}`
+      );
+    }
+    console.log(`Merchant API key auth OK (${merchant.id})`);
+
+    currentStep = "prepare_webhook";
+    originalWebhookUrl = merchant.webhook_url || null;
+    await updateMerchantProfile(merchantHeaders, {
+      webhook_url: EXTERNAL_WEBHOOK_URL.trim(),
+    });
+    console.log(`Using external webhook URL: ${EXTERNAL_WEBHOOK_URL.trim()}`);
+
+    currentStep = "payer_login";
+    const payerAccessToken = await loginUser(PAYER_EMAIL, PAYER_PASSWORD);
+    console.log("Payer login OK");
+
+    const reference = `PATHA-${Date.now()}`;
+    currentStep = "payment_request_create";
+    const paymentRequestRes = await axios.post(
+      `${API_BASE_URL}/merchants/payment-request`,
+      {
+        amount: PAYMENT_AMOUNT,
+        token_type: TOKEN_TYPE,
+        description: "Path A pilot order",
+        customer_email: PAYER_EMAIL,
+        reference,
+      },
+      { headers: merchantHeaders }
+    );
+
+    const requestTransactionId = paymentRequestRes.data?.data?.transaction_id;
+    if (!requestTransactionId) {
+      throw new Error("Payment request did not return a transaction id");
+    }
+    console.log(`Payment request created: ${requestTransactionId}`);
+
+    currentStep = "payment_request_api_check";
+    const pendingRequest = await getMerchantTransaction(merchantHeaders, requestTransactionId);
+    if (!pendingRequest || pendingRequest.status !== TRANSACTION_STATUS.PENDING) {
+      throw new Error("Payment request was not returned as a pending merchant collection");
+    }
+
+    const payerHeaders = {
+      Authorization: `Bearer ${payerAccessToken}`,
+      "Content-Type": "application/json",
+    };
+
+    currentStep = "payment_process";
+    const processRes = await axios.post(
+      `${API_BASE_URL}/payments/process`,
+      {
+        merchant_id: merchant.id,
+        transaction_id: requestTransactionId,
+        amount: PAYMENT_AMOUNT,
+        token_type: TOKEN_TYPE,
+        description: "Path A pilot order",
+      },
+      { headers: payerHeaders }
+    );
+
+    const completedTransactionId = processRes.data?.data?.transaction_id;
+    if (completedTransactionId !== requestTransactionId) {
+      throw new Error(
+        `Expected payment processing to complete the original request (${requestTransactionId}), got ${completedTransactionId}`
+      );
+    }
+    console.log(`Payment processed against original request: ${completedTransactionId}`);
+
+    currentStep = "post_payment_wait";
+    await wait(1500);
+
+    currentStep = "post_payment_api_checks";
+    const completedTransaction = await getMerchantTransaction(merchantHeaders, requestTransactionId);
+    if (!completedTransaction || completedTransaction.status !== TRANSACTION_STATUS.COMPLETED) {
+      throw new Error("Payment request was not marked completed after payment processing");
+    }
+
+    if (completedTransaction.reference !== reference) {
+      throw new Error("Completed transaction reference does not match the original merchant reference");
+    }
+
+    currentStep = "webhook_log_check";
+    const webhookLog = await getWebhookDeliveryLog(merchantHeaders);
+    if (!webhookLog.length) {
+      throw new Error("Merchant webhook delivery log was not updated");
+    }
+
+    const matchingWebhook = webhookLog.find(
+      (entry) => entry.reference === reference || entry.event === "collection.completed"
+    );
+    if (!matchingWebhook) {
+      throw new Error("No collection.completed webhook log entry was found for the pilot transaction");
+    }
+
+    console.log("");
+    console.log("Path A pilot PASSED");
+    console.log(`- mode: remote`);
+    console.log(`- merchant_id: ${merchant.id}`);
+    console.log(`- merchant_api_key_auth: ok`);
+    console.log(`- payment_request_id: ${requestTransactionId}`);
+    console.log(`- reference: ${reference}`);
+    console.log(`- final_status: ${completedTransaction.status}`);
+    console.log(`- webhook_events_received: external receiver - check destination`);
+    console.log(`- last_webhook_status: ${matchingWebhook.status || "unknown"}`);
+  } catch (error) {
+    console.error("");
+    console.error("Path A pilot FAILED");
+    console.error(`step: ${currentStep}`);
+    if (
+      currentStep === "payer_login" &&
+      error.response?.status === 401 &&
+      PAYER_EMAIL === "path_a_pilot_buyer@example.com"
+    ) {
+      console.error(
+        "The deployed backend does not know the default local pilot buyer. Set PATH_A_PILOT_PAYER_EMAIL and PATH_A_PILOT_PAYER_PASSWORD to a real deployed user."
+      );
+    }
+    if (error.response) {
+      console.error(`status: ${error.response.status}`);
+      console.error(`response: ${JSON.stringify(error.response.data, null, 2)}`);
+    } else {
+      console.error(error.message || error);
+    }
+    process.exitCode = 1;
+  } finally {
+    try {
+      if (merchantHeaders && originalWebhookUrl) {
+        await updateMerchantProfile(merchantHeaders, { webhook_url: originalWebhookUrl });
+      }
+    } catch (_) {
+      // Best-effort cleanup only.
+    }
+  }
+}
+
+async function runLocalMode() {
   let server;
   let originalWebhookUrl = null;
   let currentStep = "boot";
@@ -216,7 +434,12 @@ async function run() {
 
     currentStep = "ensure_wallets";
     const merchantWallet = await ensureWallet(merchantUser.id, TOKEN_TYPE, 0);
-    const payerWallet = await ensureWallet(payerUser.id, TOKEN_TYPE, Math.max(PAYMENT_AMOUNT * 5, 1000));
+    const payerWallet = await ensureWallet(
+      payerUser.id,
+      TOKEN_TYPE,
+      Math.max(PAYMENT_AMOUNT * 5, 1000)
+    );
+
     currentStep = "ensure_merchant";
     const merchant = await ensureMerchant(merchantUser, merchantWallet);
 
@@ -247,11 +470,8 @@ async function run() {
     };
 
     currentStep = "merchant_profile_api_key_auth";
-    const merchantProfileRes = await axios.get(`${API_BASE_URL}/merchants/profile`, {
-      headers: merchantHeaders,
-    });
-
-    if (merchantProfileRes.data?.data?.id !== merchant.id) {
+    const merchantProfile = await getMerchantProfile(merchantHeaders);
+    if (merchantProfile?.id !== merchant.id) {
       throw new Error("Merchant API key auth failed to resolve the expected merchant profile");
     }
     console.log("Merchant API key auth OK");
@@ -332,12 +552,16 @@ async function run() {
       }
     }
 
-    if (!Array.isArray(refreshedMerchant.webhook_delivery_log) || !refreshedMerchant.webhook_delivery_log.length) {
+    if (
+      !Array.isArray(refreshedMerchant.webhook_delivery_log) ||
+      !refreshedMerchant.webhook_delivery_log.length
+    ) {
       throw new Error("Merchant webhook delivery log was not updated");
     }
 
     console.log("");
     console.log("Path A pilot PASSED");
+    console.log(`- mode: local`);
     console.log(`- merchant_id: ${merchant.id}`);
     console.log(`- merchant_api_key_auth: ok`);
     console.log(`- payment_request_id: ${requestTransactionId}`);
@@ -359,9 +583,7 @@ async function run() {
     console.error(`step: ${currentStep}`);
     if (error.response) {
       console.error(`status: ${error.response.status}`);
-      console.error(
-        `response: ${JSON.stringify(error.response.data, null, 2)}`
-      );
+      console.error(`response: ${JSON.stringify(error.response.data, null, 2)}`);
     } else {
       console.error(error.message || error);
     }
@@ -390,6 +612,15 @@ async function run() {
       // Ignore close failures.
     }
   }
+}
+
+async function run() {
+  if (REMOTE_MODE) {
+    await runRemoteMode();
+    return;
+  }
+
+  await runLocalMode();
 }
 
 run();

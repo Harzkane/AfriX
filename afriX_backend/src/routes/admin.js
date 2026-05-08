@@ -135,6 +135,17 @@ router.get(
 );
 
 /**
+ * Webhook integration health overview (all merchants)
+ * GET /api/v1/admin/merchants/webhook-health
+ */
+router.get(
+  "/merchants/webhook-health",
+  authenticate,
+  authorizeAdmin,
+  adminMerchantController.getMerchantWebhookHealth
+);
+
+/**
  * Get single merchant details
  * GET /api/v1/admin/merchants/:id
  */
@@ -143,6 +154,17 @@ router.get(
   authenticate,
   authorizeAdmin,
   adminMerchantController.getMerchant
+);
+
+/**
+ * Get merchant financial summary
+ * GET /api/v1/admin/merchants/:id/financial-summary
+ */
+router.get(
+  "/merchants/:id/financial-summary",
+  authenticate,
+  authorizeAdmin,
+  adminMerchantController.getMerchantFinancialSummary
 );
 
 /**

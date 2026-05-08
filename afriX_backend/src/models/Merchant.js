@@ -139,6 +139,25 @@ const Merchant = sequelize.define(
       comment: "Webhook URL for payment notifications",
     },
 
+    webhook_secret: {
+      type: DataTypes.STRING(64),
+      allowNull: true,
+      comment: "HMAC signing secret for outgoing merchant webhook delivery",
+    },
+
+    integration_health: {
+      type: DataTypes.JSON,
+      allowNull: true,
+      comment: "Operational integration health details such as last webhook attempt",
+    },
+
+    webhook_delivery_log: {
+      type: DataTypes.JSON,
+      allowNull: true,
+      defaultValue: [],
+      comment: "Rolling history of the last 50 webhook delivery attempts (newest first)",
+    },
+
     // Timestamps
     created_at: {
       type: DataTypes.DATE,

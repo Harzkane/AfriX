@@ -47,6 +47,7 @@ async function ensureKaalisMerchant() {
         is_active: true,
       });
       console.log(`Created Kaalis integration user: ${KAALIS_EMAIL}`);
+      console.log(`- initial password: ${KAALIS_PASSWORD}`);
     } else {
       user.role = USER_ROLES.MERCHANT;
       user.email_verified = true;
@@ -56,6 +57,14 @@ async function ensureKaalisMerchant() {
       user.is_active = true;
       await user.save();
       console.log(`Reused Kaalis integration user: ${KAALIS_EMAIL}`);
+      if (!process.env.KAALIS_MERCHANT_PASSWORD) {
+        console.log(
+          "No KAALIS_MERCHANT_PASSWORD is set in .env, so the existing merchant password may be unknown."
+        );
+        console.log(
+          "Run `npm run reset:kaalis-merchant-password` to set and print a fresh login password."
+        );
+      }
     }
 
     let wallet = await Wallet.findOne({

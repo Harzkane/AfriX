@@ -2,8 +2,29 @@
 
 const { verifyToken } = require("../utils/jwt");
 const User = require("../models/User");
+const Merchant = require("../models/Merchant");
 const { HTTP_STATUS } = require("../config/constants");
 const { getCache, setCache } = require("../utils/cache");
+
+const loadActiveUserById = async (userId) => {
+  let user = await getCache(`user:${userId}`);
+
+  if (!user) {
+    user = await User.findByPk(userId);
+
+    if (!user) {
+      return null;
+    }
+
+    await setCache(`user:${userId}`, user.toJSON(), 3600);
+  }
+
+  if (!user.is_active || user.is_suspended) {
+    return { suspended: true };
+  }
+
+  return user;
+};
 
 /**
  * Authenticate user from JWT token
@@ -32,26 +53,16 @@ const authenticate = async (req, res, next) => {
       });
     }
 
-    // Try to get user from cache
-    let user = await getCache(`user:${decoded.id}`);
+    const user = await loadActiveUserById(decoded.id);
 
     if (!user) {
-      // Fetch from database
-      user = await User.findByPk(decoded.id);
-
-      if (!user) {
-        return res.status(HTTP_STATUS.UNAUTHORIZED).json({
-          success: false,
-          message: "User not found",
-        });
-      }
-
-      // Cache user
-      await setCache(`user:${decoded.id}`, user.toJSON(), 3600);
+      return res.status(HTTP_STATUS.UNAUTHORIZED).json({
+        success: false,
+        message: "User not found",
+      });
     }
 
-    // Check if user is active
-    if (!user.is_active || user.is_suspended) {
+    if (user.suspended) {
       return res.status(HTTP_STATUS.FORBIDDEN).json({
         success: false,
         message: "Profile suspended or inactive",
@@ -65,6 +76,99 @@ const authenticate = async (req, res, next) => {
     next();
   } catch (error) {
     console.error("Authentication error:", error);
+    return res.status(HTTP_STATUS.UNAUTHORIZED).json({
+      success: false,
+      message: "Authentication failed",
+    });
+  }
+};
+
+/**
+ * Authenticate merchant-facing routes using either:
+ * - merchant portal JWT auth
+ * - merchant API key auth for backend-to-backend Path A integrations
+ *
+ * Supported API key headers:
+ * - Authorization: Bearer <merchant_api_key>
+ * - x-merchant-api-key: <merchant_api_key>
+ * - x-api-key: <merchant_api_key>
+ */
+const authenticateMerchantAccess = async (req, res, next) => {
+  try {
+    const authHeader = req.headers.authorization;
+    const bearerToken =
+      authHeader && authHeader.startsWith("Bearer ")
+        ? authHeader.substring(7).trim()
+        : "";
+    const headerApiKey =
+      req.header("x-merchant-api-key")?.trim() || req.header("x-api-key")?.trim() || "";
+
+    const tokenOrKey = bearerToken || headerApiKey;
+
+    if (!tokenOrKey) {
+      return res.status(HTTP_STATUS.UNAUTHORIZED).json({
+        success: false,
+        message: "Authentication token or merchant API key required",
+      });
+    }
+
+    const decoded = verifyToken(tokenOrKey);
+
+    if (decoded?.id) {
+      const user = await loadActiveUserById(decoded.id);
+
+      if (!user) {
+        return res.status(HTTP_STATUS.UNAUTHORIZED).json({
+          success: false,
+          message: "User not found",
+        });
+      }
+
+      if (user.suspended) {
+        return res.status(HTTP_STATUS.FORBIDDEN).json({
+          success: false,
+          message: "Profile suspended or inactive",
+        });
+      }
+
+      req.user = user;
+      req.userId = decoded.id;
+      req.authType = "jwt";
+      return next();
+    }
+
+    const merchant = await Merchant.findByApiKey(tokenOrKey);
+
+    if (!merchant) {
+      return res.status(HTTP_STATUS.UNAUTHORIZED).json({
+        success: false,
+        message: "Invalid or expired authentication credential",
+      });
+    }
+
+    const owner = await loadActiveUserById(merchant.user_id);
+
+    if (!owner) {
+      return res.status(HTTP_STATUS.UNAUTHORIZED).json({
+        success: false,
+        message: "Merchant owner not found",
+      });
+    }
+
+    if (owner.suspended) {
+      return res.status(HTTP_STATUS.FORBIDDEN).json({
+        success: false,
+        message: "Merchant owner profile suspended or inactive",
+      });
+    }
+
+    req.user = owner;
+    req.userId = merchant.user_id;
+    req.merchant = merchant;
+    req.authType = "merchant_api_key";
+    return next();
+  } catch (error) {
+    console.error("Merchant authentication error:", error);
     return res.status(HTTP_STATUS.UNAUTHORIZED).json({
       success: false,
       message: "Authentication failed",
@@ -201,6 +305,7 @@ const optionalAuth = async (req, res, next) => {
 
 module.exports = {
   authenticate,
+  authenticateMerchantAccess,
   authorize,
   authorizeAdmin,
   requireEmailVerification,

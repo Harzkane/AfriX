@@ -1,9 +1,11 @@
 // File: afriX_backend/src/services/educationService.js
 const Education = require("../models/Education");
+const User = require("../models/User");
 const {
   EDUCATION_MODULES,
   EDUCATION_CONFIG,
   RESPONSE_MESSAGES,
+  USER_ROLES,
 } = require("../config/constants");
 const { ApiError } = require("../utils/errors");
 
@@ -233,6 +235,21 @@ const educationService = {
   // Check required education before mint/burn
   async enforceEducation(userId, action) {
     if (!EDUCATION_CONFIG.REQUIRED) return true;
+
+    const user = await User.findByPk(userId, {
+      attributes: ["id", "role"],
+    });
+
+    if (!user) {
+      throw new ApiError("User not found", 404);
+    }
+
+    // Merchant workspaces use the same request rails, but they are not end-user
+    // onboarding surfaces. Keep education gates for retail users and let merchant
+    // accounts operate their business flows directly.
+    if (user.role === USER_ROLES.MERCHANT) {
+      return true;
+    }
 
     const required = {
       mint: EDUCATION_CONFIG.MODULES_REQUIRED_FOR_MINT,

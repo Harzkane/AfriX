@@ -12,6 +12,7 @@ const merchantService = require("../services/merchantService");
 const { ValidationError } = require("../utils/errors");
 const { generateQR } = require("../utils/qrcode");
 const { uploadToR2 } = require("../services/r2Service");
+const { emitMerchantWebhook, ensureWebhookSecret } = require("../services/merchantWebhookService");
 /**
  * Merchant Controller
  *
@@ -79,6 +80,12 @@ const merchantController = {
         verification_status: MERCHANT_STATUS.PENDING,
       });
 
+      // Update user role to merchant so they can log into the merchant portal
+      await User.update(
+        { role: 'merchant' },
+        { where: { id: userId } }
+      );
+
       // Generate API key
       const apiKey = await merchant.generateApiKey();
 
@@ -107,6 +114,7 @@ const merchantController = {
       const merchant = await Merchant.findOne({
         where: { user_id: userId },
         attributes: { exclude: ["api_key"] },
+        include: [{ model: MerchantKyc, as: "kyc" }],
       });
 
       if (!merchant) {
@@ -163,7 +171,24 @@ const merchantController = {
       if (business_phone) merchant.business_phone = business_phone;
       if (city) merchant.city = city;
       if (address) merchant.address = address;
-      if (webhook_url) merchant.webhook_url = webhook_url;
+      if (webhook_url !== undefined) {
+        // Decode any HTML entities (e.g. &#x2F; → /) before persisting
+        const decodeEntities = (str) =>
+          str
+            .replace(/&#x2F;/gi, "/")
+            .replace(/&amp;/gi, "&")
+            .replace(/&lt;/gi, "<")
+            .replace(/&gt;/gi, ">")
+            .replace(/&quot;/gi, '"')
+            .replace(/&#x27;/gi, "'");
+        const cleanUrl = webhook_url ? decodeEntities(webhook_url.trim()) : null;
+        merchant.webhook_url = cleanUrl || merchant.webhook_url;
+      }
+
+      // Ensure the merchant has a signing secret whenever a webhook URL is configured
+      if (merchant.webhook_url?.trim()) {
+        await ensureWebhookSecret(merchant);
+      }
 
       // Handle currency change
       if (
@@ -259,11 +284,32 @@ const merchantController = {
 
       const qrCode = await generateQR(JSON.stringify(paymentData));
 
+      const webBaseUrl = (process.env.AFRIX_WEB_URL || "https://afritoken.com").replace(/\/$/, "");
+
+      // Fire a payment.pending webhook so the merchant's backend knows a request was created.
+      // This is non-blocking — the response is already sent before this resolves.
+      setImmediate(() =>
+        emitMerchantWebhook(merchant.id, {
+          event: "payment.pending",
+          eventId: `afrix-payment-${transaction.id}`,
+          data: {
+            transaction_id: transaction.id,
+            reference: transaction.reference,
+            amount,
+            token_type: paymentTokenType,
+            status: "pending",
+            description: transaction.description,
+            customer_email: customer_email || null,
+            created_at: transaction.created_at,
+          },
+        })
+      );
+
       res.status(201).json({
         success: true,
         data: {
           transaction_id: transaction.id,
-          payment_url: `https://afritoken.com/pay/${transaction.id}`,
+          payment_url: `${webBaseUrl}/pay/${transaction.id}`,
           qr_code: qrCode,
           amount,
           currency: paymentTokenType,
@@ -327,6 +373,85 @@ const merchantController = {
             pages: Math.ceil(transactions.count / parseInt(limit)),
           },
         },
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  /**
+   * Get single merchant transaction
+   * GET /api/merchants/transactions/:id
+   */
+  getTransactionById: async (req, res, next) => {
+    try {
+      const userId = req.user.id;
+      const { id } = req.params;
+
+      const merchant = await Merchant.findOne({ where: { user_id: userId } });
+
+      if (!merchant) {
+        return res.status(404).json({
+          success: false,
+          error: {
+            message: "Merchant profile not found",
+          },
+        });
+      }
+
+      const transaction = await Transaction.findOne({
+        where: {
+          id,
+          merchant_id: merchant.id,
+          type: TRANSACTION_TYPES.COLLECTION,
+        },
+        include: [
+          {
+            model: User,
+            as: "fromUser",
+            attributes: ["id", "full_name", "email", "phone_number"],
+          },
+          {
+            model: User,
+            as: "toUser",
+            attributes: ["id", "full_name", "email", "phone_number"],
+          },
+          {
+            model: Wallet,
+            as: "fromWallet",
+            attributes: ["id", "token_type", "balance", "pending_balance"],
+          },
+          {
+            model: Wallet,
+            as: "toWallet",
+            attributes: ["id", "token_type", "balance", "pending_balance"],
+          },
+          {
+            model: Merchant,
+            as: "merchant",
+            attributes: [
+              "id",
+              "business_name",
+              "display_name",
+              "default_token_type",
+              "settlement_wallet_id",
+            ],
+          },
+        ],
+      });
+
+      if (!transaction) {
+        return res.status(404).json({
+          success: false,
+          error: {
+            message: "Merchant transaction not found",
+          },
+        });
+      }
+
+      res.json({
+        success: true,
+        data: transaction,
       });
     } catch (error) {
       next(error);
@@ -470,6 +595,249 @@ const merchantController = {
       res.status(200).json(summary);
     } catch (error) {
       res.status(500).json({ error: error.message });
+    }
+  },
+
+  /**
+   * Get merchant onboarding / integration readiness status
+   * GET /api/v1/merchants/onboarding-status
+   */
+  getOnboardingStatus: async (req, res, next) => {
+    try {
+      const userId = req.user.id;
+
+      const merchant = await Merchant.findOne({ where: { user_id: userId } });
+
+      if (!merchant) {
+        return res.status(404).json({
+          success: false,
+          error: { message: "Merchant profile not found" },
+        });
+      }
+
+      const approved = merchant.verification_status === "approved";
+      const settlementWalletReady = Boolean(merchant.settlement_wallet_id);
+      const webhookConfigured = Boolean(merchant.webhook_url?.trim());
+      const defaultTokenSet = Boolean(merchant.default_token_type);
+      // api_key presence means a key has been generated at least once
+      const apiKeyActive = Boolean(merchant.api_key);
+
+      const readyForLive =
+        approved &&
+        settlementWalletReady &&
+        webhookConfigured &&
+        defaultTokenSet &&
+        apiKeyActive;
+
+      return res.json({
+        success: true,
+        data: {
+          approved,
+          settlementWalletReady,
+          webhookConfigured,
+          defaultTokenSet,
+          apiKeyActive,
+          readyForLive,
+          verificationStatus: merchant.verification_status,
+          merchantId: merchant.id,
+        },
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  /**
+   * Sandbox: fire a test webhook to the merchant's configured URL
+   * POST /api/merchants/sandbox/ping-webhook
+   *
+   * Returns the delivery result synchronously so the portal can display it
+   * immediately — unlike the fire-and-forget used in production flows.
+   */
+  sandboxPingWebhook: async (req, res, next) => {
+    try {
+      const userId = req.user.id;
+      const merchant = await Merchant.findOne({ where: { user_id: userId } });
+
+      if (!merchant) {
+        return res.status(404).json({
+          success: false,
+          error: { message: "Merchant profile not found" },
+        });
+      }
+
+      // Decode any HTML entities (&#x2F; → /) that may have been stored from a form
+      const decodeEntities = (str) =>
+        str
+          .replace(/&#x2F;/gi, "/")
+          .replace(/&amp;/gi, "&")
+          .replace(/&lt;/gi, "<")
+          .replace(/&gt;/gi, ">")
+          .replace(/&quot;/gi, '"')
+          .replace(/&#x27;/gi, "'");
+
+      const rawUrl = (req.body?.webhook_url || merchant.webhook_url)?.trim();
+      const webhookUrl = rawUrl ? decodeEntities(rawUrl) : null;
+
+      if (!webhookUrl) {
+        return res.status(400).json({
+          success: false,
+          error: {
+            message:
+              "No webhook URL configured. Add one in API & Webhooks settings before testing.",
+          },
+        });
+      }
+
+      // Validate it is a reachable URL before firing
+      try {
+        const parsed = new URL(webhookUrl);
+        if (!["http:", "https:"].includes(parsed.protocol)) {
+          return res.status(400).json({
+            success: false,
+            error: { message: "Webhook URL must use http or https." },
+          });
+        }
+      } catch {
+        return res.status(400).json({
+          success: false,
+          error: {
+            message: `Invalid webhook URL: "${webhookUrl}". Please enter a full URL starting with https://.`,
+          },
+        });
+      }
+
+      const eventId = `afrix-sandbox-${Date.now()}`;
+      const payload = {
+        event: "sandbox.ping",
+        eventId,
+        data: {
+          message: "This is a test webhook from AfriExchange Sandbox. Your endpoint received it correctly.",
+          merchant_id: merchant.id,
+          sent_at: new Date().toISOString(),
+        },
+      };
+
+      const crypto = require("crypto");
+      const axios = require("axios");
+      const { ensureWebhookSecret } = require("../services/merchantWebhookService");
+
+      const secret = await ensureWebhookSecret(merchant);
+      const timestamp = new Date().toISOString();
+      const rawBody = JSON.stringify(payload);
+      const signature = crypto
+        .createHmac("sha256", secret)
+        .update(`${timestamp}.${rawBody}`)
+        .digest("hex");
+
+      let deliveryResult;
+      try {
+        const axiosResponse = await axios.post(webhookUrl, rawBody, {
+          headers: {
+            "content-type": "application/json",
+            "x-afriexchange-timestamp": timestamp,
+            "x-afriexchange-signature": `sha256=${signature}`,
+          },
+          timeout: 10000,
+        });
+        deliveryResult = {
+          delivered: true,
+          httpStatus: axiosResponse.status,
+          responseBody: typeof axiosResponse.data === "object"
+            ? JSON.stringify(axiosResponse.data)
+            : String(axiosResponse.data).slice(0, 500),
+        };
+      } catch (httpErr) {
+        deliveryResult = {
+          delivered: false,
+          httpStatus: httpErr.response?.status || null,
+          error: httpErr.message,
+          responseBody: httpErr.response?.data
+            ? JSON.stringify(httpErr.response.data).slice(0, 500)
+            : null,
+        };
+      }
+
+      // Record health + append to delivery log via shared service
+      const { ensureWebhookSecret: _skip, ...webhookServiceInternal } = require("../services/merchantWebhookService");
+      // Call the internal recorder directly by re-importing
+      const webhookService = require("../services/merchantWebhookService");
+      // Use the same function the emitter uses — avoids duplicating log logic
+      // We re-create a minimal call by updating directly (service is fire-and-forget)
+      const logEntry = {
+        attempted_at: timestamp,
+        event: "sandbox.ping",
+        reference: eventId,
+        status: deliveryResult.delivered ? "delivered" : "failed",
+        http_status: deliveryResult.httpStatus,
+        error: deliveryResult.error || "",
+        webhook_url: webhookUrl,
+        payload: payload,
+      };
+      // Fetch and update log
+      const currentMerchant = await Merchant.findByPk(merchant.id, { attributes: ["webhook_delivery_log"] });
+      const existingLog = Array.isArray(currentMerchant?.webhook_delivery_log) ? currentMerchant.webhook_delivery_log : [];
+      await Merchant.update(
+        {
+          integration_health: {
+            last_webhook_attempt_at: timestamp,
+            last_webhook_event: "sandbox.ping",
+            last_webhook_reference: eventId,
+            last_webhook_status: deliveryResult.delivered ? "delivered" : "failed",
+            last_webhook_http_status: deliveryResult.httpStatus,
+            last_webhook_error: deliveryResult.error || "",
+          },
+          webhook_delivery_log: [logEntry, ...existingLog].slice(0, 50),
+        },
+        { where: { id: merchant.id } }
+      );
+
+      return res.json({
+        success: true,
+        data: {
+          ...deliveryResult,
+          webhookUrl,
+          timestamp,
+          signature: `sha256=${signature}`,
+          payloadSent: payload,
+          verificationSnippet: {
+            node: [
+              `const crypto = require('crypto');`,
+              `const secret = process.env.AFRIX_WEBHOOK_SECRET;`,
+              `const sig = req.headers['x-afriexchange-signature'];`,
+              `const ts  = req.headers['x-afriexchange-timestamp'];`,
+              `const expected = 'sha256=' + crypto`,
+              `  .createHmac('sha256', secret)`,
+              `  .update(\`\${ts}.\${JSON.stringify(req.body)}\`)`,
+              `  .digest('hex');`,
+              `const isValid = sig === expected;`,
+            ].join("\n"),
+          },
+        },
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  /**
+   * GET /merchants/webhook-delivery-log
+   * Returns the last 50 webhook delivery attempts for this merchant.
+   */
+  getWebhookDeliveryLog: async (req, res, next) => {
+    try {
+      const userId = req.user?.id;
+      const merchant = await Merchant.findOne({
+        where: { user_id: userId },
+        attributes: ["id", "webhook_delivery_log"],
+      });
+      if (!merchant) {
+        return res.status(404).json({ success: false, error: { message: "Merchant profile not found" } });
+      }
+      const log = Array.isArray(merchant.webhook_delivery_log) ? merchant.webhook_delivery_log : [];
+      return res.json({ success: true, data: { log, total: log.length } });
+    } catch (error) {
+      next(error);
     }
   },
 };

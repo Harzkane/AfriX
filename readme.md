@@ -1,6 +1,6 @@
 # AfriExchange (AfriX)
 
-AfriExchange is a token exchange platform with a Node.js backend, Expo (React Native) mobile app, and Next.js admin dashboard.
+AfriExchange (AfriX) is a non-custodial multi-token payment and settlement platform for African commerce — enabling merchants, users, and agents across currency zones to transact without traditional gateway dependencies.
 
 ---
 
@@ -119,6 +119,14 @@ npm run dev
 
 ## Docs in repo
 
+- **Merchant & Kaalis docs (folder index):** [`docs/merchant-platform/README.md`](./docs/merchant-platform/README.md) — grouped guides; start here for follow-up.
+- **Path A — standard merchant integration:** [`docs/merchant-platform/MERCHANT_PATH_A_STANDARD_INTEGRATION.md`](./docs/merchant-platform/MERCHANT_PATH_A_STANDARD_INTEGRATION.md) — single-merchant / default API integration.
+- **Path B — marketplace partner integration:** [`docs/merchant-platform/MERCHANT_PATH_B_PARTNER_MARKETPLACE_INTEGRATION.md`](./docs/merchant-platform/MERCHANT_PATH_B_PARTNER_MARKETPLACE_INTEGRATION.md) — Kaalis-style partner scope and contracts.
+- **Go-public phase gates:** [`docs/merchant-platform/MERCHANT_GO_PUBLIC_PHASE_GATES.md`](./docs/merchant-platform/MERCHANT_GO_PUBLIC_PHASE_GATES.md) — pass/fail criteria before public launch (Path A vs Path B).
+- **Merchant — public release roadmap:** [`docs/merchant-platform/AFRIEXCHANGE_MERCHANT_PUBLIC_RELEASE_PHASES.md`](./docs/merchant-platform/AFRIEXCHANGE_MERCHANT_PUBLIC_RELEASE_PHASES.md) — phased plan (Path A → portal polish → DX → ops → Path B partners).
+- **Merchant — external adoption:** [`docs/merchant-platform/AFRIEXCHANGE_MERCHANT_EXTERNAL_ADOPTION_REQUIREMENTS.md`](./docs/merchant-platform/AFRIEXCHANGE_MERCHANT_EXTERNAL_ADOPTION_REQUIREMENTS.md) — Path A vs Path B, checklist for onboarding other ecommerce/services.
+- **Kaalis + AfriExchange architecture:** [`docs/merchant-platform/KAALIS_AFRIEXCHANGE_DUAL_PLATFORM_ARCHITECTURE.md`](./docs/merchant-platform/KAALIS_AFRIEXCHANGE_DUAL_PLATFORM_ARCHITECTURE.md) — how the two platforms work together and why.
+- **Merchant integration (technical):** [`docs/merchant-platform/MERCHANT_INTEGRATION_GUIDE.md`](./docs/merchant-platform/MERCHANT_INTEGRATION_GUIDE.md) — standard merchant API integration for external platforms.
 - **Platform overview (sales & value):** `/AfriX Platform Overview - Who It's For, What It Solves & Why Use It.md` — what AfriX is, who it’s for, what it solves, how to use it, benefits.
 - **Progress (what we built):** `PROGRESS - What We Have Built So Far.md` (repo root) — implemented features in backend, admin web, and mobile.
 - **Buy & Sell lifecycle:** `afriX_backend/docs/Buy and Sell Tokens - Full Lifecycle Documentation.md` — mint (buy) and burn (sell) flows from mobile through API to admin; states, timeouts, disputes, escrow, and API reference.

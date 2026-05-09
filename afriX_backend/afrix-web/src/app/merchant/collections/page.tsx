@@ -217,27 +217,27 @@ export default function MerchantCollectionsPage() {
             </p>
           </div>
 
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <div className="flex w-full flex-col gap-3 lg:max-w-4xl">
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-              <Card className="min-w-[150px]">
+              <Card>
                 <CardContent className="p-4">
                   <p className="text-xs uppercase tracking-wide text-muted-foreground">Completed</p>
                   <p className="mt-2 text-2xl font-semibold">{stats.completedCount}</p>
                 </CardContent>
               </Card>
-              <Card className="min-w-[150px]">
+              <Card>
                 <CardContent className="p-4">
                   <p className="text-xs uppercase tracking-wide text-muted-foreground">Pending</p>
                   <p className="mt-2 text-2xl font-semibold">{stats.pendingCount}</p>
                 </CardContent>
               </Card>
-              <Card className="min-w-[150px]">
+              <Card>
                 <CardContent className="p-4">
                   <p className="text-xs uppercase tracking-wide text-muted-foreground">Volume</p>
                   <p className="mt-2 text-2xl font-semibold">{formatAmount(stats.filteredVolume)}</p>
                 </CardContent>
               </Card>
-              <Card className="min-w-[150px]">
+              <Card>
                 <CardContent className="p-4">
                   <p className="text-xs uppercase tracking-wide text-muted-foreground">Rows</p>
                   <p className="mt-2 text-2xl font-semibold">{stats.totalCount}</p>
@@ -246,7 +246,7 @@ export default function MerchantCollectionsPage() {
             </div>
             <Button
               variant="outline"
-              className="shrink-0 gap-2 self-start"
+              className="gap-2 self-start"
               onClick={exportCsv}
               disabled={filteredTransactions.length === 0}
             >

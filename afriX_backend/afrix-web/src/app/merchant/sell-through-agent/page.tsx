@@ -7,6 +7,7 @@ import {
   ArrowRightLeft,
   Banknote,
   Clock3,
+  ChevronDown,
   Search,
   ShieldCheck,
   Smartphone,
@@ -305,6 +306,11 @@ export default function MerchantSellThroughAgentPage() {
     );
   }, [returnedOrStoppedRequests]);
 
+  const requestsNeedingConfirmation = useMemo(
+    () => requests.filter((request) => canResolveFiatRequest(request)),
+    [requests]
+  );
+
   const handleCreateRequest = async () => {
     if (!selectedAgentId || !amount || Number(amount) <= 0) {
       toast.error("Choose an agent and enter a valid amount");
@@ -514,6 +520,35 @@ export default function MerchantSellThroughAgentPage() {
           </div>
         </div>
       </section>
+
+      {requests.length ? (
+        <Card className="border-amber-300/60 bg-amber-50/80 dark:border-amber-800 dark:bg-amber-950/30">
+          <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2 font-medium text-amber-950 dark:text-amber-100">
+                <ChevronDown className="h-4 w-4 animate-bounce" />
+                More content below
+              </div>
+              <p className="text-sm text-amber-900/85 dark:text-amber-100/80">
+                Scroll down to review active sell requests, payout proof, and merchant confirmation actions.
+              </p>
+              {requestsNeedingConfirmation.length ? (
+                <p className="text-sm font-medium text-amber-950 dark:text-amber-100">
+                  {requestsNeedingConfirmation.length} request
+                  {requestsNeedingConfirmation.length === 1 ? "" : "s"} need your confirmation now.
+                </p>
+              ) : null}
+            </div>
+            {requestsNeedingConfirmation.length ? (
+              <Button asChild>
+                <Link href={`/merchant/sell-through-agent/${requestsNeedingConfirmation[0].id}`}>
+                  Review Pending Confirmation
+                </Link>
+              </Button>
+            ) : null}
+          </CardContent>
+        </Card>
+      ) : null}
 
       <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
         <Card>
@@ -829,6 +864,13 @@ export default function MerchantSellThroughAgentPage() {
                         ? format(new Date(request.created_at), "MMM d, yyyy • h:mm a")
                         : "N/A"}
                     </div>
+                    {canResolveFiatRequest(request) ? (
+                      <Button size="sm" asChild>
+                        <Link href={`/merchant/sell-through-agent/${request.id}`}>
+                          Review & Confirm
+                        </Link>
+                      </Button>
+                    ) : null}
                     <Button variant="outline" size="sm" asChild>
                       <Link href={`/merchant/sell-through-agent/${request.id}`}>Open</Link>
                     </Button>
@@ -860,8 +902,41 @@ export default function MerchantSellThroughAgentPage() {
             </DialogDescription>
           </DialogHeader>
 
+          <div className="sticky top-0 z-10 -mx-1 rounded-md border border-amber-300/60 bg-amber-50 px-3 py-3 text-sm text-amber-950 shadow-sm dark:border-amber-800 dark:bg-amber-950/70 dark:text-amber-100">
+            <div className="flex items-center justify-center gap-2 font-medium">
+              <ChevronDown className="h-4 w-4 animate-bounce" />
+              More content below
+            </div>
+            <p className="mt-1 text-center text-xs text-amber-900/80 dark:text-amber-100/80">
+              Scroll down to review payout proof, final actions, and confirmation controls.
+            </p>
+          </div>
+
           {selectedRequest ? (
             <div className="grid gap-4 sm:grid-cols-2">
+              {canResolveFiatRequest(selectedRequest) ? (
+                <Card className="sm:col-span-2 border-amber-400/40 bg-amber-50/60 dark:bg-amber-950/20">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm">Merchant Action Needed</CardTitle>
+                    <CardDescription>
+                      The agent marked fiat as sent. Review the proof and confirm receipt only
+                      after the money has actually landed in your account or mobile wallet.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="flex flex-wrap items-center gap-3">
+                    <Button variant="outline" onClick={handleOpenDispute}>
+                      I Didn&apos;t Receive It
+                    </Button>
+                    <Button onClick={() => handleConfirmReceipt(selectedRequest.id)}>
+                      Yes, I Received It
+                    </Button>
+                    <p className="text-sm text-muted-foreground">
+                      This confirmation finalizes the escrow and completes the burn.
+                    </p>
+                  </CardContent>
+                </Card>
+              ) : null}
+
               <Card>
                 <CardContent className="space-y-3 p-4 text-sm">
                   <div className="flex items-center justify-between">

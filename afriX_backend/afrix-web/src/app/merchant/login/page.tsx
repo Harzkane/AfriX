@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Cookies from "js-cookie";
@@ -99,10 +100,15 @@ export default function MerchantLoginPage() {
             </div>
           </CardContent>
           <CardFooter>
-            <Button className="w-full" type="submit" disabled={isLoading}>
-              {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Sign in
-            </Button>
+            <div className="w-full space-y-3">
+              <Button className="w-full" type="submit" disabled={isLoading}>
+                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Sign in
+              </Button>
+              <Button className="w-full" variant="outline" asChild>
+                <Link href="/merchant/register">Create merchant profile</Link>
+              </Button>
+            </div>
           </CardFooter>
         </form>
       </Card>

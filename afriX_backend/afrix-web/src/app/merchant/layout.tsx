@@ -1,3 +1,7 @@
+"use client";
+
+import { usePathname } from "next/navigation";
+
 import { MerchantSidebar } from "@/components/merchant-sidebar";
 import { MerchantHeader } from "@/components/merchant-header";
 
@@ -6,6 +10,14 @@ export default function MerchantLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const pathname = usePathname();
+  const isAuthPage =
+    pathname === "/merchant/login" || pathname === "/merchant/register";
+
+  if (isAuthPage) {
+    return <>{children}</>;
+  }
+
   return (
     <div className="grid h-screen w-full overflow-hidden md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr]">
       <div className="hidden border-r bg-muted/40 md:block sticky top-0 h-screen shrink-0">

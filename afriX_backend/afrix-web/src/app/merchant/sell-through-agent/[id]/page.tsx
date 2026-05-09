@@ -8,6 +8,7 @@ import {
   ArrowLeft,
   ArrowRightLeft,
   Banknote,
+  ChevronDown,
   ExternalLink,
   Loader2,
   ShieldCheck,
@@ -296,6 +297,15 @@ export default function MerchantSellRequestDetailPage() {
             <p className="max-w-2xl text-sm text-muted-foreground">
               {getStatusDescription(request.status)}
             </p>
+            <div className="inline-flex max-w-full flex-col rounded-md border border-amber-300/60 bg-amber-50 px-3 py-3 text-sm text-amber-950 shadow-sm dark:border-amber-800 dark:bg-amber-950/70 dark:text-amber-100">
+              <span className="flex items-center gap-2 font-medium">
+                <ChevronDown className="h-4 w-4 animate-bounce" />
+                More content below
+              </span>
+              <span className="mt-1 text-xs text-amber-900/80 dark:text-amber-100/80">
+                Scroll down for payout proof, settlement details, and final confirmation actions.
+              </span>
+            </div>
             <p className="font-mono text-xs text-muted-foreground break-all">{request.id}</p>
           </div>
 
@@ -331,6 +341,27 @@ export default function MerchantSellRequestDetailPage() {
           </div>
         </div>
       </section>
+
+      {canResolveFiatRequest(request) ? (
+        <Card className="border-amber-400/40 bg-amber-50/60 dark:bg-amber-950/20">
+          <CardHeader>
+            <CardTitle>Merchant Confirmation Required</CardTitle>
+            <CardDescription>
+              The agent says fiat has been sent. Review the proof below and only confirm after the
+              fiat amount has actually landed in your account or mobile wallet.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-wrap items-center gap-3">
+            <Button variant="outline" onClick={() => setShowDisputeDialog(true)}>
+              I Didn&apos;t Receive It
+            </Button>
+            <Button onClick={handleConfirmReceipt}>Yes, I Received It</Button>
+            <p className="text-sm text-muted-foreground">
+              Confirming here finalizes the escrow and completes the token burn.
+            </p>
+          </CardContent>
+        </Card>
+      ) : null}
 
       {request.latest_dispute ? (
         <Card className="border-destructive/30 bg-destructive/5">

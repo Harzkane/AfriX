@@ -9,6 +9,7 @@ const {
   TRANSACTION_TYPES,
 } = require("../config/constants");
 const { ApiError } = require("../utils/errors");
+const { setCache, getCache, deleteCache } = require("../utils/cache");
 
 const buildReference = (idempotencyKey) => {
   const hash = crypto.createHash("sha256").update(idempotencyKey).digest("hex");
@@ -17,6 +18,37 @@ const buildReference = (idempotencyKey) => {
 
 const linkVerificationSessions = new Map();
 const LINK_VERIFICATION_TTL_MS = 10 * 60 * 1000;
+const LINK_VERIFICATION_CACHE_PREFIX = "kaalis:link-verification:";
+const SHOULD_LOG_LINK_CODES =
+  process.env.NODE_ENV !== "production" ||
+  process.env.LOG_ACCOUNT_LINK_VERIFICATION_CODES === "true";
+
+const buildLinkVerificationCacheKey = (requestId) =>
+  `${LINK_VERIFICATION_CACHE_PREFIX}${requestId}`;
+
+const saveLinkVerificationSession = async (requestId, session) => {
+  linkVerificationSessions.set(requestId, session);
+  await setCache(
+    buildLinkVerificationCacheKey(requestId),
+    session,
+    Math.ceil(LINK_VERIFICATION_TTL_MS / 1000)
+  );
+};
+
+const getLinkVerificationSession = async (requestId) => {
+  const cachedSession = await getCache(buildLinkVerificationCacheKey(requestId));
+  if (cachedSession) {
+    linkVerificationSessions.set(requestId, cachedSession);
+    return cachedSession;
+  }
+
+  return linkVerificationSessions.get(requestId) || null;
+};
+
+const deleteLinkVerificationSession = async (requestId) => {
+  linkVerificationSessions.delete(requestId);
+  await deleteCache(buildLinkVerificationCacheKey(requestId));
+};
 
 const recordKaalisWebhookHealth = async ({
   status,
@@ -338,7 +370,7 @@ const kaalisIntegrationController = {
       const code = generateVerificationCode();
       const expiresAt = Date.now() + LINK_VERIFICATION_TTL_MS;
 
-      linkVerificationSessions.set(requestId, {
+      await saveLinkVerificationSession(requestId, {
         requestId,
         code,
         tokenType,
@@ -349,6 +381,12 @@ const kaalisIntegrationController = {
         expiresAt,
         attempts: 0,
       });
+
+      if (SHOULD_LOG_LINK_CODES) {
+        console.info(
+          `[AfriExchange link verification] requestId=${requestId} email=${user.email} code=${code}`
+        );
+      }
 
       await sendAccountLinkVerificationCode(user.email, user.full_name, code);
 
@@ -373,27 +411,28 @@ const kaalisIntegrationController = {
         throw new ApiError("requestId and code are required", 400);
       }
 
-      const session = linkVerificationSessions.get(requestId);
+      const session = await getLinkVerificationSession(requestId);
       if (!session) {
         throw new ApiError("Link verification request not found or expired", 404);
       }
 
       if (session.expiresAt < Date.now()) {
-        linkVerificationSessions.delete(requestId);
+        await deleteLinkVerificationSession(requestId);
         throw new ApiError("Link verification code has expired", 410);
       }
 
       session.attempts += 1;
       if (session.attempts > 5) {
-        linkVerificationSessions.delete(requestId);
+        await deleteLinkVerificationSession(requestId);
         throw new ApiError("Too many invalid verification attempts", 429);
       }
 
       if (String(code).trim() !== session.code) {
+        await saveLinkVerificationSession(requestId, session);
         throw new ApiError("Invalid verification code", 400);
       }
 
-      linkVerificationSessions.delete(requestId);
+      await deleteLinkVerificationSession(requestId);
 
       const user = await User.findByPk(session.userId);
       const wallet = await Wallet.findByPk(session.walletId);

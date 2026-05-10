@@ -7,6 +7,26 @@ const internalFriendlyEmail = Joi.string().email({
   tlds: { allow: false },
 });
 
+const returnUrlSchema = Joi.string()
+  .trim()
+  .max(500)
+  .custom((value, helpers) => {
+    if (!value) return value;
+
+    try {
+      const parsed = new URL(value);
+      if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+        return helpers.error("string.uriCustom");
+      }
+      return value;
+    } catch (_) {
+      return helpers.error("string.uriCustom");
+    }
+  })
+  .messages({
+    "string.uriCustom": "return_url must be a valid http or https URL",
+  });
+
 /**
  * Validate registration input
  */
@@ -403,7 +423,7 @@ const validatePaymentRequest = (req, res, next) => {
     description: Joi.string().max(500).optional(),
     customer_email: Joi.string().email().optional(),
     reference: Joi.string().max(100).optional(),
-    return_url: Joi.string().uri({ scheme: ["http", "https"] }).max(500).optional(),
+    return_url: returnUrlSchema.optional(),
     metadata: Joi.object().optional(),
   });
 

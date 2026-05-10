@@ -490,6 +490,15 @@ const sanitizeInput = (req, res, next) => {
   const sanitize = (obj) => {
     for (let key in obj) {
       if (typeof obj[key] === "string") {
+        const isUrlField =
+          key.toLowerCase().includes("url") ||
+          key.toLowerCase().includes("uri");
+
+        if (isUrlField) {
+          obj[key] = obj[key].trim();
+          continue;
+        }
+
         // Basic XSS prevention
         obj[key] = obj[key]
           .replace(/</g, "&lt;")

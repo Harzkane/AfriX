@@ -36,6 +36,18 @@ const formatAmount = (amount?: number | string, token = "CT") => {
   return `${numeric.toLocaleString()} ${token}`;
 };
 
+const decodeHtmlEntities = (value?: string | null) => {
+  if (!value) return "";
+
+  return value
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#x27;/g, "'")
+    .replace(/&#x2F;/g, "/")
+    .replace(/&amp;/g, "&");
+};
+
 export default function HostedPaymentPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
@@ -62,7 +74,7 @@ export default function HostedPaymentPage() {
   );
   const hasSufficientBalance =
     Number(buyerWallet?.balance || 0) >= Number(payment?.amount || 0);
-  const returnUrl = payment?.metadata?.return_url || "";
+  const returnUrl = decodeHtmlEntities(payment?.metadata?.return_url as string | undefined);
 
   const loadPayment = async () => {
     const paymentData = await hostedPaymentApi.getPaymentDetails(transactionId);

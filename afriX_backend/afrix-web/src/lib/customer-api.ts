@@ -50,6 +50,10 @@ export type HostedPaymentDetails = {
   description?: string;
   status: string;
   created_at?: string;
+  metadata?: {
+    return_url?: string | null;
+    [key: string]: unknown;
+  };
   customer?: {
     id: string;
     name: string;

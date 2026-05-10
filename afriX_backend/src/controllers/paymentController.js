@@ -292,6 +292,7 @@ const paymentController = {
           currency: transaction.token_type,
           token_type: transaction.token_type,
           description: transaction.description,
+          metadata: transaction.metadata || {},
           status: transaction.status,
           created_at: transaction.created_at,
           customer: transaction.fromUser

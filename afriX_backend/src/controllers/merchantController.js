@@ -234,7 +234,7 @@ const merchantController = {
   createPaymentRequest: async (req, res, next) => {
     try {
       const userId = req.user.id;
-      const { amount, currency, token_type, description, customer_email, reference } =
+      const { amount, currency, token_type, description, customer_email, reference, return_url } =
         req.body;
       const tokenType = token_type || currency || null;
 
@@ -268,6 +268,7 @@ const merchantController = {
         reference: reference || `MER-${Date.now()}`,
         metadata: {
           customer_email,
+          return_url: return_url || null,
           merchant_name: merchant.display_name,
           business_name: merchant.business_name,
         },
@@ -300,6 +301,7 @@ const merchantController = {
             status: "pending",
             description: transaction.description,
             customer_email: customer_email || null,
+            return_url: return_url || null,
             created_at: transaction.created_at,
           },
         })
@@ -314,6 +316,7 @@ const merchantController = {
           amount,
           currency: paymentTokenType,
           token_type: paymentTokenType,
+          return_url: return_url || null,
           expires_at: new Date(Date.now() + 30 * 60 * 1000), // 30 minutes
         },
         message: "Payment request created successfully",

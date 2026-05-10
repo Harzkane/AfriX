@@ -403,6 +403,7 @@ const validatePaymentRequest = (req, res, next) => {
     description: Joi.string().max(500).optional(),
     customer_email: Joi.string().email().optional(),
     reference: Joi.string().max(100).optional(),
+    return_url: Joi.string().uri({ scheme: ["http", "https"] }).max(500).optional(),
     metadata: Joi.object().optional(),
   });
 

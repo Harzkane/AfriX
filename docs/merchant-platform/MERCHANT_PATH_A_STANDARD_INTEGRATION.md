@@ -64,7 +64,12 @@ Your platform receives identifiers (transaction id, payment URL / QR context as 
 
 ### 4. Customer completes payment
 
-Depends on your UX: payment link, QR, deep link into AfriExchange experiences—whatever your product uses.
+Depends on your UX: payment link, QR, deep link, or redirect into an AfriExchange-hosted payment experience-whatever your product uses.
+
+Important:
+
+- a hosted redirect checkout remains a valid standard Path A implementation
+- merchants do not need to copy the tighter Kaalis-style linked-wallet UX in order to be considered a correct Path A merchant
 
 ### 5. Reconcile with webhooks
 
@@ -86,7 +91,7 @@ These align with **`AFRIEXCHANGE_MERCHANT_PUBLIC_RELEASE_PHASES.md`** and **`MER
 | Phase | Status | Goal |
 |-------|--------|------|
 | **Foundation** | [DONE] | Merchant onboarding + APIs + portal documented and verified against live behavior (`MERCHANT_INTEGRATION_GUIDE.md`). Path A merchant routes now support merchant API key auth for backend-to-backend use. |
-| **Pilot** | [LOCAL PROOF PASSED] | A repeatable non-Kaalis Path A local end-to-end pilot now exists and passes via `npm run pilot:path-a` (merchant API key auth → payment request → completion of the same request → settlement visibility → webhook reconciliation). Re-run this in staging or deployed infrastructure before public launch. |
+| **Pilot** | [DEPLOYED PILOT PASSED] | A repeatable non-Kaalis Path A pilot now exists and has passed both local and deployed/prod-like verification via `npm run pilot:path-a` and hosted remote mode (merchant API key auth → payment request → completion of the same request → settlement visibility → webhook reconciliation). |
 | **Portal credibility** | [DONE] | Merchant portal surfaces integration readiness (API & Webhooks, health signals where implemented). |
 | **Trust** | [DONE] | Error catalog, sandbox guidance, rate-limit notes, auth guidance, and public event naming are aligned for external production use. |
 | **Observability** | [DONE] | Webhook delivery logs with payload viewing and error traces live in the portal. |
@@ -136,7 +141,7 @@ Before marking Path A fully production-ready, one single-merchant ecommerce flow
 - settlement visible in the merchant wallet context
 - webhook received and reconciled idempotently on the merchant backend
 
-As of **2026-05-08**, the team now has a **repeatable local pilot verifier**:
+As of **2026-05-10**, the team now have a **repeatable local and deployed pilot verifier**:
 
 - `cd afriX_backend`
 - `npm run pilot:path-a`
@@ -148,6 +153,12 @@ That command proves the live local stack can:
 - complete that same request through the payment flow
 - update collection status to `completed`
 - deliver and log `collection.completed` webhook events
+
+This requirement is now satisfied in deployed/prod-like testing as well:
+
+- a dedicated deployed merchant and payer flow has been proven against hosted infrastructure
+- webhook delivery and signature verification were validated against an external merchant backend
+- PlugNG is the current single-merchant external reference for this style of Path A adoption
 
 For **deployed / Render pilot testing**, the verifier now supports a dedicated remote mode:
 
@@ -201,4 +212,4 @@ Before public use, the team should prove these operational realities:
 
 **Path A** is how most external ecommerce and services should start: **one merchant**, **standard APIs**, **merchant portal** for operations—without Kaalis-specific integration code paths.
 
-**Last updated:** 2026-05-08 (Statuses corrected for actual production readiness)
+**Last updated:** 2026-05-10 (deployed non-Kaalis pilot proof and hosted checkout clarification)

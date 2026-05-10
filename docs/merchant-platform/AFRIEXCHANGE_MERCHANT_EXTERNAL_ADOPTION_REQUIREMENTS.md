@@ -133,7 +133,7 @@ Use this as a working gate:
 - [x] Merchant can complete registration and admin approval in a documented way.
 - [x] Merchant portal reflects **API & Webhooks** and operational values (merchant id, webhook URL, health where implemented).
 - [x] `MERCHANT_INTEGRATION_GUIDE.md` matches current endpoint auth model and webhook behavior.
-- [ ] At least one **non-Kaalis** pilot or internal dry-run completed on Path A end-to-end (Sandbox Ping alone is not enough).
+- [x] At least one **non-Kaalis** Path A end-to-end pilot completed on hosted infrastructure (Sandbox Ping alone is not enough).
 - [x] Support runbook for common failures (Error Catalog included in Docs).
 - [x] Production monitoring for merchant-facing APIs and webhook emit paths (Health Logs & Payload Viewer live).
 
@@ -167,4 +167,8 @@ When APIs, routes, or onboarding change, update:
 3. `MERCHANT_INTEGRATION_GUIDE.md`.
 4. [`readme.md`](../../readme.md) (AfriExchange root) or `AfriX Platform Overview` if the public story shifts.
 
-**Last updated**: 2026-05-05 (Path A/B deep-dive docs and go-public gates).
+Current note:
+
+- PlugNG is the current single-merchant external reference proving that a standard hosted redirect checkout plus signed webhook reconciliation is a valid Path A adoption model.
+
+**Last updated**: 2026-05-10 (deployed non-Kaalis pilot proof and hosted Path A checkout clarification).

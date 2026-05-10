@@ -30,6 +30,12 @@ The main backend contract is:
 5. AfriExchange marks the collection complete
 6. AfriExchange sends a signed webhook to the merchant backend
 
+Important product note:
+
+- Path A does not require the merchant to embed AfriExchange checkout the same way Kaalis does
+- a standard Path A merchant can validly redirect the customer to an AfriExchange-hosted payment page and then reconcile the result by signed webhook
+- a tighter linked-wallet or embedded-style flow is an optional merchant-side enhancement, not a requirement of the Path A contract
+
 ---
 
 ## 2. What the merchant needs before integration

@@ -17,6 +17,7 @@
     "seed:disputes": "node create_dispute_tests.js",
     "seed:path-a-pilot-merchant": "node src/scripts/create_path_a_pilot_merchant.js",
     "seed:path-a-pilot-payer": "node src/scripts/create_path_a_pilot_payer.js",
+    "seed:senegal-path-a-test-accounts": "node src/scripts/seed_senegal_path_a_test_accounts.js",
     "reset:path-a-pilot-merchant-password": "node src/scripts/reset_path_a_pilot_merchant_password.js",
     "reset:path-a-pilot-payer-password": "node src/scripts/reset_path_a_pilot_payer_password.js",
     "seed:kaalis-merchant": "node src/scripts/create_kaalis_merchant.js",

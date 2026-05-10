@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import {
   AlertCircle,
   CheckCircle2,
@@ -38,6 +38,7 @@ const formatAmount = (amount?: number | string, token = "CT") => {
 
 export default function HostedPaymentPage() {
   const params = useParams<{ id: string }>();
+  const router = useRouter();
   const transactionId = String(params?.id || "");
 
   const [payment, setPayment] = useState<HostedPaymentDetails | null>(null);
@@ -61,6 +62,7 @@ export default function HostedPaymentPage() {
   );
   const hasSufficientBalance =
     Number(buyerWallet?.balance || 0) >= Number(payment?.amount || 0);
+  const returnUrl = payment?.metadata?.return_url || "";
 
   const loadPayment = async () => {
     const paymentData = await hostedPaymentApi.getPaymentDetails(transactionId);
@@ -162,6 +164,22 @@ export default function HostedPaymentPage() {
       );
       await loadPayment();
       await loadProfile();
+
+      const redirectUrl = new URL(
+        returnUrl || `${window.location.origin}/`,
+        window.location.origin
+      );
+      redirectUrl.searchParams.set("reference", result.reference || payment.reference);
+      redirectUrl.searchParams.set("provider", "afriexchange");
+
+      window.setTimeout(() => {
+        if (returnUrl) {
+          window.location.assign(redirectUrl.toString());
+          return;
+        }
+
+        router.push("/");
+      }, 1200);
     } catch (paymentError: any) {
       setError(
         paymentError?.response?.data?.message ||
@@ -244,7 +262,12 @@ export default function HostedPaymentPage() {
               <Alert>
                 <CheckCircle2 className="h-4 w-4" />
                 <AlertTitle>Payment Completed</AlertTitle>
-                <AlertDescription>{successMessage}</AlertDescription>
+                <AlertDescription>
+                  {successMessage}
+                  {returnUrl
+                    ? " Redirecting you back to the merchant now..."
+                    : ""}
+                </AlertDescription>
               </Alert>
             )}
 

@@ -120,6 +120,7 @@ npm run dev
 ## Docs in repo
 
 - **Merchant & Kaalis docs (folder index):** [`docs/merchant-platform/README.md`](./docs/merchant-platform/README.md) — grouped guides; start here for follow-up.
+- **Merchant Path A README:** [`docs/merchant-platform/PATH_A_MERCHANT_INTEGRATION_README.md`](./docs/merchant-platform/PATH_A_MERCHANT_INTEGRATION_README.md) — full GitHub-style merchant integration walkthrough based on the final hosted Path A flow.
 - **Path A — standard merchant integration:** [`docs/merchant-platform/MERCHANT_PATH_A_STANDARD_INTEGRATION.md`](./docs/merchant-platform/MERCHANT_PATH_A_STANDARD_INTEGRATION.md) — single-merchant / default API integration.
 - **Path B — marketplace partner integration:** [`docs/merchant-platform/MERCHANT_PATH_B_PARTNER_MARKETPLACE_INTEGRATION.md`](./docs/merchant-platform/MERCHANT_PATH_B_PARTNER_MARKETPLACE_INTEGRATION.md) — Kaalis-style partner scope and contracts.
 - **Go-public phase gates:** [`docs/merchant-platform/MERCHANT_GO_PUBLIC_PHASE_GATES.md`](./docs/merchant-platform/MERCHANT_GO_PUBLIC_PHASE_GATES.md) — pass/fail criteria before public launch (Path A vs Path B).

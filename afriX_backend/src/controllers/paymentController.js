@@ -273,9 +273,15 @@ const paymentController = {
         throw new ApiError("Payment not found", 404);
       }
 
-      // Check if user is authorized to view details
+      const isPendingHostedRequest =
+        transaction.status === TRANSACTION_STATUS.PENDING &&
+        !transaction.from_user_id;
+
+      // Pending hosted payment requests must stay publicly viewable so the
+      // buyer can open the payment URL before they have authenticated as payer.
       if (
         req.user &&
+        !isPendingHostedRequest &&
         req.user.id !== transaction.from_user_id &&
         req.user.id !== transaction.to_user_id
       ) {

@@ -70,6 +70,8 @@ Important:
 
 - a hosted redirect checkout remains a valid standard Path A implementation
 - merchants do not need to copy the tighter Kaalis-style linked-wallet UX in order to be considered a correct Path A merchant
+- in the current hosted buyer flow, AfriExchange returns a hosted `payment_url`
+- the buyer lands on AfriExchange `/pay/:transactionId`, authenticates as a normal AfriExchange user, pays there, and is then redirected back to the merchant `return_url`
 
 ### 5. Reconcile with webhooks
 
@@ -159,6 +161,11 @@ This requirement is now satisfied in deployed/prod-like testing as well:
 - a dedicated deployed merchant and payer flow has been proven against hosted infrastructure
 - webhook delivery and signature verification were validated against an external merchant backend
 - PlugNG is the current single-merchant external reference for this style of Path A adoption
+- hosted buyer return flow is also now proven:
+  - merchant sends `return_url`
+  - AfriExchange stores it on the payment request
+  - hosted buyer page redirects back to merchant success page after payment
+  - merchant success page waits for signed webhook reconciliation before declaring success
 
 For **deployed / Render pilot testing**, the verifier now supports a dedicated remote mode:
 
@@ -192,6 +199,9 @@ Before public use, the team should prove these operational realities:
 - webhook retries and duplicate handling are understood
 - bad webhook destination, bad signature, and wrong base URL failures are easy to diagnose from the portal and support runbook
 - merchants understand the current single-key sandbox model and its limitations
+- merchants understand that hosted redirect return and signed webhook settlement are two separate states:
+  - redirect return means the buyer completed the hosted UI flow
+  - signed webhook reconciliation is what should mark the merchant order paid
 
 ---
 

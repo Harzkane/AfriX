@@ -236,7 +236,8 @@ curl -X POST "https://YOUR_AFRIEXCHANGE_API_BASE_URL/merchants/payment-request" 
     "token_type": "CT",
     "description": "Order #10045",
     "customer_email": "buyer@example.com",
-    "reference": "ORDER-10045"
+    "reference": "ORDER-10045",
+    "return_url": "https://merchant.example.com/checkout/success?provider=afriexchange"
   }'
 ```
 
@@ -251,7 +252,8 @@ curl -X POST "https://afrix-iqvq.onrender.com/api/v1/merchants/payment-request" 
     "token_type": "CT",
     "description": "Order #10045",
     "customer_email": "buyer@example.com",
-    "reference": "ORDER-10045"
+    "reference": "ORDER-10045",
+    "return_url": "https://merchant.example.com/checkout/success?provider=afriexchange"
   }'
 ```
 
@@ -268,6 +270,7 @@ Important:
 
 - `reference` should be unique per order
 - `customer_email` should be a valid email address
+- `return_url` should be a valid absolute `http` or `https` URL
 - the backend should store the returned `transaction_id`
 - this request is sent to the **AfriExchange API URL**, not to the merchant's own backend
 
@@ -279,6 +282,13 @@ Depending on the merchant experience, the merchant can use:
 - the `qr_code`
 - internal checkout instructions based on the returned transaction
 
+For the current hosted buyer flow:
+
+- redirect the buyer to the returned `payment_url`
+- the buyer will land on AfriExchange hosted page `/pay/:transactionId`
+- the buyer signs in there with a normal AfriExchange user account
+- after successful payment, AfriExchange redirects the buyer back to the merchant `return_url`
+
 ### Step 3: Wait for payment completion
 
 When the customer successfully pays:
@@ -286,6 +296,7 @@ When the customer successfully pays:
 - the original pending collection request is completed
 - the merchant settlement wallet is credited
 - a `collection.completed` webhook is sent
+- the buyer may already be back on the merchant success page, but the merchant should still wait for signed webhook reconciliation before marking the order paid
 
 ---
 
@@ -394,6 +405,7 @@ The merchant should also test:
 
 - payment request creation
 - successful payment completion
+- redirect back to the merchant `return_url`
 - collection settlement visibility
 - `collection.completed` reconciliation
 
@@ -413,6 +425,8 @@ Before a merchant goes live on Path A, confirm all of these:
 - payment request creation works from the merchant backend
 - completed collections appear in the portal
 - webhook delivery log shows successful deliveries
+- buyer successfully returns from AfriExchange hosted payment page to the merchant success page
+- merchant order only becomes paid after signed webhook reconciliation
 
 ---
 
@@ -421,9 +435,11 @@ Before a merchant goes live on Path A, confirm all of these:
 - Using the API key in frontend code instead of backend code
 - Not storing the returned `transaction_id`
 - Reusing the same `reference` for multiple orders
+- Forgetting to send a valid `return_url` for hosted checkout
 - Failing to verify webhook signatures
 - Treating webhook delivery as exactly-once instead of at-least-once
 - Assuming sandbox ping proves the whole payment lifecycle
+- Marking the merchant order paid just because the buyer was redirected back, without waiting for webhook confirmation
 
 ---
 

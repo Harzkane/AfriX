@@ -255,24 +255,56 @@ const merchantController = {
 
       const paymentTokenType = tokenType || merchant.default_token_type;
 
-      // Create payment transaction
-      const transaction = await Transaction.create({
-        from_user_id: null, // Will be filled when customer pays
-        to_user_id: userId,
-        merchant_id: merchant.id,
-        amount,
-        token_type: paymentTokenType,
-        type: TRANSACTION_TYPES.COLLECTION,
-        status: TRANSACTION_STATUS.PENDING,
-        description: description || `Payment to ${merchant.display_name}`,
-        reference: reference || `MER-${Date.now()}`,
-        metadata: {
+      const paymentReference = reference || `MER-${Date.now()}`;
+
+      // Reuse an existing pending request for the same merchant/reference
+      // instead of crashing on the unique transaction reference constraint.
+      let transaction = await Transaction.findOne({
+        where: {
+          merchant_id: merchant.id,
+          reference: paymentReference,
+          type: TRANSACTION_TYPES.COLLECTION,
+        },
+      });
+
+      if (transaction) {
+        if (transaction.status !== TRANSACTION_STATUS.PENDING) {
+          throw new ValidationError(
+            "A completed or cancelled payment already exists for this reference"
+          );
+        }
+
+        transaction.amount = amount;
+        transaction.token_type = paymentTokenType;
+        transaction.description =
+          description || `Payment to ${merchant.display_name}`;
+        transaction.metadata = {
+          ...(transaction.metadata || {}),
           customer_email,
           return_url: return_url || null,
           merchant_name: merchant.display_name,
           business_name: merchant.business_name,
-        },
-      });
+        };
+        await transaction.save();
+      } else {
+        transaction = await Transaction.create({
+          from_user_id: null, // Will be filled when customer pays
+          to_user_id: userId,
+          merchant_id: merchant.id,
+          amount,
+          token_type: paymentTokenType,
+          type: TRANSACTION_TYPES.COLLECTION,
+          status: TRANSACTION_STATUS.PENDING,
+          description: description || `Payment to ${merchant.display_name}`,
+          reference: paymentReference,
+          metadata: {
+            customer_email,
+            return_url: return_url || null,
+            merchant_name: merchant.display_name,
+            business_name: merchant.business_name,
+          },
+        });
+      }
 
       // Generate payment QR code
       const paymentData = {

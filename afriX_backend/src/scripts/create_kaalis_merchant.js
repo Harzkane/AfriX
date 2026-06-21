@@ -1,5 +1,6 @@
 // Create or reuse the dedicated AfriExchange merchant used by Kaalis.
 // To run: node src/scripts/create_kaalis_merchant.js
+
 require("dotenv").config();
 
 const crypto = require("crypto");

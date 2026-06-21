@@ -6,7 +6,7 @@ import * as SecureStore from "expo-secure-store";
 const API_URL =
   (typeof process !== "undefined" && process.env?.EXPO_PUBLIC_API_URL) ||
   Constants.expoConfig?.extra?.apiUrl ||
-  "https://api.replace-me-with-render-url.com/v1";
+  "https://afrix-iqvq.onrender.com/api/v1";
 
 const apiClient = axios.create({
   baseURL: API_URL,

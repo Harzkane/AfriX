@@ -5,10 +5,11 @@ const {
   verificationEmail,
   passwordResetEmail,
   transactionReceiptEmail,
+  accountLinkVerificationEmail,
 } = require("./emailTemplates");
 
 const USE_RESEND = !!process.env.RESEND_API_KEY;
-const FROM = process.env.RESEND_FROM || "AfriX <support@exonec.com>";
+const FROM = process.env.RESEND_FROM || "AfriX <hello@nexgentech.dev>";
 
 let resendClient;
 if (USE_RESEND) {
@@ -132,17 +133,7 @@ async function sendTransactionReceipt(email, name, transaction) {
 
 async function sendAccountLinkVerificationCode(email, name, code) {
   const subject = "Confirm your AfriExchange link request";
-  const html = `
-    <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #111827;">
-      <h2>Confirm your AfriExchange account link</h2>
-      <p>Hi ${name || "there"},</p>
-      <p>Use this one-time verification code to confirm that you own this AfriExchange account before linking it in Kaalis:</p>
-      <p style="font-size: 28px; font-weight: 700; letter-spacing: 6px; margin: 24px 0;">${code}</p>
-      <p>This code expires in 10 minutes.</p>
-      <p>If you did not start this link request, you can ignore this email.</p>
-      <p>AfriX</p>
-    </div>
-  `;
+  const html = accountLinkVerificationEmail(name, code);
   const text = `Hi ${name || "there"},\n\nUse this one-time verification code to confirm your AfriExchange link request in Kaalis: ${code}\n\nThis code expires in 10 minutes.\n\nIf you did not start this request, you can ignore this email.\n\nAfriX`;
 
   if (resendClient) {

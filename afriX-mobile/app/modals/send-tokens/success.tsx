@@ -13,7 +13,8 @@ export default function TransferSuccessScreen() {
 
     const amountNum = parseFloat(amount) || 0;
     const feeNum = fee || 0;
-    const recipientReceived = amountNum - feeNum;
+    const recipientReceived = amountNum;
+    const totalDebited = amountNum + feeNum;
 
     useEffect(() => {
         // Haptic feedback on success
@@ -75,6 +76,12 @@ export default function TransferSuccessScreen() {
                                 <Text style={styles.detailLabel}>Recipient received</Text>
                                 <Text style={styles.detailValue}>
                                     {recipientReceived.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {tokenType}
+                                </Text>
+                            </View>
+                            <View style={styles.detailRow}>
+                                <Text style={styles.detailLabel}>Total debited</Text>
+                                <Text style={styles.detailValue}>
+                                    {totalDebited.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {tokenType}
                                 </Text>
                             </View>
                         </>

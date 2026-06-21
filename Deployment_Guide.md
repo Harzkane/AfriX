@@ -90,8 +90,10 @@ EMAIL_PORT=587
 EMAIL_USER=harunbah93@gmail.com
 EMAIL_PASSWORD=zydv uwhm yppk iyzw
 EMAIL_FROM=AfriToken <noreply@afritoken.com>
-RESEND_API_KEY=RESEND_API_KEY_REDACTED
-RESEND_FROM=AfriX <support@exonec.com>
+# RESEND_API_KEY=RESEND_API_KEY_REDACTED #exonec
+RESEND_API_KEY=RESEND_API_KEY_REDACTED_2 #nexgentech.dev
+RESEND_FROM=AfriX <hello@nexgentech.dev>
+# RESEND_FROM=AfriX <support@exonec.com>
 
 # Business Logic & Fees
 P2P_TRANSFER_FEE=0.5

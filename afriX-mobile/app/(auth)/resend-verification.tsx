@@ -78,7 +78,7 @@ export default function ResendVerificationScreen() {
         </View>
 
         <Text style={styles.footerText}>
-          Check your spam folder if you don't see the email
+          {"Check your spam folder if you don't see the email"}
         </Text>
       </View>
     </LinearGradient>

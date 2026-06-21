@@ -199,7 +199,7 @@ export default function LoginScreen() {
             </Link>
 
             <View style={styles.registerRow}>
-              <Text style={styles.registerText}>Don't have an account? </Text>
+              <Text style={styles.registerText}>{"Don't have an account? "}</Text>
               <Link href="/(auth)/register" asChild>
                 <Button mode="text" style={styles.registerLink} textColor="#FFFFFF" labelStyle={{ fontWeight: '700' }}>
                   Register

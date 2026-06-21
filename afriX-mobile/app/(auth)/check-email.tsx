@@ -23,9 +23,9 @@ export default function CheckEmailScreen() {
             <Ionicons name="mail-outline" size={48} color="#FFFFFF" />
           </View>
           <Text style={styles.title}>Check Your Email</Text>
-          <Text style={styles.subtitle}>We've sent you a reset link</Text>
+          <Text style={styles.subtitle}>{"We've sent you a reset link"}</Text>
         </View>
-
+ 
         {/* Card Container */}
         <View style={styles.card}>
           <Text style={styles.message}>
@@ -33,7 +33,7 @@ export default function CheckEmailScreen() {
               ? `We sent a password reset link to ${email}. Follow the instructions to reset your password.`
               : "We sent a password reset link to your email. Follow the instructions to reset your password."}
           </Text>
-
+ 
           <Button
             mode="contained"
             onPress={() => router.replace("/(auth)/login")}
@@ -44,9 +44,9 @@ export default function CheckEmailScreen() {
             Back to Login
           </Button>
         </View>
-
+ 
         <Text style={styles.footerText}>
-          Didn't receive the email? Check your spam folder
+          {"Didn't receive the email? Check your spam folder"}
         </Text>
       </View>
     </LinearGradient>

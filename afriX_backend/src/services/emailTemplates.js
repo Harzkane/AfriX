@@ -128,8 +128,30 @@ function transactionReceiptEmail(name, transaction) {
   return baseWrap(content);
 }
 
+/**
+ * Account Link Verification Email
+ */
+function accountLinkVerificationEmail(name, code) {
+  const content = `
+    <div class="card-head">
+      <h1>Confirm Link Request</h1>
+    </div>
+    <div class="card-body">
+      <p>Hi ${name || "there"},</p>
+      <p>We received a request to link your AfriExchange account. Use the one-time verification code below to confirm that you own this account:</p>
+      <p style="text-align: center; margin: 24px 0;">
+        <span style="display: inline-block; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 12px; font-size: 32px; font-weight: 700; color: #111827; letter-spacing: 6px; padding: 12px 24px; font-family: 'SF Mono', Monaco, monospace;">${code}</span>
+      </p>
+      <div class="notice">
+        <strong>Security Notice:</strong> This code expires in 10 minutes. If you did not initiate this request, you can safely ignore this email.
+      </div>
+    </div>`;
+  return baseWrap(content);
+}
+
 module.exports = {
   verificationEmail,
   passwordResetEmail,
   transactionReceiptEmail,
+  accountLinkVerificationEmail,
 };

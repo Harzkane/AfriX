@@ -49,8 +49,7 @@ const isActionableRequest = (request: any) => {
 
   return (
     (status === "pending" || status === "proof_submitted" || status === "escrowed") &&
-    !(new Date(request?.expires_at).getTime() < Date.now()) &&
-    status !== "disputed"
+    !(new Date(request?.expires_at).getTime() < Date.now())
   );
 };
 

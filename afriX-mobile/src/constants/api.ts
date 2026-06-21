@@ -4,7 +4,7 @@ import Constants from "expo-constants";
 const API_URL =
   (typeof process !== "undefined" && process.env?.EXPO_PUBLIC_API_URL) ||
   Constants.expoConfig?.extra?.apiUrl ||
-  "https://api.replace-me-with-render-url.com/v1";
+  "https://afrix-iqvq.onrender.com/api/v1";
 
 export const API_ENDPOINTS = {
   AUTH: {

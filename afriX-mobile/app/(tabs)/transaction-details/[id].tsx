@@ -236,48 +236,71 @@ export default function UserTransactionDetailScreen() {
                     ) : null}
                 </Surface>
 
-                {feeAmount > 0 || (normalizedType === "swap" && receivedAmount > 0) || (normalizedType === "transfer" && isOut && showNetAfterFee) ? (
+                {((normalizedType === "transfer" && isOut) || (normalizedType === "swap") || (normalizedType !== "transfer" && normalizedType !== "swap" && feeAmount > 0)) ? (
                     <Surface style={styles.card}>
                         <View style={styles.cardAccent} />
                         <Text style={styles.cardTitle}>Settlement Details</Text>
 
+                        {/* Fee Row */}
                         {feeAmount > 0 ? (
                             <View style={styles.infoStrip}>
                                 <Text style={styles.infoStripLabel}>{feeLabel}</Text>
                                 <Text style={styles.infoStripValue}>
-                                    {feeAmount.toLocaleString()} {tx.token_type || ""}
+                                    {feeAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {tx.token_type || ""}
                                 </Text>
                             </View>
                         ) : null}
 
-                        {showNetAfterFee ? (
-                            <View style={styles.infoStrip}>
-                                <Text style={styles.infoStripLabel}>Net After Fee</Text>
-                                <Text style={styles.infoStripValue}>
-                                    {showAmountAsOut
-                                        ? `${(amountValue - feeAmount).toLocaleString()} ${tx.token_type || ""}`
-                                        : `${amountValue.toLocaleString()} ${tx.token_type || ""}`}
-                                </Text>
-                            </View>
-                        ) : null}
-
-                        {normalizedType === "swap" && receivedAmount > 0 ? (
-                            <View style={styles.infoStrip}>
-                                <Text style={styles.infoStripLabel}>You Received</Text>
-                                <Text style={[styles.infoStripValue, styles.successValue]}>
-                                    +{receivedAmount.toLocaleString()} {tx.metadata?.to_token || ""}
-                                </Text>
-                            </View>
-                        ) : null}
-
-                        {normalizedType === "transfer" && isOut && showNetAfterFee ? (
-                            <View style={styles.infoStrip}>
-                                <Text style={styles.infoStripLabel}>Recipient Received</Text>
-                                <Text style={styles.infoStripValue}>
-                                    {(amountValue - feeAmount).toLocaleString()} {tx.token_type || ""}
-                                </Text>
-                            </View>
-                        ) : null}
+                        {/* Details based on transaction type */}
+                        {normalizedType === "transfer" ? (
+                            <>
+                                <View style={styles.infoStrip}>
+                                    <Text style={styles.infoStripLabel}>Recipient Received</Text>
+                                    <Text style={styles.infoStripValue}>
+                                        {amountValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {tx.token_type || ""}
+                                    </Text>
+                                </View>
+                                <View style={styles.infoStrip}>
+                                    <Text style={styles.infoStripLabel}>Total Debited</Text>
+                                    <Text style={styles.infoStripValue}>
+                                        {(amountValue + feeAmount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {tx.token_type || ""}
+                                    </Text>
+                                </View>
+                            </>
+                        ) : normalizedType === "swap" ? (
+                            <>
+                                {showNetAfterFee && (
+                                    <View style={styles.infoStrip}>
+                                        <Text style={styles.infoStripLabel}>Net Swapped</Text>
+                                        <Text style={styles.infoStripValue}>
+                                            {(amountValue - feeAmount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {tx.token_type || ""}
+                                        </Text>
+                                    </View>
+                                )}
+                                {receivedAmount > 0 && (
+                                    <View style={styles.infoStrip}>
+                                        <Text style={styles.infoStripLabel}>You Received</Text>
+                                        <Text style={[styles.infoStripValue, styles.successValue]}>
+                                            +{receivedAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {tx.metadata?.to_token || ""}
+                                        </Text>
+                                    </View>
+                                )}
+                            </>
+                        ) : (
+                            // Fallback for any other type (mint, burn, etc.)
+                            <>
+                                {showNetAfterFee ? (
+                                    <View style={styles.infoStrip}>
+                                        <Text style={styles.infoStripLabel}>Net After Fee</Text>
+                                        <Text style={styles.infoStripValue}>
+                                            {showAmountAsOut
+                                                ? `${(amountValue - feeAmount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${tx.token_type || ""}`
+                                                : `${amountValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${tx.token_type || ""}`}
+                                        </Text>
+                                    </View>
+                                ) : null}
+                            </>
+                        )}
                     </Surface>
                 ) : null}
             </ScrollView>

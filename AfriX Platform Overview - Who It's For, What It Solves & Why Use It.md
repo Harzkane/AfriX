@@ -6,13 +6,29 @@
 
 ## What Is AfriX?
 
-**AfriExchange (AfriX)** is a **peer-to-peer digital token exchange platform** that lets people and businesses move value across Africa quickly, cheaply, and safely—using tokens (NT, CT, USDT) instead of relying only on banks and traditional remittance.
+**AfriExchange (AfriX)** is a **peer-to-peer digital token exchange and settlement platform** for African commerce. It lets people, independent agents, merchants, and partner platforms move value across currency zones quickly and transparently—using tokens (**NT**, **CT**, **USDT**) instead of relying only on banks and traditional remittance.
 
-- **For users:** Buy, send, receive, swap, and sell tokens. Pay merchants (in-app coming soon). Request tokens from contacts (coming soon).
-- **For agents:** Earn by facilitating token–cash exchanges (mint/burn) with escrow protection and clear rules.
-- **For merchants:** Accept NT/CT from customers via QR, payment links, and APIs—with instant settlement and lower fees than cards.
+- **For users (mobile app):** Buy, send, receive, swap, and sell tokens with agent-backed mint/burn and escrow protection. **Request tokens from a contact** and **scan-to-pay merchants in the mobile app** are still on the roadmap.
+- **For agents:** Earn by facilitating token–cash exchanges (mint/burn) with capacity tied to a USDT security deposit, clear rules, and dispute handling.
+- **For merchants:** Accept token payments via **API**, **webhooks**, **hosted checkout** (`/pay/...` on the web app), and the **merchant portal** (collections, wallet, sell-through-agent, integration docs). Production reference: **Kaalis Store** (XOF rail) via partner integration APIs.
+- **For operators:** Admin dashboard for users, agents, merchants, financials, operations, disputes, withdrawals, education, and security.
 
 We are **not a bank**. We are a **technology platform and marketplace** that connects users with independent agents and merchants. Tokens are blockchain-based digital assets with reference rates (e.g. 1 NT ≈ 1 Naira); they are not legal tender. We provide the rails; users and agents conduct the exchanges.
+
+---
+
+## Platform surfaces (what exists today)
+
+| Surface | Location | Who uses it | Main capabilities |
+|--------|----------|-------------|-------------------|
+| **Mobile app** | `afriX-mobile` (Expo) | End users & agents | Auth, 2FA, biometrics, wallets, P2P send/receive, swap, mint/burn, agent mode, education, notifications, disputes |
+| **Admin dashboard** | `afriX_backend/afrix-web` — `/login`, dashboard routes | Platform admins | Overview metrics, users, agents (KYC), merchants, financials, operations, disputes, withdrawals, education, security |
+| **Merchant portal** | `afriX_backend/afrix-web` — `/merchant/*` | Approved merchants | Overview, collections, wallet assets, sell-through-agent, settings, API & webhooks, integration hub, docs, sandbox, KYC |
+| **Hosted checkout** | `afriX_backend/afrix-web` — `/pay/[id]` | Customers paying a merchant | View payment request, sign in, pay from wallet (public page; no admin/merchant cookie required) |
+| **REST API** | `afriX_backend` — `/api/v1/*` | Apps & integrations | Auth, wallets, requests (mint/burn), payments, merchants, agents, disputes, education, notifications, **integrations** (e.g. Kaalis) |
+| **Partner APIs** | `/api/v1/integrations/kaalis/*` | Marketplace partners (Path B) | Account verify/link, collections, payouts (server-to-server + signed webhooks back to partner) |
+
+**Deployment (example):** API hosted on Render — see repo `readme.md` (`https://afrix.onrender.com/`). Mobile points at `EXPO_PUBLIC_API_URL`; web uses `NEXT_PUBLIC_API_URL`.
 
 ---
 
@@ -23,23 +39,30 @@ We are **not a bank**. We are a **technology platform and marketplace** that con
 - People who want to **send value to family or friends** without slow, expensive bank or mobile-money routes.
 - People who need **cross-border value** (e.g. Nigeria ↔ XOF) without high remittance fees.
 - People who prefer **transparent fees**, instant P2P transfers, and 24/7 availability.
-- People who are comfortable with **digital tokens** and want a simple app (buy → send/receive/swap/sell).
+- People comfortable with **digital tokens** and a simple app loop: buy → send/receive/swap/sell.
 
 ### 2. **Agents (independent facilitators)**
 
 - Reliable people with **bank and/or mobile money** who want to **earn from facilitating** token–cash exchanges.
-- People who can meet **KYC and security-deposit** requirements and want a **clear rulebook** (mint/burn, escrow, disputes).
+- People who can meet **KYC and USDT security-deposit** requirements and follow a clear rulebook (mint/burn, escrow, disputes).
 - Operators who care about **ratings, response time, and capacity** and want to grow volume and tier (Starter → Platinum).
 
 ### 3. **Merchants (businesses)**
 
-- Shops, freelancers, and online sellers who want to **accept NT/CT** from customers.
-- Businesses looking for **lower fees than card processing**, instant settlement, and simple tools (QR, payment links, optional API).
+- Shops, freelancers, SaaS, and marketplaces that want to **accept NT/CT** (often **CT-first** for XOF operations—see token strategy doc).
+- Businesses wanting **lower fees than card processing** (~2% merchant collection fee), instant settlement to a settlement wallet, and **API + webhooks** for ecommerce.
+- Teams that need a **merchant portal** for day-to-day visibility—not only mobile consumer flows.
 
-### 4. **Families and communities**
+### 4. **Commerce & marketplace partners**
 
-- Groups that **send and receive value** frequently (e.g. support, shared expenses, gifts).
-- Anyone who prefers **request-based flows** (“request 2,000 NT from a friend”) instead of chasing payments.
+- Platforms like **Kaalis Store** that need a **dedicated settlement rail** (e.g. XOF) while keeping catalog, orders, and vendor logic on their side.
+- **Path A:** single-merchant ecommerce using standard merchant APIs and hosted checkout.
+- **Path B:** marketplace-style partners using **integration** routes and webhook contracts (Kaalis is the reference implementation).
+
+### 5. **Families and communities**
+
+- Groups that **send and receive value** frequently (support, shared expenses, gifts).
+- Users who will benefit from **request-based flows** (“request 2,000 NT from a friend”) once the mobile feature ships.
 
 ---
 
@@ -47,50 +70,62 @@ We are **not a bank**. We are a **technology platform and marketplace** that con
 
 | Problem | How AfriX helps |
 |--------|------------------|
-| **Slow, expensive bank transfers** | Instant P2P token transfers (e.g. &lt; 1 min) and low fees (e.g. 0.5% send, 1.5% swap). |
+| **Slow, expensive bank transfers** | Instant P2P token transfers (typically under a minute) and low fees (e.g. 0.5% send, 1.5% swap). |
 | **High remittance costs** | Cross-border value via tokens and agents; typically cheaper than traditional remittance (e.g. 8–15%). |
 | **Weekends/holidays = delays** | Platform and agents operate 24/7 where agents are online. |
 | **Trust when swapping cash for “digital”** | Escrow on burns: user’s tokens lock; agent sends fiat; user confirms receipt. Disputes go to admin with evidence. |
-| **Unclear or hidden fees** | Fees shown before confirm (send 0.5%, swap 1.5%, merchant 2%, etc.). No surprise deductions. |
-| **Merchants paying high card fees** | Accept NT/CT at ~2% (merchant pays); instant settlement to wallet. |
+| **Unclear or hidden fees** | Fees shown before confirm (send 0.5%, swap 1.5%, merchant collection 2%, etc.). Platform fee collection is documented for operators. |
+| **Merchants paying high card fees** | Accept NT/CT at ~2% (merchant side); settlement to merchant wallet; **web checkout and APIs live today**. |
 | **Agents taking on risk with no structure** | Clear mint/burn flows, capacity from USDT deposit, escrow, dispute process, and performance tiers. |
-| **Scattered tools (payments, swaps, requests)** | One app: buy, send, receive, swap, sell, request, and (for merchants) collect. |
+| **Scattered tools (payments, swaps, liquidity)** | Mobile app for consumer/agent loops; **merchant portal + APIs + hosted pay** for businesses; admin for oversight. |
+| **Ecommerce without a workable XOF rail** | Partner integration (Kaalis model): collections and payouts over HTTPS + signed webhooks, CT-first strategy where configured. |
 
 ---
 
 ## How to Use AfriX
 
-### As a **user**
+### As a **user** (mobile app)
 
 1. **Get started:** Download the app → register (email, password) → verify email → wallets (NT, CT, USDT) are created.
 2. **Get tokens:**  
-   - **Buy from an agent:** Choose amount and token type → pick an agent → pay via bank/mobile money → upload proof → agent confirms → tokens arrive (typically 5–15 min).  
-   - **Receive from someone:** Share QR or email → they send → you get tokens.  
-   - **Swap:** e.g. USDT → NT/CT or NT ↔ CT in-app (instant, ~1.5% fee).
-3. **Send value:** Send → scan recipient QR or enter email → amount + optional note → confirm (0.5% fee).
-4. **Request tokens (coming soon):** Request → enter their email + amount + note → they approve or reject; if they send, you receive.
-5. **Sell tokens:** Sell → choose amount and agent → tokens go to escrow → agent sends you cash → you confirm receipt → done (you’re protected until you confirm).
-6. **Pay merchants (in-app coming soon):** Scan merchant QR or open payment link → enter amount → pay with NT/CT. Backend/API ready; in-app flow coming soon.
+   - **Buy from an agent:** Amount and token type → pick agent → pay via bank/mobile money → upload proof → agent confirms → tokens arrive (often 5–15 min).  
+   - **Receive from someone:** Share QR or email → they send → you receive.  
+   - **Swap:** e.g. USDT → NT/CT or NT ↔ CT in-app (~1.5% fee).
+3. **Send value:** Send → scan QR or enter email → amount + note → confirm (0.5% fee).
+4. **Sell tokens:** Sell → agent → bank details → tokens escrowed → agent sends fiat → you confirm receipt (or dispute within the window).
+5. **Pay a merchant:** **In the mobile app — coming soon.** Today, customers can pay via **hosted checkout** on the web (`/pay/[transactionId]`) or merchants’ own sites calling the payment APIs.
+6. **Request tokens from a friend:** **Coming soon** (placeholder modal in app; no backend flow yet).
 
-Optional: Verify ID for higher limits and full merchant features; use in-app education to understand tokens and safety.
+Optional: Verify ID for higher limits; complete **education modules**; enable **2FA** and **biometric app lock** (requires a dev build, not Expo Go).
 
-### As an **agent**
+### As an **agent** (mobile app + API)
 
-1. **Apply:** “Become an Agent” → submit business info, payment methods, KYC/docs.
-2. **Get approved** → deposit minimum USDT (e.g. $5,000) to treasury → complete training/quiz.
-3. **Go live:** Profile becomes active; you receive mint and burn requests.
-4. **Mint (user buys):** User sends you fiat and uploads proof → you verify in your bank/mobile money → confirm → system mints tokens to user; your capacity decreases.
-5. **Burn (user sells):** User locks tokens in escrow → you send fiat to user → you confirm + proof → tokens burn, your capacity increases; user must confirm receipt (or dispute within window).
-6. **Earn:** From fee share, optional spread within platform limits, and volume bonuses. Withdraw earnings to your registered bank account per platform rules.
+1. **Apply:** “Become an Agent” → register (country, currency, withdrawal address) → **KYC upload** → await admin approval.
+2. **Activate:** After KYC approval, send USDT to the platform treasury → **submit tx hash and amount** (`POST /agents/deposit`) → backend **verifies on-chain** → capacity credited → status **ACTIVE**.
+3. **Operate:** Mint (user buy) and burn (user sell) queues in agent mode; maintain payment methods, response time, and evidence for disputes.
+4. **Earn & withdraw:** Fee share and tiers per platform rules; request withdrawal via app; admin approves and marks paid in the dashboard.
 
-Keep response time low, accuracy high, and keep evidence for disputes.
+Minimum deposit and tiers are **environment-configurable** (see agent handbook and `AGENT_MIN_DEPOSIT_USD` in backend config).
 
 ### As a **merchant**
 
-1. **Register:** User account → “Become a Merchant” → business details.
-2. **Get paid:** Create payment links and/or show QR; customers pay with NT/CT from the app.
-3. **Settlement:** Funds land in your settlement wallet; you can sell to agents for cash or reuse tokens.
-4. **Optional:** Use API/webhooks for deeper integration (see Merchant Payment System docs).
+**Onboarding (typical Path A)**
+
+1. **User account** → register as **merchant** (API or merchant portal `/merchant/register`) → business profile → **merchant KYC** → **admin approval**.
+2. **Go live:** Regenerate **API key**, set **webhook URL**, choose default token (often **CT** for XOF pilots).
+3. **Get paid:**  
+   - **Payment request API** → share **hosted pay link** (`/pay/[id]`) or embed flow on your site.  
+   - Customer pays from AfriExchange wallet (web hosted page or `POST /payments/process` / `POST /transactions/pay-merchant` where applicable).  
+   - Funds settle to **settlement wallet**; view in **merchant portal** (collections, wallet assets).
+4. **Cash out or reuse:** **Sell through agent** from portal when you need fiat; or reuse tokens in your operations.
+5. **Integrate deeper:** HMAC-signed webhooks, sandbox page, integration hub, and guides under `docs/merchant-platform/`.
+
+**Path B (marketplace partner):** Server-to-server **Kaalis integration** routes (`/api/v1/integrations/kaalis/...`) plus webhook contract—see dual-platform architecture doc. Not required for a single-store Path A merchant.
+
+### As a **platform admin**
+
+1. Sign in at **`/login`** on the web app (admin role).
+2. Use dashboard areas: users, agents (KYC approve/reject), merchants, financials, operations (mint/burn, escrows, disputes), withdrawals, education, security.
 
 ---
 
@@ -98,104 +133,117 @@ Keep response time low, accuracy high, and keep evidence for disputes.
 
 ### For **users**
 
-- **Speed:** P2P in under a minute; swaps in under a minute; agent mint typically 5–15 minutes.
+- **Speed:** P2P and swaps in under a minute; agent mint typically minutes once proof is confirmed.
 - **Cost:** Lower than many banks and remittance options (e.g. 0.5% send, 1.5% swap; receive free).
-- **24/7:** No “bank hours”; use whenever agents are available and for all in-app P2P and swap actions.
-- **Transparency:** Amount, fee, and recipient shown before you confirm; no hidden fees.
-- **Safety when selling:** Escrow holds your tokens until you confirm you received cash (or you dispute).
-- **One place:** Buy, send, receive, swap, sell (request and pay merchants in-app coming soon) in one app.
-- **Cross-border ready:** NT/CT and USDT support value movement across supported markets (e.g. Nigeria and XOF).
-- **Control:** You hold and move tokens; optional 2FA, biometrics, and security settings.
+- **24/7:** No bank hours for in-app P2P, swap, and agent availability.
+- **Transparency:** Amount, fee, and recipient shown before confirm.
+- **Safety when selling:** Escrow until you confirm fiat (or dispute).
+- **One mobile home** for buy, send, receive, swap, sell (merchant pay & friend-request coming in-app).
+- **Cross-border ready:** NT, CT, and USDT across supported markets.
+- **Control:** Optional 2FA, biometrics, notification preferences.
 
 ### For **agents**
 
-- **Earn on volume:** Fee share per transaction; optional spread within limits; volume bonuses by tier.
-- **Clear rules:** Defined mint/burn flows, capacity = deposit, escrow so users are protected and you have a clear process.
-- **Reputation:** Ratings, response time, and completion rate drive visibility and more requests.
-- **Tiers:** From Starter to Platinum with benefits (e.g. placement, fee share).
-- **Support:** Training, handbook, dispute process, and (where available) agent support channels.
-- **Flexibility:** Set service hours and payment methods; manage capacity via deposit.
+- **Earn on volume:** Fee share, optional spread within limits, volume bonuses by tier.
+- **Clear rules:** Mint/burn, capacity = verified deposit, escrow on burns.
+- **Reputation:** Ratings and response metrics affect visibility.
+- **Tiers:** Starter → Platinum with operational benefits.
+- **Support:** Handbook, education, dispute process, admin tooling.
 
 ### For **merchants**
 
-- **Lower fees:** e.g. ~2% vs typical card fees.
-- **Instant settlement:** Tokens in your wallet as soon as the customer pays.
-- **Simple tools:** Payment links and QR; optional API for integrations.
-- **Same token ecosystem:** Receive NT/CT; pay out or convert via agents as needed.
+- **Lower fees:** ~2% collection vs typical card stacks.
+- **Instant settlement:** Tokens in settlement wallet on successful payment.
+- **Operational portal:** Collections, balances, API keys, webhooks, sandbox, docs—not admin-only views.
+- **Hosted checkout:** Customers without your app can pay on the web.
+- **Adoption paths:** Documented **Path A** (standard) and **Path B** (partner/marketplace); Kaalis as production reference for Path B.
 
 ### For **the ecosystem**
 
-- **Regulatory clarity:** Platform and copy use “tokens” and “marketplace”; agents are independent contractors; no claim to be a bank or money transmitter.
-- **Education:** In-app modules (e.g. what tokens are, reference rates, escrow) so users understand what they’re using.
-- **Dispute resolution:** Escrow + admin review with evidence; slashing and penalties for bad behavior.
-- **Auditability:** Transactions and balances backed by database and blockchain where applicable.
+- **Regulatory-safe copy:** “Tokens” and “marketplace”; agents as independent facilitators; not a bank.
+- **Education:** In-app modules on tokens, agents, value, and safety.
+- **Dispute resolution:** Escrow + admin review; agent deposit slashing where rules apply.
+- **Auditability:** Ledger in PostgreSQL; blockchain verification for agent deposits and on-chain flows where enabled.
 
 ---
 
 ## What Makes AfriX Stand Out?
 
-- **Escrow on burns:** When you sell tokens, they’re locked; the agent can’t take them until they’ve sent you cash and you confirm (or the process times out/disputes).
-- **Agent accountability:** Agents post USDT security; capacity is tied to deposit; disputes can result in slashing and suspension.
-- **One app, full loop:** Get tokens (buy/receive/swap) → send, request, pay merchants (in-app coming soon) → sell back to agents when you need cash.
-- **Transparent pricing:** Fees and limits (including daily limits by verification tier) shown upfront.
-- **User protection:** Confirm-receipt step on burns, dispute flow, and clear timelines (e.g. 30 minutes to confirm or dispute).
-- **Built for Africa:** Design for Nigeria and XOF (e.g. NT, CT, local payment methods, agents, and language considerations).
-- **Education and safety:** In-app education and regulatory-safe terminology so users know tokens are not legal tender and that they’re using a marketplace.
+- **Escrow on burns:** Tokens locked until user confirms fiat or dispute process runs.
+- **Agent accountability:** USDT security deposit, capacity limits, slashing and suspension paths.
+- **Full consumer loop on mobile:** Get tokens → move them → sell back to agents when you need cash.
+- **Merchant stack beyond “API only”:** Portal, hosted pay page, webhooks, sandbox, and partner integration surface.
+- **Proven partner rail:** Kaalis ↔ AfriExchange dual-platform model for XOF commerce (collections, payouts, signed webhooks).
+- **Transparent pricing:** Fees and verification-tier limits surfaced in product and config.
+- **Built for Africa:** NT/CT, local payment methods, agents, and bilingual/product considerations in roadmap materials.
 
 ---
 
 ## Who Can Use It?
 
-- **Individuals:** Anyone who can register (e.g. email, age policy) and comply with terms. Basic accounts can receive and send within limits; ID verification raises limits and unlocks merchant features.
-- **Agents:** Applicants who pass KYC, meet deposit and training requirements, and follow agent rules.
-- **Merchants:** Registered users who complete merchant onboarding; businesses that want to accept NT/CT.
-- **Geographies:** Initially Nigeria and at least one XOF market; expansion as documented in product/legal materials.
+- **Individuals:** Register with email; verify email; optional ID for higher limits.
+- **Agents:** Pass KYC, meet deposit/training rules, maintain performance standards.
+- **Merchants:** Complete merchant onboarding and admin approval; operate via portal and/or API.
+- **Admins:** Role-gated web dashboard.
+- **Geographies:** Nigeria and XOF markets (e.g. Senegal pilots documented); expansion per product/legal docs.
 
-Restrictions (e.g. sanctions, age, jurisdiction) follow the platform’s terms and applicable law.
+Restrictions (sanctions, age, jurisdiction) follow platform terms and applicable law.
 
 ---
 
 ## Tech Stack
 
-AfriX is built for reliability, security, and scale:
-
 | Layer | Technologies |
 |--------|---------------|
-| **Backend** | Node.js, Express 5, PostgreSQL (Sequelize ORM), Redis (caching/sessions), JWT + refresh tokens, rate limiting (express-rate-limit), Helmet (security headers) |
-| **APIs & auth** | REST (`/api/v1`), JWT auth, optional 2FA (TOTP/Speakeasy), bcrypt password hashing |
-| **Blockchain** | Polygon (e.g. Amoy testnet), ethers.js, smart contracts (OpenZeppelin patterns), mint/burn/escrow on-chain |
-| **Storage & files** | AWS S3 (KYC docs, payment proof, avatars), Multer for uploads; file type/size validation |
-| **Email & notifications** | Resend (transactional email), Firebase Cloud Messaging (push), optional Twilio (SMS), in-app notification center |
-| **Mobile app** | Expo (React Native), Expo Router (file-based routing), iOS/Android; biometric login (Face ID / Touch ID) via development build |
-| **Admin dashboard** | Next.js (React), dashboard for users, agents, disputes, financials, operations, security, education |
-| **Real-time** | Socket.io (e.g. balance updates, live status) |
-| **Jobs** | node-cron (e.g. request expiry, scheduled tasks) |
-| **Logging** | Winston; structured logs for debugging and audit |
+| **Backend** | Node.js, Express 5, PostgreSQL (Sequelize), Redis (optional), JWT + refresh, rate limiting, Helmet |
+| **APIs & auth** | REST `/api/v1`, JWT, 2FA (TOTP), bcrypt; merchant-scoped auth for portal routes |
+| **Blockchain** | Polygon (e.g. Amoy testnet), ethers.js, smart contracts; on-chain deposit verification for agents |
+| **Storage** | Cloudflare R2 / S3-compatible (KYC, proofs, avatars); Multer uploads with validation |
+| **Email & notifications** | Resend, Firebase Cloud Messaging, in-app notification center |
+| **Mobile** | Expo (React Native), Expo Router, Zustand, SecureStore, expo-local-authentication (biometrics in dev builds) |
+| **Web (admin + merchant + pay)** | Next.js App Router, Tailwind, shadcn-style UI, Axios clients (`lib/api.ts`, `lib/merchant-api.ts`, customer hosted-pay client) |
+| **Jobs** | node-cron (e.g. mint/burn expiry, escrow refunds, auto-dispute triggers) |
+| **Logging** | Winston; `afriX_backend/logs/` for app/database logs (`npm run logs` in backend) |
 
-Deployment: backend (e.g. Railway, Render), PostgreSQL (managed), Redis optional; mobile via Expo EAS / app stores; web admin (e.g. Vercel). See repo `readme.md` and `afriX_backend/.env.example` for run instructions.
+**Repo layout:** `afriX_backend`, `afriX-mobile`, `afriX_backend/afrix-web`, `docs/merchant-platform/`, lifecycle docs at repo root. See `readme.md` and `afriX_backend/.env.example` for local run instructions.
 
 ---
 
 ## Agent Onboarding & KYC at Scale
 
-We built agent onboarding so many applicants can join without blocking the team, while keeping quality and compliance high.
-
 ### Four-step lifecycle
 
-1. **Quick registration (2 min)** — Agent calls `POST /agents/register` with country, currency, withdrawal (wallet) address. Status: `PENDING`. They can view dashboard and browse; they **cannot** mint/burn yet.
-2. **KYC upload (5–10 min)** — Agent uploads ID document, selfie (with ID), proof of address, optional business registration via `POST /agents/kyc/upload` (multipart). Status: `UNDER_REVIEW`. Clear “next steps” in API response (complete KYC → wait for approval → deposit).
-3. **Admin approval (manual)** — Admins review in the dashboard: ID quality, selfie match, address validity, risk. Actions: Approve → `is_verified = true`, KYC `approved`; Reject → with reason; or flag high-risk. Agent gets status via `GET /agents/kyc/status` and (where configured) email/push when approved/rejected.
-4. **First deposit (activation)** — After KYC approved, the agent sends USDT to the platform treasury address (Polygon), then **submits the transaction hash and amount** via `POST /agents/deposit`. The backend **verifies the transaction on the blockchain** (no automatic detection of incoming transfers); once verified, capacity is credited and status set to `ACTIVE`. Agent can now mint/burn and earn.
+1. **Quick registration (~2 min)** — `POST /agents/register` (country, currency, withdrawal address). Status **PENDING**; no mint/burn yet.
+2. **KYC upload (5–10 min)** — ID, selfie, proof of address, optional business doc via `POST /agents/kyc/upload`. Status **UNDER_REVIEW**.
+3. **Admin approval** — Dashboard review: approve → verified; reject with reason; resubmit path available.
+4. **First deposit (activation)** — Agent sends USDT to treasury, then **`POST /agents/deposit`** with **tx hash + amount** → backend **verifies on-chain** → capacity credited → **ACTIVE**.
 
-### How we handle it at scale
+### Scale vs quality
 
-- **Async pipeline:** Registration and KYC upload are self-serve; no synchronous “wait for human” in the API. Agents see estimated review time (e.g. 1–3 business days) and can check status anytime.
-- **Clear statuses:** `not_submitted` → `under_review` → `approved` / `rejected`. Rejected agents can **resubmit** (`PUT /agents/kyc/resubmit`) with new docs without re-registering.
-- **Admin queue and stats:** Admin dashboard exposes agent stats (total, active, pending, suspended) and KYC stats (verified, pending_review). Review is batched in the admin UI rather than one-off emails.
-- **Security and compliance:** File type/size validation, rate limiting on KYC endpoints, optional encryption at rest and access logs for KYC docs; rejected docs can be auto-deleted after a retention period (e.g. 90 days) for GDPR-style compliance.
-- **Mobile flow:** App guides agent through ID (camera/gallery), selfie (with face detection), address proof, and optional business doc; single “submit” then “Under review” and push when approved/rejected.
+- **Self-serve** registration and KYC upload; status API (`GET /agents/kyc/status`); resubmit without re-registering.
+- **Admin batch review** with stats (pending KYC, agents, withdrawals).
+- **Mobile-guided KYC** (camera/gallery, selfie, address proof).
+- **Quality gates:** KYC before activation; deposit verification; human review on disputes.
 
-So: **scale** comes from self-serve registration + upload, clear status API, resubmit path, and admin batch review; **quality** from mandatory KYC before activation, deposit gating, and human review with reject reasons.
+There is **no automatic treasury sweep** without the agent submitting the transaction hash—the backend verifies the submitted on-chain transfer.
+
+---
+
+## Implementation status (honest snapshot)
+
+Aligned with `PROGRESS - What We Have Built So Far.md` and `afriX_backend/docs/Docs vs Code - Gap Audit.md`:
+
+| Capability | Backend | Web | Mobile |
+|------------|---------|-----|--------|
+| Auth, 2FA, wallets, P2P, swap | ✅ | — | ✅ |
+| Mint / burn / escrow / disputes | ✅ | Admin ops | ✅ |
+| Agent register, KYC, deposit, withdrawals | ✅ | Admin | ✅ |
+| Merchant register, KYC, payment-request, pay | ✅ | Portal + `/pay/[id]` | — |
+| Kaalis partner integration | ✅ | — | — |
+| Request tokens from friend | — | — | 🔜 Coming soon |
+| Pay merchant (scan QR / in-app) | ✅ | Hosted pay ✅ | 🔜 Coming soon |
+
+**Merchant public launch:** Path A is feature-close with pilot validation; full self-serve external merchant go-live is gated by `docs/merchant-platform/MERCHANT_GO_PUBLIC_PHASE_GATES.md`.
 
 ---
 
@@ -203,27 +251,47 @@ So: **scale** comes from self-serve registration + upload, clear status API, res
 
 | Dimension | AfriX in one line |
 |----------|-------------------|
-| **What** | P2P token exchange platform (NT, CT, USDT) with agents and merchants. |
-| **Who** | Individuals, agents, and businesses that want fast, low-fee value movement and token acceptance. |
-| **Why** | Speed, lower cost, 24/7, escrow protection, transparency, and one app for the full loop. |
-| **How** | Mobile app: buy from/sell to agents, send/receive, swap (request & pay merchants in-app coming soon); agents facilitate mint/burn; merchants accept via QR/links/API. |
+| **What** | P2P token platform (NT, CT, USDT) + agents + merchant settlement (API, portal, hosted pay, partner integrations). |
+| **Who** | Users, agents, merchants, ecommerce/marketplace partners, and platform operators. |
+| **Why** | Speed, lower cost, 24/7, escrow protection, transparency, and merchant rails without traditional gateway lock-in for every market. |
+| **How** | **Mobile** for users/agents; **web** for admin, merchants, and customer checkout; **APIs** for integrations (Path A standard, Path B partner). |
 
-AfriX is built so that **sending value across Africa is as simple, cheap, and safe as we can make it**—for users, agents, and merchants—without being a bank. We provide the platform; you move the value.
+AfriX is built so that **moving value across Africa is as simple, cheap, and safe as we can make it**—for users, agents, merchants, and partner platforms—without being a bank. We provide the platform; you move the value.
 
 ---
 
-**Related docs (in this repo)**  
+## Related docs (in this repo)
 
-- **[Progress – What We Have Built So Far](afriX_backend/docs/PROGRESS%20-%20What%20We%20Have%20Built%20So%20Far.md)** — Implemented features across backend, admin web, and mobile (routes, models, pages, flows).  
-- **[Docs vs Code – Gap Audit](afriX_backend/docs/Docs%20vs%20Code%20-%20Gap%20Audit.md)** — Backend, mobile, and web vs documentation; gaps and doc-update recommendations.  
-- **[AfriToken User FAQ](afriX_backend/docs/AfriToken%20User%20FAQ.md)** — end-user Q&A (get started, tokens, buy/send/swap/sell, agents, security, fees, troubleshooting). This overview is aligned with the FAQ; the FAQ is the detailed reference for “how do I…?” for users.  
-- [Agent Registration + KYC Flow - Complete Guide](afriX_backend/docs/Agent%20Registration%20+%20KYC%20Flow%20-%20Complete%20Guide.md) — agent lifecycle and KYC at scale (step-by-step).  
-- [AfriToken Agent Handbook](afriX_backend/docs/AfriToken%20Agent%20Handbook.md) — agent onboarding and operations.  
-- [AfriToken: Complete Transaction Flows](afriX_backend/docs/AfriToken%3A%20Complete%20Transaction%20Flows.md) — mint, burn, P2P, swap, requests, disputes.  
-- [Agent System](afriX_backend/docs/Agent%20System.md) — backend agent model and APIs.  
-- [AfriToken Merchant Payment System](afriX_backend/docs/AfriToken%20Merchant%20Payment%20System.md) — merchant flows and integration.  
-- [Big-picture: AfriToken architecture & interdependencies](afriX_backend/docs/Big-picture%3A%20AfriToken%20architecture%20%26%20interdependencies.md) — actors and flows.  
-- [AfriToken: Regulatory-Safe Terminology Guide](afriX_backend/docs/AfriToken%3A%20Regulatory-Safe%20Terminology%20Guide.md) — approved wording for product and marketing.  
+### Build & alignment
 
-**Version:** 1.1  
-**Last updated:** February 2025
+- **[Progress – What We Have Built So Far](PROGRESS%20-%20What%20We%20Have%20Built%20So%20Far.md)** — Backend, admin web, merchant portal, mobile; route and flow inventory.
+- **[Docs vs Code – Gap Audit](afriX_backend/docs/Docs%20vs%20Code%20-%20Gap%20Audit.md)** — Documentation vs implementation gaps.
+- **[readme.md](readme.md)** — Repo structure, run commands, doc index.
+
+### Lifecycle & operations
+
+- **[Buy & Sell Tokens – Full Lifecycle](Buy%20and%20Sell%20Tokens%20-%20Full%20Lifecycle%20Documentation.md)** — Mint/burn, escrow, timeouts, disputes.
+- **[Send, Receive & Swap – Full Lifecycle](Send%2C%20Receive%20and%20Swap%20-%20Full%20Lifecycle%20Documentation.md)** — P2P and swap flows.
+- **[Platform Fee Collection – Lifecycle & Admin Guide](Platform%20Fee%20Collection%20-%20Lifecycle%20%26%20Admin%20Guide.md)** — Fee collection behavior for operators.
+
+### Merchant & partner platform (`docs/merchant-platform/`)
+
+- **[Merchant platform README](docs/merchant-platform/README.md)** — Index of all merchant/Kaalis docs.
+- **[Dual-platform architecture (Kaalis + AfriExchange)](docs/merchant-platform/KAALIS_AFRIEXCHANGE_DUAL_PLATFORM_ARCHITECTURE.md)** — Why and how partner commerce connects.
+- **[Path A – standard integration](docs/merchant-platform/MERCHANT_PATH_A_STANDARD_INTEGRATION.md)** · **[Path A README](docs/merchant-platform/PATH_A_MERCHANT_INTEGRATION_README.md)** · **[Integration guide](docs/merchant-platform/MERCHANT_INTEGRATION_GUIDE.md)**
+- **[Path B – marketplace partner](docs/merchant-platform/MERCHANT_PATH_B_PARTNER_MARKETPLACE_INTEGRATION.md)**
+- **[Go-public phase gates](docs/merchant-platform/MERCHANT_GO_PUBLIC_PHASE_GATES.md)** · **[Public release phases](docs/merchant-platform/AFRIEXCHANGE_MERCHANT_PUBLIC_RELEASE_PHASES.md)**
+- **[External adoption requirements](docs/merchant-platform/AFRIEXCHANGE_MERCHANT_EXTERNAL_ADOPTION_REQUIREMENTS.md)** · **[Token strategy (CT/NT/USDT)](docs/merchant-platform/TOKEN_STRATEGY_NOTE_CT_NT_USDT.md)**
+
+### User, agent & compliance (`afriX_backend/docs/`)
+
+- **[AfriToken User FAQ](afriX_backend/docs/AfriToken%20User%20FAQ.md)** — End-user “how do I…?” reference.
+- **[Agent Registration + KYC Flow](afriX_backend/docs/Agent%20Registration%20+%20KYC%20Flow%20-%20Complete%20Guide.md)** · **[Agent Handbook](afriX_backend/docs/AfriToken%20Agent%20Handbook.md)** · **[Agent System](afriX_backend/docs/Agent%20System.md)**
+- **[Complete Transaction Flows](afriX_backend/docs/AfriToken%3A%20Complete%20Transaction%20Flows.md)** · **[Merchant Payment System](afriX_backend/docs/AfriToken%20Merchant%20Payment%20System.md)**
+- **[Architecture & interdependencies](afriX_backend/docs/Big-picture%3A%20AfriToken%20architecture%20%26%20interdependencies.md)** · **[Regulatory-Safe Terminology](afriX_backend/docs/AfriToken%3A%20Regulatory-Safe%20Terminology%20Guide.md)**
+
+---
+
+**Version:** 2.0  
+**Last updated:** May 2026  
+**Based on:** `afriX_backend`, `afriX-mobile`, `afriX_backend/afrix-web`, `docs/merchant-platform/`, and root lifecycle/progress docs.

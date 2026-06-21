@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
     View,
     Text,
@@ -33,10 +33,27 @@ export default function AgentDepositScreen() {
     const [loading, setLoading] = useState(false);
     const [fieldErrors, setFieldErrors] = useState<DepositFieldErrors>({});
 
-    // TODO: Get this from backend/agent profile
-    // const depositAddress = "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb"; //original test wallet
-    const depositAddress = "0x7c26C161F7b3b1b975489DA1a1672a9D9178a16e";
-    const minimumDeposit = 100;
+    const [depositAddress, setDepositAddress] = useState("0x7c26C161F7b3b1b975489DA1a1672a9D9178a16e");
+    const [minimumDeposit, setMinimumDeposit] = useState(100);
+    const [fetching, setFetching] = useState(true);
+
+    useEffect(() => {
+        let isMounted = true;
+        (async () => {
+            try {
+                const { data } = await apiClient.get("/agents/deposit-address");
+                if (isMounted && data?.data) {
+                    if (data.data.address) setDepositAddress(data.data.address);
+                    if (data.data.minimum_deposit) setMinimumDeposit(data.data.minimum_deposit);
+                }
+            } catch (error) {
+                console.error("Failed to fetch deposit address:", error);
+            } finally {
+                if (isMounted) setFetching(false);
+            }
+        })();
+        return () => { isMounted = false; };
+    }, []);
 
     const copyAddress = () => {
         Clipboard.setString(depositAddress);
@@ -267,7 +284,11 @@ export default function AgentDepositScreen() {
                     <View style={styles.qrSection}>
                         <Text style={styles.sectionTitle}>Deposit Address</Text>
                         <View style={styles.qrContainer}>
-                            <QRCode value={depositAddress} size={200} />
+                            {fetching ? (
+                                <ActivityIndicator size="small" color="#00B14F" style={{ height: 200, justifyContent: "center" }} />
+                            ) : (
+                                <QRCode value={depositAddress} size={200} />
+                            )}
                         </View>
                         <View style={styles.addressContainer}>
                             <Text style={styles.addressText} numberOfLines={1} ellipsizeMode="middle">

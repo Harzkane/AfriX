@@ -1,6 +1,10 @@
 // cd /Users/harz/Documents/backUps/izmir/AfriExchange/afriX_backend
 // npm run reset:kaalis-merchant-password
 
+// Kaalis merchant password reset successfully.
+// - email: kaalis@afriexchange.local
+// - password: Kaalis-047b9865daefbd086c771826
+
 require("dotenv").config();
 
 const crypto = require("crypto");

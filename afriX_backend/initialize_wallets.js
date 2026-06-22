@@ -1,3 +1,5 @@
+// node initialize_wallets.js
+
 const { User } = require('./src/models');
 const { TOKEN_TYPES } = require('./src/config/constants');
 const walletService = require('./src/services/walletService');

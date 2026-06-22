@@ -9,7 +9,8 @@ const {
 } = require("./emailTemplates");
 
 const USE_RESEND = !!process.env.RESEND_API_KEY;
-const FROM = process.env.RESEND_FROM || "AfriX <hello@nexgentech.dev>";
+const rawFrom = process.env.RESEND_FROM || "AfriX <hello@nexgentech.dev>";
+const FROM = rawFrom.startsWith('"') && rawFrom.endsWith('"') ? rawFrom.slice(1, -1) : rawFrom;
 
 let resendClient;
 if (USE_RESEND) {

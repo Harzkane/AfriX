@@ -1,4 +1,5 @@
 // seeders/runner.js
+// npm run seed
 require("dotenv").config();
 const { sequelize } = require("../src/config/database");
 const fs = require("fs");

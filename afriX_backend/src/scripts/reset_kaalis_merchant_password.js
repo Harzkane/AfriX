@@ -64,3 +64,28 @@ async function resetKaalisMerchantPassword() {
 }
 
 resetKaalisMerchantPassword();
+
+
+// ❯ npm run seed:kaalis-merchant
+
+// > afrix_backend@1.0.0 seed:kaalis-merchant
+// > node src/scripts/create_kaalis_merchant.js
+
+// [dotenv@17.2.3] injecting env (124) from .env -- tip: 📡 add observability to secrets: https://dotenvx.com/ops
+// [dotenv@17.2.3] injecting env (0) from .env -- tip: 🔐 encrypt with Dotenvx: https://dotenvx.com
+// Connecting to AfriExchange database...
+// Database connected
+// Created Kaalis integration user: kaalis@afriexchange.local
+// - initial password: Kaalis-047b9865daefbd086c771826
+// Created CT settlement wallet: d5c1a635-4059-4e3a-b750-f58dda77f6df
+// Created Kaalis merchant: 0ebdf855-b7f0-4c5e-8c7e-557407aa692d
+
+// Use this in AfriExchange/afriX_backend/.env:
+// KAALIS_AFRIEXCHANGE_MERCHANT_ID=0ebdf855-b7f0-4c5e-8c7e-557407aa692d
+
+// Merchant details:
+// - merchant_id: 0ebdf855-b7f0-4c5e-8c7e-557407aa692d
+// - user_id: f91992b4-0a4b-4e45-9158-7d070a9778dc
+// - settlement_wallet_id: d5c1a635-4059-4e3a-b750-f58dda77f6df
+// - token_type: CT
+// - verification_status: approved

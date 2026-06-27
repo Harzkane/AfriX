@@ -7,6 +7,8 @@
 !tsconfig.json
 !components.json
 !app.json
+!eas.json
+!**/eas.json
 afriX_backend/afrix-notifications-firebase-adminsdk-*.json
 **/firebase-adminsdk-*.json
 

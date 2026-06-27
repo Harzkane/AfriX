@@ -135,7 +135,7 @@ async function sendTransactionReceipt(email, name, transaction) {
 async function sendAccountLinkVerificationCode(email, name, code) {
   const subject = "Confirm your AfriExchange link request";
   const html = accountLinkVerificationEmail(name, code);
-  const text = `Hi ${name || "there"},\n\nUse this one-time verification code to confirm your AfriExchange link request in Kaalis: ${code}\n\nThis code expires in 10 minutes.\n\nIf you did not start this request, you can ignore this email.\n\nAfriX`;
+  const text = `Hi ${name || "there"},\n\nUse this one-time verification code to confirm your AfriExchange link request in Kaalis: ${code}\n\n This code expires in 10 minutes.\n\nIf you did not start this request, you can ignore this email.\n\nAfriX`;
 
   if (resendClient) {
     const { error } = await resendClient.emails.send({

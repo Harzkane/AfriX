@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "afriX-mobile",
+    "name": "AfriX – Digital Commerce",
     "slug": "afriX",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -10,7 +10,8 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.codewithharz.afriX",
+      "bundleIdentifier": "com.nexgentech.afrix",
+      "buildNumber": "1",
       "infoPlist": {
         "LSApplicationQueriesSchemes": [
           "whatsapp"
@@ -21,7 +22,8 @@
       }
     },
     "android": {
-      "package": "com.codewithharz.afriX",
+      "package": "com.nexgentech.afrix",
+      "versionCode": 1,
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -41,7 +43,11 @@
       "favicon": "./assets/images/favicon.png"
     },
     "extra": {
-      "apiUrl": "https://afrix-iqvq.onrender.com/api/v1"
+      "apiUrl": "https://afrix-iqvq.onrender.com/api/v1",
+      "router": {},
+      "eas": {
+        "projectId": "15e39350-ebf9-47bf-84f1-7baafaa9da6a"
+      }
     },
     "plugins": [
       "expo-router",
@@ -83,6 +89,7 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "owner": "codewithharz"
   }
 }

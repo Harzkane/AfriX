@@ -78,8 +78,16 @@ We may update this Privacy Policy from time to time. We will notify you of any c
 
 ## 8. Contact Us
 
-If you have any questions or concerns about this Privacy Policy, please contact us:
+If you have any questions or concerns about this Privacy Policy, please contact us using the appropriate department below:
 
-*   **Email:** [support@nexgentech.dev](mailto:support@nexgentech.dev)
+| Department | Email | Use For |
+| :--- | :--- | :--- |
+| **General Support** | [support@nexgentech.dev](mailto:support@nexgentech.dev) | Account help, usage questions, data access requests |
+| **Legal & Compliance** | [legal@nexgentech.dev](mailto:legal@nexgentech.dev) | Legal inquiries, GDPR requests, data deletion requests |
+| **Security** | [security@nexgentech.dev](mailto:security@nexgentech.dev) | Reporting security vulnerabilities or suspicious activity |
+| **Billing** | [billing@nexgentech.dev](mailto:billing@nexgentech.dev) | Fee disputes or transaction billing questions |
+| **Press & Media** | [press@nexgentech.dev](mailto:press@nexgentech.dev) | Press enquiries and media coverage |
+| **Partnerships** | [partnerships@nexgentech.dev](mailto:partnerships@nexgentech.dev) | Business partnerships and merchant integrations |
+
 *   **Developer Company:** NexGen Tech Innovations
 *   **Website:** [https://nexgentech.dev](https://nexgentech.dev)

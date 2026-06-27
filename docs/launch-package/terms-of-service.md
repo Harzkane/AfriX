@@ -85,7 +85,15 @@ These Terms shall be governed by and construed in accordance with the laws of th
 
 ## 9. Contact Us
 
-If you have any questions, concerns, or disputes regarding these Terms, please contact us:
+If you have any questions, concerns, or disputes regarding these Terms, please contact the appropriate department:
 
-*   **Email:** [support@nexgentech.dev](mailto:support@nexgentech.dev)
+| Department | Email | Use For |
+| :--- | :--- | :--- |
+| **General Support** | [support@nexgentech.dev](mailto:support@nexgentech.dev) | General questions, account issues, dispute follow-ups |
+| **Legal & Compliance** | [legal@nexgentech.dev](mailto:legal@nexgentech.dev) | Legal inquiries, regulatory compliance, formal dispute submissions |
+| **Billing** | [billing@nexgentech.dev](mailto:billing@nexgentech.dev) | Fee disputes, billing reconciliation, transaction charge queries |
+| **Security** | [security@nexgentech.dev](mailto:security@nexgentech.dev) | Reporting fraud, security vulnerabilities, or suspicious activity |
+| **Partnerships** | [partnerships@nexgentech.dev](mailto:partnerships@nexgentech.dev) | Merchant partnerships, platform integration inquiries |
+| **Press & Media** | [press@nexgentech.dev](mailto:press@nexgentech.dev) | Media coverage, press inquiries, and announcements |
+
 *   **Website:** [https://nexgentech.dev](https://nexgentech.dev)

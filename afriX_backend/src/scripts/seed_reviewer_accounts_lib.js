@@ -31,10 +31,6 @@ async function seedReviewersLib() {
   try {
     console.log("🌱 [Startup Seeder] Ensuring reviewer accounts exist...");
 
-    // Hash password
-    const salt = await bcrypt.genSalt(12);
-    const passwordHash = await bcrypt.hash(REVIEWER_PASS, salt);
-
     for (const acc of ACCOUNTS) {
       let user = await User.findOne({
         where: { email: acc.email.toLowerCase() },
@@ -43,7 +39,7 @@ async function seedReviewersLib() {
       if (!user) {
         user = await User.create({
           email: acc.email.toLowerCase(),
-          password_hash: passwordHash,
+          password_hash: REVIEWER_PASS,
           full_name: acc.name,
           country_code: "NG",
           role: USER_ROLES.USER,
@@ -62,7 +58,7 @@ async function seedReviewersLib() {
         });
         console.log(`   + Created reviewer user: ${user.email}`);
       } else {
-        user.password_hash = passwordHash;
+        user.password_hash = REVIEWER_PASS;
         user.full_name = acc.name;
         user.email_verified = true;
         user.phone_verified = true;

@@ -57,6 +57,8 @@ async function seedReviewerAccounts() {
           identity_verified: true,
           verification_level: 3,
           is_active: true,
+          login_attempts: 0,
+          locked_until: null,
           referral_code: acc.referral,
           education_what_are_tokens: true,
           education_how_agents_work: true,
@@ -72,6 +74,8 @@ async function seedReviewerAccounts() {
         user.identity_verified = true;
         user.verification_level = 3;
         user.is_active = true;
+        user.login_attempts = 0;
+        user.locked_until = null;
         user.education_what_are_tokens = true;
         user.education_how_agents_work = true;
         user.education_understanding_value = true;

@@ -7,6 +7,7 @@ module.exports = {
     // Hash password
     const salt = await bcrypt.genSalt(12);
     const passwordHash = await bcrypt.hash("Password123!", salt);
+    const reviewerPasswordHash = await bcrypt.hash("Reviewer123!", salt);
 
     const now = new Date();
 
@@ -30,6 +31,34 @@ module.exports = {
         email_verified: true,
         verification_level: 1,
         referral_code: "ADMIN001",
+        created_at: now,
+        updated_at: now,
+      },
+      // App Reviewer Primary
+      {
+        id: "d5986677-6d3c-4877-96d8-a1049fba32bb",
+        email: "reviewer@nexgentech.dev",
+        password_hash: reviewerPasswordHash,
+        full_name: "App Reviewer Primary",
+        country_code: "NG",
+        role: "user",
+        email_verified: true,
+        verification_level: 3,
+        referral_code: "REVIEWER001",
+        created_at: now,
+        updated_at: now,
+      },
+      // App Reviewer Secondary
+      {
+        id: "d5986677-6d3c-4877-96d8-a1049fba32bc",
+        email: "tester2@nexgentech.dev",
+        password_hash: reviewerPasswordHash,
+        full_name: "App Reviewer Secondary",
+        country_code: "NG",
+        role: "user",
+        email_verified: true,
+        verification_level: 3,
+        referral_code: "REVIEWER002",
         created_at: now,
         updated_at: now,
       },

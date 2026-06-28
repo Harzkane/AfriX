@@ -8,6 +8,7 @@ This document contains the metadata, description copy, and settings required to 
 
 | Listing Field | Specification / Value | Character Limit |
 | :--- | :--- | :--- |
+| **Package Name** | `com.nexgentech.afrix` | Fixed Identifier |
 | **App Name (Title)** | `AfriX – Digital Commerce` | Max 30 characters *(Currently 25)* |
 | **Short Description** | `Secure digital wallet, escrow protection, peer-to-peer exchange & merchant pay.` | Max 80 characters *(Currently 79)* |
 | **App Category** | `Finance` | N/A |

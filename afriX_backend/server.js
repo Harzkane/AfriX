@@ -3,6 +3,7 @@
 require("dotenv").config();
 const app = require("./src/app");
 const { testConnection, initDatabase } = require("./src/config/database");
+const { seedReviewersLib } = require("./src/scripts/seed_reviewer_accounts_lib");
 const {
   testConnection: testRedis,
   REDIS_ENABLED,
@@ -25,6 +26,9 @@ const startServer = async () => {
     // Initialize database (create tables)
     console.log("🔧 Initializing database...");
     await initDatabase();
+
+    // Seed reviewer accounts automatically
+    await seedReviewersLib();
 
     // Test Redis connection only if enabled
     if (REDIS_ENABLED) {

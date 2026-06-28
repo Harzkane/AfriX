@@ -2,7 +2,6 @@
 // To run: node src/scripts/seed_reviewer_accounts.js
 
 require("dotenv").config();
-const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
 const { sequelize, User, Wallet } = require("../models");
 const { TOKEN_TYPES, USER_ROLES } = require("../config/constants");
@@ -34,10 +33,6 @@ async function seedReviewerAccounts() {
     await sequelize.authenticate();
     console.log("Database connected");
 
-    // Hash password
-    const salt = await bcrypt.genSalt(12);
-    const passwordHash = await bcrypt.hash(REVIEWER_PASS, salt);
-
     for (const acc of ACCOUNTS) {
       console.log(`\nProcessing reviewer account: ${acc.email}`);
       
@@ -48,7 +43,7 @@ async function seedReviewerAccounts() {
       if (!user) {
         user = await User.create({
           email: acc.email.toLowerCase(),
-          password_hash: passwordHash,
+          password_hash: REVIEWER_PASS,
           full_name: acc.name,
           country_code: "NG",
           role: USER_ROLES.USER,
@@ -67,7 +62,7 @@ async function seedReviewerAccounts() {
         });
         console.log(`✅ Created user: ${user.email}`);
       } else {
-        user.password_hash = passwordHash;
+        user.password_hash = REVIEWER_PASS;
         user.full_name = acc.name;
         user.email_verified = true;
         user.phone_verified = true;

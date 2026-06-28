@@ -13,10 +13,10 @@ import { useIncomingTransferListener } from "@/hooks/useIncomingTransferListener
 // ─── Global Font Scaling Fix ────────────────────────────────────────────────
 // Prevents Android system font size setting from inflating text in the app.
 // Ensures a consistent UI across all Android devices (Samsung, Pixel, etc.)
-if (Text.defaultProps == null) Text.defaultProps = {};
-Text.defaultProps.allowFontScaling = false;
-if (TextInput.defaultProps == null) TextInput.defaultProps = {};
-TextInput.defaultProps.allowFontScaling = false;
+(Text as any).defaultProps = (Text as any).defaultProps ?? {};
+(Text as any).defaultProps.allowFontScaling = false;
+(TextInput as any).defaultProps = (TextInput as any).defaultProps ?? {};
+(TextInput as any).defaultProps.allowFontScaling = false;
 // ─────────────────────────────────────────────────────────────────────────────
 
 const BIOMETRIC_LOGIN_KEY = "biometric_login_enabled";

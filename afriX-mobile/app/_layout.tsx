@@ -2,7 +2,7 @@
 import { Slot } from "expo-router";
 import { PaperProvider } from "react-native-paper";
 import { useEffect, useRef, useState } from "react";
-import { AppState, AppStateStatus, View, Text, TouchableOpacity, StyleSheet } from "react-native";
+import { AppState, AppStateStatus, View, Text, TextInput, TouchableOpacity, StyleSheet } from "react-native";
 import * as SecureStore from "expo-secure-store";
 import * as LocalAuthentication from "expo-local-authentication";
 import { useAuthStore } from "@/stores";
@@ -10,7 +10,17 @@ import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useIncomingTransferListener } from "@/hooks/useIncomingTransferListener";
 
+// ─── Global Font Scaling Fix ────────────────────────────────────────────────
+// Prevents Android system font size setting from inflating text in the app.
+// Ensures a consistent UI across all Android devices (Samsung, Pixel, etc.)
+if (Text.defaultProps == null) Text.defaultProps = {};
+Text.defaultProps.allowFontScaling = false;
+if (TextInput.defaultProps == null) TextInput.defaultProps = {};
+TextInput.defaultProps.allowFontScaling = false;
+// ─────────────────────────────────────────────────────────────────────────────
+
 const BIOMETRIC_LOGIN_KEY = "biometric_login_enabled";
+
 
 export default function RootLayout() {
   const { isAuthenticated, initAuth } = useAuthStore();

@@ -1,453 +1,516 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  ActivityIndicator,
+  useColorScheme,
+} from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { LinearGradient } from "expo-linear-gradient";
 import { useAgentStore } from "@/stores/slices/agentSlice";
 import { formatDate } from "@/utils/format";
 
 type KycStatus = "not_submitted" | "under_review" | "approved" | "rejected";
 
 export default function KycStatusScreen() {
-    const router = useRouter();
-    const params = useLocalSearchParams();
-    const fromAgentProfile = params?.from === "agent-profile";
-    const { checkKycStatus } = useAgentStore();
-    const [status, setStatus] = useState<KycStatus>("not_submitted");
-    const [loading, setLoading] = useState(true);
-    const [rejectionReason, setRejectionReason] = useState("");
-    const [submittedAt, setSubmittedAt] = useState(new Date());
+  const router = useRouter();
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === "dark";
+  const params = useLocalSearchParams();
+  const fromAgentProfile = params?.from === "agent-profile";
+  const { checkKycStatus } = useAgentStore();
+  const [status, setStatus] = useState<KycStatus>("not_submitted");
+  const [loading, setLoading] = useState(true);
+  const [rejectionReason, setRejectionReason] = useState("");
+  const [submittedAt, setSubmittedAt] = useState(new Date());
 
-    const handleGoBackToOrigin = () => {
-        if (fromAgentProfile) {
-            router.push("/agent/(tabs)/profile");
-        } else {
-            router.back();
-        }
-    };
+  const theme = {
+    bg: isDark ? "#090B14" : "#F5F4FC",
+    card: isDark ? "rgba(18, 14, 36, 0.92)" : "#FFFFFF",
+    cardAlt: isDark ? "rgba(255, 255, 255, 0.05)" : "#F9F8FF",
+    text: isDark ? "#F8FAFC" : "#0F172A",
+    muted: isDark ? "#94A3B8" : "#64748B",
+    border: isDark ? "#1E1638" : "#EDE9FE",
+    accent: "#7C3AED",
+    accentSoft: isDark ? "rgba(124, 58, 237, 0.15)" : "rgba(124, 58, 237, 0.08)",
+    warning: "#F59E0B",
+    warningSoft: isDark ? "rgba(245, 158, 11, 0.12)" : "#FEF3C7",
+    danger: "#EF4444",
+    dangerSoft: isDark ? "rgba(239, 68, 68, 0.12)" : "#FEF2F2",
+  };
 
-    const handleCloseToHome = () => {
-        if (fromAgentProfile) {
-            router.push("/agent/(tabs)/profile");
-        } else {
-            router.push("/(tabs)");
-        }
-    };
-
-    useEffect(() => {
-        const fetchStatus = async () => {
-            try {
-                const data = await checkKycStatus();
-                if (data) {
-                    setStatus(data.status as KycStatus);
-                    if (data.rejection_reason) setRejectionReason(data.rejection_reason);
-                    if (data.submitted_at) setSubmittedAt(new Date(data.submitted_at));
-                } else {
-                    // If null, it means not submitted or not agent
-                    setStatus("not_submitted");
-                }
-            } catch (error) {
-                console.error("Failed to fetch KYC status:", error);
-                setStatus("not_submitted");
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchStatus();
-    }, []);
-
-    const getStatusConfig = () => {
-        switch (status) {
-            case "under_review":
-                return {
-                    icon: "time-outline",
-                    iconColor: "#F59E0B",
-                    iconBg: "#FEF3C7",
-                    title: "Under Review",
-                    description: "Our team is reviewing your documents. This usually takes 1-3 business days.",
-                    showTimeline: true,
-                };
-            case "approved":
-                return {
-                    icon: "checkmark-circle",
-                    iconColor: "#00B14F",
-                    iconBg: "#F0FDF4",
-                    title: "KYC Approved!",
-                    description: "Your identity has been verified. You can now make your security deposit to activate your agent account.",
-                    showTimeline: false,
-                };
-            case "rejected":
-                return {
-                    icon: "close-circle",
-                    iconColor: "#EF4444",
-                    iconBg: "#FEE2E2",
-                    title: "KYC Rejected",
-                    description: rejectionReason || "Your documents did not meet our requirements. Please review and resubmit.",
-                    showTimeline: false,
-                };
-            default:
-                return {
-                    icon: "document-text-outline",
-                    iconColor: "#6B7280",
-                    iconBg: "#F3F4F6",
-                    title: "Not Submitted",
-                    description: "Please submit your KYC documents to continue.",
-                    showTimeline: false,
-                };
-        }
-    };
-
-    const config = getStatusConfig();
-
-    if (loading) {
-        return (
-            <SafeAreaView style={styles.container}>
-                <View style={styles.loadingContainer}>
-                    <ActivityIndicator size="large" color="#00B14F" />
-                    <Text style={styles.loadingText}>Checking status...</Text>
-                </View>
-            </SafeAreaView>
-        );
+  const handleGoBackToOrigin = () => {
+    if (fromAgentProfile) {
+      router.push("/agent/(tabs)/profile");
+    } else {
+      router.back();
     }
+  };
 
+  const handleCloseToHome = () => {
+    if (fromAgentProfile) {
+      router.push("/agent/(tabs)/profile");
+    } else {
+      router.push("/(tabs)");
+    }
+  };
+
+  useEffect(() => {
+    const fetchStatus = async () => {
+      try {
+        const data = await checkKycStatus();
+        if (data) {
+          setStatus(data.status as KycStatus);
+          if (data.rejection_reason) setRejectionReason(data.rejection_reason);
+          if (data.submitted_at) setSubmittedAt(new Date(data.submitted_at));
+        } else {
+          setStatus("not_submitted");
+        }
+      } catch (error) {
+        console.error("Failed to fetch KYC status:", error);
+        setStatus("not_submitted");
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchStatus();
+  }, []);
+
+  const getStatusConfig = () => {
+    switch (status) {
+      case "under_review":
+        return {
+          icon: "hourglass-outline" as const,
+          color: theme.warning,
+          soft: theme.warningSoft,
+          gradientColors: ["#F59E0B", "#D97706"] as [string, string],
+          title: "Under Review",
+          description: "Our security compliance team is currently verifying your documents. This process normally takes 1–3 business days.",
+          showTimeline: true,
+        };
+      case "approved":
+        return {
+          icon: "shield-checkmark-outline" as const,
+          color: theme.accent,
+          soft: theme.accentSoft,
+          gradientColors: ["#7C3AED", "#3B82F6"] as [string, string],
+          title: "KYC Approved!",
+          description: "Congratulations! Your identity verification is successful. Please complete the setup with your security deposit.",
+          showTimeline: false,
+        };
+      case "rejected":
+        return {
+          icon: "alert-circle-outline" as const,
+          color: theme.danger,
+          soft: theme.dangerSoft,
+          gradientColors: ["#EF4444", "#DC2626"] as [string, string],
+          title: "Verification Rejected",
+          description: rejectionReason || "Your documents did not meet our compliance requirements. Please check details and resubmit.",
+          showTimeline: false,
+        };
+      default:
+        return {
+          icon: "document-text-outline" as const,
+          color: theme.muted,
+          soft: theme.cardAlt,
+          gradientColors: ["#64748B", "#475569"] as [string, string],
+          title: "Not Submitted",
+          description: "Please start your verification process to gain full access to AfriExchange Agent network features.",
+          showTimeline: false,
+        };
+    }
+  };
+
+  const config = getStatusConfig();
+
+  const timelineSteps = [
+    { label: "Application Received", desc: "Your details have been recorded.", done: true, active: false },
+    { label: "Document Analysis", desc: "Matching and checking with compliance database.", done: false, active: true },
+    { label: "Approval Decision", desc: "Confirmation email and push updates.", done: false, active: false },
+    { label: "Deposit Collateral", desc: "Initialize smart contract float capacity.", done: false, active: false },
+  ];
+
+  if (loading) {
     return (
-        <SafeAreaView style={styles.container}>
-            {/* Header */}
-            <View style={styles.header}>
-                <TouchableOpacity onPress={handleGoBackToOrigin} style={styles.backButton}>
-                    <Ionicons name="arrow-back" size={24} color="#111827" />
-                </TouchableOpacity>
-                <Text style={styles.headerTitle}>KYC Status</Text>
-                <View style={{ width: 24 }} />
-            </View>
-
-            <ScrollView contentContainerStyle={styles.content}>
-                {/* Status Card */}
-                <View style={styles.statusCard}>
-                    <View style={styles.statusEyebrow}>
-                        <Ionicons name="shield-checkmark" size={14} color={config.iconColor} />
-                        <Text style={[styles.statusEyebrowText, { color: config.iconColor }]}>Verification Progress</Text>
-                    </View>
-                    <View style={[styles.statusIcon, { backgroundColor: config.iconBg }]}>
-                        <Ionicons name={config.icon as any} size={48} color={config.iconColor} />
-                    </View>
-                    <Text style={styles.statusTitle}>{config.title}</Text>
-                    <Text style={styles.statusDescription}>{config.description}</Text>
-                    {status !== "not_submitted" && (
-                        <Text style={styles.submittedDate}>
-                            Submitted on {formatDate(submittedAt)}
-                        </Text>
-                    )}
-                </View>
-
-                {/* Timeline */}
-                {config.showTimeline && (
-                    <View style={styles.timeline}>
-                        <View style={styles.timelineItem}>
-                            <View style={[styles.timelineDot, styles.timelineDotComplete]} />
-                            <View style={styles.timelineContent}>
-                                <Text style={styles.timelineTitle}>Documents Submitted</Text>
-                                <Text style={styles.timelineDesc}>Your KYC documents have been received</Text>
-                            </View>
-                        </View>
-
-                        <View style={styles.timelineItem}>
-                            <View style={[styles.timelineDot, styles.timelineDotActive]} />
-                            <View style={styles.timelineContent}>
-                                <Text style={styles.timelineTitle}>Under Review</Text>
-                                <Text style={styles.timelineDesc}>Our team is verifying your identity</Text>
-                            </View>
-                        </View>
-
-                        <View style={styles.timelineItem}>
-                            <View style={styles.timelineDot} />
-                            <View style={styles.timelineContent}>
-                                <Text style={styles.timelineTitle}>Approval Decision</Text>
-                                <Text style={styles.timelineDesc}>You will be notified once reviewed</Text>
-                            </View>
-                        </View>
-
-                        <View style={styles.timelineItem}>
-                            <View style={styles.timelineDot} />
-                            <View style={styles.timelineContent}>
-                                <Text style={styles.timelineTitle}>Make Deposit</Text>
-                                <Text style={styles.timelineDesc}>Activate your agent account</Text>
-                            </View>
-                        </View>
-                    </View>
-                )}
-
-                {/* Info Banner */}
-                {status === "under_review" && (
-                    <View style={styles.infoBanner}>
-                        <Ionicons name="notifications-outline" size={20} color="#00B14F" />
-                        <Text style={styles.infoText}>
-                            We will send you a notification once your KYC is reviewed. You can also check back here anytime.
-                        </Text>
-                    </View>
-                )}
-
-                {/* Rejection Reason */}
-                {status === "rejected" && rejectionReason && (
-                    <View style={styles.rejectionCard}>
-                        <Text style={styles.rejectionTitle}>Rejection Reason</Text>
-                        <Text style={styles.rejectionText}>{rejectionReason}</Text>
-                    </View>
-                )}
-            </ScrollView>
-
-            {/* Footer */}
-            <View style={styles.footer}>
-                {status === "not_submitted" && (
-                    <TouchableOpacity
-                        style={styles.depositButton}
-                        onPress={() => router.push("/modals/agent-kyc/personal-info")}
-                    >
-                        <Text style={styles.depositButtonText}>Start Verification</Text>
-                        <Ionicons name="arrow-forward" size={20} color="#FFFFFF" />
-                    </TouchableOpacity>
-                )}
-
-                {status === "approved" && (
-                    <TouchableOpacity
-                        style={styles.depositButton}
-                        onPress={() => router.push("/modals/agent-deposit")}
-                    >
-                        <Text style={styles.depositButtonText}>Make Security Deposit</Text>
-                        <Ionicons name="arrow-forward" size={20} color="#FFFFFF" />
-                    </TouchableOpacity>
-                )}
-
-                {status === "rejected" && (
-                    <TouchableOpacity
-                        style={styles.resubmitButton}
-                        onPress={() => router.push("/modals/agent-kyc/personal-info")}
-                    >
-                        <Text style={styles.resubmitButtonText}>Resubmit Documents</Text>
-                        <Ionicons name="refresh" size={20} color="#FFFFFF" />
-                    </TouchableOpacity>
-                )}
-
-                <TouchableOpacity
-                    style={[
-                        styles.homeButton,
-                        status !== "under_review" && { marginTop: 12 },
-                    ]}
-                    onPress={handleCloseToHome}
-                >
-                    <Text style={styles.homeButtonText}>
-                        {fromAgentProfile ? "Back to Profile" : status === "under_review" ? "Back to Home" : "Back to Dashboard"}
-                    </Text>
-                </TouchableOpacity>
-            </View>
-        </SafeAreaView>
+      <View style={[styles.loadingContainer, { backgroundColor: theme.bg }]}>
+        <ActivityIndicator size="large" color={theme.accent} />
+        <Text style={[styles.loadingText, { color: theme.muted }]}>Checking status...</Text>
+      </View>
     );
+  }
+
+  return (
+    <View style={[styles.container, { backgroundColor: theme.bg }]}>
+      {/* Flat Header — consistent with other account screens */}
+      <SafeAreaView edges={["top"]} style={[styles.headerContainer, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
+        <View style={styles.headerRow}>
+          <TouchableOpacity onPress={handleGoBackToOrigin} style={[styles.headerBackBtn, { backgroundColor: theme.accentSoft }]} activeOpacity={0.8}>
+            <Ionicons name="arrow-back" size={20} color={theme.accent} />
+          </TouchableOpacity>
+          <Text style={[styles.headerTitle, { color: theme.text }]}>KYC Status</Text>
+          <View style={styles.headerSpacer} />
+        </View>
+      </SafeAreaView>
+
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        {/* Status Hero Card */}
+        <LinearGradient
+          colors={isDark ? ["rgba(124, 58, 237, 0.15)", "rgba(9, 11, 20, 0)"] : ["rgba(124, 58, 237, 0.08)", "rgba(255, 255, 255, 0)"]}
+          style={styles.heroGlow}
+          pointerEvents="none"
+        />
+
+        <View style={[styles.heroCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+          <View style={styles.avatarWrapper}>
+            <LinearGradient
+              colors={config.gradientColors}
+              style={styles.avatarGradientRing}
+            >
+              <View style={[styles.avatarInner, { backgroundColor: theme.card }]}>
+                <Ionicons name={config.icon} size={38} color={config.color} />
+              </View>
+            </LinearGradient>
+            <View style={[styles.statusIconBadge, { backgroundColor: config.color }]}>
+              <Ionicons name={status === "approved" ? "checkmark" : status === "rejected" ? "close" : "time"} size={12} color="#FFF" />
+            </View>
+          </View>
+
+          <Text style={[styles.statusTitle, { color: theme.text }]}>{config.title}</Text>
+          <Text style={[styles.statusDescription, { color: theme.muted }]}>{config.description}</Text>
+
+          {status !== "not_submitted" && (
+            <View style={[styles.datePill, { backgroundColor: theme.cardAlt, borderColor: theme.border }]}>
+              <Ionicons name="calendar-outline" size={13} color={theme.muted} style={{ marginRight: 4 }} />
+              <Text style={[styles.datePillText, { color: theme.muted }]}>Submitted {formatDate(submittedAt)}</Text>
+            </View>
+          )}
+        </View>
+
+        {/* Timeline */}
+        {config.showTimeline && (
+          <View style={[styles.timelineCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+            <Text style={[styles.cardSectionLabel, { color: theme.muted }]}>VERIFICATION PROGRESS</Text>
+            {timelineSteps.map((step, i) => (
+              <View key={i} style={styles.timelineRow}>
+                <View style={styles.timelineLeftCol}>
+                  <View style={[
+                    styles.timelineDot,
+                    step.done && { backgroundColor: theme.accent },
+                    step.active && { backgroundColor: theme.warning },
+                    !step.done && !step.active && { backgroundColor: theme.border }
+                  ]}>
+                    {step.done && <Ionicons name="checkmark" size={10} color="#FFF" />}
+                    {step.active && <View style={styles.timelinePulse} />}
+                  </View>
+                  {i < timelineSteps.length - 1 && (
+                    <View style={[styles.timelineConnector, { backgroundColor: step.done ? theme.accent : theme.border }]} />
+                  )}
+                </View>
+                <View style={styles.timelineTextCol}>
+                  <Text style={[styles.timelineStepTitle, { color: theme.text }, step.active && { color: theme.warning }]}>
+                    {step.label}
+                  </Text>
+                  <Text style={[styles.timelineStepDesc, { color: theme.muted }]}>
+                    {step.desc}
+                  </Text>
+                </View>
+              </View>
+            ))}
+          </View>
+        )}
+
+        {/* Rejection Details */}
+        {status === "rejected" && rejectionReason ? (
+          <View style={[styles.rejectionCard, { backgroundColor: theme.dangerSoft, borderColor: theme.danger + "20" }]}>
+            <View style={styles.rejectionHeader}>
+              <Ionicons name="warning" size={20} color={theme.danger} style={{ marginRight: 6 }} />
+              <Text style={[styles.rejectionLabel, { color: theme.danger }]}>REJECTION REASON</Text>
+            </View>
+            <Text style={[styles.rejectionText, { color: theme.danger }]}>{rejectionReason}</Text>
+          </View>
+        ) : null}
+
+        {/* Info Banner */}
+        <View style={[styles.infoBanner, { backgroundColor: theme.cardAlt, borderColor: theme.border }]}>
+          <Ionicons name="information-circle-outline" size={20} color={theme.accent} style={{ marginRight: 8 }} />
+          <Text style={[styles.infoBannerText, { color: theme.muted }]}>
+            KYC verification is mandatory to unlock trade capabilities, deposit channels, and secure escrow access.
+          </Text>
+        </View>
+
+        <View style={{ height: 140 }} />
+      </ScrollView>
+
+      {/* Footer CTA Buttons */}
+      <View style={[styles.footer, { backgroundColor: theme.card, borderTopColor: theme.border }]}>
+        {status === "not_submitted" && (
+          <TouchableOpacity
+            style={[styles.primaryCTA, { backgroundColor: theme.accent, shadowColor: theme.accent }]}
+            onPress={() => router.push("/modals/agent-kyc/personal-info")}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.primaryCTAText}>Start Verification</Text>
+            <Ionicons name="arrow-forward" size={18} color="#FFF" />
+          </TouchableOpacity>
+        )}
+        {status === "approved" && (
+          <TouchableOpacity
+            style={[styles.primaryCTA, { backgroundColor: theme.accent, shadowColor: theme.accent }]}
+            onPress={() => router.push("/modals/agent-deposit")}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.primaryCTAText}>Make Security Deposit</Text>
+            <Ionicons name="arrow-forward" size={18} color="#FFF" />
+          </TouchableOpacity>
+        )}
+        {status === "rejected" && (
+          <TouchableOpacity
+            style={[styles.primaryCTA, { backgroundColor: theme.danger, shadowColor: theme.danger }]}
+            onPress={() => router.push("/modals/agent-kyc/personal-info")}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.primaryCTAText}>Resubmit Documents</Text>
+            <Ionicons name="refresh" size={18} color="#FFF" />
+          </TouchableOpacity>
+        )}
+        <TouchableOpacity
+          style={[styles.secondaryCTA, { backgroundColor: "transparent", borderColor: theme.border }]}
+          onPress={handleCloseToHome}
+          activeOpacity={0.8}
+        >
+          <Text style={[styles.secondaryCTAText, { color: theme.muted }]}>
+            {fromAgentProfile ? "Back to Profile" : status === "under_review" ? "Back to Home" : "Back to Dashboard"}
+          </Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: "#FFFFFF",
-    },
-    header: {
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "space-between",
-        paddingHorizontal: 16,
-        paddingVertical: 12,
-        borderBottomWidth: 1,
-        borderBottomColor: "#F3F4F6",
-    },
-    backButton: {
-        padding: 4,
-    },
-    headerTitle: {
-        fontSize: 18,
-        fontWeight: "600",
-        color: "#111827",
-    },
-    loadingContainer: {
-        flex: 1,
-        justifyContent: "center",
-        alignItems: "center",
-    },
-    loadingText: {
-        marginTop: 16,
-        fontSize: 16,
-        color: "#6B7280",
-    },
-    content: {
-        padding: 20,
-    },
-    statusCard: {
-        alignItems: "center",
-        marginBottom: 32,
-        marginTop: 20,
-        backgroundColor: "#FFFFFF",
-        borderRadius: 24,
-        padding: 22,
-        borderWidth: 1,
-        borderColor: "#EAF0F5",
-    },
-    statusEyebrow: {
-        alignSelf: "flex-start",
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 6,
-        backgroundColor: "#F8FAFC",
-        paddingHorizontal: 10,
-        paddingVertical: 6,
-        borderRadius: 999,
-        marginBottom: 16,
-    },
-    statusEyebrowText: {
-        fontSize: 12,
-        fontWeight: "700",
-    },
-    statusIcon: {
-        width: 96,
-        height: 96,
-        borderRadius: 48,
-        justifyContent: "center",
-        alignItems: "center",
-        marginBottom: 16,
-    },
-    statusTitle: {
-        fontSize: 24,
-        fontWeight: "700",
-        color: "#111827",
-        marginBottom: 8,
-        textAlign: "center",
-    },
-    statusDescription: {
-        fontSize: 16,
-        color: "#6B7280",
-        textAlign: "center",
-        lineHeight: 24,
-        paddingHorizontal: 20,
-        marginBottom: 8,
-    },
-    submittedDate: {
-        fontSize: 14,
-        color: "#9CA3AF",
-    },
-    timeline: {
-        marginBottom: 24,
-        backgroundColor: "#FFFFFF",
-        borderRadius: 22,
-        borderWidth: 1,
-        borderColor: "#EAF0F5",
-        padding: 18,
-    },
-    timelineItem: {
-        flexDirection: "row",
-        marginBottom: 24,
-    },
-    timelineDot: {
-        width: 16,
-        height: 16,
-        borderRadius: 8,
-        backgroundColor: "#E5E7EB",
-        marginRight: 16,
-        marginTop: 4,
-    },
-    timelineDotComplete: {
-        backgroundColor: "#00B14F",
-    },
-    timelineDotActive: {
-        backgroundColor: "#F59E0B",
-    },
-    timelineContent: {
-        flex: 1,
-    },
-    timelineTitle: {
-        fontSize: 16,
-        fontWeight: "600",
-        color: "#111827",
-        marginBottom: 4,
-    },
-    timelineDesc: {
-        fontSize: 14,
-        color: "#6B7280",
-    },
-    infoBanner: {
-        flexDirection: "row",
-        alignItems: "flex-start",
-        backgroundColor: "#F0FDF4",
-        padding: 16,
-        borderRadius: 16,
-        borderWidth: 1,
-        borderColor: "#D8F3E3",
-    },
-    infoText: {
-        fontSize: 14,
-        color: "#065F46",
-        marginLeft: 12,
-        flex: 1,
-        lineHeight: 20,
-    },
-    rejectionCard: {
-        backgroundColor: "#FEF2F2",
-        padding: 16,
-        borderRadius: 16,
-        borderWidth: 1,
-        borderColor: "#FEE2E2",
-    },
-    rejectionTitle: {
-        fontSize: 16,
-        fontWeight: "600",
-        color: "#DC2626",
-        marginBottom: 8,
-    },
-    rejectionText: {
-        fontSize: 14,
-        color: "#991B1B",
-        lineHeight: 20,
-    },
-    footer: {
-        padding: 16,
-        borderTopWidth: 1,
-        borderTopColor: "#EAF0F5",
-        backgroundColor: "#FFFFFF",
-    },
-    depositButton: {
-        flexDirection: "row",
-        backgroundColor: "#00B14F",
-        paddingVertical: 16,
-        borderRadius: 16,
-        alignItems: "center",
-        justifyContent: "center",
-        gap: 8,
-    },
-    depositButtonText: {
-        color: "#FFFFFF",
-        fontSize: 16,
-        fontWeight: "600",
-    },
-    resubmitButton: {
-        flexDirection: "row",
-        backgroundColor: "#EF4444",
-        paddingVertical: 16,
-        borderRadius: 16,
-        alignItems: "center",
-        justifyContent: "center",
-        gap: 8,
-    },
-    resubmitButtonText: {
-        color: "#FFFFFF",
-        fontSize: 16,
-        fontWeight: "600",
-    },
-    homeButton: {
-        backgroundColor: "#F3F4F6",
-        paddingVertical: 16,
-        borderRadius: 16,
-        alignItems: "center",
-    },
-    homeButtonText: {
-        color: "#374151",
-        fontSize: 16,
-        fontWeight: "600",
-    },
+  container: { flex: 1 },
+  loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
+  loadingText: { marginTop: 12, fontSize: 14, fontWeight: "600" },
+  headerContainer: {
+    borderBottomWidth: 1,
+  },
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    gap: 12,
+  },
+  headerBackBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  headerTitle: {
+    flex: 1,
+    fontSize: 18,
+    fontWeight: "800",
+    letterSpacing: -0.3,
+  },
+  headerSpacer: {
+    width: 36,
+  },
+  content: { paddingHorizontal: 16, paddingTop: 16 },
+  heroGlow: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 200,
+  },
+  heroCard: {
+    borderRadius: 24,
+    borderWidth: 1,
+    padding: 24,
+    alignItems: "center",
+    marginBottom: 16,
+    shadowColor: "#000",
+    shadowOpacity: 0.03,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
+  },
+  avatarWrapper: {
+    position: "relative",
+    marginBottom: 20,
+  },
+  avatarGradientRing: {
+    width: 84,
+    height: 84,
+    borderRadius: 42,
+    padding: 3,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  avatarInner: {
+    width: "100%",
+    height: "100%",
+    borderRadius: 39,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  statusIconBadge: {
+    position: "absolute",
+    bottom: -2,
+    right: -2,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2.5,
+    borderColor: "#FFF",
+  },
+  statusTitle: {
+    fontSize: 20,
+    fontWeight: "900",
+    letterSpacing: -0.4,
+    textAlign: "center",
+    marginBottom: 8,
+  },
+  statusDescription: {
+    fontSize: 14,
+    lineHeight: 20,
+    textAlign: "center",
+    fontWeight: "500",
+    marginBottom: 16,
+    paddingHorizontal: 8,
+  },
+  datePill: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+    borderWidth: 1,
+  },
+  datePillText: { fontSize: 12, fontWeight: "600" },
+  timelineCard: {
+    borderRadius: 24,
+    borderWidth: 1,
+    padding: 20,
+    marginBottom: 16,
+  },
+  cardSectionLabel: {
+    fontSize: 10,
+    fontWeight: "800",
+    letterSpacing: 0.8,
+    marginBottom: 16,
+  },
+  timelineRow: {
+    flexDirection: "row",
+    gap: 14,
+  },
+  timelineLeftCol: {
+    alignItems: "center",
+    width: 20,
+  },
+  timelineDot: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  timelinePulse: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "#FFF",
+  },
+  timelineConnector: {
+    width: 2,
+    flex: 1,
+    minHeight: 28,
+    marginVertical: 4,
+  },
+  timelineTextCol: {
+    flex: 1,
+    paddingBottom: 22,
+  },
+  timelineStepTitle: {
+    fontSize: 14,
+    fontWeight: "800",
+    marginBottom: 2,
+  },
+  timelineStepDesc: {
+    fontSize: 12,
+    fontWeight: "500",
+  },
+  infoBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 16,
+    borderRadius: 24,
+    borderWidth: 1,
+    marginBottom: 16,
+  },
+  infoBannerText: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: "600",
+    lineHeight: 18,
+  },
+  rejectionCard: {
+    padding: 18,
+    borderRadius: 24,
+    borderWidth: 1,
+    marginBottom: 16,
+    gap: 8,
+  },
+  rejectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  rejectionLabel: {
+    fontSize: 10,
+    fontWeight: "800",
+    letterSpacing: 0.8,
+  },
+  rejectionText: {
+    fontSize: 13,
+    fontWeight: "600",
+    lineHeight: 18,
+  },
+  footer: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    padding: 16,
+    borderTopWidth: 1,
+    gap: 10,
+  },
+  primaryCTA: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 16,
+    borderRadius: 18,
+    gap: 8,
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
+  },
+  primaryCTAText: { color: "#FFF", fontSize: 15, fontWeight: "800" },
+  secondaryCTA: {
+    alignItems: "center",
+    paddingVertical: 14,
+    borderRadius: 18,
+    borderWidth: 1.5,
+  },
+  secondaryCTAText: { fontSize: 14, fontWeight: "700" },
 });

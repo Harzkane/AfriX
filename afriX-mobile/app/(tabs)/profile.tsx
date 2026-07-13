@@ -1,5 +1,5 @@
 // app/(tabs)/profile.tsx
-import React, { useEffect } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -7,13 +7,15 @@ import {
   ScrollView,
   ActivityIndicator,
   TouchableOpacity,
+  useColorScheme,
+  Animated,
 } from "react-native";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useAuthStore, useNotificationStore } from "@/stores";
 import { useAgentStore } from "@/stores/slices/agentSlice";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { formatDate } from "@/utils/format";
 
 export default function ProfileScreen() {
@@ -21,6 +23,56 @@ export default function ProfileScreen() {
   const { agentStatus, fetchAgentStats } = useAgentStore();
   const { unreadCount, fetchUnreadCount } = useNotificationStore();
   const router = useRouter();
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === "dark";
+
+  const theme = {
+    background: isDark ? "#07111A" : "#F5F7FB",
+    card: isDark ? "#0E1726" : "#FFFFFF",
+    cardAlt: isDark ? "#111C2B" : "#F8FAFC",
+    text: isDark ? "#F8FAFC" : "#0F172A",
+    muted: isDark ? "#94A3B8" : "#64748B",
+    border: isDark ? "#1E2A3A" : "#E2E8F0",
+    accent: "#00B14F",
+    accentSoft: isDark ? "rgba(0,177,79,0.14)" : "#EAF8EF",
+    danger: "#EF4444",
+    dangerSoft: isDark ? "rgba(239,68,68,0.12)" : "#FEF2F2",
+    warning: "#F59E0B",
+    warningSoft: isDark ? "rgba(245,158,11,0.12)" : "#FEF3C7",
+    blue: "#3B82F6",
+    blueSoft: isDark ? "rgba(59,130,246,0.12)" : "#EFF6FF",
+    purple: "#8B5CF6",
+    purpleSoft: isDark ? "rgba(139,92,246,0.12)" : "#F5F3FF",
+  };
+
+  const insets = useSafeAreaInsets();
+  const [headerMaxHeight, setHeaderMaxHeight] = useState(insets.top + 70);
+  const scrollY = useRef(new Animated.Value(0)).current;
+
+  const handleHeaderLayout = (e: any) => {
+    const { height } = e.nativeEvent.layout;
+    if (height > headerMaxHeight) {
+      setHeaderMaxHeight(height);
+    }
+  };
+
+  const subtitleOpacity = scrollY.interpolate({
+    inputRange: [0, 50],
+    outputRange: [1, 0],
+    extrapolate: "clamp",
+  });
+
+  const subtitleMaxHeight = scrollY.interpolate({
+    inputRange: [0, 50],
+    outputRange: [80, 0],
+    extrapolate: "clamp",
+  });
+
+  const subtitleMargin = scrollY.interpolate({
+    inputRange: [0, 50],
+    outputRange: [4, 0],
+    extrapolate: "clamp",
+  });
 
   useEffect(() => {
     if (user) {
@@ -41,9 +93,9 @@ export default function ProfileScreen() {
 
   if (!user) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#00B14F" />
-        <Text style={styles.loadingText}>Loading profile...</Text>
+      <View style={[styles.loadingContainer, { backgroundColor: theme.background }]}>
+        <ActivityIndicator size="large" color={theme.accent} />
+        <Text style={[styles.loadingText, { color: theme.muted }]}>Loading profile...</Text>
       </View>
     );
   }
@@ -58,218 +110,277 @@ export default function ProfileScreen() {
       .slice(0, 2);
   };
 
-  const InfoRow = ({ label, value, icon, color = "#6B7280" }: any) => (
-    <View style={styles.infoRow}>
-      <View style={[styles.iconBox, { backgroundColor: `${color}15` }]}>
-        <Ionicons name={icon} size={18} color={color} />
+  const MenuRow = ({ icon, label, onPress, rightContent, iconColor, iconBgColor }: any) => (
+    <TouchableOpacity style={styles.menuRow} onPress={onPress} activeOpacity={0.65}>
+      <View style={[styles.menuIconBox, { backgroundColor: iconBgColor || theme.cardAlt }]}>
+        <Ionicons name={icon} size={20} color={iconColor || theme.muted} />
       </View>
-      <View style={styles.infoContent}>
-        <Text style={styles.infoLabel}>{label}</Text>
-        <Text style={styles.infoValue}>{value}</Text>
-      </View>
-    </View>
-  );
-
-  const ActionItem = ({
-    icon,
-    label,
-    onPress,
-    color = "#111827",
-    bgColor = "#F9FAFB",
-    showChevron = true,
-    badge,
-  }: any) => (
-    <TouchableOpacity style={styles.actionItem} onPress={onPress} activeOpacity={0.7}>
-      <View style={[styles.actionIconBox, { backgroundColor: bgColor }]}>
-        <Ionicons name={icon} size={20} color={color} />
-      </View>
-      <View style={styles.actionLabelRow}>
-        <Text style={[styles.actionLabel, { color }]}>{label}</Text>
-        {badge != null && badge > 0 ? (
-          <View style={styles.badge}>
-            <Text style={styles.badgeText}>{badge > 99 ? "99+" : badge}</Text>
-          </View>
-        ) : null}
-      </View>
-      {showChevron ? <Ionicons name="chevron-forward" size={20} color="#9CA3AF" /> : null}
+      <Text style={[styles.menuLabel, { color: theme.text }]}>{label}</Text>
+      {rightContent ? rightContent : <Ionicons name="chevron-forward" size={18} color={theme.muted} />}
     </TouchableOpacity>
   );
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
+      <LinearGradient
+        colors={isDark ? ["rgba(0,177,79,0.22)", "rgba(7,17,26,0)"] : ["rgba(0,177,79,0.18)", "rgba(255,255,255,0)"]}
+        style={styles.backgroundGlow}
+        pointerEvents="none"
+      />
+
+      {/* Fixed Header */}
+      <Animated.View
+        onLayout={handleHeaderLayout}
+        style={[
+          styles.headerWrapper,
+          {
+            backgroundColor: theme.background,
+            borderBottomColor: theme.border,
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            zIndex: 10,
+          },
+        ]}
+      >
+        <SafeAreaView edges={["top"]} style={styles.headerContent}>
+          <View style={styles.headerTop}>
+            <View style={styles.headerCopy}>
+              <Text style={[styles.title, { color: theme.text }]}>Profile</Text>
+              <Animated.View style={{
+                opacity: subtitleOpacity,
+                maxHeight: subtitleMaxHeight,
+                marginTop: subtitleMargin,
+                overflow: "hidden"
+              }}>
+                <Text style={[styles.headerSubtitle, { color: theme.muted }]}>
+                  Manage your personal details, security settings, and notifications.
+                </Text>
+              </Animated.View>
+            </View>
+
+            <TouchableOpacity
+              onPress={() => router.push("/(tabs)/profile/edit")}
+              style={[styles.editButton, { backgroundColor: theme.card, borderColor: theme.border }]}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="pencil" size={18} color={theme.text} />
+            </TouchableOpacity>
+          </View>
+        </SafeAreaView>
+      </Animated.View>
+
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+          { useNativeDriver: false }
+        )}
+        scrollEventThrottle={16}
       >
-        <View style={styles.headerWrapper}>
-          <LinearGradient
-            colors={["#00B14F", "#008F40"]}
-            style={styles.headerGradient}
-          />
-          <SafeAreaView edges={["top"]} style={styles.headerContent}>
-            <View style={styles.headerTop}>
-              <Text style={styles.headerTitle}>Profile</Text>
-              <TouchableOpacity
-                onPress={() => router.push("/(tabs)/profile/edit")}
-                style={styles.editButton}
-                activeOpacity={0.8}
-              >
-                <Ionicons name="pencil" size={18} color="#FFFFFF" />
-              </TouchableOpacity>
+        {/* Spacer matching the header height */}
+        <View style={{ height: headerMaxHeight }} />
+
+        {/* Brand New Modern Hero Profile Section */}
+        <View style={styles.heroSection}>
+          <View style={styles.avatarWrapper}>
+            <LinearGradient
+              colors={[theme.accent, "#3B82F6"]}
+              style={styles.avatarGradientRing}
+            >
+              <View style={[styles.avatarInner, { backgroundColor: theme.card }]}>
+                <Text style={[styles.avatarText, { color: theme.text }]}>
+                  {getInitials(user.full_name)}
+                </Text>
+              </View>
+            </LinearGradient>
+            {user.email_verified && (
+              <View style={[styles.verifiedBadge, { backgroundColor: theme.card, shadowColor: isDark ? "#000" : theme.accent }]}>
+                <Ionicons name="checkmark-circle" size={24} color={theme.accent} />
+              </View>
+            )}
+          </View>
+
+          <Text style={[styles.userName, { color: theme.text }]}>{user.full_name || "User"}</Text>
+          <Text style={[styles.userEmail, { color: theme.muted }]}>{user.email}</Text>
+
+          <View style={styles.badgeRow}>
+            <View style={[styles.roleBadge, { backgroundColor: theme.accentSoft, borderColor: theme.accent + "30" }]}>
+              <Ionicons name="person-outline" size={12} color={theme.accent} />
+              <Text style={[styles.badgeText, { color: theme.accent }]}>{user.role?.toUpperCase() || "USER"}</Text>
             </View>
-          </SafeAreaView>
+            <View style={[styles.levelBadge, { backgroundColor: theme.blueSoft, borderColor: theme.blue + "30" }]}>
+              <Ionicons name="shield-checkmark-outline" size={12} color={theme.blue} />
+              <Text style={[styles.badgeText, { color: theme.blue }]}>Level {user.verification_level || 0}</Text>
+            </View>
+          </View>
         </View>
 
         <View style={styles.contentContainer}>
-          <LinearGradient
-            colors={["#F7FFF9", "#FFFFFF"]}
-            style={styles.summaryCard}
+          {/* Agent Center Card - Redesigned as a stunning CTA banner */}
+          {agentStatus === "active" || user.role === "agent" ? (
+            <TouchableOpacity
+              onPress={() => router.replace("/agent/dashboard")}
+              activeOpacity={0.85}
+              style={styles.bannerCard}
+            >
+              <LinearGradient
+                colors={["#8B5CF6", "#6D28D9"]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.bannerGradient}
+              >
+                <View style={styles.bannerContent}>
+                  <View style={styles.bannerTextWrap}>
+                    <Text style={styles.bannerLabel}>AGENT DASHBOARD</Text>
+                    <Text style={styles.bannerTitle}>Switch to Agent Mode</Text>
+                    <Text style={styles.bannerSubtitle}>Manage deposits, withdrawals, and commissions.</Text>
+                  </View>
+                  <View style={styles.bannerIconCircle}>
+                    <Ionicons name="arrow-forward" size={20} color="#8B5CF6" />
+                  </View>
+                </View>
+              </LinearGradient>
+            </TouchableOpacity>
+          ) : agentStatus ? (
+            <TouchableOpacity
+              onPress={() => router.push("/modals/agent-kyc/status")}
+              activeOpacity={0.85}
+              style={styles.bannerCard}
+            >
+              <LinearGradient
+                colors={["#F59E0B", "#D97706"]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.bannerGradient}
+              >
+                <View style={styles.bannerContent}>
+                  <View style={styles.bannerTextWrap}>
+                    <Text style={styles.bannerLabel}>APPLICATION PENDING</Text>
+                    <Text style={styles.bannerTitle}>Check Application Status</Text>
+                    <Text style={styles.bannerSubtitle}>Your KYC documents are currently under review.</Text>
+                  </View>
+                  <View style={styles.bannerIconCircle}>
+                    <Ionicons name="time" size={20} color="#F59E0B" />
+                  </View>
+                </View>
+              </LinearGradient>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              onPress={() => router.push("/modals/become-agent")}
+              activeOpacity={0.85}
+              style={styles.bannerCard}
+            >
+              <LinearGradient
+                colors={["#00B14F", "#008F40"]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.bannerGradient}
+              >
+                <View style={styles.bannerContent}>
+                  <View style={styles.bannerTextWrap}>
+                    <Text style={styles.bannerLabel}>EARN WITH AFRIX</Text>
+                    <Text style={styles.bannerTitle}>Become an AfriX Agent</Text>
+                    <Text style={styles.bannerSubtitle}>Earn commissions by facilitating fiat transfers.</Text>
+                  </View>
+                  <View style={styles.bannerIconCircle}>
+                    <Ionicons name="arrow-up-circle" size={20} color="#00B14F" />
+                  </View>
+                </View>
+              </LinearGradient>
+            </TouchableOpacity>
+          )}
+
+          {/* Account Status Segmented Row */}
+          <View style={[styles.statsRow, { backgroundColor: theme.card, borderColor: theme.border }]}>
+            <View style={styles.statTile}>
+              <Text style={[styles.statValue, { color: theme.text }]}>Level {user.verification_level || 0}</Text>
+              <Text style={[styles.statLabel, { color: theme.muted }]}>Verification</Text>
+            </View>
+            <View style={[styles.statDivider, { backgroundColor: theme.border }]} />
+            <View style={styles.statTile}>
+              <Text style={[styles.statValue, { color: theme.text }]}>{user.country_code || "NG"}</Text>
+              <Text style={[styles.statLabel, { color: theme.muted }]}>Region</Text>
+            </View>
+            <View style={[styles.statDivider, { backgroundColor: theme.border }]} />
+            <View style={styles.statTile}>
+              <Text style={[styles.statValue, { color: theme.text }]}>{new Date(user.created_at).getFullYear()}</Text>
+              <Text style={[styles.statLabel, { color: theme.muted }]}>Joined</Text>
+            </View>
+          </View>
+
+          {/* Settings Section */}
+          <Text style={[styles.sectionHeading, { color: theme.muted }]}>SECURITY & PREFERENCES</Text>
+          <View style={[styles.menuListCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+            <MenuRow
+              icon="lock-closed"
+              iconColor={theme.blue}
+              iconBgColor={theme.blueSoft}
+              label="Security Settings"
+              onPress={() => router.push("/settings/security")}
+            />
+            <View style={[styles.menuDivider, { backgroundColor: theme.border }]} />
+            <MenuRow
+              icon="notifications"
+              iconColor={theme.accent}
+              iconBgColor={theme.accentSoft}
+              label="Notification Inbox"
+              onPress={() => router.push("/settings/notification-inbox")}
+              rightContent={
+                <View style={styles.notificationBadgeRow}>
+                  {unreadCount > 0 && (
+                    <View style={styles.unreadCountBadge}>
+                      <Text style={styles.unreadCountText}>{unreadCount > 99 ? "99+" : unreadCount}</Text>
+                    </View>
+                  )}
+                  <Ionicons name="chevron-forward" size={18} color={theme.muted} />
+                </View>
+              }
+            />
+            <View style={[styles.menuDivider, { backgroundColor: theme.border }]} />
+            <MenuRow
+              icon="options"
+              iconColor={theme.warning}
+              iconBgColor={theme.warningSoft}
+              label="Notification Preferences"
+              onPress={() => router.push("/settings/notifications")}
+            />
+            <View style={[styles.menuDivider, { backgroundColor: theme.border }]} />
+            <MenuRow
+              icon="book"
+              iconColor={theme.purple}
+              iconBgColor={theme.purpleSoft}
+              label="Education Hub"
+              onPress={() => router.push("/education")}
+            />
+          </View>
+
+          {/* Support Section */}
+          <Text style={[styles.sectionHeading, { color: theme.muted }]}>SUPPORT & HELP</Text>
+          <View style={[styles.menuListCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+            <MenuRow
+              icon="help-circle"
+              iconColor={theme.blue}
+              iconBgColor={theme.blueSoft}
+              label="Help & Support Desk"
+              onPress={() => router.push("/help-support")}
+            />
+          </View>
+
+          {/* Logout Section */}
+          <TouchableOpacity
+            onPress={handleLogout}
+            activeOpacity={0.8}
+            style={[styles.logoutButton, { backgroundColor: theme.dangerSoft, borderColor: theme.danger + "20" }]}
           >
-            <Text style={styles.summaryEyebrow}>Account Overview</Text>
-            <Text style={styles.summaryTitle}>Manage your AfriX profile with confidence</Text>
-            <Text style={styles.summaryText}>
-              Keep your account details current, monitor your verification level, and access settings, notifications, and support in one place.
-            </Text>
-          </LinearGradient>
+            <Ionicons name="log-out" size={20} color={theme.danger} />
+            <Text style={[styles.logoutButtonText, { color: theme.danger }]}>Logout Account</Text>
+          </TouchableOpacity>
 
-          <View style={styles.profileCard}>
-            <View style={styles.profileTopRow}>
-              <View style={styles.avatarContainer}>
-                <View style={styles.avatar}>
-                  <Text style={styles.avatarText}>{getInitials(user.full_name)}</Text>
-                </View>
-                <View style={styles.verificationBadge}>
-                  <Ionicons
-                    name="checkmark-circle"
-                    size={20}
-                    color={user.email_verified ? "#00B14F" : "#9CA3AF"}
-                  />
-                </View>
-              </View>
-
-              <View style={styles.profileIdentity}>
-                <Text style={styles.userName}>{user.full_name || "User"}</Text>
-                <Text style={styles.userEmail}>{user.email}</Text>
-                <View style={styles.metaPillsRow}>
-                  <View style={styles.roleTag}>
-                    <Text style={styles.roleText}>{user.role?.toUpperCase() || "USER"}</Text>
-                  </View>
-                  <View style={styles.levelPill}>
-                    <Text style={styles.levelPillText}>Level {user.verification_level || 0}</Text>
-                  </View>
-                </View>
-              </View>
-            </View>
-          </View>
-
-          <View style={styles.sectionCard}>
-            <Text style={styles.sectionTitle}>Account Status</Text>
-            <View style={styles.cardContent}>
-              <InfoRow
-                label="Verification Level"
-                value={`Level ${user.verification_level || 0}`}
-                icon="shield-checkmark"
-                color="#00B14F"
-              />
-              <View style={styles.divider} />
-              <InfoRow
-                label="Country"
-                value={user.country_code || "Not set"}
-                icon="earth"
-                color="#3B82F6"
-              />
-              <View style={styles.divider} />
-              <InfoRow
-                label="Member Since"
-                value={formatDate(user.created_at)}
-                icon="calendar"
-                color="#8B5CF6"
-              />
-            </View>
-          </View>
-
-          <View style={styles.sectionCard}>
-            <Text style={styles.sectionTitle}>Agent Center</Text>
-            <View style={styles.cardContent}>
-              {agentStatus === "active" || user.role === "agent" ? (
-                <ActionItem
-                  icon="briefcase"
-                  label="Switch to Agent Dashboard"
-                  onPress={() => router.replace("/agent/dashboard")}
-                  color="#7C3AED"
-                  bgColor="#F3E8FF"
-                />
-              ) : agentStatus ? (
-                <ActionItem
-                  icon="time"
-                  label="Check Application Status"
-                  onPress={() => router.push("/modals/agent-kyc/status")}
-                  color="#F59E0B"
-                  bgColor="#FEF3C7"
-                />
-              ) : (
-                <ActionItem
-                  icon="briefcase-outline"
-                  label="Become an Agent"
-                  onPress={() => router.push("/modals/become-agent")}
-                  color="#00B14F"
-                  bgColor="#DCFCE7"
-                />
-              )}
-            </View>
-          </View>
-
-          <View style={styles.sectionCard}>
-            <Text style={styles.sectionTitle}>Settings</Text>
-            <View style={styles.cardContent}>
-              <ActionItem
-                icon="lock-closed-outline"
-                label="Security"
-                onPress={() => router.push("/settings/security")}
-              />
-              <View style={styles.divider} />
-              <ActionItem
-                icon="notifications-outline"
-                label="Notification center"
-                onPress={() => router.push("/settings/notification-inbox")}
-                badge={unreadCount}
-              />
-              <View style={styles.divider} />
-              <ActionItem
-                icon="options-outline"
-                label="Notification settings"
-                onPress={() => router.push("/settings/notifications")}
-              />
-              <View style={styles.divider} />
-              <ActionItem
-                icon="school-outline"
-                label="Education Center"
-                onPress={() => router.push("/education")}
-              />
-            </View>
-          </View>
-
-          <View style={styles.sectionCard}>
-            <Text style={styles.sectionTitle}>Support</Text>
-            <View style={styles.cardContent}>
-              <ActionItem
-                icon="help-circle-outline"
-                label="Help & Support"
-                onPress={() => router.push("/help-support")}
-              />
-              <View style={styles.divider} />
-              <ActionItem
-                icon="log-out-outline"
-                label="Logout"
-                onPress={handleLogout}
-                color="#DC2626"
-                bgColor="#FEE2E2"
-                showChevron={false}
-              />
-            </View>
-          </View>
-
-          <Text style={styles.versionText}>Version 1.0.0</Text>
+          <Text style={[styles.versionText, { color: theme.muted }]}>Version 1.1.0</Text>
           <View style={styles.bottomSpacer} />
         </View>
       </ScrollView>
@@ -280,277 +391,303 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F9FAFB",
   },
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#FFFFFF",
   },
   loadingText: {
     marginTop: 12,
     fontSize: 14,
-    color: "#9CA3AF",
-    fontWeight: "500",
+    fontWeight: "600",
   },
   scrollContent: {
     flexGrow: 1,
   },
   headerWrapper: {
     zIndex: 10,
-    elevation: 8,
-    backgroundColor: "#00B14F",
+    borderBottomWidth: 1,
   },
-  headerGradient: {
+  backgroundGlow: {
     position: "absolute",
     top: 0,
     left: 0,
     right: 0,
-    height: 120,
+    height: 180,
   },
   headerContent: {
     paddingHorizontal: 16,
+    paddingBottom: 14,
   },
   headerTop: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginTop: 10,
-    paddingBottom: 20,
+    paddingTop: 6,
+    gap: 12,
   },
-  headerTitle: {
+  headerCopy: {
+    flex: 1,
+  },
+  title: {
     fontSize: 24,
     fontWeight: "800",
-    color: "#FFFFFF",
-    letterSpacing: -0.5,
+    letterSpacing: -0.4,
+  },
+  headerSubtitle: {
+    fontSize: 14,
+    fontWeight: "500",
+    lineHeight: 20,
+    marginTop: 4,
   },
   editButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "rgba(255,255,255,0.2)",
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
   },
-  contentContainer: {
-    paddingHorizontal: 16,
-    paddingTop: 50,
-  },
-  summaryCard: {
-    borderRadius: 22,
-    padding: 18,
-    marginTop: -34,
-    marginBottom: 14,
-    borderWidth: 1,
-    borderColor: "#E6F4EA",
-  },
-  summaryEyebrow: {
-    fontSize: 11,
-    fontWeight: "800",
-    color: "#00B14F",
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-    marginBottom: 6,
-  },
-  summaryTitle: {
-    fontSize: 22,
-    fontWeight: "800",
-    color: "#111827",
-    letterSpacing: -0.5,
-  },
-  summaryText: {
-    fontSize: 13,
-    lineHeight: 20,
-    color: "#6B7280",
-    fontWeight: "500",
-    marginTop: 6,
-  },
-  profileCard: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 24,
-    padding: 20,
-    marginBottom: 14,
-    borderWidth: 1,
-    borderColor: "#EAF0F5",
-  },
-  profileTopRow: {
-    flexDirection: "row",
-    gap: 16,
+  heroSection: {
     alignItems: "center",
+    paddingVertical: 24,
+    paddingHorizontal: 20,
   },
-  avatarContainer: {
+  avatarWrapper: {
     position: "relative",
+    marginBottom: 16,
   },
-  avatar: {
-    width: 86,
-    height: 86,
-    borderRadius: 43,
-    backgroundColor: "#ECFDF5",
+  avatarGradientRing: {
+    width: 108,
+    height: 108,
+    borderRadius: 54,
+    padding: 3,
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: 4,
-    borderColor: "#FFFFFF",
+  },
+  avatarInner: {
+    width: 102,
+    height: 102,
+    borderRadius: 51,
+    alignItems: "center",
+    justifyContent: "center",
   },
   avatarText: {
-    fontSize: 34,
-    fontWeight: "800",
-    color: "#00B14F",
+    fontSize: 38,
+    fontWeight: "900",
+    letterSpacing: -0.5,
   },
-  verificationBadge: {
+  verifiedBadge: {
     position: "absolute",
     bottom: 2,
     right: 2,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 12,
-    padding: 2,
-  },
-  profileIdentity: {
-    flex: 1,
+    borderRadius: 999,
+    padding: 1,
+    elevation: 3,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.16,
+    shadowRadius: 4,
   },
   userName: {
-    fontSize: 22,
-    fontWeight: "800",
-    color: "#111827",
-    marginBottom: 4,
+    fontSize: 24,
+    fontWeight: "900",
+    letterSpacing: -0.5,
+    textAlign: "center",
   },
   userEmail: {
     fontSize: 14,
-    color: "#6B7280",
     fontWeight: "500",
-    marginBottom: 12,
+    textAlign: "center",
+    marginTop: 3,
   },
-  metaPillsRow: {
+  badgeRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    flexWrap: "wrap",
+    marginTop: 14,
   },
-  roleTag: {
-    backgroundColor: "#F3F4F6",
-    paddingHorizontal: 16,
+  roleBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
     paddingVertical: 6,
+    paddingHorizontal: 12,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: "#E5E7EB",
   },
-  roleText: {
+  levelBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 999,
+    borderWidth: 1,
+  },
+  badgeText: {
     fontSize: 11,
-    fontWeight: "700",
-    color: "#4B5563",
+    fontWeight: "800",
+    textTransform: "uppercase",
     letterSpacing: 0.5,
   },
-  levelPill: {
-    backgroundColor: "#ECFDF3",
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: "#D1FAE5",
+  contentContainer: {
+    paddingHorizontal: 16,
+    paddingTop: 8,
   },
-  levelPillText: {
-    fontSize: 11,
-    fontWeight: "700",
-    color: "#059669",
-    letterSpacing: 0.4,
-    textTransform: "uppercase",
-  },
-  sectionCard: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 20,
-    padding: 20,
-    marginBottom: 14,
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: "800",
-    color: "#111827",
+  bannerCard: {
+    borderRadius: 24,
+    overflow: "hidden",
     marginBottom: 16,
+    elevation: 4,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
   },
-  cardContent: {
-    gap: 0,
+  bannerGradient: {
+    padding: 20,
   },
-  infoRow: {
+  bannerContent: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 10,
+    justifyContent: "space-between",
+    gap: 16,
   },
-  iconBox: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 12,
-  },
-  infoContent: {
+  bannerTextWrap: {
     flex: 1,
   },
-  infoLabel: {
-    fontSize: 12,
-    color: "#9CA3AF",
-    fontWeight: "600",
+  bannerLabel: {
+    fontSize: 10,
+    fontWeight: "800",
+    color: "rgba(255, 255, 255, 0.72)",
     textTransform: "uppercase",
-    marginBottom: 2,
+    letterSpacing: 0.8,
+    marginBottom: 4,
   },
-  infoValue: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: "#111827",
+  bannerTitle: {
+    fontSize: 19,
+    fontWeight: "800",
+    color: "#FFFFFF",
+    letterSpacing: -0.4,
   },
-  actionItem: {
+  bannerSubtitle: {
+    fontSize: 12,
+    fontWeight: "500",
+    color: "rgba(255, 255, 255, 0.85)",
+    lineHeight: 17,
+    marginTop: 4,
+  },
+  bannerIconCircle: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: "#FFFFFF",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  statsRow: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 12,
+    borderRadius: 24,
+    borderWidth: 1,
+    paddingVertical: 18,
+    marginBottom: 20,
   },
-  actionIconBox: {
-    width: 40,
-    height: 40,
+  statTile: {
+    flex: 1,
+    alignItems: "center",
+  },
+  statValue: {
+    fontSize: 16,
+    fontWeight: "800",
+    letterSpacing: -0.2,
+  },
+  statLabel: {
+    fontSize: 11,
+    fontWeight: "600",
+    marginTop: 2,
+  },
+  statDivider: {
+    width: 1,
+    height: 28,
+  },
+  sectionHeading: {
+    fontSize: 11,
+    fontWeight: "800",
+    letterSpacing: 0.8,
+    marginLeft: 8,
+    marginBottom: 8,
+  },
+  menuListCard: {
+    borderRadius: 24,
+    borderWidth: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 4,
+    marginBottom: 20,
+  },
+  menuRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 14,
+  },
+  menuIconBox: {
+    width: 38,
+    height: 38,
     borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
     marginRight: 14,
   },
-  actionLabelRow: {
+  menuLabel: {
     flex: 1,
+    fontSize: 15,
+    fontWeight: "700",
+  },
+  menuDivider: {
+    height: 1,
+  },
+  notificationBadgeRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
   },
-  actionLabel: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#374151",
-  },
-  badge: {
-    backgroundColor: "#DC2626",
+  unreadCountBadge: {
+    backgroundColor: "#EF4444",
     paddingHorizontal: 8,
     paddingVertical: 2,
-    borderRadius: 12,
-    minWidth: 22,
+    borderRadius: 10,
+    minWidth: 20,
     alignItems: "center",
+    justifyContent: "center",
   },
-  badgeText: {
-    fontSize: 12,
-    fontWeight: "700",
+  unreadCountText: {
+    fontSize: 10,
+    fontWeight: "800",
     color: "#FFFFFF",
   },
-  divider: {
-    height: 1,
-    backgroundColor: "#F3F4F6",
-    marginVertical: 10,
+  logoutButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 16,
+    borderRadius: 20,
+    borderWidth: 1,
+    marginTop: 10,
+    marginBottom: 16,
+  },
+  logoutButtonText: {
+    fontSize: 15,
+    fontWeight: "800",
   },
   versionText: {
     textAlign: "center",
-    color: "#9CA3AF",
     fontSize: 12,
     fontWeight: "500",
     marginTop: 10,
-    // marginBottom: 20,
   },
   bottomSpacer: {
-    height: 20,
+    height: 48,
   },
 });

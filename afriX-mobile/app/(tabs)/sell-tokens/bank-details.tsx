@@ -1,503 +1,474 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import {
-    View,
-    StyleSheet,
-    TextInput,
-    TouchableOpacity,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    Dimensions,
+  View,
+  StyleSheet,
+  TextInput,
+  TouchableOpacity,
+  KeyboardAvoidingView,
+  Platform,
+  useColorScheme,
+  Animated,
 } from "react-native";
 import { Text } from "react-native-paper";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { isXOFToken } from "@/constants/payment";
 import { XOF_MOBILE_MONEY_PROVIDERS } from "@/constants/payment";
-
-const { width } = Dimensions.get("window");
 
 type PaymentMethod = "bank" | "mobile_money";
 
 export default function BankDetailsScreen() {
-    const router = useRouter();
-    const params = useLocalSearchParams<{
-        amount?: string;
-        tokenType?: string;
-        agentId?: string;
-        agentName?: string;
-    }>();
+  const router = useRouter();
+  const params = useLocalSearchParams<{
+    amount?: string;
+    tokenType?: string;
+    agentId?: string;
+    agentName?: string;
+  }>();
 
-    const tokenType = params.tokenType || "NT";
-    const showPaymentChoice = isXOFToken(tokenType);
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === "dark";
+  const insets = useSafeAreaInsets();
+  const [headerMaxHeight, setHeaderMaxHeight] = useState(insets.top + 70);
+  const scrollY = useRef(new Animated.Value(0)).current;
 
-    const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("bank");
-    const [bankName, setBankName] = useState("");
-    const [accountNumber, setAccountNumber] = useState("");
-    const [accountName, setAccountName] = useState("");
-    const [mobileProvider, setMobileProvider] = useState<string>(XOF_MOBILE_MONEY_PROVIDERS[0]);
-    const [mobileNumber, setMobileNumber] = useState("");
+  const handleHeaderLayout = (e: any) => {
+    const { height } = e.nativeEvent.layout;
+    if (height > headerMaxHeight) setHeaderMaxHeight(height);
+  };
 
-    const handleContinue = () => {
-        if (paymentMethod === "bank") {
-            if (!bankName || !accountNumber || !accountName) return;
-            router.push({
-                pathname: "/(tabs)/sell-tokens/confirm",
-                params: {
-                    ...params,
-                    paymentType: "bank",
-                    bankName,
-                    accountNumber,
-                    accountName,
-                },
-            });
-        } else {
-            if (!mobileNumber.trim() || !accountName.trim()) return;
-            router.push({
-                pathname: "/(tabs)/sell-tokens/confirm",
-                params: {
-                    ...params,
-                    paymentType: "mobile_money",
-                    mobileProvider,
-                    mobileNumber: mobileNumber.trim(),
-                    accountName,
-                },
-            });
-        }
-    };
+  const subtitleOpacity = scrollY.interpolate({ inputRange: [0, 50], outputRange: [1, 0], extrapolate: "clamp" });
+  const subtitleMaxHeight = scrollY.interpolate({ inputRange: [0, 50], outputRange: [80, 0], extrapolate: "clamp" });
+  const subtitleMargin = scrollY.interpolate({ inputRange: [0, 50], outputRange: [4, 0], extrapolate: "clamp" });
 
-    const isFormValid =
-        paymentMethod === "bank"
-            ? !!(bankName && accountNumber && accountName)
-            : !!(mobileNumber.trim() && accountName.trim());
+  const theme = {
+    background: isDark ? "#07111A" : "#F5F7FB",
+    card: isDark ? "#0E1726" : "#FFFFFF",
+    cardAlt: isDark ? "#111C2B" : "#F8FAFC",
+    text: isDark ? "#F8FAFC" : "#0F172A",
+    muted: isDark ? "#94A3B8" : "#64748B",
+    border: isDark ? "#1E2A3A" : "#E2E8F0",
+    accent: "#00B14F",
+    accentSoft: isDark ? "rgba(0,177,79,0.14)" : "#EAF8EF",
+    warning: "#F59E0B",
+    warningSoft: isDark ? "rgba(245,158,11,0.12)" : "#FFFBEB",
+    warningBorder: isDark ? "rgba(245,158,11,0.3)" : "#FEF3C7",
+    placeholder: isDark ? "#475569" : "#9CA3AF",
+    inputBg: isDark ? "#111C2B" : "#F9FAFB",
+    blue: "#3B82F6",
+    blueSoft: isDark ? "rgba(59,130,246,0.12)" : "#EFF6FF",
+    blueBorder: isDark ? "rgba(59,130,246,0.3)" : "#BFDBFE",
+  };
 
-    return (
-        <View style={styles.container}>
-            <View style={styles.headerWrapper}>
-                <LinearGradient
-                    colors={["#00B14F", "#008F40"]}
-                    style={styles.headerGradient}
-                />
-                <SafeAreaView edges={["top"]} style={styles.headerContent}>
-                    <View style={styles.header}>
-                        <TouchableOpacity
-                            onPress={() => router.back()}
-                            style={styles.backButton}
-                        >
-                            <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
-                        </TouchableOpacity>
-                        <Text style={styles.headerTitle}>
-                            {showPaymentChoice ? "Receive Payment" : "Recipient Bank"}
-                        </Text>
-                        <View style={{ width: 40 }} />
-                    </View>
-                </SafeAreaView>
+  const tokenType = params.tokenType || "NT";
+  const showPaymentChoice = isXOFToken(tokenType);
+
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("bank");
+  const [bankName, setBankName] = useState("");
+  const [accountNumber, setAccountNumber] = useState("");
+  const [accountName, setAccountName] = useState("");
+  const [mobileProvider, setMobileProvider] = useState<string>(XOF_MOBILE_MONEY_PROVIDERS[0]);
+  const [mobileNumber, setMobileNumber] = useState("");
+
+  const handleContinue = () => {
+    if (paymentMethod === "bank") {
+      if (!bankName || !accountNumber || !accountName) return;
+      router.push({
+        pathname: "/(tabs)/sell-tokens/confirm",
+        params: {
+          ...params,
+          paymentType: "bank",
+          bankName,
+          accountNumber,
+          accountName,
+        },
+      });
+    } else {
+      if (!mobileNumber.trim() || !accountName.trim()) return;
+      router.push({
+        pathname: "/(tabs)/sell-tokens/confirm",
+        params: {
+          ...params,
+          paymentType: "mobile_money",
+          mobileProvider,
+          mobileNumber: mobileNumber.trim(),
+          accountName,
+        },
+      });
+    }
+  };
+
+  const isFormValid =
+    paymentMethod === "bank"
+      ? !!(bankName && accountNumber && accountName)
+      : !!(mobileNumber.trim() && accountName.trim());
+
+  return (
+    <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
+      <View style={[styles.container, { backgroundColor: theme.background }]}>
+        {/* Collapsible Header */}
+        <Animated.View
+          onLayout={handleHeaderLayout}
+          style={[styles.headerWrapper, { backgroundColor: theme.background, borderBottomColor: theme.border }]}
+        >
+          <SafeAreaView edges={["top"]} style={styles.headerSafeArea}>
+            <View style={styles.headerRow}>
+              <TouchableOpacity
+                onPress={() => router.back()}
+                style={[styles.backButton, { backgroundColor: theme.card, borderColor: theme.border }]}
+                activeOpacity={0.85}
+              >
+                <Ionicons name="arrow-back" size={22} color={theme.text} />
+              </TouchableOpacity>
+              <View style={styles.headerText}>
+                <Text style={[styles.headerTitle, { color: theme.text }]}>
+                  {showPaymentChoice ? "Receive Payment" : "Recipient Bank"}
+                </Text>
+                <Animated.View style={{ opacity: subtitleOpacity, maxHeight: subtitleMaxHeight, marginTop: subtitleMargin, overflow: "hidden" }}>
+                  <Text style={[styles.headerSubtitle, { color: theme.muted }]}>
+                    Provide details where agent will send cash.
+                  </Text>
+                </Animated.View>
+              </View>
+              <View style={{ width: 42 }} />
             </View>
+          </SafeAreaView>
+        </Animated.View>
 
-            <KeyboardAvoidingView
-                behavior={Platform.OS === "ios" ? "padding" : "height"}
-                style={{ flex: 1 }}
-            >
-                <ScrollView
-                    style={styles.scrollView}
-                    contentContainerStyle={styles.content}
-                    showsVerticalScrollIndicator={false}
-                    keyboardShouldPersistTaps="always"
-                >
-                    <View style={styles.introContainer}>
-                        <Text style={styles.title}>Where should we send funds?</Text>
-                        <Text style={styles.subtitle}>
-                            {showPaymentChoice
-                                ? "Choose how you want to receive payment. In XOF countries most agents use mobile money (Orange Money, Wave, Kiren) or bank."
-                                : "Provide the bank account details where your chosen agent will transfer the money."}
-                        </Text>
-                    </View>
+        <Animated.ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={[styles.content, { paddingTop: headerMaxHeight + 16 }]}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="always"
+          onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: false })}
+          scrollEventThrottle={16}
+        >
+          {/* Ambient glow */}
+          <LinearGradient
+            colors={isDark ? ["rgba(0,177,79,0.10)", "rgba(7,17,26,0)"] : ["rgba(0,177,79,0.08)", "rgba(245,247,251,0)"]}
+            style={styles.glow}
+            pointerEvents="none"
+          />
 
-                    {showPaymentChoice && (
-                        <View style={styles.methodRow}>
-                            <TouchableOpacity
-                                style={[
-                                    styles.methodBtn,
-                                    paymentMethod === "bank" && styles.methodBtnActive,
-                                ]}
-                                onPress={() => setPaymentMethod("bank")}
-                            >
-                                <Ionicons
-                                    name="business-outline"
-                                    size={22}
-                                    color={paymentMethod === "bank" ? "#00B14F" : "#6B7280"}
-                                />
-                                <Text
-                                    style={[
-                                        styles.methodBtnText,
-                                        paymentMethod === "bank" && styles.methodBtnTextActive,
-                                    ]}
-                                >
-                                    Bank
-                                </Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                                style={[
-                                    styles.methodBtn,
-                                    paymentMethod === "mobile_money" && styles.methodBtnActive,
-                                ]}
-                                onPress={() => setPaymentMethod("mobile_money")}
-                            >
-                                <Ionicons
-                                    name="phone-portrait-outline"
-                                    size={22}
-                                    color={
-                                        paymentMethod === "mobile_money" ? "#00B14F" : "#6B7280"
-                                    }
-                                />
-                                <Text
-                                    style={[
-                                        styles.methodBtnText,
-                                        paymentMethod === "mobile_money" &&
-                                        styles.methodBtnTextActive,
-                                    ]}
-                                >
-                                    Mobile Money
-                                </Text>
-                            </TouchableOpacity>
-                        </View>
-                    )}
+          <View style={[styles.introCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+            <Text style={[styles.introEyebrow, { color: theme.accent }]}>RECEIVE DETAILS</Text>
+            <Text style={[styles.introTitle, { color: theme.text }]}>Where should we send funds?</Text>
+            <Text style={[styles.introSubtitle, { color: theme.muted }]}>
+              {showPaymentChoice
+                ? "Choose how you want to receive payment. In XOF countries most agents use mobile money (Orange Money, Wave, MTN) or bank transfer."
+                : "Provide the bank account details where your chosen agent will transfer the local currency."}
+            </Text>
+          </View>
 
-                    <View style={styles.formCard}>
-                        {paymentMethod === "bank" ? (
-                            <>
-                                <View style={styles.formGroup}>
-                                    <Text style={styles.label}>Bank Name</Text>
-                                    <View style={styles.inputWrapper}>
-                                        <Ionicons
-                                            name="business-outline"
-                                            size={20}
-                                            color="#9CA3AF"
-                                            style={styles.inputIcon}
-                                        />
-                                        <TextInput
-                                            style={styles.input}
-                                            placeholder="e.g. GTBank, Zenith, Kuda"
-                                            placeholderTextColor="#9CA3AF"
-                                            value={bankName}
-                                            onChangeText={setBankName}
-                                        />
-                                    </View>
-                                </View>
-                                <View style={styles.formGroup}>
-                                    <Text style={styles.label}>Account Number</Text>
-                                    <View style={styles.inputWrapper}>
-                                        <Ionicons
-                                            name="card-outline"
-                                            size={20}
-                                            color="#9CA3AF"
-                                            style={styles.inputIcon}
-                                        />
-                                        <TextInput
-                                            style={styles.input}
-                                            placeholder="0123456789"
-                                            placeholderTextColor="#9CA3AF"
-                                            keyboardType="numeric"
-                                            maxLength={15}
-                                            value={accountNumber}
-                                            onChangeText={setAccountNumber}
-                                        />
-                                    </View>
-                                </View>
-                                <View style={styles.formGroup}>
-                                    <Text style={styles.label}>Account Holder Name</Text>
-                                    <View style={styles.inputWrapper}>
-                                        <Ionicons
-                                            name="person-outline"
-                                            size={20}
-                                            color="#9CA3AF"
-                                            style={styles.inputIcon}
-                                        />
-                                        <TextInput
-                                            style={styles.input}
-                                            placeholder="Full name as on account"
-                                            placeholderTextColor="#9CA3AF"
-                                            value={accountName}
-                                            onChangeText={setAccountName}
-                                        />
-                                    </View>
-                                </View>
-                            </>
-                        ) : (
-                            <>
-                                <View style={styles.formGroup}>
-                                    <Text style={styles.label}>Mobile Money Provider</Text>
-                                    <View style={styles.pickerRow} pointerEvents="box-none">
-                                        {XOF_MOBILE_MONEY_PROVIDERS.map((p) => (
-                                            <TouchableOpacity
-                                                key={p}
-                                                style={[
-                                                    styles.chip,
-                                                    mobileProvider === p && styles.chipActive,
-                                                ]}
-                                                onPress={() => setMobileProvider(p)}
-                                            >
-                                                <Text
-                                                    style={[
-                                                        styles.chipText,
-                                                        mobileProvider === p && styles.chipTextActive,
-                                                    ]}
-                                                >
-                                                    {p}
-                                                </Text>
-                                            </TouchableOpacity>
-                                        ))}
-                                    </View>
-                                </View>
-                                <View style={styles.formGroup} key="mobile-phone-field">
-                                    <Text style={styles.label}>Phone Number</Text>
-                                    <View style={styles.inputWrapper} collapsable={false} pointerEvents="box-none">
-                                        <Ionicons
-                                            name="call-outline"
-                                            size={20}
-                                            color="#9CA3AF"
-                                            style={styles.inputIcon}
-                                        />
-                                        <TextInput
-                                            key="mobile-money-phone-input"
-                                            style={styles.input}
-                                            placeholder="e.g. 77 123 45 67"
-                                            placeholderTextColor="#9CA3AF"
-                                            keyboardType="phone-pad"
-                                            value={mobileNumber}
-                                            onChangeText={setMobileNumber}
-                                            editable={true}
-                                        />
-                                    </View>
-                                </View>
-                                <View style={styles.formGroup}>
-                                    <Text style={styles.label}>Account / Wallet Holder Name</Text>
-                                    <View style={styles.inputWrapper}>
-                                        <Ionicons
-                                            name="person-outline"
-                                            size={20}
-                                            color="#9CA3AF"
-                                            style={styles.inputIcon}
-                                        />
-                                        <TextInput
-                                            style={styles.input}
-                                            placeholder="Full name as on mobile money"
-                                            placeholderTextColor="#9CA3AF"
-                                            value={accountName}
-                                            onChangeText={setAccountName}
-                                        />
-                                    </View>
-                                </View>
-                            </>
-                        )}
-                    </View>
+          {/* Segmented Payment Choice (XOF only) */}
+          {showPaymentChoice && (
+            <View style={styles.methodRow}>
+              <TouchableOpacity
+                style={[
+                  styles.methodBtn,
+                  { backgroundColor: theme.card, borderColor: theme.border },
+                  paymentMethod === "bank" && { backgroundColor: theme.accentSoft, borderColor: theme.accent },
+                ]}
+                onPress={() => setPaymentMethod("bank")}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="business-outline" size={20} color={paymentMethod === "bank" ? theme.accent : theme.muted} />
+                <Text style={[styles.methodBtnText, { color: paymentMethod === "bank" ? theme.accent : theme.muted }]}>
+                  Bank
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.methodBtn,
+                  { backgroundColor: theme.card, borderColor: theme.border },
+                  paymentMethod === "mobile_money" && { backgroundColor: theme.accentSoft, borderColor: theme.accent },
+                ]}
+                onPress={() => setPaymentMethod("mobile_money")}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="phone-portrait-outline" size={20} color={paymentMethod === "mobile_money" ? theme.accent : theme.muted} />
+                <Text style={[styles.methodBtnText, { color: paymentMethod === "mobile_money" ? theme.accent : theme.muted }]}>
+                  Mobile Money
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
 
-                    <View style={styles.warningBox}>
-                        <Ionicons name="alert-circle" size={20} color="#F59E0B" />
-                        <View style={{ flex: 1 }}>
-                            <Text style={styles.warningText}>
-                                Please double-check these details. Incorrect info may lead to lost
-                                funds.
-                            </Text>
-                        </View>
-                    </View>
-                </ScrollView>
-
-                <View style={styles.footer}>
-                    <TouchableOpacity
-                        style={[styles.continueButton, !isFormValid && styles.disabledButton]}
-                        onPress={handleContinue}
-                        disabled={!isFormValid}
-                    >
-                        <Text style={styles.continueText}>Review & Confirm</Text>
-                        <Ionicons name="arrow-forward" size={20} color="#FFFFFF" />
-                    </TouchableOpacity>
+          {/* FORM FIELDS CARD */}
+          <View style={[styles.formCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+            {paymentMethod === "bank" ? (
+              <>
+                <View style={styles.formGroup}>
+                  <Text style={[styles.label, { color: theme.text }]}>Bank Name</Text>
+                  <View style={[styles.inputWrapper, { backgroundColor: theme.inputBg, borderColor: theme.border }]}>
+                    <Ionicons name="business-outline" size={20} color={theme.placeholder} style={styles.inputIcon} />
+                    <TextInput
+                      style={[styles.input, { color: theme.text }]}
+                      placeholder="e.g. GTBank, Zenith, Kuda"
+                      placeholderTextColor={theme.placeholder}
+                      value={bankName}
+                      onChangeText={setBankName}
+                    />
+                  </View>
                 </View>
-            </KeyboardAvoidingView>
-        </View>
-    );
+
+                <View style={styles.formGroup}>
+                  <Text style={[styles.label, { color: theme.text }]}>Account Number</Text>
+                  <View style={[styles.inputWrapper, { backgroundColor: theme.inputBg, borderColor: theme.border }]}>
+                    <Ionicons name="card-outline" size={20} color={theme.placeholder} style={styles.inputIcon} />
+                    <TextInput
+                      style={[styles.input, { color: theme.text }]}
+                      placeholder="0123456789"
+                      placeholderTextColor={theme.placeholder}
+                      keyboardType="numeric"
+                      maxLength={15}
+                      value={accountNumber}
+                      onChangeText={setAccountNumber}
+                    />
+                  </View>
+                </View>
+
+                <View style={styles.formGroup}>
+                  <Text style={[styles.label, { color: theme.text }]}>Account Holder Name</Text>
+                  <View style={[styles.inputWrapper, { backgroundColor: theme.inputBg, borderColor: theme.border }]}>
+                    <Ionicons name="person-outline" size={20} color={theme.placeholder} style={styles.inputIcon} />
+                    <TextInput
+                      style={[styles.input, { color: theme.text }]}
+                      placeholder="Full name as on account"
+                      placeholderTextColor={theme.placeholder}
+                      value={accountName}
+                      onChangeText={setAccountName}
+                    />
+                  </View>
+                </View>
+              </>
+            ) : (
+              <>
+                <View style={styles.formGroup}>
+                  <Text style={[styles.label, { color: theme.text }]}>Mobile Money Provider</Text>
+                  <View style={styles.pickerRow}>
+                    {XOF_MOBILE_MONEY_PROVIDERS.map((p) => {
+                      const isActive = mobileProvider === p;
+                      return (
+                        <TouchableOpacity
+                          key={p}
+                          style={[
+                            styles.chip,
+                            { backgroundColor: theme.inputBg, borderColor: theme.border },
+                            isActive && { backgroundColor: theme.accentSoft, borderColor: theme.accent },
+                          ]}
+                          onPress={() => setMobileProvider(p)}
+                          activeOpacity={0.7}
+                        >
+                          <Text style={[styles.chipText, { color: isActive ? theme.accent : theme.muted }]}>
+                            {p}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </View>
+
+                <View style={styles.formGroup}>
+                  <Text style={[styles.label, { color: theme.text }]}>Phone Number</Text>
+                  <View style={[styles.inputWrapper, { backgroundColor: theme.inputBg, borderColor: theme.border }]}>
+                    <Ionicons name="call-outline" size={20} color={theme.placeholder} style={styles.inputIcon} />
+                    <TextInput
+                      style={[styles.input, { color: theme.text }]}
+                      placeholder="e.g. 77 123 45 67"
+                      placeholderTextColor={theme.placeholder}
+                      keyboardType="phone-pad"
+                      value={mobileNumber}
+                      onChangeText={setMobileNumber}
+                    />
+                  </View>
+                </View>
+
+                <View style={styles.formGroup}>
+                  <Text style={[styles.label, { color: theme.text }]}>Account / Wallet Holder Name</Text>
+                  <View style={[styles.inputWrapper, { backgroundColor: theme.inputBg, borderColor: theme.border }]}>
+                    <Ionicons name="person-outline" size={20} color={theme.placeholder} style={styles.inputIcon} />
+                    <TextInput
+                      style={[styles.input, { color: theme.text }]}
+                      placeholder="Full name as on mobile money"
+                      placeholderTextColor={theme.placeholder}
+                      value={accountName}
+                      onChangeText={setAccountName}
+                    />
+                  </View>
+                </View>
+              </>
+            )}
+          </View>
+
+          {/* WARNING CARD */}
+          <View style={[styles.warningBox, { backgroundColor: theme.warningSoft, borderColor: theme.warningBorder }]}>
+            <Ionicons name="alert-circle" size={20} color={theme.warning} style={{ marginTop: 1 }} />
+            <Text style={[styles.warningText, { color: isDark ? "#FDE68A" : "#92400E" }]}>
+              Please double-check these details. Incorrect information will lead to permanently lost funds.
+            </Text>
+          </View>
+
+          {/* CONTINUE BUTTON IN SCROLL VIEW */}
+          <TouchableOpacity
+            style={[styles.continueButton, { backgroundColor: theme.accent }, !isFormValid && styles.disabledButton]}
+            onPress={handleContinue}
+            disabled={!isFormValid}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.continueText}>Review & Confirm</Text>
+            <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />
+          </TouchableOpacity>
+
+          <View style={{ height: 40 }} />
+        </Animated.ScrollView>
+      </View>
+    </KeyboardAvoidingView>
+  );
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: "#F3F4F6",
-    },
-    headerWrapper: { marginBottom: 0 },
-    headerGradient: {
-        position: "absolute",
-        top: 0,
-        left: 0,
-        right: 0,
-        height: 140,
-    },
-    headerContent: { paddingHorizontal: 20 },
-    header: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        alignItems: "center",
-        paddingBottom: 20,
-        marginTop: 10,
-    },
-    headerTitle: {
-        fontSize: 18,
-        fontWeight: "700",
-        color: "#FFFFFF",
-    },
-    backButton: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        backgroundColor: "rgba(255,255,255,0.2)",
-        alignItems: "center",
-        justifyContent: "center",
-    },
-    scrollView: { flex: 1 },
-    content: {
-        padding: 20,
-        paddingTop: 10,
-        paddingBottom: 40,
-    },
-    introContainer: { marginBottom: 24, marginTop: 30 },
-    title: {
-        fontSize: 22,
-        fontWeight: "800",
-        color: "#111827",
-        marginBottom: 8,
-    },
-    subtitle: {
-        fontSize: 15,
-        color: "#6B7280",
-        lineHeight: 22,
-    },
-    methodRow: {
-        flexDirection: "row",
-        gap: 12,
-        marginBottom: 20,
-    },
-    methodBtn: {
-        flex: 1,
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: 8,
-        paddingVertical: 14,
-        borderRadius: 14,
-        backgroundColor: "#F3F4F6",
-        borderWidth: 2,
-        borderColor: "#E5E7EB",
-    },
-    methodBtnActive: {
-        backgroundColor: "#ECFDF5",
-        borderColor: "#00B14F",
-    },
-    methodBtnText: {
-        fontSize: 15,
-        fontWeight: "600",
-        color: "#6B7280",
-    },
-    methodBtnTextActive: { color: "#00B14F" },
-    formCard: {
-        backgroundColor: "#FFFFFF",
-        borderRadius: 24,
-        padding: 20,
-        marginBottom: 20,
-        borderWidth: 1,
-        borderColor: "#E5E7EB",
-    },
-    formGroup: { marginBottom: 20 },
-    label: {
-        fontSize: 14,
-        fontWeight: "700",
-        color: "#374151",
-        marginBottom: 8,
-    },
-    inputWrapper: {
-        flexDirection: "row",
-        alignItems: "center",
-        backgroundColor: "#F9FAFB",
-        borderWidth: 1,
-        borderColor: "#E5E7EB",
-        borderRadius: 14,
-        paddingHorizontal: 16,
-    },
-    inputIcon: { marginRight: 12 },
-    input: {
-        flex: 1,
-        minWidth: 0,
-        paddingVertical: 16,
-        fontSize: 16,
-        color: "#111827",
-        fontWeight: "500",
-    },
-    pickerRow: {
-        flexDirection: "row",
-        flexWrap: "wrap",
-        gap: 8,
-    },
-    chip: {
-        paddingHorizontal: 14,
-        paddingVertical: 10,
-        borderRadius: 10,
-        backgroundColor: "#F3F4F6",
-        borderWidth: 1,
-        borderColor: "#E5E7EB",
-    },
-    chipActive: {
-        backgroundColor: "#ECFDF5",
-        borderColor: "#00B14F",
-    },
-    chipText: {
-        fontSize: 13,
-        fontWeight: "600",
-        color: "#6B7280",
-    },
-    chipTextActive: { color: "#00B14F" },
-    warningBox: {
-        flexDirection: "row",
-        backgroundColor: "#FFFBEB",
-        padding: 16,
-        borderRadius: 16,
-        gap: 12,
-        borderWidth: 1,
-        borderColor: "#FEF3C7",
-    },
-    warningText: {
-        fontSize: 13,
-        color: "#92400E",
-        lineHeight: 18,
-    },
-    footer: {
-        padding: 20,
-        paddingBottom: 24,
-        backgroundColor: "#FFFFFF",
-        borderTopWidth: 1,
-        borderTopColor: "#F3F4F6",
-    },
-    continueButton: {
-        backgroundColor: "#00B14F",
-        height: 56,
-        borderRadius: 16,
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: 10,
-        shadowColor: "#00B14F",
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.2,
-        shadowRadius: 8,
-        elevation: 4,
-    },
-    disabledButton: {
-        backgroundColor: "#9CA3AF",
-        shadowOpacity: 0,
-        elevation: 0,
-    },
-    continueText: {
-        color: "#FFFFFF",
-        fontSize: 16,
-        fontWeight: "700",
-    },
+  container: { flex: 1 },
+  headerWrapper: {
+    position: "absolute",
+    top: 0, left: 0, right: 0,
+    zIndex: 10,
+    borderBottomWidth: 1,
+  },
+  headerSafeArea: { paddingHorizontal: 16 },
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingTop: 10,
+    paddingBottom: 16,
+  },
+  backButton: {
+    width: 42, height: 42,
+    borderRadius: 21, borderWidth: 1,
+    alignItems: "center", justifyContent: "center",
+    marginRight: 12,
+  },
+  headerText: { flex: 1 },
+  headerTitle: { fontSize: 22, fontWeight: "900", letterSpacing: -0.5 },
+  headerSubtitle: { fontSize: 13, lineHeight: 18, fontWeight: "500" },
+  content: { paddingHorizontal: 16, paddingBottom: 24 },
+  glow: {
+    position: "absolute",
+    top: 0, left: 0, right: 0,
+    height: 200,
+  },
+  introCard: {
+    borderRadius: 24,
+    padding: 20,
+    marginBottom: 16,
+    borderWidth: 1,
+  },
+  introEyebrow: {
+    fontSize: 11,
+    fontWeight: "800",
+    letterSpacing: 0.5,
+    marginBottom: 8,
+  },
+  introTitle: {
+    fontSize: 22,
+    fontWeight: "800",
+    marginBottom: 8,
+    letterSpacing: -0.4,
+  },
+  introSubtitle: {
+    fontSize: 14,
+    lineHeight: 21,
+  },
+  methodRow: {
+    flexDirection: "row",
+    gap: 10,
+    marginBottom: 16,
+  },
+  methodBtn: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 14,
+    borderRadius: 18,
+    borderWidth: 1.5,
+  },
+  methodBtnText: {
+    fontSize: 14,
+    fontWeight: "800",
+  },
+  formCard: {
+    borderRadius: 24,
+    padding: 18,
+    marginBottom: 16,
+    borderWidth: 1,
+  },
+  formGroup: { marginBottom: 16 },
+  label: {
+    fontSize: 13,
+    fontWeight: "700",
+    marginBottom: 8,
+  },
+  inputWrapper: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 1,
+    borderRadius: 16,
+    paddingHorizontal: 14,
+  },
+  inputIcon: { marginRight: 10 },
+  input: {
+    flex: 1,
+    paddingVertical: 14,
+    fontSize: 15,
+    fontWeight: "600",
+  },
+  pickerRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  chip: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+    borderWidth: 1.5,
+  },
+  chipText: {
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  warningBox: {
+    flexDirection: "row",
+    padding: 14,
+    borderRadius: 16,
+    gap: 10,
+    borderWidth: 1,
+    marginBottom: 20,
+  },
+  warningText: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: "600",
+    lineHeight: 18,
+  },
+  continueButton: {
+    height: 58,
+    borderRadius: 20,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+  disabledButton: {
+    opacity: 0.45,
+  },
+  continueText: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "800",
+  },
 });

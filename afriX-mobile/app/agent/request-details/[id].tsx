@@ -1,1029 +1,392 @@
 import React, { useState } from "react";
 import {
-  ActivityIndicator,
-  Alert,
-  Image,
-  KeyboardAvoidingView,
-  Linking,
-  Modal,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    ActivityIndicator, Alert, Image,
+    KeyboardAvoidingView, Linking, Modal, Platform,
+    ScrollView, StyleSheet, Text, TextInput,
+    TouchableOpacity, View, useColorScheme,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { Surface } from "react-native-paper";
 import * as ImagePicker from "expo-image-picker";
 import { useAgentStore } from "@/stores/slices/agentSlice";
 import { formatAmount, formatDate } from "@/utils/format";
 
-export default function RequestDetailsScreen() {
-  const { id } = useLocalSearchParams();
-  const router = useRouter();
-  const {
-    pendingRequests,
-    history,
-    confirmMintRequest,
-    confirmBurnPayment,
-    rejectRequest,
-    loading,
-  } = useAgentStore();
-
-  const request = [...pendingRequests, ...history].find((item) => item.id === id);
-  const [uploading, setUploading] = useState(false);
-  const [rejectModalVisible, setRejectModalVisible] = useState(false);
-  const [rejectReason, setRejectReason] = useState("");
-
-  const isMint =
-    request?.type === "mint" || (!request?.type && !request?.bank_account);
-  const isBurn = !isMint;
-
-  const isExpiredByTime = (req: any) => {
-    if (!req?.expires_at) return false;
-    return new Date(req.expires_at).getTime() < Date.now();
-  };
-
-  const isExpired =
-    request?.status === "expired" || (request ? isExpiredByTime(request) : false);
-  const canConfirmMint =
-    !!request &&
-    isMint &&
-    request.status === "proof_submitted" &&
-    !isExpired;
-  const canUploadBurnProof =
-    !!request &&
-    isBurn &&
-    request.status === "escrowed" &&
-    !isExpired;
-  const canReject =
-    !!request &&
-    (request.status === "pending" || request.status === "proof_submitted");
-
-  if (!request) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.errorContainer}>
-          <View style={styles.errorIconWrap}>
-            <Ionicons name="alert-circle-outline" size={28} color="#EF4444" />
-          </View>
-          <Text style={styles.errorTitle}>Request unavailable</Text>
-          <Text style={styles.errorText}>Request not found.</Text>
-          <TouchableOpacity
-            onPress={() => router.back()}
-            style={styles.primaryAction}
-            activeOpacity={0.85}
-          >
-            <Text style={styles.primaryActionText}>Go back</Text>
-          </TouchableOpacity>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
-  const typeConfig = getTypeConfig(isMint ? "mint" : "burn");
-  const statusColor = getStatusColor(request.status);
-
-  const handleConfirmMint = async () => {
-    Alert.alert(
-      "Confirm Mint",
-      "Are you sure you have received the payment? This will mint tokens to the user.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Confirm",
-          onPress: async () => {
-            try {
-              await confirmMintRequest(request.id);
-              Alert.alert("Success", "Mint request confirmed!");
-              router.back();
-            } catch (error: any) {
-              Alert.alert("Error", error.message);
-            }
-          },
-        },
-      ]
-    );
-  };
-
-  const handleUploadProof = async () => {
-    try {
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        quality: 0.8,
-      });
-
-      if (!result.canceled) {
-        setUploading(true);
-        await confirmBurnPayment(request.id, result.assets[0]);
-        setUploading(false);
-        Alert.alert("Success", "Payment proof uploaded!");
-        router.back();
-      }
-    } catch (error: any) {
-      setUploading(false);
-      Alert.alert("Error", error.message);
-    }
-  };
-
-  const handleReject = async () => {
-    if (!rejectReason.trim()) {
-      Alert.alert("Error", "Please provide a reason for rejection");
-      return;
-    }
-
-    try {
-      await rejectRequest(request.id, rejectReason, isMint ? "mint" : "burn");
-      setRejectModalVisible(false);
-      Alert.alert("Success", "Request rejected");
-      router.back();
-    } catch (error: any) {
-      Alert.alert("Error", error.message);
-    }
-  };
-
-  return (
-    <View style={styles.container}>
-      <View style={styles.headerWrapper}>
-        <LinearGradient
-          colors={["#00B14F", "#008F40"]}
-          style={styles.headerGradient}
-        />
-        <SafeAreaView edges={["top"]} style={styles.headerContent}>
-          <View style={styles.header}>
-            <TouchableOpacity
-              onPress={() => router.back()}
-              style={styles.headerButton}
-              activeOpacity={0.8}
-            >
-              <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
-            </TouchableOpacity>
-            <Text style={styles.headerTitle}>Request Details</Text>
-            <View style={styles.headerSpacer} />
-          </View>
-        </SafeAreaView>
-      </View>
-
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        <LinearGradient
-          colors={["#F7FFF9", "#FFFFFF"]}
-          style={styles.summaryCard}
-        >
-          <Text style={styles.summaryEyebrow}>Agent Workflow</Text>
-          <Text style={styles.summaryTitle}>
-            {isMint ? "Mint Request" : "Burn Request"}
-          </Text>
-          <Text style={styles.summaryText}>
-            Review the customer, amount, request status, and any payment details
-            before you confirm, upload proof, or reject this request.
-          </Text>
-
-          <View style={styles.summaryTopRow}>
-            <View
-              style={[
-                styles.typePill,
-                {
-                  backgroundColor: typeConfig.bg,
-                  borderColor: typeConfig.border,
-                },
-              ]}
-            >
-              <Ionicons
-                name={typeConfig.icon}
-                size={18}
-                color={typeConfig.color}
-              />
-              <Text style={[styles.typePillText, { color: typeConfig.color }]}>
-                {typeConfig.label}
-              </Text>
-            </View>
-
-            <View
-              style={[
-                styles.statusPill,
-                { backgroundColor: `${statusColor}16` },
-              ]}
-            >
-              <Text style={[styles.statusText, { color: statusColor }]}>
-                {String(request.status || "").replace(/_/g, " ").toUpperCase()}
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.amountContainer}>
-            <View>
-              <Text style={styles.amountLabel}>Request Amount</Text>
-              <Text style={styles.amountValue}>
-                {formatAmount(request.amount, request.token_type)}{" "}
-                {request.token_type}
-              </Text>
-            </View>
-            <View style={styles.amountMeta}>
-              <Text style={styles.amountMetaLabel}>Created</Text>
-              <Text style={styles.amountMetaValue}>
-                {formatDate(request.created_at, true)}
-              </Text>
-            </View>
-          </View>
-        </LinearGradient>
-
-        {isExpired && request.status !== "disputed" ? (
-          <Surface style={[styles.messageCard, styles.expiredCard]}>
-            <Ionicons name="alert-circle" size={22} color="#B42318" />
-            <View style={styles.messageContent}>
-              <Text style={[styles.messageTitle, styles.expiredTitle]}>
-                Request Expired
-              </Text>
-              <Text style={[styles.messageText, styles.expiredText]}>
-                This request expired before completion and has been automatically
-                refunded to the user.
-              </Text>
-            </View>
-          </Surface>
-        ) : null}
-
-        {request.status === "disputed" ? (
-          <Surface style={[styles.messageCard, styles.disputedCard]}>
-            <Ionicons name="warning" size={22} color="#D97706" />
-            <View style={styles.messageContent}>
-              <Text style={[styles.messageTitle, styles.disputedTitle]}>
-                Dispute Opened
-              </Text>
-              <Text style={[styles.messageText, styles.disputedText]}>
-                This request expired while in Fiat Sent status, so an automatic
-                dispute has been opened for admin review.
-              </Text>
-            </View>
-          </Surface>
-        ) : null}
-
-        <Surface style={styles.card}>
-          <View style={styles.cardAccent} />
-          <Text style={styles.cardTitle}>User Information</Text>
-
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Name</Text>
-            <Text style={styles.infoValue}>{request.user?.full_name || "—"}</Text>
-          </View>
-
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Email</Text>
-            <Text style={styles.infoValue}>{request.user?.email || "—"}</Text>
-          </View>
-        </Surface>
-
-        <Surface style={styles.card}>
-          <View style={styles.cardAccent} />
-          <Text style={styles.cardTitle}>Request Summary</Text>
-
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Type</Text>
-            <Text style={styles.infoValue}>{typeConfig.label}</Text>
-          </View>
-
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Amount</Text>
-            <Text style={styles.infoValue}>
-              {formatAmount(request.amount, request.token_type)}{" "}
-              {request.token_type}
-            </Text>
-          </View>
-
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Status</Text>
-            <Text style={styles.infoValue}>
-              {String(request.status || "").replace(/_/g, " ")}
-            </Text>
-          </View>
-
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Created On</Text>
-            <Text style={styles.infoValue}>{formatDate(request.created_at, true)}</Text>
-          </View>
-        </Surface>
-
-        {isMint && request.payment_proof_url ? (
-          <Surface style={styles.card}>
-            <View style={styles.cardAccent} />
-            <Text style={styles.cardTitle}>Payment Proof</Text>
-            <TouchableOpacity
-              onPress={() => Linking.openURL(request.payment_proof_url!)}
-              activeOpacity={0.85}
-            >
-              <Image
-                source={{ uri: request.payment_proof_url }}
-                style={styles.proofImage}
-                resizeMode="cover"
-              />
-            </TouchableOpacity>
-            <Text style={styles.hint}>Tap the image to view it full size.</Text>
-          </Surface>
-        ) : null}
-
-        {isBurn && request.fiat_proof_url ? (
-          <Surface style={styles.card}>
-            <View style={styles.cardAccent} />
-            <Text style={styles.cardTitle}>Fiat Payment Proof</Text>
-            <TouchableOpacity
-              onPress={() => Linking.openURL(request.fiat_proof_url!)}
-              activeOpacity={0.85}
-            >
-              <Image
-                source={{ uri: request.fiat_proof_url }}
-                style={styles.proofImage}
-                resizeMode="cover"
-              />
-            </TouchableOpacity>
-            <Text style={styles.hint}>Tap the image to view it full size.</Text>
-          </Surface>
-        ) : null}
-
-        {isBurn && request.bank_account ? (
-          <Surface style={styles.card}>
-            <View style={styles.cardAccent} />
-            <Text style={styles.cardTitle}>
-              {(request.bank_account as any).type === "mobile_money" ||
-              (!(request.bank_account as any).bank_name &&
-                ((request.bank_account as any).provider ||
-                  (request.bank_account as any).phone_number))
-                ? "Mobile Money Details"
-                : "Bank Details"}
-            </Text>
-
-            <View style={styles.detailBlock}>
-              {(() => {
-                const details = request.bank_account as {
-                  type?: string;
-                  bank_name?: string;
-                  account_number?: string;
-                  account_name?: string;
-                  provider?: string;
-                  phone_number?: string;
-                };
-
-                const isMobileMoney =
-                  details.type === "mobile_money" ||
-                  (!details.bank_name &&
-                    (details.provider || details.phone_number));
-
-                if (isMobileMoney) {
-                  return (
-                    <>
-                      <View style={styles.infoStrip}>
-                        <Text style={styles.infoStripLabel}>Provider</Text>
-                        <Text style={styles.infoStripValue}>
-                          {details.provider ?? "—"}
-                        </Text>
-                      </View>
-                      <View style={styles.infoStrip}>
-                        <Text style={styles.infoStripLabel}>Phone Number</Text>
-                        <Text style={styles.infoStripValue}>
-                          {details.phone_number ?? "—"}
-                        </Text>
-                      </View>
-                      <View style={styles.infoStripLast}>
-                        <Text style={styles.infoStripLabel}>Wallet Holder</Text>
-                        <Text style={styles.infoStripValue}>
-                          {details.account_name ?? "—"}
-                        </Text>
-                      </View>
-                    </>
-                  );
-                }
-
-                return (
-                  <>
-                    <View style={styles.infoStrip}>
-                      <Text style={styles.infoStripLabel}>Bank Name</Text>
-                      <Text style={styles.infoStripValue}>
-                        {details.bank_name ?? "—"}
-                      </Text>
-                    </View>
-                    <View style={styles.infoStrip}>
-                      <Text style={styles.infoStripLabel}>Account Number</Text>
-                      <Text style={styles.infoStripValue}>
-                        {details.account_number ?? "—"}
-                      </Text>
-                    </View>
-                    <View style={styles.infoStripLast}>
-                      <Text style={styles.infoStripLabel}>Account Name</Text>
-                      <Text style={styles.infoStripValue}>
-                        {details.account_name ?? "—"}
-                      </Text>
-                    </View>
-                  </>
-                );
-              })()}
-            </View>
-          </Surface>
-        ) : null}
-      </ScrollView>
-
-      <View style={styles.footer}>
-        {isMint ? (
-          canConfirmMint ? (
-            <TouchableOpacity
-              style={styles.primaryAction}
-              onPress={handleConfirmMint}
-              disabled={loading}
-              activeOpacity={0.85}
-            >
-              {loading ? (
-                <ActivityIndicator color="#FFFFFF" />
-              ) : (
-                <>
-                  <Text style={styles.primaryActionText}>
-                    Confirm Payment Received
-                  </Text>
-                  <Ionicons name="checkmark-circle" size={18} color="#FFFFFF" />
-                </>
-              )}
-            </TouchableOpacity>
-          ) : null
-        ) : (
-          canUploadBurnProof ? (
-            <TouchableOpacity
-              style={[
-                styles.primaryAction,
-                (uploading || isExpired) && styles.primaryActionDisabled,
-              ]}
-              onPress={handleUploadProof}
-              disabled={uploading || isExpired}
-              activeOpacity={0.85}
-            >
-              {uploading ? (
-                <ActivityIndicator color="#FFFFFF" />
-              ) : (
-                <>
-                  <Text style={styles.primaryActionText}>Upload Payment Proof</Text>
-                  <Ionicons name="cloud-upload" size={18} color="#FFFFFF" />
-                </>
-              )}
-            </TouchableOpacity>
-          ) : null
-        )}
-
-        {canReject ? (
-          <TouchableOpacity
-            style={styles.secondaryAction}
-            onPress={() => setRejectModalVisible(true)}
-            disabled={loading}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.secondaryActionText}>Reject Request</Text>
-          </TouchableOpacity>
-        ) : null}
-      </View>
-
-      <Modal
-        visible={rejectModalVisible}
-        animationType="slide"
-        transparent
-        onRequestClose={() => setRejectModalVisible(false)}
-      >
-        <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
-          style={styles.modalOverlay}
-        >
-          <View style={styles.modalContent}>
-            <View style={styles.modalHandle} />
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Reject Request</Text>
-              <TouchableOpacity
-                onPress={() => setRejectModalVisible(false)}
-                activeOpacity={0.8}
-              >
-                <Ionicons name="close" size={24} color="#111827" />
-              </TouchableOpacity>
-            </View>
-
-            <Text style={styles.modalDescription}>
-              Please explain why you are rejecting this request. The user will be
-              notified immediately.
-            </Text>
-
-            <Text style={styles.inputLabel}>Reason</Text>
-            <TextInput
-              style={[styles.input, styles.textArea]}
-              placeholder="e.g. Payment proof is invalid or unreadable"
-              placeholderTextColor="#98A2B3"
-              value={rejectReason}
-              onChangeText={setRejectReason}
-              multiline
-              numberOfLines={4}
-            />
-
-            <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.cancelButton]}
-                onPress={() => setRejectModalVisible(false)}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.cancelButtonText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.submitButton]}
-                onPress={handleReject}
-                activeOpacity={0.85}
-              >
-                <Text style={styles.submitButtonText}>Reject Request</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
-    </View>
-  );
-}
-
 const getTypeConfig = (type: "mint" | "burn") => {
-  if (type === "mint") {
-    return {
-      label: "Mint",
-      icon: "arrow-up-circle" as const,
-      bg: "#F0FDF4",
-      color: "#00B14F",
-      border: "#DDF7E5",
-    };
-  }
-
-  return {
-    label: "Burn",
-    icon: "arrow-down-circle" as const,
-    bg: "#FFF8ED",
-    color: "#D97706",
-    border: "#FDE7C2",
-  };
+    if (type === "mint") return { label: "Mint", icon: "arrow-up-circle" as const, color: "#059669", bg: "#ECFDF5", border: "#A7F3D0" };
+    return { label: "Burn", icon: "arrow-down-circle" as const, color: "#D97706", bg: "#FFFBEB", border: "#FDE68A" };
 };
 
 const getStatusColor = (status: string) => {
-  switch (String(status || "").toLowerCase()) {
-    case "confirmed":
-    case "completed":
-      return "#00B14F";
-    case "proof_submitted":
-    case "escrowed":
-    case "pending":
-      return "#F59E0B";
-    case "rejected":
-    case "expired":
-      return "#EF4444";
-    case "disputed":
-      return "#D97706";
-    default:
-      return "#6B7280";
-  }
+    switch (String(status || "").toLowerCase()) {
+        case "confirmed": case "completed": return "#059669";
+        case "proof_submitted": case "escrowed": case "pending": return "#D97706";
+        case "rejected": case "expired": return "#EF4444";
+        case "disputed": return "#F59E0B";
+        default: return "#6B7280";
+    }
 };
 
+export default function RequestDetailsScreen() {
+    const { id } = useLocalSearchParams();
+    const router = useRouter();
+    const { pendingRequests, history, confirmMintRequest, confirmBurnPayment, rejectRequest, loading } = useAgentStore();
+    const colorScheme = useColorScheme();
+    const isDark = colorScheme === "dark";
+
+    const theme = {
+        bg: isDark ? "#090B14" : "#F5F4FC",
+        card: isDark ? "rgba(18, 14, 36, 0.92)" : "#FFFFFF",
+        text: isDark ? "#F8FAFC" : "#0F172A",
+        muted: isDark ? "#94A3B8" : "#64748B",
+        border: isDark ? "#1E1638" : "#EDE9FE",
+        accent: "#7C3AED",
+        accentLight: isDark ? "rgba(124, 58, 237, 0.15)" : "rgba(124, 58, 237, 0.08)",
+        inputBg: isDark ? "rgba(255,255,255,0.06)" : "#F8F7FF",
+        green: "#00B14F",
+    };
+
+    const request = [...pendingRequests, ...history].find((item) => item.id === id);
+    const [uploading, setUploading] = useState(false);
+    const [rejectModalVisible, setRejectModalVisible] = useState(false);
+    const [rejectReason, setRejectReason] = useState("");
+
+    const isMint = request?.type === "mint" || (!request?.type && !request?.bank_account);
+    const isBurn = !isMint;
+
+    const isExpiredByTime = (req: any) => req?.expires_at ? new Date(req.expires_at).getTime() < Date.now() : false;
+    const isExpired = request?.status === "expired" || (request ? isExpiredByTime(request) : false);
+    const canConfirmMint = !!request && isMint && request.status === "proof_submitted" && !isExpired;
+    const canUploadBurnProof = !!request && isBurn && request.status === "escrowed" && !isExpired;
+    const canReject = !!request && (request.status === "pending" || request.status === "proof_submitted");
+
+    if (!request) {
+        return (
+            <View style={[styles.container, { backgroundColor: theme.bg }]}>
+                <SafeAreaView style={styles.errorWrap}>
+                    <LinearGradient colors={["#EDE9FE", "#DDD6FE"]} style={styles.errorIconCircle}>
+                        <Ionicons name="alert-circle-outline" size={28} color="#7C3AED" />
+                    </LinearGradient>
+                    <Text style={[styles.errorTitle, { color: theme.text }]}>Request unavailable</Text>
+                    <Text style={[styles.errorSub, { color: theme.muted }]}>This request could not be found.</Text>
+                    <TouchableOpacity style={styles.ctaBtn} onPress={() => router.back()} activeOpacity={0.85}>
+                        <Text style={styles.ctaBtnText}>Go back</Text>
+                    </TouchableOpacity>
+                </SafeAreaView>
+            </View>
+        );
+    }
+
+    const typeConfig = getTypeConfig(isMint ? "mint" : "burn");
+    const statusColor = getStatusColor(request.status);
+
+    const handleConfirmMint = async () => {
+        Alert.alert("Confirm Mint", "Are you sure you have received the payment? This will mint tokens to the user.", [
+            { text: "Cancel", style: "cancel" },
+            { text: "Confirm", onPress: async () => {
+                try { await confirmMintRequest(request.id); Alert.alert("Success", "Mint request confirmed!"); router.back(); }
+                catch (error: any) { Alert.alert("Error", error.message); }
+            }},
+        ]);
+    };
+
+    const handleUploadProof = async () => {
+        try {
+            const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, allowsEditing: true, quality: 0.8 });
+            if (!result.canceled) {
+                setUploading(true);
+                await confirmBurnPayment(request.id, result.assets[0]);
+                setUploading(false);
+                Alert.alert("Success", "Payment proof uploaded!");
+                router.back();
+            }
+        } catch (error: any) { setUploading(false); Alert.alert("Error", error.message); }
+    };
+
+    const handleReject = async () => {
+        if (!rejectReason.trim()) { Alert.alert("Error", "Please provide a reason for rejection"); return; }
+        try {
+            await rejectRequest(request.id, rejectReason, isMint ? "mint" : "burn");
+            setRejectModalVisible(false);
+            Alert.alert("Success", "Request rejected");
+            router.back();
+        } catch (error: any) { Alert.alert("Error", error.message); }
+    };
+
+    return (
+        <View style={[styles.container, { backgroundColor: theme.bg }]}>
+            {/* Flat Header — matches user/agent dashboard header style */}
+            <SafeAreaView edges={["top"]} style={[styles.headerContainer, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
+                <View style={styles.headerRow}>
+                    <TouchableOpacity onPress={() => router.back()} style={[styles.headerBackBtn, { backgroundColor: theme.accentLight }]} activeOpacity={0.8}>
+                        <Ionicons name="arrow-back" size={20} color={theme.accent} />
+                    </TouchableOpacity>
+                    <Text style={[styles.headerTitle, { color: theme.text }]}>Request Details</Text>
+                    <View style={styles.headerSpacer} />
+                </View>
+            </SafeAreaView>
+
+            <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+                {/* Hero card */}
+                <LinearGradient
+                    colors={isMint ? ["#064E3B", "#065F46"] : ["#78350F", "#92400E"]}
+                    style={styles.heroCard}
+                >
+                    <View style={styles.heroTopRow}>
+                        <View style={[styles.heroTypePill, { backgroundColor: "rgba(255,255,255,0.18)" }]}>
+                            <Ionicons name={typeConfig.icon} size={14} color="#FFFFFF" />
+                            <Text style={styles.heroTypePillText}>{isMint ? "Mint Request" : "Burn Request"}</Text>
+                        </View>
+                        <View style={[styles.heroStatusPill, { backgroundColor: `${statusColor}30` }]}>
+                            <Text style={[styles.heroStatusText, { color: "#FFFFFF" }]}>
+                                {String(request.status || "").replace(/_/g, " ").toUpperCase()}
+                            </Text>
+                        </View>
+                    </View>
+                    <Text style={styles.heroAmountLabel}>Request Amount</Text>
+                    <Text style={styles.heroAmount}>{formatAmount(request.amount, request.token_type)} {request.token_type}</Text>
+                    <Text style={styles.heroDate}>{formatDate(request.created_at, true)}</Text>
+                </LinearGradient>
+
+                {/* Expiry / dispute banners */}
+                {isExpired && request.status !== "disputed" ? (
+                    <View style={styles.alertBanner}>
+                        <Ionicons name="alert-circle" size={20} color="#B42318" />
+                        <View style={styles.alertContent}>
+                            <Text style={styles.alertTitle}>Request Expired</Text>
+                            <Text style={styles.alertText}>This request expired and was automatically refunded to the user.</Text>
+                        </View>
+                    </View>
+                ) : null}
+                {request.status === "disputed" ? (
+                    <View style={[styles.alertBanner, styles.alertBannerWarn]}>
+                        <Ionicons name="warning" size={20} color="#D97706" />
+                        <View style={styles.alertContent}>
+                            <Text style={[styles.alertTitle, { color: "#B45309" }]}>Dispute Opened</Text>
+                            <Text style={[styles.alertText, { color: "#92400E" }]}>This request is under admin review due to a dispute.</Text>
+                        </View>
+                    </View>
+                ) : null}
+
+                {/* User Info */}
+                <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                    <View style={[styles.cardAccentBar, { backgroundColor: theme.accent }]} />
+                    <Text style={[styles.cardTitle, { color: theme.text }]}>User Information</Text>
+                    {[
+                        { label: "Name", value: request.user?.full_name || "—" },
+                        { label: "Email", value: request.user?.email || "—" },
+                    ].map((row, idx, arr) => (
+                        <View key={row.label} style={[styles.infoRow, { borderBottomColor: theme.border }, idx === arr.length - 1 && { borderBottomWidth: 0 }]}>
+                            <Text style={[styles.infoLabel, { color: theme.muted }]}>{row.label}</Text>
+                            <Text style={[styles.infoValue, { color: theme.text }]}>{row.value}</Text>
+                        </View>
+                    ))}
+                </View>
+
+                {/* Request Summary */}
+                <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                    <View style={[styles.cardAccentBar, { backgroundColor: typeConfig.color }]} />
+                    <Text style={[styles.cardTitle, { color: theme.text }]}>Request Summary</Text>
+                    {[
+                        { label: "Type", value: typeConfig.label },
+                        { label: "Amount", value: `${formatAmount(request.amount, request.token_type)} ${request.token_type}` },
+                        { label: "Status", value: String(request.status || "").replace(/_/g, " ") },
+                        { label: "Created On", value: formatDate(request.created_at, true) },
+                    ].map((row, idx, arr) => (
+                        <View key={row.label} style={[styles.infoRow, { borderBottomColor: theme.border }, idx === arr.length - 1 && { borderBottomWidth: 0 }]}>
+                            <Text style={[styles.infoLabel, { color: theme.muted }]}>{row.label}</Text>
+                            <Text style={[styles.infoValue, { color: theme.text }]}>{row.value}</Text>
+                        </View>
+                    ))}
+                </View>
+
+                {/* Payment proof image (mint) */}
+                {isMint && request.payment_proof_url ? (
+                    <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                        <View style={[styles.cardAccentBar, { backgroundColor: theme.green }]} />
+                        <Text style={[styles.cardTitle, { color: theme.text }]}>Payment Proof</Text>
+                        <TouchableOpacity onPress={() => Linking.openURL(request.payment_proof_url!)} activeOpacity={0.85} style={{ paddingHorizontal: 16, paddingBottom: 4 }}>
+                            <Image source={{ uri: request.payment_proof_url }} style={styles.proofImage} resizeMode="cover" />
+                        </TouchableOpacity>
+                        <Text style={[styles.proofHint, { color: theme.muted }]}>Tap to view full size</Text>
+                    </View>
+                ) : null}
+
+                {/* Fiat proof image (burn) */}
+                {isBurn && request.fiat_proof_url ? (
+                    <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                        <View style={[styles.cardAccentBar, { backgroundColor: "#D97706" }]} />
+                        <Text style={[styles.cardTitle, { color: theme.text }]}>Fiat Payment Proof</Text>
+                        <TouchableOpacity onPress={() => Linking.openURL(request.fiat_proof_url!)} activeOpacity={0.85} style={{ paddingHorizontal: 16, paddingBottom: 4 }}>
+                            <Image source={{ uri: request.fiat_proof_url }} style={styles.proofImage} resizeMode="cover" />
+                        </TouchableOpacity>
+                        <Text style={[styles.proofHint, { color: theme.muted }]}>Tap to view full size</Text>
+                    </View>
+                ) : null}
+
+                {/* Bank / Mobile Money Details (burn) */}
+                {isBurn && request.bank_account ? (() => {
+                    const details = request.bank_account as { type?: string; bank_name?: string; account_number?: string; account_name?: string; provider?: string; phone_number?: string };
+                    const isMobileMoney = details.type === "mobile_money" || (!details.bank_name && (details.provider || details.phone_number));
+                    const rows = isMobileMoney
+                        ? [{ label: "Provider", value: details.provider ?? "—" }, { label: "Phone Number", value: details.phone_number ?? "—" }, { label: "Wallet Holder", value: details.account_name ?? "—" }]
+                        : [{ label: "Bank Name", value: details.bank_name ?? "—" }, { label: "Account Number", value: details.account_number ?? "—" }, { label: "Account Name", value: details.account_name ?? "—" }];
+                    return (
+                        <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                            <View style={[styles.cardAccentBar, { backgroundColor: "#EA580C" }]} />
+                            <Text style={[styles.cardTitle, { color: theme.text }]}>{isMobileMoney ? "Mobile Money Details" : "Bank Details"}</Text>
+                            {rows.map((row, idx, arr) => (
+                                <View key={row.label} style={[styles.infoRow, { borderBottomColor: theme.border }, idx === arr.length - 1 && { borderBottomWidth: 0 }]}>
+                                    <Text style={[styles.infoLabel, { color: theme.muted }]}>{row.label}</Text>
+                                    <Text style={[styles.infoValue, { color: theme.text }]}>{row.value}</Text>
+                                </View>
+                            ))}
+                        </View>
+                    );
+                })() : null}
+
+                <View style={{ height: 160 }} />
+            </ScrollView>
+
+            {/* Action footer */}
+            <View style={[styles.footer, { backgroundColor: theme.card, borderTopColor: theme.border }]}>
+                {isMint && canConfirmMint ? (
+                    <TouchableOpacity
+                        style={[styles.primaryActionBtn, { backgroundColor: theme.green }]}
+                        onPress={handleConfirmMint}
+                        disabled={loading}
+                        activeOpacity={0.85}
+                    >
+                        {loading
+                            ? <ActivityIndicator color="#FFFFFF" />
+                            : (<><Text style={styles.primaryActionText}>Confirm Payment Received</Text><Ionicons name="checkmark-circle" size={18} color="#FFFFFF" /></>)
+                        }
+                    </TouchableOpacity>
+                ) : null}
+
+                {isBurn && canUploadBurnProof ? (
+                    <TouchableOpacity
+                        style={[styles.primaryActionBtn, { backgroundColor: "#D97706", opacity: (uploading || isExpired) ? 0.6 : 1 }]}
+                        onPress={handleUploadProof}
+                        disabled={uploading || isExpired}
+                        activeOpacity={0.85}
+                    >
+                        {uploading
+                            ? <ActivityIndicator color="#FFFFFF" />
+                            : (<><Text style={styles.primaryActionText}>Upload Payment Proof</Text><Ionicons name="cloud-upload" size={18} color="#FFFFFF" /></>)
+                        }
+                    </TouchableOpacity>
+                ) : null}
+
+                {canReject ? (
+                    <TouchableOpacity
+                        style={[styles.rejectBtn, { borderColor: isDark ? "rgba(239,68,68,0.3)" : "#FECACA", backgroundColor: isDark ? "rgba(239,68,68,0.08)" : "#FEF2F2" }]}
+                        onPress={() => setRejectModalVisible(true)}
+                        disabled={loading}
+                        activeOpacity={0.8}
+                    >
+                        <Ionicons name="close-circle-outline" size={16} color="#EF4444" />
+                        <Text style={styles.rejectBtnText}>Reject Request</Text>
+                    </TouchableOpacity>
+                ) : null}
+            </View>
+
+            {/* Reject Modal */}
+            <Modal visible={rejectModalVisible} animationType="slide" transparent onRequestClose={() => setRejectModalVisible(false)}>
+                <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.modalOverlay}>
+                    <View style={[styles.modalSheet, { backgroundColor: theme.card }]}>
+                        <View style={[styles.modalHandle, { backgroundColor: theme.border }]} />
+                        <View style={styles.modalHeader}>
+                            <Text style={[styles.modalTitle, { color: theme.text }]}>Reject Request</Text>
+                            <TouchableOpacity onPress={() => setRejectModalVisible(false)} activeOpacity={0.8}>
+                                <Ionicons name="close" size={22} color={theme.muted} />
+                            </TouchableOpacity>
+                        </View>
+                        <Text style={[styles.modalDesc, { color: theme.muted }]}>
+                            Please explain why you are rejecting this request. The user will be notified immediately.
+                        </Text>
+                        <Text style={[styles.inputLabel, { color: theme.text }]}>Reason</Text>
+                        <TextInput
+                            style={[styles.textArea, { backgroundColor: theme.inputBg, borderColor: theme.border, color: theme.text }]}
+                            placeholder="e.g. Payment proof is invalid or unreadable"
+                            placeholderTextColor={theme.muted}
+                            value={rejectReason}
+                            onChangeText={setRejectReason}
+                            multiline
+                            numberOfLines={4}
+                        />
+                        <View style={styles.modalBtns}>
+                            <TouchableOpacity
+                                style={[styles.modalCancelBtn, { borderColor: theme.border, backgroundColor: theme.inputBg }]}
+                                onPress={() => setRejectModalVisible(false)}
+                                activeOpacity={0.8}
+                            >
+                                <Text style={[styles.modalCancelText, { color: theme.muted }]}>Cancel</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={styles.modalSubmitBtn} onPress={handleReject} activeOpacity={0.85}>
+                                <Text style={styles.modalSubmitText}>Reject Request</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </KeyboardAvoidingView>
+            </Modal>
+        </View>
+    );
+}
+
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#F9FAFB",
-  },
-  headerWrapper: {
-    zIndex: 10,
-    elevation: 8,
-    backgroundColor: "#00B14F",
-  },
-  headerGradient: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 120,
-  },
-  headerContent: {
-    paddingHorizontal: 16,
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingBottom: 20,
-    marginTop: 10,
-  },
-  headerButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "rgba(255,255,255,0.2)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  headerTitle: {
-    fontSize: 22,
-    fontWeight: "700",
-    color: "#FFFFFF",
-    letterSpacing: -0.4,
-  },
-  headerSpacer: {
-    width: 40,
-  },
-  scrollContent: {
-    padding: 16,
-    paddingTop: 50,
-    paddingBottom: 140,
-  },
-  summaryCard: {
-    borderRadius: 22,
-    padding: 18,
-    marginTop: -34,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: "#E6F4EA",
-  },
-  summaryEyebrow: {
-    fontSize: 11,
-    fontWeight: "800",
-    color: "#00B14F",
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-    marginBottom: 6,
-  },
-  summaryTitle: {
-    fontSize: 22,
-    fontWeight: "800",
-    color: "#111827",
-    letterSpacing: -0.5,
-  },
-  summaryText: {
-    fontSize: 13,
-    lineHeight: 20,
-    color: "#6B7280",
-    fontWeight: "500",
-    marginTop: 6,
-    marginBottom: 16,
-  },
-  summaryTopRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 14,
-    gap: 12,
-  },
-  typePill: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 999,
-    gap: 6,
-    borderWidth: 1,
-  },
-  typePillText: {
-    fontSize: 12,
-    fontWeight: "800",
-    letterSpacing: 0.4,
-    textTransform: "uppercase",
-  },
-  statusPill: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 999,
-  },
-  statusText: {
-    fontSize: 11,
-    fontWeight: "800",
-    letterSpacing: 0.4,
-  },
-  amountContainer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    backgroundColor: "#FBFCFD",
-    padding: 14,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "#F1F5F9",
-    gap: 12,
-  },
-  amountLabel: {
-    fontSize: 12,
-    color: "#6B7280",
-    fontWeight: "700",
-    textTransform: "uppercase",
-    letterSpacing: 0.4,
-    marginBottom: 5,
-  },
-  amountValue: {
-    fontSize: 20,
-    fontWeight: "800",
-    color: "#111827",
-  },
-  amountMeta: {
-    alignItems: "flex-end",
-    flexShrink: 1,
-  },
-  amountMetaLabel: {
-    fontSize: 11,
-    color: "#6B7280",
-    fontWeight: "700",
-    textTransform: "uppercase",
-    letterSpacing: 0.4,
-    marginBottom: 5,
-  },
-  amountMetaValue: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: "#111827",
-    textAlign: "right",
-  },
-  messageCard: {
-    flexDirection: "row",
-    gap: 12,
-    borderRadius: 20,
-    padding: 16,
-    marginBottom: 16,
-    borderWidth: 1,
-  },
-  messageContent: {
-    flex: 1,
-  },
-  messageTitle: {
-    fontSize: 16,
-    fontWeight: "700",
-    marginBottom: 4,
-  },
-  messageText: {
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  expiredCard: {
-    backgroundColor: "#FEF3F2",
-    borderColor: "#FECDCA",
-  },
-  expiredTitle: {
-    color: "#B42318",
-  },
-  expiredText: {
-    color: "#B42318",
-  },
-  disputedCard: {
-    backgroundColor: "#FFFAEB",
-    borderColor: "#FEDF89",
-  },
-  disputedTitle: {
-    color: "#B54708",
-  },
-  disputedText: {
-    color: "#B54708",
-  },
-  card: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 24,
-    padding: 18,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: "#EAF0F5",
-    overflow: "hidden",
-  },
-  cardAccent: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 4,
-    backgroundColor: "#00B14F",
-  },
-  cardTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#111827",
-    marginBottom: 16,
-    marginTop: 6,
-  },
-  infoRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#F3F4F6",
-    gap: 12,
-  },
-  infoLabel: {
-    fontSize: 14,
-    color: "#6B7280",
-    fontWeight: "500",
-  },
-  infoValue: {
-    flex: 1,
-    fontSize: 15,
-    fontWeight: "700",
-    color: "#111827",
-    textAlign: "right",
-  },
-  proofImage: {
-    width: "100%",
-    height: 220,
-    borderRadius: 18,
-    backgroundColor: "#F3F4F6",
-    marginBottom: 10,
-  },
-  hint: {
-    fontSize: 12,
-    color: "#98A2B3",
-    textAlign: "center",
-  },
-  detailBlock: {
-    backgroundColor: "#FBFCFD",
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "#EEF2F7",
-    padding: 14,
-  },
-  infoStrip: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingBottom: 12,
-    marginBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#EEF2F7",
-    gap: 12,
-  },
-  infoStripLast: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    gap: 12,
-  },
-  infoStripLabel: {
-    fontSize: 14,
-    color: "#6B7280",
-    fontWeight: "600",
-  },
-  infoStripValue: {
-    flex: 1,
-    fontSize: 15,
-    color: "#111827",
-    fontWeight: "700",
-    textAlign: "right",
-  },
-  footer: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 24,
-    backgroundColor: "#FFFFFF",
-    borderTopWidth: 1,
-    borderTopColor: "#EAF0F5",
-    gap: 12,
-  },
-  primaryAction: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    backgroundColor: "#00B14F",
-    paddingVertical: 16,
-    borderRadius: 16,
-  },
-  primaryActionDisabled: {
-    backgroundColor: "#A7F3D0",
-  },
-  primaryActionText: {
-    color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "700",
-  },
-  secondaryAction: {
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 15,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "#F04438",
-    backgroundColor: "#FFFFFF",
-  },
-  secondaryActionText: {
-    color: "#F04438",
-    fontSize: 16,
-    fontWeight: "700",
-  },
-  errorContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 24,
-    backgroundColor: "#F9FAFB",
-  },
-  errorIconWrap: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: "#FEF2F2",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 16,
-  },
-  errorTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#111827",
-    marginBottom: 8,
-  },
-  errorText: {
-    fontSize: 14,
-    color: "#6B7280",
-    textAlign: "center",
-    lineHeight: 20,
-    marginBottom: 20,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(15, 23, 42, 0.4)",
-    justifyContent: "flex-end",
-  },
-  modalContent: {
-    backgroundColor: "#FFFFFF",
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: 28,
-  },
-  modalHandle: {
-    alignSelf: "center",
-    width: 44,
-    height: 5,
-    borderRadius: 999,
-    backgroundColor: "#D0D5DD",
-    marginBottom: 16,
-  },
-  modalHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 12,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: "#111827",
-  },
-  modalDescription: {
-    fontSize: 14,
-    color: "#6B7280",
-    marginBottom: 20,
-    lineHeight: 20,
-  },
-  inputLabel: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#374151",
-    marginBottom: 8,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: "#D0D5DD",
-    borderRadius: 14,
-    padding: 14,
-    fontSize: 14,
-    color: "#111827",
-    backgroundColor: "#F9FAFB",
-  },
-  textArea: {
-    height: 112,
-    textAlignVertical: "top",
-    marginBottom: 18,
-  },
-  modalButtons: {
-    flexDirection: "row",
-    gap: 12,
-  },
-  modalButton: {
-    flex: 1,
-    paddingVertical: 14,
-    borderRadius: 14,
-    alignItems: "center",
-  },
-  cancelButton: {
-    backgroundColor: "#F3F4F6",
-  },
-  cancelButtonText: {
-    color: "#374151",
-    fontSize: 16,
-    fontWeight: "700",
-  },
-  submitButton: {
-    backgroundColor: "#F04438",
-  },
-  submitButtonText: {
-    color: "#FFF",
-    fontSize: 16,
-    fontWeight: "700",
-  },
+    container: { flex: 1 },
+    errorWrap: { flex: 1, justifyContent: "center", alignItems: "center", padding: 32 },
+    errorIconCircle: { width: 64, height: 64, borderRadius: 22, alignItems: "center", justifyContent: "center", marginBottom: 16 },
+    errorTitle: { fontSize: 18, fontWeight: "800", marginBottom: 8 },
+    errorSub: { fontSize: 14, fontWeight: "500", textAlign: "center", marginBottom: 24 },
+    ctaBtn: { backgroundColor: "#7C3AED", paddingVertical: 14, paddingHorizontal: 32, borderRadius: 16 },
+    ctaBtnText: { fontSize: 15, fontWeight: "800", color: "#FFFFFF" },
+    headerContainer: { borderBottomWidth: 1 },
+    headerRow: { flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingVertical: 14, gap: 12 },
+    headerBackBtn: { width: 36, height: 36, borderRadius: 12, alignItems: "center", justifyContent: "center" },
+    headerTitle: { flex: 1, fontSize: 18, fontWeight: "800", letterSpacing: -0.3 },
+    headerSpacer: { width: 36 },
+    scrollContent: { padding: 16, paddingBottom: 40 },
+    heroCard: { borderRadius: 26, padding: 22, marginBottom: 14, shadowColor: "#000", shadowOpacity: 0.15, shadowRadius: 14, shadowOffset: { width: 0, height: 6 }, elevation: 6 },
+    heroTopRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 18 },
+    heroTypePill: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 },
+    heroTypePillText: { fontSize: 12, fontWeight: "800", color: "#FFFFFF" },
+    heroStatusPill: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10 },
+    heroStatusText: { fontSize: 11, fontWeight: "800" },
+    heroAmountLabel: { fontSize: 13, fontWeight: "600", color: "rgba(255,255,255,0.75)", marginBottom: 6 },
+    heroAmount: { fontSize: 30, fontWeight: "900", color: "#FFFFFF", letterSpacing: -0.8 },
+    heroDate: { fontSize: 13, fontWeight: "500", color: "rgba(255,255,255,0.7)", marginTop: 6 },
+    alertBanner: { flexDirection: "row", alignItems: "flex-start", gap: 12, backgroundColor: "#FEF2F2", borderWidth: 1, borderColor: "#FECACA", borderRadius: 16, padding: 14, marginBottom: 14 },
+    alertBannerWarn: { backgroundColor: "#FFFBEB", borderColor: "#FDE68A" },
+    alertContent: { flex: 1 },
+    alertTitle: { fontSize: 14, fontWeight: "800", color: "#B42318", marginBottom: 4 },
+    alertText: { fontSize: 13, fontWeight: "500", color: "#B42318", lineHeight: 18 },
+    card: { borderRadius: 22, borderWidth: 1, marginBottom: 14, overflow: "hidden", shadowColor: "#000", shadowOpacity: 0.04, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 2 },
+    cardAccentBar: { height: 4 },
+    cardTitle: { fontSize: 16, fontWeight: "800", paddingHorizontal: 16, paddingTop: 14, paddingBottom: 4 },
+    infoRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1 },
+    infoLabel: { fontSize: 13, fontWeight: "600" },
+    infoValue: { fontSize: 14, fontWeight: "800", maxWidth: "60%", textAlign: "right" },
+    proofImage: { width: "100%", height: 200, borderRadius: 14, marginBottom: 6 },
+    proofHint: { fontSize: 12, fontWeight: "500", textAlign: "center", paddingBottom: 12 },
+    footer: { borderTopWidth: 1, paddingHorizontal: 20, paddingTop: 14, paddingBottom: 32, gap: 10 },
+    primaryActionBtn: { flexDirection: "row", justifyContent: "center", alignItems: "center", gap: 8, paddingVertical: 15, borderRadius: 18 },
+    primaryActionText: { fontSize: 15, fontWeight: "800", color: "#FFFFFF" },
+    rejectBtn: { flexDirection: "row", justifyContent: "center", alignItems: "center", gap: 8, paddingVertical: 14, borderRadius: 16, borderWidth: 1.5 },
+    rejectBtnText: { fontSize: 14, fontWeight: "800", color: "#EF4444" },
+    modalOverlay: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.5)" },
+    modalSheet: { borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 20, paddingBottom: 40 },
+    modalHandle: { width: 40, height: 4, borderRadius: 2, alignSelf: "center", marginBottom: 20 },
+    modalHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 10 },
+    modalTitle: { fontSize: 18, fontWeight: "900" },
+    modalDesc: { fontSize: 14, fontWeight: "500", lineHeight: 20, marginBottom: 18 },
+    inputLabel: { fontSize: 13, fontWeight: "800", textTransform: "uppercase", letterSpacing: 0.4, marginBottom: 8 },
+    textArea: { borderRadius: 16, borderWidth: 1.5, padding: 14, fontSize: 14, fontWeight: "500", minHeight: 100, textAlignVertical: "top", marginBottom: 18 },
+    modalBtns: { flexDirection: "row", gap: 12 },
+    modalCancelBtn: { flex: 1, paddingVertical: 14, borderRadius: 16, borderWidth: 1.5, alignItems: "center" },
+    modalCancelText: { fontSize: 15, fontWeight: "700" },
+    modalSubmitBtn: { flex: 1, paddingVertical: 14, borderRadius: 16, backgroundColor: "#EF4444", alignItems: "center" },
+    modalSubmitText: { fontSize: 15, fontWeight: "800", color: "#FFFFFF" },
 });

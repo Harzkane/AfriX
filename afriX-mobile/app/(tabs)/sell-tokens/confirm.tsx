@@ -1,419 +1,441 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import {
-    View,
-    StyleSheet,
-    TouchableOpacity,
-    ScrollView,
-    ActivityIndicator,
-    Alert,
-    Platform,
-    Dimensions
+  View,
+  StyleSheet,
+  TouchableOpacity,
+  ActivityIndicator,
+  Alert,
+  Platform,
+  useColorScheme,
+  Animated,
 } from "react-native";
-import { Text, Surface, Card } from "react-native-paper";
+import { Text } from "react-native-paper";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useBurnStore } from "@/stores/slices/burnSlice";
 import type { BankAccount } from "@/stores/types/burn.types";
 import { LinearGradient } from "expo-linear-gradient";
-import { SafeAreaView } from "react-native-safe-area-context";
-
-const { width } = Dimensions.get("window");
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function ConfirmSellScreen() {
-    const router = useRouter();
-    const params = useLocalSearchParams();
-    const { createBurnRequest, loading } = useBurnStore();
+  const router = useRouter();
+  const params = useLocalSearchParams();
+  const { createBurnRequest, loading } = useBurnStore();
 
-    const {
-        amount,
-        tokenType,
-        agentId,
-        agentName,
-        paymentType,
-        bankName,
-        accountNumber,
-        accountName,
-        mobileProvider,
-        mobileNumber,
-    } = params;
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === "dark";
+  const insets = useSafeAreaInsets();
+  const [headerMaxHeight, setHeaderMaxHeight] = useState(insets.top + 70);
+  const scrollY = useRef(new Animated.Value(0)).current;
 
-    const isBank = paymentType !== "mobile_money";
+  const handleHeaderLayout = (e: any) => {
+    const { height } = e.nativeEvent.layout;
+    if (height > headerMaxHeight) setHeaderMaxHeight(height);
+  };
 
-    const handleConfirm = async () => {
-        if (!tokenType || !amount || !agentId) {
-            Alert.alert("Error", "Missing required information. Please start over.");
-            return;
+  const subtitleOpacity = scrollY.interpolate({ inputRange: [0, 50], outputRange: [1, 0], extrapolate: "clamp" });
+  const subtitleMaxHeight = scrollY.interpolate({ inputRange: [0, 50], outputRange: [80, 0], extrapolate: "clamp" });
+  const subtitleMargin = scrollY.interpolate({ inputRange: [0, 50], outputRange: [4, 0], extrapolate: "clamp" });
+
+  const theme = {
+    background: isDark ? "#07111A" : "#F5F7FB",
+    card: isDark ? "#0E1726" : "#FFFFFF",
+    cardAlt: isDark ? "#111C2B" : "#F8FAFC",
+    text: isDark ? "#F8FAFC" : "#0F172A",
+    muted: isDark ? "#94A3B8" : "#64748B",
+    border: isDark ? "#1E2A3A" : "#E2E8F0",
+    accent: "#00B14F",
+    accentSoft: isDark ? "rgba(0,177,79,0.14)" : "#EAF8EF",
+    warning: "#F59E0B",
+    warningSoft: isDark ? "rgba(245,158,11,0.12)" : "#FFFBEB",
+    warningBorder: isDark ? "rgba(245,158,11,0.3)" : "#FEF3C7",
+    danger: "#EF4444",
+    dangerSoft: isDark ? "rgba(239,68,68,0.12)" : "#FEF2F2",
+    dangerBorder: isDark ? "rgba(239,68,68,0.3)" : "#FEE2E2",
+    successSoft: isDark ? "rgba(0,177,79,0.12)" : "#F0FDF4",
+    successBorder: isDark ? "rgba(0,177,79,0.25)" : "#D1FAE5",
+  };
+
+  const {
+    amount,
+    tokenType,
+    agentId,
+    agentName,
+    paymentType,
+    bankName,
+    accountNumber,
+    accountName,
+    mobileProvider,
+    mobileNumber,
+  } = params;
+
+  const isBank = paymentType !== "mobile_money";
+
+  const handleConfirm = async () => {
+    if (!tokenType || !amount || !agentId) {
+      Alert.alert("Error", "Missing required information. Please start over.");
+      return;
+    }
+
+    const bank_account: BankAccount = isBank
+      ? {
+          type: "bank",
+          bank_name: (bankName as string) || "",
+          account_number: (accountNumber as string) || "",
+          account_name: (accountName as string) || "",
         }
+      : {
+          type: "mobile_money",
+          provider: (mobileProvider as string) || "",
+          phone_number: (mobileNumber as string) || "",
+          account_name: (accountName as string) || "",
+        };
 
-        const bank_account: BankAccount = isBank
-            ? {
-                type: "bank",
-                bank_name: (bankName as string) || "",
-                account_number: (accountNumber as string) || "",
-                account_name: (accountName as string) || "",
-            }
-            : {
-                type: "mobile_money",
-                provider: (mobileProvider as string) || "",
-                phone_number: (mobileNumber as string) || "",
-                account_name: (accountName as string) || "",
-            };
+    try {
+      await createBurnRequest({
+        agent_id: agentId as string,
+        amount: amount as string,
+        token_type: tokenType as string,
+        bank_account,
+      });
 
-        try {
-            await createBurnRequest({
-                agent_id: agentId as string,
-                amount: amount as string,
-                token_type: tokenType as string,
-                bank_account,
-            });
+      Alert.alert("Success", "Sell request created successfully!", [
+        { text: "OK", onPress: () => router.replace("/(tabs)/sell-tokens/status") },
+      ]);
+    } catch (error: any) {
+      const errorMessage = error.message || "";
+      if (errorMessage.includes("cannot create burn requests to themselves")) {
+        Alert.alert(
+          "⚠️ Cannot Select Yourself",
+          "As an agent, you cannot sell tokens to yourself. Please select a different agent to complete this transaction.",
+          [{ text: "OK", onPress: () => router.back() }]
+        );
+      } else {
+        Alert.alert("Error", error.message || "Failed to create request");
+      }
+    }
+  };
 
-            Alert.alert("Success", "Sell request created successfully!", [
-                { text: "OK", onPress: () => router.replace("/(tabs)/sell-tokens/status") }
-            ]);
-        } catch (error: any) {
-            const errorMessage = error.message || "";
-            if (errorMessage.includes("cannot create burn requests to themselves")) {
-                Alert.alert(
-                    "⚠️ Cannot Select Yourself",
-                    "As an agent, you cannot sell tokens to yourself. Please select a different agent to complete this transaction.",
-                    [{ text: "OK", onPress: () => router.back() }]
-                );
-            } else {
-                Alert.alert("Error", error.message || "Failed to create request");
-            }
-        }
-    };
-
-    return (
-        <View style={styles.container}>
-            {/* Header Section */}
-            <View style={styles.headerWrapper}>
-                <LinearGradient
-                    colors={["#00B14F", "#008F40"]}
-                    style={styles.headerGradient}
-                />
-                <SafeAreaView edges={["top"]} style={styles.headerContent}>
-                    <View style={styles.header}>
-                        <TouchableOpacity
-                            onPress={() => router.back()}
-                            style={styles.backButton}
-                        >
-                            <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
-                        </TouchableOpacity>
-                        <Text style={styles.headerTitle}>Review Request</Text>
-                        <View style={{ width: 40 }} />
-                    </View>
-                </SafeAreaView>
-            </View>
-
-            <ScrollView
-                style={styles.scrollView}
-                contentContainerStyle={styles.content}
-                showsVerticalScrollIndicator={false}
+  return (
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
+      {/* Collapsible Header */}
+      <Animated.View
+        onLayout={handleHeaderLayout}
+        style={[styles.headerWrapper, { backgroundColor: theme.background, borderBottomColor: theme.border }]}
+      >
+        <SafeAreaView edges={["top"]} style={styles.headerSafeArea}>
+          <View style={styles.headerRow}>
+            <TouchableOpacity
+              onPress={() => router.back()}
+              style={[styles.backButton, { backgroundColor: theme.card, borderColor: theme.border }]}
+              activeOpacity={0.85}
             >
-                <View style={styles.introContainer}>
-                    <Text style={styles.title}>Confirm Your Transaction</Text>
-                    <Text style={styles.subtitle}>
-                        Please review the details below before processing your sell request.
-                    </Text>
-                </View>
-
-                {/* Amount Summary Card */}
-                <Surface style={styles.summaryCard} elevation={0}>
-                    <Text style={styles.summaryLabel}>Total to Sell</Text>
-                    <View style={styles.amountContainer}>
-                        <Text style={styles.summaryAmount}>{amount}</Text>
-                        <Text style={styles.tokenTag}>{tokenType}</Text>
-                    </View>
-
-                    <View style={styles.divider} />
-
-                    <View style={styles.detailRow}>
-                        <View style={styles.detailIconBg}>
-                            <Ionicons name="person-outline" size={18} color="#00B14F" />
-                        </View>
-                        <View style={styles.detailTextContainer}>
-                            <Text style={styles.detailLabel}>Recipient Agent</Text>
-                            <Text style={styles.detailValue}>{agentName}</Text>
-                        </View>
-                    </View>
-
-                    {isBank ? (
-                        <>
-                            <View style={styles.detailRow}>
-                                <View style={styles.detailIconBg}>
-                                    <Ionicons name="business-outline" size={18} color="#00B14F" />
-                                </View>
-                                <View style={styles.detailTextContainer}>
-                                    <Text style={styles.detailLabel}>Payout Bank</Text>
-                                    <Text style={styles.detailValue}>{bankName}</Text>
-                                </View>
-                            </View>
-                            <View style={styles.detailRow}>
-                                <View style={styles.detailIconBg}>
-                                    <Ionicons name="card-outline" size={18} color="#00B14F" />
-                                </View>
-                                <View style={styles.detailTextContainer}>
-                                    <Text style={styles.detailLabel}>Account Details</Text>
-                                    <Text style={styles.detailValue}>{accountNumber}</Text>
-                                    <Text style={styles.accountSubValue}>{accountName}</Text>
-                                </View>
-                            </View>
-                        </>
-                    ) : (
-                        <>
-                            <View style={styles.detailRow}>
-                                <View style={styles.detailIconBg}>
-                                    <Ionicons name="phone-portrait-outline" size={18} color="#00B14F" />
-                                </View>
-                                <View style={styles.detailTextContainer}>
-                                    <Text style={styles.detailLabel}>Payout: Mobile Money</Text>
-                                    <Text style={styles.detailValue}>{mobileProvider}</Text>
-                                </View>
-                            </View>
-                            <View style={styles.detailRow}>
-                                <View style={styles.detailIconBg}>
-                                    <Ionicons name="call-outline" size={18} color="#00B14F" />
-                                </View>
-                                <View style={styles.detailTextContainer}>
-                                    <Text style={styles.detailLabel}>Phone Number</Text>
-                                    <Text style={styles.detailValue}>{mobileNumber}</Text>
-                                    <Text style={styles.accountSubValue}>{accountName}</Text>
-                                </View>
-                            </View>
-                        </>
-                    )}
-                </Surface>
-
-                {/* Security Box */}
-                <View style={styles.infoBox}>
-                    <View style={styles.infoIconBg}>
-                        <Ionicons name="shield-checkmark" size={24} color="#00B14F" />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                        <Text style={styles.infoTitle}>Secure Escrow</Text>
-                        <Text style={styles.infoText}>
-                            Your tokens will be held securely in escrow. They will only be released to the agent after you confirm receipt of payment in your {isBank ? "bank account" : "mobile money"}.
-                        </Text>
-                    </View>
-                </View>
-            </ScrollView>
-
-            {/* Footer Action */}
-            <View style={styles.footer}>
-                <TouchableOpacity
-                    style={[styles.confirmButton, loading && styles.disabledButton]}
-                    onPress={handleConfirm}
-                    disabled={loading}
-                >
-                    {loading ? (
-                        <ActivityIndicator color="#FFFFFF" />
-                    ) : (
-                        <>
-                            <Text style={styles.confirmText}>Confirm & Sell Now</Text>
-                            <Ionicons name="flash" size={20} color="#FFFFFF" />
-                        </>
-                    )}
-                </TouchableOpacity>
+              <Ionicons name="arrow-back" size={22} color={theme.text} />
+            </TouchableOpacity>
+            <View style={styles.headerText}>
+              <Text style={[styles.headerTitle, { color: theme.text }]}>Review Request</Text>
+              <Animated.View style={{ opacity: subtitleOpacity, maxHeight: subtitleMaxHeight, marginTop: subtitleMargin, overflow: "hidden" }}>
+                <Text style={[styles.headerSubtitle, { color: theme.muted }]}>
+                  Review your transaction details before selling.
+                </Text>
+              </Animated.View>
             </View>
+            <View style={{ width: 42 }} />
+          </View>
+        </SafeAreaView>
+      </Animated.View>
+
+      <Animated.ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={[styles.content, { paddingTop: headerMaxHeight + 16 }]}
+        showsVerticalScrollIndicator={false}
+        onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: false })}
+        scrollEventThrottle={16}
+      >
+        {/* Ambient glow */}
+        <LinearGradient
+          colors={isDark ? ["rgba(0,177,79,0.10)", "rgba(7,17,26,0)"] : ["rgba(0,177,79,0.08)", "rgba(245,247,251,0)"]}
+          style={styles.glow}
+          pointerEvents="none"
+        />
+
+        <View style={[styles.introCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+          <Text style={[styles.introEyebrow, { color: theme.accent }]}>CONFIRMATION</Text>
+          <Text style={[styles.introTitle, { color: theme.text }]}>Confirm Your Transaction</Text>
+          <Text style={[styles.introSubtitle, { color: theme.muted }]}>
+            Please review the details below before processing your sell request.
+          </Text>
         </View>
-    );
+
+        {/* Amount Summary Card */}
+        <View style={[styles.summaryCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+          <LinearGradient
+            colors={isDark ? ["rgba(0,177,79,0.08)", "rgba(14,23,38,0)"] : ["rgba(0,177,79,0.05)", "rgba(255,255,255,0)"]}
+            style={StyleSheet.absoluteFill}
+          />
+          <Text style={[styles.summaryLabel, { color: theme.muted }]}>Total to Sell</Text>
+          <View style={styles.amountContainer}>
+            <Text style={[styles.summaryAmount, { color: theme.text }]}>{parseFloat(amount as string || "0").toLocaleString()}</Text>
+            <Text style={[styles.tokenTag, { color: theme.accent }]}>{tokenType}</Text>
+          </View>
+
+          <View style={[styles.divider, { backgroundColor: theme.border }]} />
+
+          {/* Details Rows */}
+          <View style={styles.detailRow}>
+            <View style={[styles.detailIconBg, { backgroundColor: theme.accentSoft }]}>
+              <Ionicons name="person-outline" size={18} color={theme.accent} />
+            </View>
+            <View style={styles.detailTextContainer}>
+              <Text style={[styles.detailLabel, { color: theme.muted }]}>Recipient Agent</Text>
+              <Text style={[styles.detailValue, { color: theme.text }]}>{agentName}</Text>
+            </View>
+          </View>
+
+          {isBank ? (
+            <>
+              <View style={styles.detailRow}>
+                <View style={[styles.detailIconBg, { backgroundColor: theme.accentSoft }]}>
+                  <Ionicons name="business-outline" size={18} color={theme.accent} />
+                </View>
+                <View style={styles.detailTextContainer}>
+                  <Text style={[styles.detailLabel, { color: theme.muted }]}>Payout Bank</Text>
+                  <Text style={[styles.detailValue, { color: theme.text }]}>{bankName}</Text>
+                </View>
+              </View>
+              <View style={styles.detailRow}>
+                <View style={[styles.detailIconBg, { backgroundColor: theme.accentSoft }]}>
+                  <Ionicons name="card-outline" size={18} color={theme.accent} />
+                </View>
+                <View style={styles.detailTextContainer}>
+                  <Text style={[styles.detailLabel, { color: theme.muted }]}>Account Details</Text>
+                  <Text style={[styles.detailValue, { color: theme.text }]}>{accountNumber}</Text>
+                  <Text style={[styles.accountSubValue, { color: theme.muted }]}>{accountName}</Text>
+                </View>
+              </View>
+            </>
+          ) : (
+            <>
+              <View style={styles.detailRow}>
+                <View style={[styles.detailIconBg, { backgroundColor: theme.accentSoft }]}>
+                  <Ionicons name="phone-portrait-outline" size={18} color={theme.accent} />
+                </View>
+                <View style={styles.detailTextContainer}>
+                  <Text style={[styles.detailLabel, { color: theme.muted }]}>Payout: Mobile Money</Text>
+                  <Text style={[styles.detailValue, { color: theme.text }]}>{mobileProvider}</Text>
+                </View>
+              </View>
+              <View style={styles.detailRow}>
+                <View style={[styles.detailIconBg, { backgroundColor: theme.accentSoft }]}>
+                  <Ionicons name="call-outline" size={18} color={theme.accent} />
+                </View>
+                <View style={styles.detailTextContainer}>
+                  <Text style={[styles.detailLabel, { color: theme.muted }]}>Phone Number</Text>
+                  <Text style={[styles.detailValue, { color: theme.text }]}>{mobileNumber}</Text>
+                  <Text style={[styles.accountSubValue, { color: theme.muted }]}>{accountName}</Text>
+                </View>
+              </View>
+            </>
+          )}
+        </View>
+
+        {/* Security Box */}
+        <View style={[styles.infoBox, { backgroundColor: theme.successSoft, borderColor: theme.successBorder }]}>
+          <View style={[styles.infoIconBg, { backgroundColor: theme.card }]}>
+            <Ionicons name="shield-checkmark" size={24} color={theme.accent} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.infoTitle, { color: isDark ? "#4ADE80" : "#166534" }]}>Secure Escrow</Text>
+            <Text style={[styles.infoText, { color: isDark ? "#86EFAC" : "#15803D" }]}>
+              Your tokens will be held securely in escrow. They will only be released to the agent after you confirm receipt of payment in your {isBank ? "bank account" : "mobile money wallet"}.
+            </Text>
+          </View>
+        </View>
+
+        {/* BUTTON INSIDE SCROLL VIEW */}
+        <TouchableOpacity
+          style={[styles.confirmButton, { backgroundColor: theme.accent }, loading && styles.disabledButton]}
+          onPress={handleConfirm}
+          disabled={loading}
+          activeOpacity={0.85}
+        >
+          {loading ? (
+            <ActivityIndicator color="#FFFFFF" />
+          ) : (
+            <>
+              <Text style={styles.confirmText}>Confirm & Sell Now</Text>
+              <Ionicons name="flash" size={18} color="#FFFFFF" />
+            </>
+          )}
+        </TouchableOpacity>
+
+        <View style={{ height: 40 }} />
+      </Animated.ScrollView>
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: "#F3F4F6",
-    },
-    headerWrapper: {
-        marginBottom: 0,
-    },
-    headerGradient: {
-        position: "absolute",
-        top: 0,
-        left: 0,
-        right: 0,
-        height: 140,
-    },
-    headerContent: {
-        paddingHorizontal: 20,
-    },
-    header: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        alignItems: "center",
-        paddingBottom: 20,
-        marginTop: 10,
-    },
-    headerTitle: {
-        fontSize: 18,
-        fontWeight: "700",
-        color: "#FFFFFF",
-    },
-    backButton: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        backgroundColor: "rgba(255,255,255,0.2)",
-        alignItems: "center",
-        justifyContent: "center",
-    },
-    scrollView: {
-        flex: 1,
-    },
-    content: {
-        padding: 20,
-        paddingTop: 10,
-        paddingBottom: 40,
-    },
-    introContainer: {
-        marginTop: 30,
-        marginBottom: 24,
-    },
-    title: {
-        fontSize: 24,
-        fontWeight: "800",
-        color: "#111827",
-        marginBottom: 8,
-    },
-    subtitle: {
-        fontSize: 15,
-        color: "#6B7280",
-        lineHeight: 22,
-    },
-    summaryCard: {
-        backgroundColor: "#FFFFFF",
-        borderRadius: 24,
-        padding: 24,
-        marginBottom: 20,
-        borderWidth: 1,
-        borderColor: "#E5E7EB",
-    },
-    summaryLabel: {
-        fontSize: 14,
-        color: "#6B7280",
-        fontWeight: "600",
-        textTransform: "uppercase",
-        letterSpacing: 1,
-        textAlign: "center",
-        marginBottom: 12,
-    },
-    amountContainer: {
-        flexDirection: "row",
-        alignItems: "baseline",
-        justifyContent: "center",
-        marginBottom: 24,
-        gap: 8,
-    },
-    summaryAmount: {
-        fontSize: 40,
-        fontWeight: "900",
-        color: "#111827",
-    },
-    tokenTag: {
-        fontSize: 18,
-        fontWeight: "700",
-        color: "#00B14F",
-    },
-    divider: {
-        height: 1,
-        backgroundColor: "#F3F4F6",
-        marginBottom: 24,
-    },
-    detailRow: {
-        flexDirection: "row",
-        marginBottom: 20,
-        gap: 16,
-    },
-    detailIconBg: {
-        width: 36,
-        height: 36,
-        borderRadius: 18,
-        backgroundColor: "#ECFDF5",
-        alignItems: "center",
-        justifyContent: "center",
-    },
-    detailTextContainer: {
-        flex: 1,
-    },
-    detailLabel: {
-        fontSize: 12,
-        color: "#9CA3AF",
-        fontWeight: "600",
-        textTransform: "uppercase",
-        marginBottom: 4,
-    },
-    detailValue: {
-        fontSize: 16,
-        fontWeight: "700",
-        color: "#111827",
-    },
-    accountSubValue: {
-        fontSize: 14,
-        color: "#6B7280",
-        marginTop: 2,
-    },
-    infoBox: {
-        flexDirection: "row",
-        backgroundColor: "#F0FDF4",
-        padding: 20,
-        borderRadius: 20,
-        gap: 16,
-        borderWidth: 1,
-        borderColor: "#DCFCE7",
-    },
-    infoIconBg: {
-        width: 48,
-        height: 48,
-        borderRadius: 14,
-        backgroundColor: "#FFFFFF",
-        alignItems: "center",
-        justifyContent: "center",
-        shadowColor: "#00B14F",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-    },
-    infoTitle: {
-        fontSize: 16,
-        fontWeight: "700",
-        color: "#166534",
-        marginBottom: 4,
-    },
-    infoText: {
-        fontSize: 13,
-        color: "#15803D",
-        lineHeight: 20,
-    },
-    footer: {
-        padding: 20,
-        paddingBottom: 24,
-        backgroundColor: "#FFFFFF",
-        borderTopWidth: 1,
-        borderTopColor: "#F3F4F6",
-    },
-    confirmButton: {
-        backgroundColor: "#00B14F",
-        height: 58,
-        borderRadius: 18,
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: 12,
-        shadowColor: "#00B14F",
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.2,
-        shadowRadius: 8,
-        elevation: 4,
-    },
-    disabledButton: {
-        backgroundColor: "#9CA3AF",
-        shadowOpacity: 0,
-        elevation: 0,
-    },
-    confirmText: {
-        color: "#FFFFFF",
-        fontSize: 16,
-        fontWeight: "700",
-    },
+  container: { flex: 1 },
+  headerWrapper: {
+    position: "absolute",
+    top: 0, left: 0, right: 0,
+    zIndex: 10,
+    borderBottomWidth: 1,
+  },
+  headerSafeArea: { paddingHorizontal: 16 },
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingTop: 10,
+    paddingBottom: 16,
+  },
+  backButton: {
+    width: 42, height: 42,
+    borderRadius: 21, borderWidth: 1,
+    alignItems: "center", justifyContent: "center",
+    marginRight: 12,
+  },
+  headerText: { flex: 1 },
+  headerTitle: { fontSize: 22, fontWeight: "900", letterSpacing: -0.5 },
+  headerSubtitle: { fontSize: 13, lineHeight: 18, fontWeight: "500" },
+  content: { paddingHorizontal: 16, paddingBottom: 24 },
+  glow: {
+    position: "absolute",
+    top: 0, left: 0, right: 0,
+    height: 200,
+  },
+  introCard: {
+    borderRadius: 24,
+    padding: 20,
+    marginBottom: 16,
+    borderWidth: 1,
+  },
+  introEyebrow: {
+    fontSize: 11,
+    fontWeight: "800",
+    letterSpacing: 0.5,
+    marginBottom: 8,
+  },
+  introTitle: {
+    fontSize: 22,
+    fontWeight: "800",
+    marginBottom: 8,
+    letterSpacing: -0.4,
+  },
+  introSubtitle: {
+    fontSize: 14,
+    lineHeight: 21,
+  },
+  summaryCard: {
+    borderRadius: 28,
+    borderWidth: 1,
+    padding: 20,
+    marginBottom: 16,
+    overflow: "hidden",
+  },
+  summaryLabel: {
+    fontSize: 12,
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
+    textAlign: "center",
+    marginBottom: 8,
+  },
+  amountContainer: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    justifyContent: "center",
+    marginBottom: 20,
+    gap: 6,
+  },
+  summaryAmount: {
+    fontSize: 38,
+    fontWeight: "900",
+    letterSpacing: -1,
+  },
+  tokenTag: {
+    fontSize: 18,
+    fontWeight: "700",
+  },
+  divider: {
+    height: 1,
+    marginBottom: 20,
+  },
+  detailRow: {
+    flexDirection: "row",
+    marginBottom: 16,
+    gap: 12,
+  },
+  detailIconBg: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  detailTextContainer: {
+    flex: 1,
+  },
+  detailLabel: {
+    fontSize: 11,
+    fontWeight: "700",
+    textTransform: "uppercase",
+    marginBottom: 4,
+  },
+  detailValue: {
+    fontSize: 15,
+    fontWeight: "800",
+  },
+  accountSubValue: {
+    fontSize: 13,
+    fontWeight: "500",
+    marginTop: 2,
+  },
+  infoBox: {
+    flexDirection: "row",
+    padding: 16,
+    borderRadius: 22,
+    gap: 14,
+    borderWidth: 1,
+    marginBottom: 24,
+  },
+  infoIconBg: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#00B14F",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  infoTitle: {
+    fontSize: 15,
+    fontWeight: "800",
+    marginBottom: 4,
+  },
+  infoText: {
+    fontSize: 13,
+    lineHeight: 19,
+    fontWeight: "500",
+  },
+  confirmButton: {
+    height: 58,
+    borderRadius: 20,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+  disabledButton: {
+    opacity: 0.45,
+  },
+  confirmText: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "800",
+  },
 });

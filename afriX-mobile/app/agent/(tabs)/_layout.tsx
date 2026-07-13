@@ -1,27 +1,34 @@
 import { Tabs } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { Platform } from "react-native";
+import { Platform, useColorScheme, View, StyleSheet } from "react-native";
 
 export default function AgentTabsLayout() {
+    const colorScheme = useColorScheme();
+    const isDark = colorScheme === "dark";
+
     return (
         <Tabs
             screenOptions={{
                 headerShown: false,
-                tabBarActiveTintColor: "#7C3AED", // Purple for Agent
-                tabBarInactiveTintColor: "#9CA3AF",
+                tabBarActiveTintColor: "#7C3AED",
+                tabBarInactiveTintColor: isDark ? "#475569" : "#9CA3AF",
                 tabBarStyle: {
-                    backgroundColor: "#FFFFFF",
+                    backgroundColor: isDark ? "#0F0A1E" : "#FFFFFF",
                     borderTopWidth: 1,
-                    borderTopColor: "#E5E7EB",
+                    borderTopColor: isDark ? "#1E1638" : "#EDE9FE",
                     height: Platform.OS === "ios" ? 88 : 68,
                     paddingBottom: Platform.OS === "ios" ? 30 : 12,
                     paddingTop: 10,
                     elevation: 0,
-                    shadowOpacity: 0,
+                    shadowColor: "#7C3AED",
+                    shadowOpacity: isDark ? 0.2 : 0.06,
+                    shadowRadius: 12,
+                    shadowOffset: { width: 0, height: -4 },
                 },
                 tabBarLabelStyle: {
-                    fontSize: 12,
-                    fontWeight: "600",
+                    fontSize: 11,
+                    fontWeight: "800",
+                    letterSpacing: 0.2,
                 },
             }}
         >
@@ -29,8 +36,10 @@ export default function AgentTabsLayout() {
                 name="dashboard"
                 options={{
                     title: "Dashboard",
-                    tabBarIcon: ({ color, size }) => (
-                        <Ionicons name="grid" size={size} color={color} />
+                    tabBarIcon: ({ color, size, focused }) => (
+                        <View style={[styles.iconWrap, focused && styles.iconWrapActive]}>
+                            <Ionicons name={focused ? "grid" : "grid-outline"} size={size - 2} color={color} />
+                        </View>
                     ),
                 }}
             />
@@ -38,8 +47,10 @@ export default function AgentTabsLayout() {
                 name="requests"
                 options={{
                     title: "Requests",
-                    tabBarIcon: ({ color, size }) => (
-                        <Ionicons name="list-circle" size={size} color={color} />
+                    tabBarIcon: ({ color, size, focused }) => (
+                        <View style={[styles.iconWrap, focused && styles.iconWrapActive]}>
+                            <Ionicons name={focused ? "list-circle" : "list-circle-outline"} size={size - 2} color={color} />
+                        </View>
                     ),
                 }}
             />
@@ -47,11 +58,26 @@ export default function AgentTabsLayout() {
                 name="profile"
                 options={{
                     title: "Profile",
-                    tabBarIcon: ({ color, size }) => (
-                        <Ionicons name="person" size={size} color={color} />
+                    tabBarIcon: ({ color, size, focused }) => (
+                        <View style={[styles.iconWrap, focused && styles.iconWrapActive]}>
+                            <Ionicons name={focused ? "person" : "person-outline"} size={size - 2} color={color} />
+                        </View>
                     ),
                 }}
             />
         </Tabs>
     );
 }
+
+const styles = StyleSheet.create({
+    iconWrap: {
+        width: 36,
+        height: 28,
+        alignItems: "center",
+        justifyContent: "center",
+        borderRadius: 10,
+    },
+    iconWrapActive: {
+        backgroundColor: "rgba(124, 58, 237, 0.12)",
+    },
+});

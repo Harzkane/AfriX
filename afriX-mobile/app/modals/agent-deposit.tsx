@@ -1,16 +1,17 @@
 import React, { useState, useEffect } from "react";
 import {
-    View,
-    Text,
-    StyleSheet,
-    ScrollView,
-    TouchableOpacity,
-    TextInput,
-    Alert,
-    ActivityIndicator,
-    Clipboard,
-    KeyboardAvoidingView,
-    Platform,
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  TextInput,
+  Alert,
+  ActivityIndicator,
+  Clipboard,
+  KeyboardAvoidingView,
+  Platform,
+  useColorScheme,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -21,631 +22,502 @@ import apiClient from "@/services/apiClient";
 import { useAgentStore } from "@/stores/slices/agentSlice";
 
 type DepositFieldErrors = {
-    amount?: string;
-    txHash?: string;
+  amount?: string;
+  txHash?: string;
 };
 
 export default function AgentDepositScreen() {
-    const router = useRouter();
-    const { fetchAgentStats, fetchDashboard } = useAgentStore();
-    const [txHash, setTxHash] = useState("");
-    const [amount, setAmount] = useState("");
-    const [loading, setLoading] = useState(false);
-    const [fieldErrors, setFieldErrors] = useState<DepositFieldErrors>({});
+  const router = useRouter();
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === "dark";
+  const { fetchAgentStats, fetchDashboard } = useAgentStore();
+  const [txHash, setTxHash] = useState("");
+  const [amount, setAmount] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<DepositFieldErrors>({});
+  const [depositAddress, setDepositAddress] = useState("0x7c26C161F7b3b1b975489DA1a1672a9D9178a16e");
+  const [minimumDeposit, setMinimumDeposit] = useState(100);
+  const [fetching, setFetching] = useState(true);
 
-    const [depositAddress, setDepositAddress] = useState("0x7c26C161F7b3b1b975489DA1a1672a9D9178a16e");
-    const [minimumDeposit, setMinimumDeposit] = useState(100);
-    const [fetching, setFetching] = useState(true);
+  const theme = {
+    bg: isDark ? "#090B14" : "#F5F4FC",
+    card: isDark ? "rgba(18, 14, 36, 0.92)" : "#FFFFFF",
+    cardAlt: isDark ? "rgba(255, 255, 255, 0.05)" : "#F9F8FF",
+    text: isDark ? "#F8FAFC" : "#0F172A",
+    muted: isDark ? "#94A3B8" : "#64748B",
+    border: isDark ? "#1E1638" : "#EDE9FE",
+    accent: "#7C3AED",
+    accentLight: isDark ? "rgba(124, 58, 237, 0.15)" : "rgba(124, 58, 237, 0.08)",
+    danger: "#EF4444",
+    dangerSoft: isDark ? "rgba(239, 68, 68, 0.12)" : "#FEF2F2",
+    inputBg: isDark ? "rgba(255, 255, 255, 0.06)" : "#F9F8FF",
+    green: "#00B14F",
+    greenLight: isDark ? "rgba(0, 177, 79, 0.12)" : "rgba(0, 177, 79, 0.06)",
+  };
 
-    useEffect(() => {
-        let isMounted = true;
-        (async () => {
-            try {
-                const { data } = await apiClient.get("/agents/deposit-address");
-                if (isMounted && data?.data) {
-                    if (data.data.address) setDepositAddress(data.data.address);
-                    if (data.data.minimum_deposit) setMinimumDeposit(data.data.minimum_deposit);
-                }
-            } catch (error) {
-                console.error("Failed to fetch deposit address:", error);
-            } finally {
-                if (isMounted) setFetching(false);
-            }
-        })();
-        return () => { isMounted = false; };
-    }, []);
-
-    const copyAddress = () => {
-        Clipboard.setString(depositAddress);
-        Alert.alert("Copied!", "Deposit address copied to clipboard");
-    };
-
-    const validateAmount = (value: string) => {
-        const trimmedValue = value.trim();
-
-        if (!trimmedValue) {
-            return "Please enter deposit amount";
+  useEffect(() => {
+    let isMounted = true;
+    (async () => {
+      try {
+        const { data } = await apiClient.get("/agents/deposit-address");
+        if (isMounted && data?.data) {
+          if (data.data.address) setDepositAddress(data.data.address);
+          if (data.data.minimum_deposit) setMinimumDeposit(data.data.minimum_deposit);
         }
+      } catch (error) {
+        console.error("Failed to fetch deposit address:", error);
+      } finally {
+        if (isMounted) setFetching(false);
+      }
+    })();
+    return () => { isMounted = false; };
+  }, []);
 
-        const depositAmount = parseFloat(trimmedValue);
-        if (isNaN(depositAmount)) {
-            return "Enter a valid deposit amount";
-        }
+  const copyAddress = () => {
+    Clipboard.setString(depositAddress);
+    Alert.alert("Copied!", "Deposit address copied to clipboard");
+  };
 
-        if (depositAmount < minimumDeposit) {
-            return `Minimum deposit is $${minimumDeposit} USDT`;
-        }
+  const validateAmount = (value: string) => {
+    const trimmed = value.trim();
+    if (!trimmed) return "Please enter deposit amount";
+    const n = parseFloat(trimmed);
+    if (isNaN(n)) return "Enter a valid deposit amount";
+    if (n < minimumDeposit) return `Minimum deposit is $${minimumDeposit} USDT`;
+    return "";
+  };
 
-        return "";
-    };
+  const validateTxHash = (value: string) => {
+    const trimmed = value.trim();
+    if (!trimmed) return "Please enter transaction hash";
+    if (!trimmed.startsWith("0x")) return "Transaction hash must start with 0x";
+    if (!/^0x[a-fA-F0-9]{64}$/.test(trimmed)) return "Enter a valid 66-character transaction hash";
+    return "";
+  };
 
-    const validateTxHash = (value: string) => {
-        const trimmedValue = value.trim();
+  const sanitizeAmountInput = (value: string) => {
+    const sanitized = value.replace(/[^0-9.]/g, "");
+    const parts = sanitized.split(".");
+    if (parts.length <= 1) return sanitized;
+    return `${parts[0]}.${parts.slice(1).join("")}`;
+  };
 
-        if (!trimmedValue) {
-            return "Please enter transaction hash";
-        }
+  const handleAmountChange = (value: string) => {
+    const next = sanitizeAmountInput(value);
+    setAmount(next);
+    setFieldErrors(c => ({ ...c, amount: next ? validateAmount(next) : "" }));
+  };
 
-        if (!trimmedValue.startsWith("0x")) {
-            return "Transaction hash must start with 0x";
-        }
+  const handleTxHashChange = (value: string) => {
+    const next = value.trim().replace(/\s+/g, "");
+    setTxHash(next);
+    setFieldErrors(c => ({ ...c, txHash: next ? validateTxHash(next) : "" }));
+  };
 
-        if (!/^0x[a-fA-F0-9]{64}$/.test(trimmedValue)) {
-            return "Enter a valid 66-character transaction hash";
-        }
+  const validateForm = () => {
+    const errs = { amount: validateAmount(amount), txHash: validateTxHash(txHash) };
+    setFieldErrors(errs);
+    return !errs.amount && !errs.txHash;
+  };
 
-        return "";
-    };
+  const isFormValid = amount.trim().length > 0 && txHash.trim().length > 0 && !validateAmount(amount) && !validateTxHash(txHash);
 
-    const sanitizeAmountInput = (value: string) => {
-        const sanitized = value.replace(/[^0-9.]/g, "");
-        const parts = sanitized.split(".");
+  const handleSubmit = async () => {
+    if (!validateForm()) {
+      Alert.alert("Error", "Please correct the highlighted fields");
+      return;
+    }
+    setLoading(true);
+    try {
+      await apiClient.post("/agents/deposit", { amount_usd: parseFloat(amount.trim()), tx_hash: txHash.trim() });
+      await Promise.all([fetchAgentStats(), fetchDashboard()]);
+      Alert.alert("Deposit Verified", "Your deposit has been verified. Your available capacity has been updated.", [
+        { text: "OK", onPress: () => router.replace("/agent/dashboard") },
+      ]);
+    } catch (error: any) {
+      const raw = error.response?.data?.message || error.message || "";
+      let message = raw || "Deposit could not be verified. Please try again.";
+      if (raw.includes("already been used")) message = "This deposit was already applied. Each transaction can only be used once.";
+      else if (raw.includes("Transaction not found") || raw.includes("could not confirm")) message = "We could not confirm this transaction yet. Please wait for blockchain confirmation and try again.";
+      else if (raw.includes("Transaction failed on blockchain")) message = "This blockchain transaction failed and cannot be used for deposit verification.";
+      else if (raw.includes("No USDT transfer")) message = "No USDT transfer to the platform deposit address was found in this transaction.";
+      else if (raw.includes("Amount mismatch")) message = "The amount you entered does not match the confirmed blockchain transfer.";
+      Alert.alert("Deposit failed", message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-        if (parts.length <= 1) {
-            return sanitized;
-        }
+  const progressSteps = ["Register", "KYC", "Deposit"];
 
-        return `${parts[0]}.${parts.slice(1).join("")}`;
-    };
+  return (
+    <View style={[styles.container, { backgroundColor: theme.bg }]}>
+      {/* Flat sticky header */}
+      <SafeAreaView edges={["top"]} style={[styles.headerContainer, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
+        <View style={styles.headerRow}>
+          <TouchableOpacity onPress={() => router.back()} style={[styles.headerBackBtn, { backgroundColor: theme.accentLight }]}>
+            <Ionicons name="arrow-back" size={20} color={theme.accent} />
+          </TouchableOpacity>
+          <Text style={[styles.headerTitle, { color: theme.text }]}>Security Deposit</Text>
+          <View style={styles.headerSpacer} />
+        </View>
+      </SafeAreaView>
 
-    const handleAmountChange = (value: string) => {
-        const nextAmount = sanitizeAmountInput(value);
-        setAmount(nextAmount);
-        setFieldErrors((current) => ({
-            ...current,
-            amount: nextAmount ? validateAmount(nextAmount) : "",
-        }));
-    };
+      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }} keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}>
+        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
 
-    const handleTxHashChange = (value: string) => {
-        const nextHash = value.trim().replace(/\s+/g, "");
-        setTxHash(nextHash);
-        setFieldErrors((current) => ({
-            ...current,
-            txHash: nextHash ? validateTxHash(nextHash) : "",
-        }));
-    };
+          {/* Progress Stepper */}
+          <View style={[styles.stepperCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+            {progressSteps.map((step, i) => (
+              <React.Fragment key={i}>
+                <View style={styles.stepItem}>
+                  <LinearGradient
+                    colors={i < 2 ? [theme.green, theme.green] : [theme.accent, theme.accent]}
+                    style={styles.stepDot}
+                  >
+                    {i < 2 ? (
+                      <Ionicons name="checkmark" size={14} color="#FFF" />
+                    ) : (
+                      <Text style={styles.stepNum}>{i + 1}</Text>
+                    )}
+                  </LinearGradient>
+                  <Text style={[styles.stepLabel, { color: theme.text }]}>{step}</Text>
+                </View>
+                {i < progressSteps.length - 1 && (
+                  <View style={[styles.stepLine, { backgroundColor: theme.green }]} />
+                )}
+              </React.Fragment>
+            ))}
+          </View>
 
-    const validateForm = () => {
-        const nextErrors = {
-            amount: validateAmount(amount),
-            txHash: validateTxHash(txHash),
-        };
+          {/* Hero Intro */}
+          <LinearGradient
+            colors={isDark ? ["rgba(124, 58, 237, 0.15)", "rgba(18, 14, 36, 0.8)"] : ["rgba(124, 58, 237, 0.05)", "#FFFFFF"]}
+            style={[styles.introCard, { borderColor: theme.border }]}
+          >
+            <Text style={[styles.introEyebrow, { color: theme.accent }]}>ACCOUNT ACTIVATION</Text>
+            <Text style={[styles.introTitle, { color: theme.text }]}>Almost There! 🎉</Text>
+            <Text style={[styles.introSubtitle, { color: theme.muted }]}>
+              Make your security deposit to activate your agent account and start earning.
+            </Text>
+          </LinearGradient>
 
-        setFieldErrors(nextErrors);
-        return !nextErrors.amount && !nextErrors.txHash;
-    };
+          {/* Deposit Info Card */}
+          <View style={[styles.infoCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+            {[
+              { label: "Minimum Deposit", value: `$${minimumDeposit} USDT` },
+              { label: "Network", value: "Polygon (MATIC)" },
+              { label: "Token", value: "USDT (ERC-20)" },
+            ].map((row, i) => (
+              <View key={i}>
+                <View style={styles.infoRow}>
+                  <Text style={[styles.infoLabel, { color: theme.muted }]}>{row.label}</Text>
+                  <Text style={[styles.infoValue, { color: theme.text }]}>{row.value}</Text>
+                </View>
+                {i < 2 && <View style={[styles.divider, { backgroundColor: theme.border }]} />}
+              </View>
+            ))}
+          </View>
 
-    const isFormComplete = amount.trim().length > 0 && txHash.trim().length > 0;
-    const isFormValid =
-        isFormComplete && !validateAmount(amount) && !validateTxHash(txHash);
+          {/* Warning Banner */}
+          <View style={[styles.warningBanner, { backgroundColor: theme.dangerSoft, borderColor: theme.danger + "20" }]}>
+            <Ionicons name="warning" size={20} color={theme.danger} style={{ marginRight: 4 }} />
+            <Text style={[styles.warningText, { color: theme.danger }]}>
+              Only send USDT on Polygon network! Sending the wrong token or wrong network will result in permanent loss of funds.
+            </Text>
+          </View>
 
-    const handleSubmit = async () => {
-        if (!validateForm()) {
-            Alert.alert("Error", "Please correct the highlighted fields");
-            return;
-        }
+          {/* QR Code Section */}
+          <Text style={[styles.sectionLabel, { color: theme.muted }]}>DEPOSIT ADDRESS</Text>
+          <View style={[styles.qrCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+            <View style={[styles.qrBox, { backgroundColor: "#FFFFFF" }]}>
+              {fetching ? (
+                <ActivityIndicator size="small" color={theme.accent} style={{ height: 180, justifyContent: "center" }} />
+              ) : (
+                <QRCode value={depositAddress} size={180} />
+              )}
+            </View>
+            <TouchableOpacity style={[styles.addressRow, { backgroundColor: theme.cardAlt, borderColor: theme.border }]} onPress={copyAddress} activeOpacity={0.7}>
+              <Text style={[styles.addressText, { color: theme.text }]} numberOfLines={1} ellipsizeMode="middle">
+                {depositAddress}
+              </Text>
+              <View style={[styles.copyBtn, { backgroundColor: theme.accentLight }]}>
+                <Ionicons name="copy-outline" size={18} color={theme.accent} />
+              </View>
+            </TouchableOpacity>
+          </View>
 
-        const depositAmount = parseFloat(amount.trim());
-
-        setLoading(true);
-
-        try {
-            await apiClient.post("/agents/deposit", {
-                amount_usd: depositAmount,
-                tx_hash: txHash.trim(),
-            });
-
-            await Promise.all([fetchAgentStats(), fetchDashboard()]);
-
-            Alert.alert(
-                "Deposit Verified",
-                "Your deposit has been verified. Your available capacity has been updated and you can now mint/burn tokens.",
-                [
-                    {
-                        text: "OK",
-                        onPress: () => {
-                            router.replace("/agent/dashboard");
-                        },
-                    },
-                ]
-            );
-        } catch (error: any) {
-            const raw = error.response?.data?.message || error.message || "";
-            let message = raw || "Deposit could not be verified. Please try again.";
-
-            if (raw.includes("already been used")) {
-                message =
-                    "This deposit was already applied. Each transaction can only be used once.";
-            } else if (
-                raw.includes("Transaction not found or not confirmed") ||
-                raw.includes("could not confirm this transaction yet")
-            ) {
-                message =
-                    "We could not confirm this transaction yet. Please wait for blockchain confirmation and try again.";
-            } else if (raw.includes("Transaction failed on blockchain")) {
-                message =
-                    "This blockchain transaction failed and cannot be used for deposit verification.";
-            } else if (raw.includes("No USDT transfer to treasury found")) {
-                message =
-                    "No USDT transfer to the platform deposit address was found in this transaction.";
-            } else if (raw.includes("Amount mismatch")) {
-                message =
-                    "The amount you entered does not match the confirmed blockchain transfer.";
-            }
-
-            Alert.alert("Deposit failed", message);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    return (
-        <SafeAreaView style={styles.container}>
-            {/* Header */}
-            <View style={styles.header}>
-                <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-                    <Ionicons name="arrow-back" size={24} color="#111827" />
-                </TouchableOpacity>
-                <Text style={styles.headerTitle}>Security Deposit</Text>
-                <View style={{ width: 24 }} />
+          {/* Form */}
+          <Text style={[styles.sectionLabel, { color: theme.muted }]}>CONFIRM YOUR DEPOSIT</Text>
+          <View style={[styles.formCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+            {/* Amount */}
+            <View style={styles.inputGroup}>
+              <Text style={[styles.inputLabel, { color: theme.muted }]}>AMOUNT (USDT) *</Text>
+              <View style={[styles.inputWrapper, { backgroundColor: theme.inputBg, borderColor: fieldErrors.amount ? theme.danger : theme.border }]}>
+                <Text style={[styles.inputPrefix, { color: theme.text }]}>$</Text>
+                <TextInput
+                  style={[styles.input, { color: theme.text }]}
+                  placeholder={`Minimum ${minimumDeposit}`}
+                  placeholderTextColor={theme.muted}
+                  value={amount}
+                  onChangeText={handleAmountChange}
+                  onBlur={() => setFieldErrors(c => ({ ...c, amount: validateAmount(amount) }))}
+                  keyboardType="decimal-pad"
+                />
+              </View>
+              {fieldErrors.amount ? (
+                <Text style={styles.errorText}>{fieldErrors.amount}</Text>
+              ) : (
+                <Text style={[styles.helperText, { color: theme.muted }]}>This will define your minting capacity</Text>
+              )}
             </View>
 
-            <KeyboardAvoidingView
-                behavior={Platform.OS === "ios" ? "padding" : "height"}
-                style={{ flex: 1 }}
-                keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
-            >
-                <ScrollView contentContainerStyle={styles.content}>
-                    {/* Progress Indicator */}
-                    <View style={styles.progressWrap}>
-                        <View style={styles.progressContainer}>
-                            <View style={styles.progressStep}>
-                                <View style={[styles.progressDot, styles.progressDotComplete]}>
-                                    <Ionicons name="checkmark" size={20} color="#FFFFFF" />
-                                </View>
-                                <Text style={styles.progressLabel}>Register</Text>
-                            </View>
-                            <View style={[styles.progressLine, styles.progressLineActive]} />
-                            <View style={styles.progressStep}>
-                                <View style={[styles.progressDot, styles.progressDotComplete]}>
-                                    <Ionicons name="checkmark" size={20} color="#FFFFFF" />
-                                </View>
-                                <Text style={styles.progressLabel}>KYC</Text>
-                            </View>
-                            <View style={[styles.progressLine, styles.progressLineActive]} />
-                            <View style={styles.progressStep}>
-                                <View style={[styles.progressDot, styles.progressDotActive]}>
-                                    <Text style={styles.progressNumber}>3</Text>
-                                </View>
-                                <Text style={styles.progressLabel}>Deposit</Text>
-                            </View>
-                        </View>
-                    </View>
+            <View style={[styles.divider, { backgroundColor: theme.border, marginVertical: 16 }]} />
 
-                    {/* Introduction */}
-                    <LinearGradient
-                        colors={["#F7FFF9", "#FFFFFF"]}
-                        style={styles.introSection}
-                    >
-                        <Text style={styles.introEyebrow}>Account Activation</Text>
-                        <Text style={styles.introTitle}>Almost There! 🎉</Text>
-                        <Text style={styles.introDescription}>
-                            Make your security deposit to activate your agent account and start earning.
-                        </Text>
-                    </LinearGradient>
+            {/* TX Hash */}
+            <View style={styles.inputGroup}>
+              <Text style={[styles.inputLabel, { color: theme.muted }]}>TRANSACTION HASH *</Text>
+              <View style={[styles.inputWrapper, { backgroundColor: theme.inputBg, borderColor: fieldErrors.txHash ? theme.danger : theme.border }]}>
+                <TextInput
+                  style={[styles.input, { color: theme.text }]}
+                  placeholder="0x..."
+                  placeholderTextColor={theme.muted}
+                  value={txHash}
+                  onChangeText={handleTxHashChange}
+                  onBlur={() => setFieldErrors(c => ({ ...c, txHash: validateTxHash(txHash) }))}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+              </View>
+              {fieldErrors.txHash ? (
+                <Text style={styles.errorText}>{fieldErrors.txHash}</Text>
+              ) : (
+                <Text style={[styles.helperText, { color: theme.muted }]}>Enter the transaction hash from your wallet</Text>
+              )}
+            </View>
+          </View>
 
-                    {/* Deposit Info */}
-                    <View style={styles.infoCard}>
-                        <View style={styles.infoRow}>
-                            <Text style={styles.infoLabel}>Minimum Deposit</Text>
-                            <Text style={styles.infoValue}>${minimumDeposit} USDT</Text>
-                        </View>
-                        <View style={styles.infoRow}>
-                            <Text style={styles.infoLabel}>Network</Text>
-                            <Text style={styles.infoValue}>Polygon (MATIC)</Text>
-                        </View>
-                        <View style={styles.infoRow}>
-                            <Text style={styles.infoLabel}>Token</Text>
-                            <Text style={styles.infoValue}>USDT (ERC-20)</Text>
-                        </View>
-                    </View>
+          {/* Info Banner */}
+          <View style={[styles.infoBanner, { backgroundColor: theme.accentLight, borderColor: theme.border }]}>
+            <Ionicons name="information-circle" size={20} color={theme.accent} style={{ marginRight: 4 }} />
+            <Text style={[styles.infoBannerText, { color: theme.accent }]}>
+              Your deposit will be verified on the blockchain. This usually takes 2–5 minutes.
+            </Text>
+          </View>
 
-                    {/* Warning Banner */}
-                    <View style={styles.warningBanner}>
-                        <Ionicons name="warning" size={20} color="#DC2626" />
-                        <Text style={styles.warningText}>
-                            Only send USDT on Polygon network! Sending wrong token or wrong network will
-                            result in permanent loss of funds.
-                        </Text>
-                    </View>
+          <View style={{ height: 120 }} />
+        </ScrollView>
 
-                    {/* QR Code */}
-                    <View style={styles.qrSection}>
-                        <Text style={styles.sectionTitle}>Deposit Address</Text>
-                        <View style={styles.qrContainer}>
-                            {fetching ? (
-                                <ActivityIndicator size="small" color="#00B14F" style={{ height: 200, justifyContent: "center" }} />
-                            ) : (
-                                <QRCode value={depositAddress} size={200} />
-                            )}
-                        </View>
-                        <View style={styles.addressContainer}>
-                            <Text style={styles.addressText} numberOfLines={1} ellipsizeMode="middle">
-                                {depositAddress}
-                            </Text>
-                            <TouchableOpacity style={styles.copyButton} onPress={copyAddress}>
-                                <Ionicons name="copy-outline" size={20} color="#00B14F" />
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-
-                    {/* Deposit Form */}
-                    <View style={styles.form}>
-                        <Text style={styles.sectionTitle}>Confirm Your Deposit</Text>
-
-                        <View style={styles.inputGroup}>
-                            <Text style={styles.label}>Amount (USDT) *</Text>
-                            <TextInput
-                                style={[styles.input, fieldErrors.amount ? styles.inputError : null]}
-                                placeholder={`Minimum ${minimumDeposit}`}
-                                value={amount}
-                                onChangeText={handleAmountChange}
-                                onBlur={() =>
-                                    setFieldErrors((current) => ({
-                                        ...current,
-                                        amount: validateAmount(amount),
-                                    }))
-                                }
-                                keyboardType="decimal-pad"
-                            />
-                            {fieldErrors.amount ? (
-                                <Text style={styles.errorText}>{fieldErrors.amount}</Text>
-                            ) : (
-                                <Text style={styles.helperText}>
-                                    This will be your minting capacity
-                                </Text>
-                            )}
-                        </View>
-
-                        <View style={styles.inputGroup}>
-                            <Text style={styles.label}>Transaction Hash *</Text>
-                            <TextInput
-                                style={[styles.input, fieldErrors.txHash ? styles.inputError : null]}
-                                placeholder="0x..."
-                                value={txHash}
-                                onChangeText={handleTxHashChange}
-                                onBlur={() =>
-                                    setFieldErrors((current) => ({
-                                        ...current,
-                                        txHash: validateTxHash(txHash),
-                                    }))
-                                }
-                                autoCapitalize="none"
-                                autoCorrect={false}
-                            />
-                            {fieldErrors.txHash ? (
-                                <Text style={styles.errorText}>{fieldErrors.txHash}</Text>
-                            ) : (
-                                <Text style={styles.helperText}>
-                                    Enter the transaction hash from your wallet
-                                </Text>
-                            )}
-                        </View>
-                    </View>
-
-                    {/* Info Banner */}
-                    <View style={styles.infoBanner}>
-                        <Ionicons name="information-circle" size={20} color="#00B14F" />
-                        <Text style={styles.infoText}>
-                            Your deposit will be verified on the blockchain. This usually takes 2-5
-                            minutes.
-                        </Text>
-                    </View>
-                </ScrollView>
-
-                {/* Footer */}
-                <View style={styles.footer}>
-                    <TouchableOpacity
-                        style={[
-                            styles.submitButton,
-                            (!isFormValid || loading) && styles.submitButtonDisabled,
-                        ]}
-                        onPress={handleSubmit}
-                        disabled={!isFormValid || loading}
-                    >
-                        {loading ? (
-                            <ActivityIndicator color="#FFFFFF" />
-                        ) : (
-                            <>
-                                <Text style={styles.submitButtonText}>Verify Deposit</Text>
-                                <Ionicons name="checkmark-circle" size={20} color="#FFFFFF" />
-                            </>
-                        )}
-                    </TouchableOpacity>
-                </View>
-            </KeyboardAvoidingView>
-        </SafeAreaView>
-    );
+        {/* Footer */}
+        <View style={[styles.footer, { backgroundColor: theme.card, borderTopColor: theme.border }]}>
+          <TouchableOpacity
+            style={[styles.submitButton, { backgroundColor: theme.accent }, (!isFormValid || loading) && styles.submitButtonDisabled]}
+            onPress={handleSubmit}
+            disabled={!isFormValid || loading}
+            activeOpacity={0.8}
+          >
+            {loading ? (
+              <ActivityIndicator color="#FFFFFF" />
+            ) : (
+              <>
+                <Text style={styles.submitButtonText}>Verify Deposit</Text>
+                <Ionicons name="checkmark-circle" size={20} color="#FFFFFF" />
+              </>
+            )}
+          </TouchableOpacity>
+        </View>
+      </KeyboardAvoidingView>
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: "#FFFFFF",
-    },
-    header: {
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "space-between",
-        paddingHorizontal: 16,
-        paddingVertical: 12,
-        borderBottomWidth: 1,
-        borderBottomColor: "#F3F4F6",
-    },
-    backButton: {
-        padding: 4,
-    },
-    headerTitle: {
-        fontSize: 18,
-        fontWeight: "600",
-        color: "#111827",
-    },
-    content: {
-        padding: 20,
-    },
-    progressWrap: {
-        backgroundColor: "#FFFFFF",
-        borderRadius: 22,
-        borderWidth: 1,
-        borderColor: "#EAF0F5",
-        padding: 16,
-        marginBottom: 24,
-    },
-    progressContainer: {
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "center",
-    },
-    progressStep: {
-        alignItems: "center",
-    },
-    progressDot: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        backgroundColor: "#F3F4F6",
-        justifyContent: "center",
-        alignItems: "center",
-        marginBottom: 8,
-    },
-    progressDotActive: {
-        backgroundColor: "#00B14F",
-    },
-    progressDotComplete: {
-        backgroundColor: "#00B14F",
-    },
-    progressNumber: {
-        fontSize: 16,
-        fontWeight: "600",
-        color: "#FFFFFF",
-    },
-    progressLabel: {
-        fontSize: 12,
-        color: "#6B7280",
-    },
-    progressLine: {
-        width: 40,
-        height: 2,
-        backgroundColor: "#F3F4F6",
-        marginHorizontal: 8,
-        marginBottom: 28,
-    },
-    progressLineActive: {
-        backgroundColor: "#00B14F",
-    },
-    introSection: {
-        marginBottom: 24,
-        alignItems: "center",
-        borderRadius: 22,
-        padding: 20,
-        borderWidth: 1,
-        borderColor: "#E6F4EA",
-    },
-    introEyebrow: {
-        fontSize: 11,
-        fontWeight: "800",
-        color: "#00B14F",
-        textTransform: "uppercase",
-        letterSpacing: 0.5,
-        marginBottom: 8,
-    },
-    introTitle: {
-        fontSize: 24,
-        fontWeight: "700",
-        color: "#111827",
-        marginBottom: 8,
-        textAlign: "center",
-    },
-    introDescription: {
-        fontSize: 16,
-        color: "#6B7280",
-        textAlign: "center",
-        lineHeight: 24,
-    },
-    infoCard: {
-        backgroundColor: "#FBFCFD",
-        borderRadius: 18,
-        padding: 18,
-        marginBottom: 16,
-        borderWidth: 1,
-        borderColor: "#EAF0F5",
-    },
-    infoRow: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        alignItems: "center",
-        marginBottom: 12,
-    },
-    infoLabel: {
-        fontSize: 14,
-        color: "#6B7280",
-    },
-    infoValue: {
-        fontSize: 16,
-        fontWeight: "600",
-        color: "#111827",
-    },
-    warningBanner: {
-        flexDirection: "row",
-        alignItems: "flex-start",
-        backgroundColor: "#FEF2F2",
-        padding: 16,
-        borderRadius: 16,
-        borderWidth: 1,
-        borderColor: "#FEE2E2",
-        marginBottom: 24,
-    },
-    warningText: {
-        fontSize: 14,
-        color: "#991B1B",
-        marginLeft: 12,
-        flex: 1,
-        lineHeight: 20,
-        fontWeight: "500",
-    },
-    qrSection: {
-        marginBottom: 24,
-    },
-    sectionTitle: {
-        fontSize: 18,
-        fontWeight: "600",
-        color: "#111827",
-        marginBottom: 16,
-    },
-    qrContainer: {
-        alignItems: "center",
-        padding: 20,
-        backgroundColor: "#FFFFFF",
-        borderRadius: 18,
-        borderWidth: 1,
-        borderColor: "#EAF0F5",
-        marginBottom: 16,
-    },
-    addressContainer: {
-        flexDirection: "row",
-        alignItems: "center",
-        backgroundColor: "#FBFCFD",
-        padding: 12,
-        borderRadius: 14,
-        borderWidth: 1,
-        borderColor: "#EAF0F5",
-    },
-    addressText: {
-        flex: 1,
-        fontSize: 14,
-        color: "#374151",
-        fontFamily: "monospace",
-    },
-    copyButton: {
-        padding: 8,
-        marginLeft: 8,
-    },
-    form: {
-        marginBottom: 24,
-    },
-    inputGroup: {
-        marginBottom: 20,
-    },
-    label: {
-        fontSize: 12,
-        fontWeight: "800",
-        color: "#4B5563",
-        marginBottom: 8,
-        textTransform: "uppercase",
-        letterSpacing: 0.5,
-    },
-    input: {
-        borderWidth: 1,
-        borderColor: "#EAF0F5",
-        borderRadius: 14,
-        padding: 14,
-        fontSize: 16,
-        color: "#111827",
-        backgroundColor: "#FFFFFF",
-    },
-    inputError: {
-        borderColor: "#FCA5A5",
-        backgroundColor: "#FFFBFB",
-    },
-    helperText: {
-        fontSize: 12,
-        color: "#6B7280",
-        marginTop: 4,
-    },
-    errorText: {
-        fontSize: 12,
-        color: "#DC2626",
-        marginTop: 6,
-        fontWeight: "500",
-    },
-    infoBanner: {
-        flexDirection: "row",
-        alignItems: "flex-start",
-        backgroundColor: "#F0FDF4",
-        padding: 16,
-        borderRadius: 16,
-        borderWidth: 1,
-        borderColor: "#D8F3E3",
-    },
-    infoText: {
-        fontSize: 14,
-        color: "#065F46",
-        marginLeft: 12,
-        flex: 1,
-        lineHeight: 20,
-    },
-    footer: {
-        padding: 16,
-        borderTopWidth: 1,
-        borderTopColor: "#EAF0F5",
-        backgroundColor: "#FFFFFF",
-    },
-    submitButton: {
-        flexDirection: "row",
-        backgroundColor: "#00B14F",
-        paddingVertical: 16,
-        borderRadius: 16,
-        alignItems: "center",
-        justifyContent: "center",
-        gap: 8,
-    },
-    submitButtonDisabled: {
-        opacity: 0.6,
-    },
-    submitButtonText: {
-        color: "#FFFFFF",
-        fontSize: 16,
-        fontWeight: "600",
-    },
+  container: { flex: 1 },
+  headerContainer: {
+    borderBottomWidth: 1,
+  },
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    gap: 12,
+  },
+  headerBackBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  headerTitle: {
+    flex: 1,
+    fontSize: 18,
+    fontWeight: "800",
+    letterSpacing: -0.3,
+  },
+  headerSpacer: {
+    width: 36,
+  },
+  loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
+  loadingText: { marginTop: 12, fontSize: 14, fontWeight: "600" },
+  content: { padding: 16 },
+  stepperCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderRadius: 24,
+    borderWidth: 1,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    marginBottom: 16,
+  },
+  stepItem: { alignItems: "center", gap: 6 },
+  stepDot: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  stepNum: { color: "#FFF", fontSize: 14, fontWeight: "800" },
+  stepLabel: { fontSize: 12, fontWeight: "700" },
+  stepLine: {
+    flex: 1,
+    height: 2,
+    marginHorizontal: 6,
+    marginBottom: 20,
+  },
+  introCard: {
+    borderRadius: 24,
+    padding: 22,
+    marginBottom: 16,
+    borderWidth: 1,
+  },
+  introEyebrow: {
+    fontSize: 11,
+    fontWeight: "800",
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
+    marginBottom: 6,
+  },
+  introTitle: {
+    fontSize: 20,
+    fontWeight: "800",
+    letterSpacing: -0.4,
+    marginBottom: 8,
+  },
+  introSubtitle: {
+    fontSize: 13,
+    lineHeight: 20,
+    fontWeight: "500",
+  },
+  infoCard: {
+    borderRadius: 24,
+    borderWidth: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 4,
+    marginBottom: 12,
+  },
+  infoRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 12,
+  },
+  infoLabel: { fontSize: 13, fontWeight: "600" },
+  infoValue: { fontSize: 14, fontWeight: "800" },
+  divider: { height: 1 },
+  warningBanner: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 10,
+    padding: 14,
+    borderRadius: 18,
+    borderWidth: 1,
+    marginBottom: 20,
+  },
+  warningText: { flex: 1, fontSize: 13, fontWeight: "600", lineHeight: 18 },
+  sectionLabel: {
+    fontSize: 11,
+    fontWeight: "800",
+    letterSpacing: 0.6,
+    textTransform: "uppercase",
+    marginBottom: 10,
+    marginLeft: 4,
+  },
+  qrCard: {
+    borderRadius: 24,
+    borderWidth: 1,
+    padding: 16,
+    marginBottom: 20,
+    alignItems: "center",
+    gap: 14,
+  },
+  qrBox: {
+    padding: 16,
+    borderRadius: 16,
+  },
+  addressRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "stretch",
+    borderWidth: 1.5,
+    borderRadius: 18,
+    paddingLeft: 14,
+    paddingRight: 6,
+    paddingVertical: 6,
+    gap: 10,
+  },
+  addressText: { flex: 1, fontSize: 13, fontFamily: "monospace", fontWeight: "600" },
+  copyBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  formCard: {
+    borderRadius: 24,
+    borderWidth: 1,
+    padding: 16,
+    marginBottom: 14,
+  },
+  inputGroup: { gap: 8 },
+  inputLabel: { fontSize: 11, fontWeight: "800", letterSpacing: 0.6, textTransform: "uppercase" },
+  inputWrapper: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderRadius: 18,
+    borderWidth: 1.5,
+    paddingHorizontal: 14,
+  },
+  inputPrefix: { fontSize: 16, fontWeight: "700", marginRight: 4 },
+  input: { flex: 1, fontSize: 16, fontWeight: "600", paddingVertical: 14 },
+  helperText: { fontSize: 12, fontWeight: "500", marginLeft: 4 },
+  errorText: { fontSize: 12, fontWeight: "600", color: "#EF4444", marginLeft: 4 },
+  infoBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    padding: 14,
+    borderRadius: 18,
+    borderWidth: 1,
+  },
+  infoBannerText: { flex: 1, fontSize: 13, fontWeight: "600", lineHeight: 18 },
+  footer: {
+    padding: 16,
+    borderTopWidth: 1,
+  },
+  submitButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 16,
+    borderRadius: 18,
+    gap: 8,
+  },
+  submitButtonDisabled: {
+    backgroundColor: "#9CA3AF",
+  },
+  submitButtonText: { color: "#FFF", fontSize: 15, fontWeight: "800" },
 });

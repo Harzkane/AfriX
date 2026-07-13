@@ -1,14 +1,17 @@
 import React, { useRef, useState, useEffect } from "react";
 import {
   View,
+  Text,
   StyleSheet,
   ScrollView,
   KeyboardAvoidingView,
   Platform,
   TouchableOpacity,
+  TextInput,
+  useColorScheme,
+  Animated,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { Text, TextInput } from "react-native-paper";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useWalletStore } from "@/stores";
 import { parseAmountInput, formatAmountForInput, formatAmount } from "@/utils/format";
@@ -19,596 +22,450 @@ const PRESET_AMOUNTS = [5000, 10000, 20000, 50000];
 
 export default function BuyTokensScreen() {
   const router = useRouter();
-  const scrollViewRef = useRef<ScrollView | null>(null);
-  const params = useLocalSearchParams<{ amount?: string; tokenType?: string; agentId?: string; agentName?: string }>();
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === "dark";
   const { getWalletByType } = useWalletStore();
 
+  const theme = {
+    background: isDark ? "#07111A" : "#F5F7FB",
+    card: isDark ? "#0E1726" : "#FFFFFF",
+    cardAlt: isDark ? "#111C2B" : "#F8FAFC",
+    text: isDark ? "#F8FAFC" : "#0F172A",
+    muted: isDark ? "#94A3B8" : "#64748B",
+    border: isDark ? "#1E2A3A" : "#E2E8F0",
+    accent: "#00B14F",
+    accentSoft: isDark ? "rgba(0,177,79,0.14)" : "#EAF8EF",
+    ctGreen: "#10B981",
+    ctSoft: isDark ? "rgba(16,185,129,0.12)" : "#ECFDF5",
+    inputBg: isDark ? "#0D1C2E" : "#F1F5F9",
+  };
+
+  const insets = useSafeAreaInsets();
+  const [headerMaxHeight, setHeaderMaxHeight] = useState(insets.top + 70);
+  const scrollY = useRef(new Animated.Value(0)).current;
+
+  const handleHeaderLayout = (e: any) => {
+    const { height } = e.nativeEvent.layout;
+    if (height > headerMaxHeight) {
+      setHeaderMaxHeight(height);
+    }
+  };
+
+  const subtitleOpacity = scrollY.interpolate({
+    inputRange: [0, 50],
+    outputRange: [1, 0],
+    extrapolate: "clamp",
+  });
+
+  const subtitleMaxHeight = scrollY.interpolate({
+    inputRange: [0, 50],
+    outputRange: [80, 0],
+    extrapolate: "clamp",
+  });
+
+  const subtitleMargin = scrollY.interpolate({
+    inputRange: [0, 50],
+    outputRange: [4, 0],
+    extrapolate: "clamp",
+  });
+
+  const params = useLocalSearchParams<{ amount?: string; tokenType?: string; agentId?: string; agentName?: string }>();
   const initialTokenType = (params.tokenType === "CT" ? "CT" : "NT") as "NT" | "CT";
   const initialAmount = params.amount ? parseAmountInput(params.amount, initialTokenType) : "";
   const [tokenType, setTokenType] = useState<"NT" | "CT">(initialTokenType);
   const [amount, setAmount] = useState(initialAmount);
 
-  // When opening via "Try again", params bring amount/tokenType — keep form in sync
   useEffect(() => {
     if (params.amount != null && params.amount !== amount) setAmount(parseAmountInput(params.amount, tokenType));
     if (params.tokenType === "CT" && tokenType !== "CT") setTokenType("CT");
     if (params.tokenType === "NT" && tokenType !== "NT") setTokenType("NT");
   }, [params.amount, params.tokenType]);
 
-  // Check if agent is pre-selected from agent profile (or Try again doesn't pass these)
   const preSelectedAgentId = params.agentId as string | undefined;
   const preSelectedAgentName = params.agentName as string | undefined;
-
   const wallet = getWalletByType(tokenType);
 
   const handleContinue = () => {
-    if (!amount || parseFloat(amount) <= 0) {
-      alert("Please enter a valid amount");
-      return;
-    }
-
-    // If agent is pre-selected, skip agent selection and go to payment instructions
+    if (!amount || parseFloat(amount) <= 0) { alert("Please enter a valid amount"); return; }
     if (preSelectedAgentId && preSelectedAgentName) {
-      router.push({
-        pathname: "/modals/buy-tokens/payment-instructions",
-        params: {
-          tokenType,
-          amount,
-          agentId: preSelectedAgentId,
-          agentName: preSelectedAgentName
-        },
-      });
+      router.push({ pathname: "/modals/buy-tokens/payment-instructions", params: { tokenType, amount, agentId: preSelectedAgentId, agentName: preSelectedAgentName } });
     } else {
-      // Otherwise, go to agent selection
-      router.push({
-        pathname: "/modals/buy-tokens/select-agent",
-        params: { tokenType, amount },
-      });
+      router.push({ pathname: "/modals/buy-tokens/select-agent", params: { tokenType, amount } });
     }
   };
 
-  const handleAmountFocus = () => {
-    setTimeout(() => {
-      scrollViewRef.current?.scrollTo({
-        y: 500,
-        animated: true,
-      });
-    }, 120);
-  };
+  const isNT = tokenType === "NT";
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-      style={styles.keyboardView}
-      keyboardVerticalOffset={Platform.OS === "ios" ? -8 : 12}
-    >
-      <View style={styles.container}>
-        <View style={styles.headerWrapper}>
-          <LinearGradient
-            colors={["#00B14F", "#008F40"]}
-            style={styles.headerGradient}
-          />
+    <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }} keyboardVerticalOffset={Platform.OS === "ios" ? -8 : 12}>
+      <View style={[styles.container, { backgroundColor: theme.background }]}>
+        
+        {/* Fixed Header */}
+        <Animated.View
+          onLayout={handleHeaderLayout}
+          style={[
+            styles.headerWrapper,
+            {
+              backgroundColor: theme.background,
+              borderBottomColor: theme.border,
+              position: "absolute",
+              top: 0,
+              left: 0,
+              right: 0,
+              zIndex: 10,
+            },
+          ]}
+        >
           <SafeAreaView edges={["top"]} style={styles.headerContent}>
-            <View style={styles.header}>
-              <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-                <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
+            <View style={styles.headerTop}>
+              <TouchableOpacity
+                onPress={() => router.back()}
+                style={[styles.backButton, { backgroundColor: theme.card, borderColor: theme.border }]}
+                activeOpacity={0.85}
+              >
+                <Ionicons name="arrow-back" size={22} color={theme.text} />
               </TouchableOpacity>
-              <Text style={styles.headerTitle}>Buy Tokens</Text>
-              <View style={{ width: 24 }} />
+
+              <View style={styles.headerCopy}>
+                <Text style={[styles.title, { color: theme.text }]}>Buy Tokens</Text>
+                <Animated.View style={{
+                  opacity: subtitleOpacity,
+                  maxHeight: subtitleMaxHeight,
+                  marginTop: subtitleMargin,
+                  overflow: "hidden"
+                }}>
+                  <Text style={[styles.headerSubtitle, { color: theme.muted }]}>
+                    Select Naira or XOF token, set amount, and select an agent to finalize trade.
+                  </Text>
+                </Animated.View>
+              </View>
+              <View style={{ width: 42 }} />
             </View>
           </SafeAreaView>
-        </View>
-        <ScrollView
-          ref={scrollViewRef}
-          style={styles.container}
-          contentContainerStyle={styles.content}
+        </Animated.View>
+
+        <Animated.ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={[styles.content, { backgroundColor: theme.background, paddingTop: headerMaxHeight + 16 }]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
+          onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: false })}
+          scrollEventThrottle={16}
         >
+          {/* Subtle Ambient Glow */}
           <LinearGradient
-            colors={["#F7FFF9", "#FFFFFF"]}
-            style={styles.heroCard}
-          >
-            <Text style={styles.heroEyebrow}>Verified Purchase Flow</Text>
-            <Text style={styles.heroTitle}>Buy tokens with confidence</Text>
-            <Text style={styles.heroSubtitle}>
-              Choose the token you want, enter your amount, and continue to a verified agent for payment instructions.
-            </Text>
-          </LinearGradient>
+            colors={isDark ? ["rgba(0,177,79,0.14)", "rgba(7,17,26,0)"] : ["rgba(0,177,79,0.12)", "rgba(255,255,255,0)"]}
+            style={styles.heroGlow}
+            pointerEvents="none"
+          />
 
-          {/* Token Type Selector */}
-          <View style={styles.section}>
-            <Text style={styles.sectionEyebrow}>Token Selection</Text>
-            <Text style={styles.label}>Select Token Type</Text>
-            <View style={styles.tokenSelector}>
-              <TouchableOpacity
-                style={[
-                  styles.tokenOption,
-                  tokenType === "NT" && styles.tokenOptionActive,
-                ]}
-                onPress={() => setTokenType("NT")}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.tokenCardEyebrow}>Domestic</Text>
-                <View
-                  style={[
-                    styles.tokenIcon,
-                    tokenType === "NT" && styles.tokenIconActive,
-                  ]}
-                >
-                  <Ionicons
-                    name="cash-outline"
-                    size={24}
-                    color={tokenType === "NT" ? "#00B14F" : "#9CA3AF"}
-                  />
-                </View>
-                <Text
-                  style={[
-                    styles.tokenName,
-                    tokenType === "NT" && styles.tokenNameActive,
-                  ]}
-                >
-                  Naira Token
-                </Text>
-                <Text style={styles.tokenSymbol}>NT</Text>
-              </TouchableOpacity>
+          {/* Token Toggle Segment */}
+          <View style={[styles.toggleContainer, { backgroundColor: theme.card, borderColor: theme.border }]}>
+            <TouchableOpacity
+              style={[
+                styles.toggleOption,
+                isNT && { backgroundColor: theme.accentSoft }
+              ]}
+              onPress={() => setTokenType("NT")}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="cash" size={16} color={isNT ? theme.accent : theme.muted} />
+              <Text style={[styles.toggleText, { color: isNT ? theme.text : theme.muted, fontWeight: isNT ? "800" : "600" }]}>
+                Naira Token (NT)
+              </Text>
+            </TouchableOpacity>
 
-              <TouchableOpacity
-                style={[
-                  styles.tokenOption,
-                  tokenType === "CT" && styles.tokenOptionActive,
-                ]}
-                onPress={() => setTokenType("CT")}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.tokenCardEyebrow}>Regional</Text>
-                <View
-                  style={[
-                    styles.tokenIcon,
-                    tokenType === "CT" && styles.tokenIconActive,
-                  ]}
-                >
-                  <Ionicons
-                    name="leaf-outline"
-                    size={24}
-                    color={tokenType === "CT" ? "#10B981" : "#9CA3AF"}
-                  />
-                </View>
-                <Text
-                  style={[
-                    styles.tokenName,
-                    tokenType === "CT" && styles.tokenNameActive,
-                  ]}
-                >
-                  XOF Token
-                </Text>
-                <Text style={styles.tokenSymbol}>CT</Text>
-              </TouchableOpacity>
-            </View>
+            <TouchableOpacity
+              style={[
+                styles.toggleOption,
+                !isNT && { backgroundColor: theme.ctSoft }
+              ]}
+              onPress={() => setTokenType("CT")}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="leaf" size={16} color={!isNT ? theme.ctGreen : theme.muted} />
+              <Text style={[styles.toggleText, { color: !isNT ? theme.text : theme.muted, fontWeight: !isNT ? "800" : "600" }]}>
+                XOF Token (CT)
+              </Text>
+            </TouchableOpacity>
           </View>
 
-          {/* Current Balance */}
-          {wallet && (
-            <View
-              style={[
-                styles.balanceCard,
-                tokenType === "CT" && styles.balanceCardCT,
-              ]}
-            >
-              <Text style={styles.balanceEyebrow}>Current Wallet Position</Text>
-              <Text style={styles.balanceLabel}>Current Balance</Text>
-              <Text style={styles.balanceAmount}>
-                {parseFloat(wallet.balance).toLocaleString(undefined, {
-                  minimumFractionDigits: 2,
-                  maximumFractionDigits: 2,
-                })}{" "}
-                {tokenType}
+          {/* Large Centered Amount Input Area */}
+          <View style={styles.inputAreaContainer}>
+            <View style={styles.inputHero}>
+              <Text style={[styles.inputPrefix, { color: isNT ? theme.accent : theme.ctGreen }]}>
+                {isNT ? "NT" : "CT"}
               </Text>
-              <View style={styles.balanceFooter}>
-                <Text style={styles.balanceAvailable}>
-                  Available:{" "}
-                  {parseFloat(wallet.available_balance).toLocaleString()}
-                </Text>
-              </View>
-            </View>
-          )}
-
-          {/* Amount Input */}
-          <View style={styles.section}>
-            <Text style={styles.sectionEyebrow}>Purchase Amount</Text>
-            <Text style={styles.label}>Amount to Buy</Text>
-            <View style={styles.inputWrapper}>
-              <Ionicons
-                name="wallet-outline"
-                size={20}
-                color="#9CA3AF"
-                style={styles.inputIcon}
-              />
               <TextInput
-                mode="outlined"
+                style={[styles.inputLarge, { color: theme.text }]}
                 value={formatAmountForInput(amount, tokenType)}
                 onChangeText={(t) => setAmount(parseAmountInput(t, tokenType))}
-                onFocus={handleAmountFocus}
                 keyboardType="numeric"
-                placeholder="0.00"
-                placeholderTextColor="#9CA3AF"
-                style={styles.input}
-                outlineStyle={styles.inputOutline}
-                contentStyle={styles.inputContent}
+                placeholder="0"
+                placeholderTextColor={theme.muted}
+                maxLength={10}
               />
             </View>
-            <Text style={styles.inputHint}>
+
+            {/* Helper text returned */}
+            <Text style={[styles.amountHelperText, { color: theme.muted }]}>
               Enter the amount of {tokenType} you want the agent to deliver.
             </Text>
 
-            {/* Preset Amounts */}
-            <View style={styles.presets}>
-              {PRESET_AMOUNTS.map((preset) => (
+            {/* Live Exchange Rate Info Pill */}
+            <View style={[styles.infoPill, { backgroundColor: theme.card, borderColor: theme.border }]}>
+              <Ionicons name="swap-horizontal" size={14} color={theme.accent} />
+              <Text style={[styles.infoPillText, { color: theme.muted }]}>
+                Estimated Pay: {isNT ? "₦" : "XOF "}{formatAmount(amount || "0", tokenType)}
+              </Text>
+            </View>
+          </View>
+
+          {/* Quick Presets Slider */}
+          <View style={styles.presetsWrapper}>
+            {PRESET_AMOUNTS.map((preset) => {
+              const active = amount === preset.toString();
+              return (
                 <TouchableOpacity
                   key={preset}
                   style={[
-                    styles.presetBtn,
-                    amount === preset.toString() && styles.presetBtnActive,
+                    styles.presetPill,
+                    { backgroundColor: theme.card, borderColor: theme.border },
+                    active && { backgroundColor: theme.accentSoft, borderColor: theme.accent }
                   ]}
                   onPress={() => setAmount(preset.toString())}
                   activeOpacity={0.7}
                 >
-                  <Text
-                    style={[
-                      styles.presetText,
-                      amount === preset.toString() && styles.presetTextActive,
-                    ]}
-                  >
-                    {preset.toLocaleString()}
+                  <Text style={[styles.presetPillText, { color: theme.text }, active && { color: theme.accent, fontWeight: "800" }]}>
+                    +{preset.toLocaleString()}
                   </Text>
                 </TouchableOpacity>
-              ))}
+              );
+            })}
+          </View>
+
+          {/* Positions & Exchange Rates Summary Card */}
+          <View style={[styles.summaryBlock, { backgroundColor: theme.card, borderColor: theme.border }]}>
+            <View style={styles.summaryRow}>
+              <View style={styles.summaryCol}>
+                <Text style={[styles.summaryLabel, { color: theme.muted }]}>WALLET BALANCE</Text>
+                <Text style={[styles.summaryVal, { color: theme.text }]}>
+                  {wallet ? parseFloat(wallet.balance).toLocaleString() : "0"} {tokenType}
+                </Text>
+                {wallet && (
+                  <Text style={[styles.availableSubtext, { color: theme.accent }]}>
+                    Available: {parseFloat(wallet.available_balance).toLocaleString()}
+                  </Text>
+                )}
+              </View>
+              <View style={[styles.summaryDivider, { backgroundColor: theme.border }]} />
+              <View style={styles.summaryCol}>
+                <Text style={[styles.summaryLabel, { color: theme.muted }]}>EXCHANGE RATE</Text>
+                <Text style={[styles.summaryVal, { color: theme.accent }]}>
+                  1 {tokenType} = {isNT ? "₦1.00" : "XOF 1.00"}
+                </Text>
+                <Text style={[styles.availableSubtext, { color: theme.muted }]}>
+                  You'll pay approx. {isNT ? "₦" : "XOF "}{formatAmount(amount || "0", tokenType)}
+                </Text>
+              </View>
             </View>
           </View>
 
-          {/* Exchange Rate Info */}
-          <View style={styles.infoCard}>
-            <View style={styles.infoHeader}>
-              <Ionicons name="information-circle" size={20} color="#00B14F" />
-              <Text style={styles.infoTitle}>Exchange Rate</Text>
-            </View>
-            <Text style={styles.infoEyebrow}>Live Estimate</Text>
-            <Text style={styles.infoText}>
-              1 {tokenType} = {tokenType === "NT" ? "₦1.00" : "XOF 1.00"}
-            </Text>
-            <Text style={styles.infoSubtext}>
-              You&apos;ll pay approximately {tokenType === "NT" ? "₦" : "XOF "}
-              {formatAmount(amount || "0", tokenType)} to the agent
-            </Text>
-          </View>
-        </ScrollView>
-
-        {/* Sticky Continue Button - same pattern as Sell Tokens */}
-        <SafeAreaView edges={["bottom"]} style={styles.footerWrapper}>
-          <View style={styles.footer}>
+          {/* Action button inside ScrollView so it is not pinned to bottom */}
+          <View style={styles.actionContainer}>
             <TouchableOpacity
               style={[
                 styles.continueBtn,
-                (!amount || parseFloat(amount) <= 0) && styles.continueBtnDisabled,
+                { backgroundColor: theme.accent },
+                (!amount || parseFloat(amount) <= 0) && styles.continueBtnDisabled
               ]}
               onPress={handleContinue}
               disabled={!amount || parseFloat(amount) <= 0}
-              activeOpacity={0.8}
+              activeOpacity={0.85}
             >
-              <Text style={styles.continueBtnText}>
-                Continue to Agent Selection
-              </Text>
-              <Ionicons name="arrow-forward" size={20} color="#FFFFFF" />
+              <Text style={styles.continueBtnText}>Continue to Agent Selection</Text>
+              <Ionicons name="arrow-forward" size={20} color="#FFF" />
             </TouchableOpacity>
           </View>
-        </SafeAreaView>
+
+          <View style={{ height: 40 }} />
+        </Animated.ScrollView>
       </View>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#F3F4F6",
-  },
-  keyboardView: {
-    flex: 1,
-  },
+  container: { flex: 1 },
   headerWrapper: {
-    // marginBottom: 20,
-  },
-  headerGradient: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 120,
+    borderBottomWidth: 1,
   },
   headerContent: {
     paddingHorizontal: 16,
   },
-  header: {
+  headerTop: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    paddingBottom: 20,
-    marginTop: 10,
-  },
-  backButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: "rgba(255,255,255,0.2)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: "#FFFFFF",
-  },
-  content: {
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 24,
-  },
-  heroCard: {
-    borderRadius: 24,
-    padding: 20,
-    marginBottom: 28,
-    borderWidth: 1,
-    borderColor: "#E6F4EA",
-  },
-  heroEyebrow: {
-    fontSize: 11,
-    fontWeight: "800",
-    color: "#00B14F",
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-    marginBottom: 8,
-  },
-  heroTitle: {
-    fontSize: 24,
-    fontWeight: "700",
-    color: "#111827",
-    marginBottom: 8,
-    letterSpacing: -0.4,
-  },
-  heroSubtitle: {
-    fontSize: 15,
-    color: "#6B7280",
-    lineHeight: 22,
-  },
-  section: {
-    marginBottom: 24,
-  },
-  sectionEyebrow: {
-    fontSize: 11,
-    fontWeight: "800",
-    color: "#00B14F",
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-    marginBottom: 6,
-  },
-  label: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: "#111827",
-    marginBottom: 12,
-  },
-  tokenSelector: {
-    flexDirection: "row",
-    gap: 12,
-  },
-  tokenOption: {
-    flex: 1,
-    backgroundColor: "#FFFFFF",
-    borderWidth: 2,
-    borderColor: "#F3F4F6",
-    borderRadius: 20,
-    padding: 20,
-    alignItems: "center",
-  },
-  tokenOptionActive: {
-    borderColor: "#00B14F",
-    backgroundColor: "#F0FDF4",
-  },
-  tokenIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
-    backgroundColor: "#F9FAFB",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 12,
-  },
-  tokenIconActive: {
-    backgroundColor: "#FFFFFF",
-  },
-  tokenCardEyebrow: {
-    fontSize: 10,
-    fontWeight: "800",
-    color: "#9CA3AF",
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-    marginBottom: 10,
-  },
-  tokenName: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: "#6B7280",
-    marginBottom: 4,
-    textAlign: "center",
-  },
-  tokenNameActive: {
-    color: "#111827",
-  },
-  tokenSymbol: {
-    fontSize: 11,
-    fontWeight: "600",
-    color: "#9CA3AF",
-  },
-  balanceCard: {
-    backgroundColor: "#F0FDF4",
-    padding: 20,
-    borderRadius: 20,
-    marginBottom: 24,
-    borderWidth: 1,
-    borderColor: "#D1FAE5",
-  },
-  balanceCardCT: {
-    backgroundColor: "#ECFDF5",
-    borderColor: "#A7F3D0",
-  },
-  balanceEyebrow: {
-    fontSize: 11,
-    fontWeight: "800",
-    color: "#059669",
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-    marginBottom: 6,
-  },
-  balanceLabel: {
-    fontSize: 13,
-    color: "#065F46",
-    fontWeight: "500",
-    marginBottom: 8,
-  },
-  balanceAmount: {
-    fontSize: 32,
-    fontWeight: "700",
-    color: "#111827",
-    letterSpacing: -1,
-  },
-  balanceFooter: {
-    marginTop: 12,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: "#D1FAE5",
-  },
-  balanceAvailable: {
-    fontSize: 12,
-    color: "#059669",
-    fontWeight: "600",
-  },
-  inputWrapper: {
-    position: "relative",
-  },
-  inputIcon: {
-    position: "absolute",
-    left: 16,
-    top: 20,
-    zIndex: 1,
-  },
-  input: {
-    backgroundColor: "#FFFFFF",
-    fontSize: 20,
-    fontWeight: "700",
-    color: "#111827",
-  },
-  inputOutline: {
-    borderRadius: 16,
-    borderWidth: 2,
-    borderColor: "#F3F4F6",
-  },
-  inputContent: {
-    paddingLeft: 40,
-    color: "#111827",
-  },
-  inputHint: {
-    fontSize: 12,
-    color: "#6B7280",
-    marginTop: 8,
-  },
-  presets: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-    marginTop: 16,
-  },
-  presetBtn: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 12,
-    backgroundColor: "#F9FAFB",
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-  },
-  presetBtnActive: {
-    backgroundColor: "#F0FDF4",
-    borderColor: "#00B14F",
-  },
-  presetText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#6B7280",
-  },
-  presetTextActive: {
-    color: "#00B14F",
-  },
-  infoCard: {
-    backgroundColor: "#FBFCFD",
-    padding: 18,
-    borderRadius: 18,
-    marginBottom: 24,
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-  },
-  infoHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginBottom: 8,
-  },
-  infoTitle: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: "#111827",
-  },
-  infoEyebrow: {
-    fontSize: 11,
-    fontWeight: "800",
-    color: "#00B14F",
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-    marginBottom: 8,
-  },
-  infoText: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: "#00B14F",
-    marginBottom: 4,
-  },
-  infoSubtext: {
-    fontSize: 13,
-    color: "#6B7280",
-  },
-  footerWrapper: {
-    backgroundColor: "#F3F4F6",
-    borderTopWidth: 1,
-    borderTopColor: "#E5E7EB",
-  },
-  footer: {
-    paddingHorizontal: 20,
-    paddingTop: 12,
+    paddingTop: 10,
     paddingBottom: 16,
   },
+  backButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
+  },
+  headerCopy: {
+    flex: 1,
+  },
+  title: {
+    fontSize: 22,
+    fontWeight: "900",
+    letterSpacing: -0.5,
+  },
+  headerSubtitle: {
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: "500",
+  },
+  content: { paddingHorizontal: 16, paddingBottom: 24 },
+  heroGlow: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 220,
+  },
+  toggleContainer: {
+    flexDirection: "row",
+    borderRadius: 18,
+    borderWidth: 1,
+    padding: 6,
+    marginBottom: 36,
+  },
+  toggleOption: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  toggleText: {
+    fontSize: 13,
+  },
+  inputAreaContainer: {
+    alignItems: "center",
+    marginBottom: 28,
+  },
+  inputHero: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  inputPrefix: {
+    fontSize: 34,
+    fontWeight: "900",
+    marginRight: 10,
+    marginTop: 4,
+  },
+  inputLarge: {
+    fontSize: 48,
+    fontWeight: "900",
+    textAlign: "center",
+    minWidth: 100,
+    paddingVertical: 8,
+  },
+  amountHelperText: {
+    fontSize: 13,
+    fontWeight: "500",
+    marginTop: 4,
+    textAlign: "center",
+  },
+  infoPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 999,
+    borderWidth: 1,
+    marginTop: 12,
+  },
+  infoPillText: {
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  presetsWrapper: {
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 10,
+    marginBottom: 32,
+  },
+  presetPill: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 14,
+    borderWidth: 1,
+  },
+  presetPillText: {
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  summaryBlock: {
+    borderRadius: 24,
+    borderWidth: 1,
+    padding: 20,
+    marginBottom: 28,
+  },
+  summaryRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  summaryCol: {
+    flex: 1,
+    alignItems: "center",
+    gap: 4,
+  },
+  summaryLabel: {
+    fontSize: 10,
+    fontWeight: "800",
+    letterSpacing: 0.8,
+  },
+  summaryVal: {
+    fontSize: 15,
+    fontWeight: "800",
+  },
+  availableSubtext: {
+    fontSize: 12,
+    fontWeight: "600",
+    marginTop: 2,
+  },
+  summaryDivider: {
+    width: 1,
+    height: 48,
+  },
+  actionContainer: {
+    marginTop: 8,
+  },
   continueBtn: {
-    backgroundColor: "#00B14F",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
     paddingVertical: 16,
-    borderRadius: 16,
+    borderRadius: 18,
   },
   continueBtnDisabled: {
-    backgroundColor: "#E5E7EB",
+    opacity: 0.45,
   },
   continueBtnText: {
     fontSize: 16,
-    fontWeight: "600",
-    color: "#FFFFFF",
+    fontWeight: "800",
+    color: "#FFF",
   },
 });

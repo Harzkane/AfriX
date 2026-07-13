@@ -1,391 +1,469 @@
 // app/modals/send-tokens/confirm.tsx
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import {
-    View,
-    StyleSheet,
-    ScrollView,
-    TouchableOpacity,
-    Alert,
+  View,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  Alert,
+  Platform,
+  useColorScheme,
+  Animated,
+  ActivityIndicator,
+  Text,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { Text, ActivityIndicator } from "react-native-paper";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import * as LocalAuthentication from "expo-local-authentication";
 import { useTransferStore, useWalletStore } from "@/stores";
+import { LinearGradient } from "expo-linear-gradient";
+import { formatAmount } from "@/utils/format";
 
 export default function ConfirmTransferScreen() {
-    const router = useRouter();
-    const [authenticating, setAuthenticating] = useState(false);
+  const router = useRouter();
+  const [authenticating, setAuthenticating] = useState(false);
 
-    const {
-        recipientEmail,
-        tokenType,
-        amount,
-        note,
-        fee,
-        loading,
-        error,
-        executeTransfer,
-    } = useTransferStore();
+  const {
+    recipientEmail,
+    tokenType,
+    amount,
+    note,
+    fee,
+    loading,
+    error,
+    executeTransfer,
+  } = useTransferStore();
 
-    const { fetchWallets } = useWalletStore();
+  const { fetchWallets } = useWalletStore();
 
-    const amountNum = parseFloat(amount) || 0;
-    const total = amountNum + fee;
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === "dark";
+  const insets = useSafeAreaInsets();
+  const [headerMaxHeight, setHeaderMaxHeight] = useState(insets.top + 70);
+  const scrollY = useRef(new Animated.Value(0)).current;
 
-    const handleBiometricAuth = async () => {
-        try {
-            setAuthenticating(true);
+  const theme = {
+    background: isDark ? "#07111A" : "#F5F7FB",
+    card: isDark ? "#0E1726" : "#FFFFFF",
+    cardAlt: isDark ? "#111C2B" : "#F8FAFC",
+    text: isDark ? "#F8FAFC" : "#0F172A",
+    muted: isDark ? "#94A3B8" : "#64748B",
+    border: isDark ? "#1E2A3A" : "#E2E8F0",
+    accent: "#00B14F",
+    accentSoft: isDark ? "rgba(0,177,79,0.14)" : "#EAF8EF",
+    warning: "#F59E0B",
+    warningSoft: isDark ? "rgba(245,158,11,0.12)" : "#FFFBEB",
+    warningBorder: isDark ? "rgba(245,158,11,0.25)" : "#FEF3C7",
+    danger: "#EF4444",
+    dangerSoft: isDark ? "rgba(239,68,68,0.12)" : "#FEF2F2",
+    dangerBorder: isDark ? "rgba(239,68,68,0.25)" : "#FEE2E2",
+    successSoft: isDark ? "rgba(0,177,79,0.12)" : "#F0FDF4",
+    successBorder: isDark ? "rgba(0,177,79,0.25)" : "#D1FAE5",
+  };
 
-            // Check if biometric is available
-            const hasHardware = await LocalAuthentication.hasHardwareAsync();
-            const isEnrolled = await LocalAuthentication.isEnrolledAsync();
+  const handleHeaderLayout = (e: any) => {
+    const { height } = e.nativeEvent.layout;
+    if (height > headerMaxHeight) setHeaderMaxHeight(height);
+  };
 
-            if (!hasHardware || !isEnrolled) {
-                // Fallback to direct confirmation
-                handleConfirm();
-                return;
-            }
+  const subtitleOpacity = scrollY.interpolate({ inputRange: [0, 50], outputRange: [1, 0], extrapolate: "clamp" });
+  const subtitleMaxHeight = scrollY.interpolate({ inputRange: [0, 50], outputRange: [80, 0], extrapolate: "clamp" });
+  const subtitleMargin = scrollY.interpolate({ inputRange: [0, 50], outputRange: [4, 0], extrapolate: "clamp" });
 
-            // Authenticate with biometric
-            const result = await LocalAuthentication.authenticateAsync({
-                promptMessage: "Confirm transfer",
-                fallbackLabel: "Use Passcode",
-                cancelLabel: "Cancel",
-                disableDeviceFallback: false, // Allow fallback to passcode/PIN
-            });
+  const amountNum = parseFloat(amount) || 0;
+  const total = amountNum + fee;
 
-            if (result.success) {
-                handleConfirm();
-            } else {
-                setAuthenticating(false);
-                // If they cancelled or it failed, we don't do handleConfirm()
-                // the user just stays on the screen.
-            }
-        } catch (error) {
-            console.error("Biometric auth error:", error);
-            setAuthenticating(false);
-            // Fallback to direct confirmation if something goes wrong with the module
-            handleConfirm();
-        }
-    };
+  const handleBiometricAuth = async () => {
+    try {
+      setAuthenticating(true);
 
-    const handleConfirm = async () => {
-        try {
-            await executeTransfer();
+      const hasHardware = await LocalAuthentication.hasHardwareAsync();
+      const isEnrolled = await LocalAuthentication.isEnrolledAsync();
 
-            // Refresh wallets to show updated balance
-            await fetchWallets();
+      if (!hasHardware || !isEnrolled) {
+        handleConfirm();
+        return;
+      }
 
-            // Navigate to success screen
-            router.replace("/modals/send-tokens/success");
-        } catch (error: any) {
-            setAuthenticating(false);
-            Alert.alert(
-                "Transfer Failed",
-                error.response?.data?.message || error.message || "Please try again",
-                [{ text: "OK" }]
-            );
-        }
-    };
+      const result = await LocalAuthentication.authenticateAsync({
+        promptMessage: "Confirm token transfer",
+        fallbackLabel: "Use Passcode",
+        cancelLabel: "Cancel",
+        disableDeviceFallback: false,
+      });
 
-    return (
-        <View style={styles.container}>
-            <ScrollView
-                style={styles.scrollView}
-                contentContainerStyle={styles.content}
-                showsVerticalScrollIndicator={false}
+      if (result.success) {
+        handleConfirm();
+      } else {
+        setAuthenticating(false);
+      }
+    } catch (e) {
+      console.error("Biometric auth error:", e);
+      setAuthenticating(false);
+      handleConfirm();
+    }
+  };
+
+  const handleConfirm = async () => {
+    try {
+      await executeTransfer();
+      await fetchWallets();
+      router.replace("/modals/send-tokens/success");
+    } catch (e: any) {
+      setAuthenticating(false);
+      Alert.alert(
+        "Transfer Failed",
+        e.response?.data?.message || e.message || "Please try again",
+        [{ text: "OK" }]
+      );
+    }
+  };
+
+  return (
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
+      {/* Collapsible Header */}
+      <Animated.View
+        onLayout={handleHeaderLayout}
+        style={[styles.headerWrapper, { backgroundColor: theme.background, borderBottomColor: theme.border }]}
+      >
+        <SafeAreaView edges={["top"]} style={styles.headerSafeArea}>
+          <View style={styles.headerRow}>
+            <TouchableOpacity
+              onPress={() => router.back()}
+              style={[styles.backButton, { backgroundColor: theme.card, borderColor: theme.border }]}
+              activeOpacity={0.85}
+              disabled={loading || authenticating}
             >
-                <View style={styles.header}>
-                    <View style={styles.iconContainer}>
-                        <Ionicons name="send" size={48} color="#00B14F" />
-                    </View>
-                    <Text style={styles.title}>Review Transfer</Text>
-                    <Text style={styles.subtitle}>
-                        Please confirm the details before sending
-                    </Text>
-                </View>
+              <Ionicons name="arrow-back" size={22} color={theme.text} />
+            </TouchableOpacity>
+            <View style={styles.headerText}>
+              <Text style={[styles.headerTitle, { color: theme.text }]}>Review Transfer</Text>
+              <Animated.View style={{ opacity: subtitleOpacity, maxHeight: subtitleMaxHeight, marginTop: subtitleMargin, overflow: "hidden" }}>
+                <Text style={[styles.headerSubtitle, { color: theme.muted }]}>
+                  Double-check everything before confirming.
+                </Text>
+              </Animated.View>
+            </View>
+            <View style={{ width: 42 }} />
+          </View>
+        </SafeAreaView>
+      </Animated.View>
 
-                {/* Transfer Details */}
-                <View style={styles.detailsCard}>
-                    <View style={styles.detailRow}>
-                        <Text style={styles.detailLabel}>Recipient</Text>
-                        <Text style={styles.detailValue}>{recipientEmail}</Text>
-                    </View>
+      <Animated.ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={[styles.content, { paddingTop: headerMaxHeight + 16 }]}
+        showsVerticalScrollIndicator={false}
+        onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: false })}
+        scrollEventThrottle={16}
+      >
+        {/* Ambient Glow */}
+        <LinearGradient
+          colors={isDark ? ["rgba(0,177,79,0.10)", "rgba(7,17,26,0)"] : ["rgba(0,177,79,0.08)", "rgba(245,247,251,0)"]}
+          style={styles.glow}
+          pointerEvents="none"
+        />
 
-                    <View style={styles.detailRow}>
-                        <Text style={styles.detailLabel}>Token Type</Text>
-                        <Text style={styles.detailValue}>{tokenType}</Text>
-                    </View>
-
-                    <View style={styles.detailRow}>
-                        <Text style={styles.detailLabel}>Amount</Text>
-                        <Text style={styles.detailValue}>
-                            {amountNum.toLocaleString(undefined, {
-                                minimumFractionDigits: 2,
-                                maximumFractionDigits: 2,
-                            })}{" "}
-                            {tokenType}
-                        </Text>
-                    </View>
-
-                    <View style={styles.detailRow}>
-                        <Text style={styles.detailLabel}>Transaction Fee</Text>
-                        <Text style={styles.detailValue}>
-                            {fee.toLocaleString(undefined, {
-                                minimumFractionDigits: 2,
-                                maximumFractionDigits: 2,
-                            })}{" "}
-                            {tokenType}
-                        </Text>
-                    </View>
-
-                    {note && (
-                        <View style={styles.detailRow}>
-                            <Text style={styles.detailLabel}>Note</Text>
-                            <Text style={[styles.detailValue, styles.noteValue]}>{note}</Text>
-                        </View>
-                    )}
-
-                    <View style={[styles.detailRow, styles.totalRow]}>
-                        <Text style={styles.totalLabel}>Total Amount</Text>
-                        <Text style={styles.totalValue}>
-                            {total.toLocaleString(undefined, {
-                                minimumFractionDigits: 2,
-                                maximumFractionDigits: 2,
-                            })}{" "}
-                            {tokenType}
-                        </Text>
-                    </View>
-                </View>
-
-                {/* Security Info */}
-                <View style={styles.securityCard}>
-                    <Ionicons name="shield-checkmark" size={20} color="#00B14F" />
-                    <View style={styles.securityText}>
-                        <Text style={styles.securityTitle}>Secure Transfer</Text>
-                        <Text style={styles.securityDesc}>
-                            This transaction is encrypted and secure
-                        </Text>
-                    </View>
-                </View>
-
-                {/* Error Message */}
-                {error && (
-                    <View style={styles.errorCard}>
-                        <Ionicons name="alert-circle" size={20} color="#EF4444" />
-                        <Text style={styles.errorText}>{error}</Text>
-                    </View>
-                )}
-
-            </ScrollView>
-
-            <SafeAreaView edges={["bottom"]} style={styles.footerWrapper}>
-                <View style={styles.footer}>
-                    <View style={styles.buttonContainer}>
-                        <TouchableOpacity
-                            style={styles.cancelBtn}
-                            onPress={() => router.back()}
-                            disabled={loading || authenticating}
-                            activeOpacity={0.7}
-                        >
-                            <Text style={styles.cancelBtnText}>Back</Text>
-                        </TouchableOpacity>
-
-                        <TouchableOpacity
-                            style={[
-                                styles.confirmBtn,
-                                (loading || authenticating) && styles.confirmBtnDisabled,
-                            ]}
-                            onPress={handleBiometricAuth}
-                            disabled={loading || authenticating}
-                            activeOpacity={0.8}
-                        >
-                            {loading || authenticating ? (
-                                <ActivityIndicator size="small" color="#FFFFFF" />
-                            ) : (
-                                <>
-                                    <Ionicons name="checkmark-circle" size={20} color="#FFFFFF" />
-                                    <Text style={styles.confirmBtnText}>Confirm Transfer</Text>
-                                </>
-                            )}
-                        </TouchableOpacity>
-                    </View>
-                </View>
-            </SafeAreaView>
+        <View style={[styles.introCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+          <Text style={[styles.introEyebrow, { color: theme.accent }]}>CONFIRMATION</Text>
+          <Text style={[styles.introTitle, { color: theme.text }]}>Confirm Your Transfer</Text>
+          <Text style={[styles.introSubtitle, { color: theme.muted }]}>
+            Review details of the recipient and amounts carefully before executing this transaction.
+          </Text>
         </View>
-    );
+
+        {/* Details Card */}
+        <View style={[styles.detailsCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+          <LinearGradient
+            colors={isDark ? ["rgba(0,177,79,0.08)", "rgba(14,23,38,0)"] : ["rgba(0,177,79,0.05)", "rgba(255,255,255,0)"]}
+            style={StyleSheet.absoluteFill}
+          />
+          <Text style={[styles.summaryLabel, { color: theme.muted }]}>Total Debit</Text>
+          <View style={styles.amountContainer}>
+            <Text style={[styles.summaryAmount, { color: theme.text }]}>{parseFloat(amount).toLocaleString()}</Text>
+            <Text style={[styles.tokenTag, { color: theme.accent }]}>{tokenType}</Text>
+          </View>
+
+          <View style={[styles.divider, { backgroundColor: theme.border }]} />
+
+          {/* Recipient Row */}
+          <View style={styles.detailRow}>
+            <View style={[styles.detailIconBg, { backgroundColor: theme.accentSoft }]}>
+              <Ionicons name="person-outline" size={18} color={theme.accent} />
+            </View>
+            <View style={styles.detailTextContainer}>
+              <Text style={[styles.detailLabel, { color: theme.muted }]}>Recipient Email</Text>
+              <Text style={[styles.detailValue, { color: theme.text }]} numberOfLines={1}>
+                {recipientEmail}
+              </Text>
+            </View>
+          </View>
+
+          {/* Token Row */}
+          <View style={styles.detailRow}>
+            <View style={[styles.detailIconBg, { backgroundColor: theme.accentSoft }]}>
+              <Ionicons name="wallet-outline" size={18} color={theme.accent} />
+            </View>
+            <View style={styles.detailTextContainer}>
+              <Text style={[styles.detailLabel, { color: theme.muted }]}>Token Type</Text>
+              <Text style={[styles.detailValue, { color: theme.text }]}>{tokenType}</Text>
+            </View>
+          </View>
+
+          {/* Subtotal Row */}
+          <View style={styles.detailRow}>
+            <View style={[styles.detailIconBg, { backgroundColor: theme.accentSoft }]}>
+              <Ionicons name="cash-outline" size={18} color={theme.accent} />
+            </View>
+            <View style={styles.detailTextContainer}>
+              <Text style={[styles.detailLabel, { color: theme.muted }]}>Transfer Amount</Text>
+              <Text style={[styles.detailValue, { color: theme.text }]}>
+                {formatAmount(amountNum, tokenType)} {tokenType}
+              </Text>
+            </View>
+          </View>
+
+          {/* Fee Row */}
+          <View style={styles.detailRow}>
+            <View style={[styles.detailIconBg, { backgroundColor: theme.accentSoft }]}>
+              <Ionicons name="swap-horizontal-outline" size={18} color={theme.accent} />
+            </View>
+            <View style={styles.detailTextContainer}>
+              <Text style={[styles.detailLabel, { color: theme.muted }]}>Network Fee (0.5%)</Text>
+              <Text style={[styles.detailValue, { color: theme.text }]}>
+                {formatAmount(fee, tokenType)} {tokenType}
+              </Text>
+            </View>
+          </View>
+
+          {/* Note Row */}
+          {!!note && (
+            <View style={styles.detailRow}>
+              <View style={[styles.detailIconBg, { backgroundColor: theme.accentSoft }]}>
+                <Ionicons name="document-text-outline" size={18} color={theme.accent} />
+              </View>
+              <View style={styles.detailTextContainer}>
+                <Text style={[styles.detailLabel, { color: theme.muted }]}>Note</Text>
+                <Text style={[styles.detailValue, { color: theme.text, fontWeight: "500" }]}>{note}</Text>
+              </View>
+            </View>
+          )}
+        </View>
+
+        {/* Security Info Card */}
+        <View style={[styles.securityBox, { backgroundColor: theme.successSoft, borderColor: theme.successBorder }]}>
+          <View style={[styles.securityIconBg, { backgroundColor: theme.card }]}>
+            <Ionicons name="shield-checkmark" size={24} color={theme.accent} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.securityTitle, { color: isDark ? "#4ADE80" : "#166534" }]}>Secure Settlement</Text>
+            <Text style={[styles.securityTextContent, { color: isDark ? "#86EFAC" : "#15803D" }]}>
+              This transaction is signed, encrypted, and settled instantly on-chain. It cannot be reversed once broadcasted.
+            </Text>
+          </View>
+        </View>
+
+        {/* Error message card */}
+        {!!error && (
+          <View style={[styles.errorBox, { backgroundColor: theme.dangerSoft, borderColor: theme.dangerBorder }]}>
+            <Ionicons name="alert-circle" size={18} color={theme.danger} />
+            <Text style={[styles.errorText, { color: theme.danger }]}>{error}</Text>
+          </View>
+        )}
+
+        {/* ACTION BUTTONS */}
+        <TouchableOpacity
+          style={[styles.confirmBtn, { backgroundColor: theme.accent }, (loading || authenticating) && styles.confirmBtnDisabled]}
+          onPress={handleBiometricAuth}
+          disabled={loading || authenticating}
+          activeOpacity={0.85}
+        >
+          {loading || authenticating ? (
+            <ActivityIndicator color="#FFFFFF" />
+          ) : (
+            <>
+              <Text style={styles.confirmBtnText}>Confirm Transfer</Text>
+              <Ionicons name="flash" size={18} color="#FFFFFF" />
+            </>
+          )}
+        </TouchableOpacity>
+
+        <View style={{ height: 40 }} />
+      </Animated.ScrollView>
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: "#FFFFFF",
-    },
-    scrollView: {
-        flex: 1,
-    },
-    content: {
-        paddingHorizontal: 20,
-        paddingTop: 20,
-        paddingBottom: 24,
-    },
-    header: {
-        alignItems: "center",
-        marginBottom: 32,
-    },
-    iconContainer: {
-        width: 80,
-        height: 80,
-        borderRadius: 40,
-        backgroundColor: "#F0FDF4",
-        alignItems: "center",
-        justifyContent: "center",
-        marginBottom: 16,
-    },
-    title: {
-        fontSize: 24,
-        fontWeight: "700",
-        color: "#111827",
-        marginBottom: 8,
-    },
-    subtitle: {
-        fontSize: 14,
-        color: "#9CA3AF",
-        textAlign: "center",
-    },
-    detailsCard: {
-        backgroundColor: "#F9FAFB",
-        padding: 20,
-        borderRadius: 16,
-        marginBottom: 16,
-        borderWidth: 1,
-        borderColor: "#E5E7EB",
-    },
-    detailRow: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        alignItems: "flex-start",
-        marginBottom: 16,
-    },
-    detailLabel: {
-        fontSize: 14,
-        color: "#6B7280",
-        flex: 1,
-    },
-    detailValue: {
-        fontSize: 14,
-        fontWeight: "600",
-        color: "#111827",
-        flex: 1,
-        textAlign: "right",
-    },
-    noteValue: {
-        fontWeight: "400",
-        fontStyle: "italic",
-    },
-    totalRow: {
-        marginTop: 8,
-        paddingTop: 16,
-        borderTopWidth: 1,
-        borderTopColor: "#E5E7EB",
-        marginBottom: 0,
-    },
-    totalLabel: {
-        fontSize: 16,
-        fontWeight: "600",
-        color: "#111827",
-    },
-    totalValue: {
-        fontSize: 20,
-        fontWeight: "700",
-        color: "#00B14F",
-    },
-    securityCard: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 12,
-        backgroundColor: "#F0FDF4",
-        padding: 16,
-        borderRadius: 12,
-        marginBottom: 16,
-        borderWidth: 1,
-        borderColor: "#D1FAE5",
-    },
-    securityText: {
-        flex: 1,
-    },
-    securityTitle: {
-        fontSize: 14,
-        fontWeight: "600",
-        color: "#065F46",
-        marginBottom: 2,
-    },
-    securityDesc: {
-        fontSize: 12,
-        color: "#059669",
-    },
-    errorCard: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 12,
-        backgroundColor: "#FEF2F2",
-        padding: 12,
-        borderRadius: 8,
-        marginBottom: 16,
-        borderWidth: 1,
-        borderColor: "#FEE2E2",
-    },
-    errorText: {
-        flex: 1,
-        fontSize: 13,
-        color: "#DC2626",
-    },
-    buttonContainer: {
-        flexDirection: "row",
-        gap: 12,
-    },
-    cancelBtn: {
-        flex: 1,
-        backgroundColor: "#F9FAFB",
-        paddingVertical: 16,
-        borderRadius: 12,
-        alignItems: "center",
-        borderWidth: 1,
-        borderColor: "#E5E7EB",
-    },
-    cancelBtnText: {
-        fontSize: 16,
-        fontWeight: "600",
-        color: "#6B7280",
-    },
-    confirmBtn: {
-        flex: 2,
-        backgroundColor: "#00B14F",
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: 8,
-        paddingVertical: 16,
-        borderRadius: 12,
-    },
-    confirmBtnDisabled: {
-        backgroundColor: "#9CA3AF",
-    },
-    confirmBtnText: {
-        fontSize: 16,
-        fontWeight: "600",
-        color: "#FFFFFF",
-    },
-    footerWrapper: {
-        backgroundColor: "#FFFFFF",
-        borderTopWidth: 1,
-        borderTopColor: "#E5E7EB",
-    },
-    footer: {
-        paddingHorizontal: 20,
-        paddingTop: 16,
-        paddingBottom: 24,
-    },
+  container: { flex: 1 },
+  headerWrapper: {
+    position: "absolute",
+    top: 0, left: 0, right: 0,
+    zIndex: 10,
+    borderBottomWidth: 1,
+  },
+  headerSafeArea: { paddingHorizontal: 16 },
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingTop: 10,
+    paddingBottom: 16,
+  },
+  backButton: {
+    width: 42, height: 42,
+    borderRadius: 21, borderWidth: 1,
+    alignItems: "center", justifyContent: "center",
+    marginRight: 12,
+  },
+  headerText: { flex: 1 },
+  headerTitle: { fontSize: 22, fontWeight: "900", letterSpacing: -0.5 },
+  headerSubtitle: { fontSize: 13, lineHeight: 18, fontWeight: "500" },
+  content: { paddingHorizontal: 16, paddingBottom: 24 },
+  glow: {
+    position: "absolute",
+    top: 0, left: 0, right: 0,
+    height: 200,
+  },
+  introCard: {
+    borderRadius: 24,
+    padding: 20,
+    marginBottom: 16,
+    borderWidth: 1,
+  },
+  introEyebrow: {
+    fontSize: 11,
+    fontWeight: "800",
+    letterSpacing: 0.5,
+    marginBottom: 8,
+  },
+  introTitle: {
+    fontSize: 22,
+    fontWeight: "800",
+    marginBottom: 8,
+    letterSpacing: -0.4,
+  },
+  introSubtitle: {
+    fontSize: 14,
+    lineHeight: 21,
+  },
+  detailsCard: {
+    borderRadius: 28,
+    borderWidth: 1,
+    padding: 20,
+    marginBottom: 16,
+    overflow: "hidden",
+  },
+  summaryLabel: {
+    fontSize: 12,
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
+    textAlign: "center",
+    marginBottom: 8,
+  },
+  amountContainer: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    justifyContent: "center",
+    marginBottom: 20,
+    gap: 6,
+  },
+  summaryAmount: {
+    fontSize: 38,
+    fontWeight: "900",
+    letterSpacing: -1,
+  },
+  tokenTag: {
+    fontSize: 18,
+    fontWeight: "700",
+  },
+  divider: {
+    height: 1,
+    marginBottom: 20,
+  },
+  detailRow: {
+    flexDirection: "row",
+    marginBottom: 16,
+    gap: 12,
+  },
+  detailIconBg: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  detailTextContainer: {
+    flex: 1,
+  },
+  detailLabel: {
+    fontSize: 11,
+    fontWeight: "700",
+    textTransform: "uppercase",
+    marginBottom: 4,
+  },
+  detailValue: {
+    fontSize: 15,
+    fontWeight: "800",
+  },
+  securityBox: {
+    flexDirection: "row",
+    padding: 16,
+    borderRadius: 22,
+    gap: 14,
+    borderWidth: 1,
+    marginBottom: 24,
+  },
+  securityIconBg: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#00B14F",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  securityTitle: {
+    fontSize: 15,
+    fontWeight: "800",
+    marginBottom: 4,
+  },
+  securityTextContent: {
+    fontSize: 13,
+    lineHeight: 19,
+    fontWeight: "500",
+  },
+  errorBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 14,
+    borderRadius: 16,
+    gap: 10,
+    borderWidth: 1,
+    marginBottom: 20,
+  },
+  errorText: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  confirmBtn: {
+    height: 58,
+    borderRadius: 20,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+  confirmBtnDisabled: {
+    opacity: 0.45,
+  },
+  confirmBtnText: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "800",
+  },
 });

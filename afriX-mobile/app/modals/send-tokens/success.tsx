@@ -1,243 +1,273 @@
 // app/modals/send-tokens/success.tsx
 import React, { useEffect } from "react";
-import { View, StyleSheet, TouchableOpacity } from "react-native";
-import { Text } from "react-native-paper";
+import { View, StyleSheet, TouchableOpacity, useColorScheme, Text } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useTransferStore } from "@/stores";
 import * as Haptics from "expo-haptics";
+import { LinearGradient } from "expo-linear-gradient";
+import { formatAmount } from "@/utils/format";
 
 export default function TransferSuccessScreen() {
-    const router = useRouter();
-    const { recipientEmail, tokenType, amount, fee, reset } = useTransferStore();
+  const router = useRouter();
+  const { recipientEmail, tokenType, amount, fee, reset } = useTransferStore();
 
-    const amountNum = parseFloat(amount) || 0;
-    const feeNum = fee || 0;
-    const recipientReceived = amountNum;
-    const totalDebited = amountNum + feeNum;
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === "dark";
 
-    useEffect(() => {
-        // Haptic feedback on success
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    }, []);
+  const theme = {
+    background: isDark ? "#07111A" : "#F5F7FB",
+    card: isDark ? "#0E1726" : "#FFFFFF",
+    cardAlt: isDark ? "#111C2B" : "#F8FAFC",
+    text: isDark ? "#F8FAFC" : "#0F172A",
+    muted: isDark ? "#94A3B8" : "#64748B",
+    border: isDark ? "#1E2A3A" : "#E2E8F0",
+    accent: "#00B14F",
+    accentSoft: isDark ? "rgba(0,177,79,0.14)" : "#EAF8EF",
+    blue: "#3B82F6",
+    blueSoft: isDark ? "rgba(59,130,246,0.12)" : "#EFF6FF",
+    blueBorder: isDark ? "rgba(59,130,246,0.25)" : "#DBEAFE",
+  };
 
-    const handleDone = () => {
-        reset();
-        router.replace("/(tabs)");
-    };
+  const amountNum = parseFloat(amount) || 0;
+  const feeNum = fee || 0;
+  const recipientReceived = amountNum;
+  const totalDebited = amountNum + feeNum;
 
-    const handleSendAgain = () => {
-        reset();
-        router.replace("/modals/send-tokens");
-    };
+  useEffect(() => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  }, []);
 
-    return (
-        <View style={styles.container}>
-            <View style={styles.content}>
-                {/* Success Icon with Animation */}
-                <View style={styles.iconContainer}>
-                    <View style={styles.successCircle}>
-                        <Ionicons name="checkmark" size={64} color="#FFFFFF" />
-                    </View>
-                </View>
+  const handleDone = () => {
+    reset();
+    router.replace("/(tabs)");
+  };
 
-                {/* Success Message */}
-                <Text style={styles.title}>Transfer Successful!</Text>
-                <Text style={styles.subtitle}>
-                    Your tokens have been sent successfully
-                </Text>
+  const handleSendAgain = () => {
+    reset();
+    router.replace("/modals/send-tokens");
+  };
 
-                {/* Transfer Details */}
-                <View style={styles.detailsCard}>
-                    <View style={styles.detailRow}>
-                        <Text style={styles.detailLabel}>Sent to</Text>
-                        <Text style={styles.detailValue}>{recipientEmail}</Text>
-                    </View>
+  return (
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
+      {/* Ambient Glow */}
+      <LinearGradient
+        colors={isDark ? ["rgba(0,177,79,0.14)", "rgba(7,17,26,0)"] : ["rgba(0,177,79,0.10)", "rgba(245,247,251,0)"]}
+        style={styles.glow}
+        pointerEvents="none"
+      />
 
-                    <View style={styles.detailRow}>
-                        <Text style={styles.detailLabel}>Amount</Text>
-                        <Text style={styles.detailValueAmount}>
-                            {amountNum.toLocaleString(undefined, {
-                                minimumFractionDigits: 2,
-                                maximumFractionDigits: 2,
-                            })}{" "}
-                            {tokenType}
-                        </Text>
-                    </View>
-                    {feeNum > 0 && (
-                        <>
-                            <View style={styles.detailRow}>
-                                <Text style={styles.detailLabel}>Platform fee</Text>
-                                <Text style={styles.detailValue}>
-                                    {feeNum.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {tokenType}
-                                </Text>
-                            </View>
-                            <View style={styles.detailRow}>
-                                <Text style={styles.detailLabel}>Recipient received</Text>
-                                <Text style={styles.detailValue}>
-                                    {recipientReceived.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {tokenType}
-                                </Text>
-                            </View>
-                            <View style={styles.detailRow}>
-                                <Text style={styles.detailLabel}>Total debited</Text>
-                                <Text style={styles.detailValue}>
-                                    {totalDebited.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {tokenType}
-                                </Text>
-                            </View>
-                        </>
-                    )}
-                </View>
-
-                {/* Info Card */}
-                <View style={styles.infoCard}>
-                    <Ionicons name="information-circle" size={20} color="#3B82F6" />
-                    <Text style={styles.infoText}>
-                        The recipient will receive a notification about this transfer
-                    </Text>
-                </View>
-
-                {/* Action Buttons */}
-                <View style={styles.buttonContainer}>
-                    <TouchableOpacity
-                        style={styles.sendAgainBtn}
-                        onPress={handleSendAgain}
-                        activeOpacity={0.7}
-                    >
-                        <Ionicons name="send-outline" size={20} color="#00B14F" />
-                        <Text style={styles.sendAgainBtnText}>Send Again</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                        style={styles.doneBtn}
-                        onPress={handleDone}
-                        activeOpacity={0.8}
-                    >
-                        <Text style={styles.doneBtnText}>Done</Text>
-                    </TouchableOpacity>
-                </View>
+      <View style={styles.content}>
+        {/* Success Icon */}
+        <View style={styles.iconContainer}>
+          <View style={[styles.outerRing, { backgroundColor: theme.accentSoft }]}>
+            <View style={[styles.innerRing, { backgroundColor: theme.accent }]}>
+              <Ionicons name="checkmark" size={48} color="#FFFFFF" />
             </View>
+          </View>
         </View>
-    );
+
+        {/* Success Message */}
+        <Text style={[styles.title, { color: theme.text }]}>Transfer Successful!</Text>
+        <Text style={[styles.subtitle, { color: theme.muted }]}>
+          Your tokens have been transferred successfully.
+        </Text>
+
+        {/* Transfer Details Card */}
+        <View style={[styles.detailsCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+          <View style={styles.detailRow}>
+            <Text style={[styles.detailLabel, { color: theme.muted }]}>Sent to</Text>
+            <Text style={[styles.detailValue, { color: theme.text }]} numberOfLines={1}>
+              {recipientEmail}
+            </Text>
+          </View>
+
+          <View style={styles.detailRow}>
+            <Text style={[styles.detailLabel, { color: theme.muted }]}>Transfer Amount</Text>
+            <Text style={[styles.detailValueAmount, { color: theme.accent }]}>
+              {formatAmount(amountNum, tokenType)} {tokenType}
+            </Text>
+          </View>
+
+          {feeNum > 0 && (
+            <>
+              <View style={[styles.divider, { backgroundColor: theme.border }]} />
+              <View style={styles.detailRow}>
+                <Text style={[styles.detailLabel, { color: theme.muted }]}>Network Fee</Text>
+                <Text style={[styles.detailValue, { color: theme.text }]}>
+                  {formatAmount(feeNum, tokenType)} {tokenType}
+                </Text>
+              </View>
+              <View style={styles.detailRow}>
+                <Text style={[styles.detailLabel, { color: theme.muted }]}>Recipient Received</Text>
+                <Text style={[styles.detailValue, { color: theme.text }]}>
+                  {formatAmount(recipientReceived, tokenType)} {tokenType}
+                </Text>
+              </View>
+              <View style={styles.detailRow}>
+                <Text style={[styles.detailLabel, { color: theme.muted }]}>Total Debited</Text>
+                <Text style={[styles.detailValue, { color: theme.text, fontWeight: "700" }]}>
+                  {formatAmount(totalDebited, tokenType)} {tokenType}
+                </Text>
+              </View>
+            </>
+          )}
+        </View>
+
+        {/* Informational Box */}
+        <View style={[styles.infoCard, { backgroundColor: theme.blueSoft, borderColor: theme.blueBorder }]}>
+          <Ionicons name="information-circle" size={18} color={theme.blue} />
+          <Text style={[styles.infoText, { color: isDark ? "#93C5FD" : "#1E40AF" }]}>
+            The recipient will receive a notification about this transfer immediately.
+          </Text>
+        </View>
+
+        {/* Action Buttons */}
+        <View style={styles.buttonContainer}>
+          <TouchableOpacity
+            style={[styles.doneBtn, { backgroundColor: theme.accent }]}
+            onPress={handleDone}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.doneBtnText}>Done</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.sendAgainBtn, { borderColor: theme.border, backgroundColor: theme.card }]}
+            onPress={handleSendAgain}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="send-outline" size={18} color={theme.text} />
+            <Text style={[styles.sendAgainBtnText, { color: theme.text }]}>Send Again</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: "#FFFFFF",
-    },
-    content: {
-        flex: 1,
-        paddingHorizontal: 20,
-        paddingTop: 60,
-        alignItems: "center",
-    },
-    iconContainer: {
-        marginBottom: 32,
-    },
-    successCircle: {
-        width: 120,
-        height: 120,
-        borderRadius: 60,
-        backgroundColor: "#00B14F",
-        alignItems: "center",
-        justifyContent: "center",
-        shadowColor: "#00B14F",
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
-        elevation: 8,
-    },
-    title: {
-        fontSize: 28,
-        fontWeight: "700",
-        color: "#111827",
-        marginBottom: 8,
-        textAlign: "center",
-    },
-    subtitle: {
-        fontSize: 16,
-        color: "#9CA3AF",
-        marginBottom: 40,
-        textAlign: "center",
-    },
-    detailsCard: {
-        width: "100%",
-        backgroundColor: "#F9FAFB",
-        padding: 24,
-        borderRadius: 16,
-        marginBottom: 24,
-        borderWidth: 1,
-        borderColor: "#E5E7EB",
-    },
-    detailRow: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        alignItems: "center",
-        marginBottom: 16,
-    },
-    detailLabel: {
-        fontSize: 14,
-        color: "#6B7280",
-    },
-    detailValue: {
-        fontSize: 14,
-        fontWeight: "600",
-        color: "#111827",
-        flex: 1,
-        textAlign: "right",
-    },
-    detailValueAmount: {
-        fontSize: 20,
-        fontWeight: "700",
-        color: "#00B14F",
-    },
-    infoCard: {
-        width: "100%",
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 12,
-        backgroundColor: "#EFF6FF",
-        padding: 16,
-        borderRadius: 12,
-        marginBottom: 40,
-        borderWidth: 1,
-        borderColor: "#BFDBFE",
-    },
-    infoText: {
-        flex: 1,
-        fontSize: 13,
-        color: "#1E40AF",
-        lineHeight: 18,
-    },
-    buttonContainer: {
-        width: "100%",
-        gap: 12,
-    },
-    sendAgainBtn: {
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: 8,
-        backgroundColor: "#F0FDF4",
-        paddingVertical: 16,
-        borderRadius: 12,
-        borderWidth: 2,
-        borderColor: "#00B14F",
-    },
-    sendAgainBtnText: {
-        fontSize: 16,
-        fontWeight: "600",
-        color: "#00B14F",
-    },
-    doneBtn: {
-        backgroundColor: "#00B14F",
-        paddingVertical: 16,
-        borderRadius: 12,
-        alignItems: "center",
-    },
-    doneBtnText: {
-        fontSize: 16,
-        fontWeight: "600",
-        color: "#FFFFFF",
-    },
+  container: {
+    flex: 1,
+  },
+  glow: {
+    position: "absolute",
+    top: 0, left: 0, right: 0,
+    height: 300,
+  },
+  content: {
+    flex: 1,
+    paddingHorizontal: 24,
+    paddingTop: 80,
+    alignItems: "center",
+  },
+  iconContainer: {
+    marginBottom: 24,
+  },
+  outerRing: {
+    width: 110,
+    height: 110,
+    borderRadius: 55,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  innerRing: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#00B14F",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  title: {
+    fontSize: 26,
+    fontWeight: "900",
+    marginBottom: 8,
+    textAlign: "center",
+    letterSpacing: -0.5,
+  },
+  subtitle: {
+    fontSize: 14,
+    marginBottom: 32,
+    textAlign: "center",
+    fontWeight: "500",
+  },
+  detailsCard: {
+    width: "100%",
+    padding: 18,
+    borderRadius: 24,
+    marginBottom: 16,
+    borderWidth: 1,
+  },
+  detailRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 8,
+  },
+  detailLabel: {
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  detailValue: {
+    fontSize: 13,
+    fontWeight: "600",
+    maxWidth: "60%",
+  },
+  detailValueAmount: {
+    fontSize: 18,
+    fontWeight: "800",
+  },
+  divider: {
+    height: 1,
+    marginVertical: 8,
+  },
+  infoCard: {
+    width: "100%",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    padding: 12,
+    borderRadius: 16,
+    marginBottom: 36,
+    borderWidth: 1,
+  },
+  infoText: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: "600",
+    lineHeight: 18,
+  },
+  buttonContainer: {
+    width: "100%",
+    gap: 12,
+  },
+  doneBtn: {
+    height: 56,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  doneBtnText: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: "#FFFFFF",
+  },
+  sendAgainBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    height: 56,
+    borderRadius: 20,
+    borderWidth: 1.5,
+  },
+  sendAgainBtnText: {
+    fontSize: 16,
+    fontWeight: "800",
+  },
 });

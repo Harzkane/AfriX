@@ -1,8 +1,8 @@
 // src/components/ui/AgentCard.tsx
 import React from "react";
-import { View, StyleSheet, TouchableOpacity, Text } from "react-native";
+import { View, StyleSheet, TouchableOpacity, Text, useColorScheme } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { formatAmount, formatAmountOrCompact } from "@/utils/format";
+import { formatAmountOrCompact } from "@/utils/format";
 import { useWalletStore } from "@/stores";
 
 interface Agent {
@@ -98,6 +98,14 @@ export const AgentCard: React.FC<AgentCardProps> = ({
   tokenType = "USDT",
 }) => {
   const { exchangeRates } = useWalletStore();
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === "dark";
+  const theme = {
+    card: isDark ? "#0E1726" : "#FFFFFF",
+    text: isDark ? "#F8FAFC" : "#111827",
+    muted: isDark ? "#94A3B8" : "#6B7280",
+    border: isDark ? "#1E2A3A" : "#F3F4F6",
+  };
   const tierColor = getTierColor(agent.tier);
   const initials = agent.full_name
     ?.split(" ")
@@ -137,7 +145,7 @@ export const AgentCard: React.FC<AgentCardProps> = ({
       onPress={() => onSelect(agent)}
       activeOpacity={0.7}
       disabled={disabled}
-      style={[styles.card, disabled && styles.cardDisabled]}
+      style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }, disabled && styles.cardDisabled]}
     >
       <View style={styles.content}>
         {/* Agent Header */}
@@ -157,7 +165,7 @@ export const AgentCard: React.FC<AgentCardProps> = ({
 
           <View style={styles.info}>
             <View style={styles.nameRow}>
-              <Text style={styles.name}>{agent.full_name || "Agent"}</Text>
+              <Text style={[styles.name, { color: theme.text }]}>{agent.full_name || "Agent"}</Text>
               <View
                 style={[
                   styles.tierBadge,
@@ -177,33 +185,33 @@ export const AgentCard: React.FC<AgentCardProps> = ({
 
             {location ? (
               <View style={styles.locationRow}>
-                <Ionicons name="location-outline" size={12} color="#6B7280" />
-                <Text style={styles.locationText}>{location}</Text>
+                <Ionicons name="location-outline" size={12} color={theme.muted} />
+                <Text style={[styles.locationText, { color: theme.muted }]}>{location}</Text>
               </View>
             ) : null}
 
             <View style={styles.statsRow}>
               <View style={styles.statItem}>
                 <Ionicons name="star" size={14} color="#F59E0B" />
-                <Text style={styles.ratingText}>{agent.rating?.toFixed(1) || "0.0"}</Text>
+                <Text style={[styles.ratingText, { color: isDark ? "#FBBF24" : "#F59E0B" }]}>{agent.rating?.toFixed(1) || "0.0"}</Text>
               </View>
-              <Text style={styles.dot}>•</Text>
+              <Text style={[styles.dot, { color: theme.muted }]}>•</Text>
               <View style={styles.statItem}>
-                <Ionicons name="time-outline" size={14} color="#6B7280" />
-                <Text style={styles.responseText}>
+                <Ionicons name="time-outline" size={14} color={theme.muted} />
+                <Text style={[styles.responseText, { color: theme.muted }]}>
                   ~{agent.response_time_minutes ?? 0} min
                 </Text>
               </View>
               {commissionPercent != null && (
                 <>
-                  <Text style={styles.dot}>•</Text>
-                  <Text style={styles.feeText}>~{commissionPercent}% fee</Text>
+                  <Text style={[styles.dot, { color: theme.muted }]}>•</Text>
+                  <Text style={[styles.feeText, { color: theme.muted }]}>~{commissionPercent}% fee</Text>
                 </>
               )}
             </View>
           </View>
 
-          <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+          <Ionicons name="chevron-forward" size={20} color={theme.muted} />
         </View>
 
         {/* Footer Info - stacked rows to avoid overlap */}
@@ -213,8 +221,8 @@ export const AgentCard: React.FC<AgentCardProps> = ({
               <View style={styles.footerIcon}>
                 <Ionicons name="wallet-outline" size={14} color="#00B14F" />
               </View>
-              <Text style={styles.footerLabel}>Capacity</Text>
-              <Text style={styles.footerValue} numberOfLines={1}>
+              <Text style={[styles.footerLabel, { color: theme.muted }]}>Capacity</Text>
+              <Text style={[styles.footerValue, { color: theme.text }]} numberOfLines={1}>
                 ${formatAmountOrCompact(capacity)}
               </Text>
             </View>
@@ -223,8 +231,8 @@ export const AgentCard: React.FC<AgentCardProps> = ({
                 <View style={styles.footerIcon}>
                   <Ionicons name="card-outline" size={14} color="#6B7280" />
                 </View>
-                <Text style={styles.footerLabel}>Max/trade</Text>
-                <Text style={styles.footerValue} numberOfLines={1} ellipsizeMode="tail">
+                <Text style={[styles.footerLabel, { color: theme.muted }]}>Max/trade</Text>
+                <Text style={[styles.footerValue, { color: theme.text }]} numberOfLines={1} ellipsizeMode="tail">
                   {formatAmountOrCompact(effectiveMaxTrade, maxTradeUnit)}
                 </Text>
               </View>
@@ -237,8 +245,8 @@ export const AgentCard: React.FC<AgentCardProps> = ({
                   <View style={styles.footerIcon}>
                     <Ionicons name="business-outline" size={14} color="#00B14F" />
                   </View>
-                  <Text style={styles.footerLabel}>Bank</Text>
-                  <Text style={styles.footerValue} numberOfLines={1} ellipsizeMode="tail">
+                  <Text style={[styles.footerLabel, { color: theme.muted }]}>Bank</Text>
+                  <Text style={[styles.footerValue, { color: theme.text }]} numberOfLines={1} ellipsizeMode="tail">
                     {agent.bank_name}
                   </Text>
                 </View>
@@ -248,8 +256,8 @@ export const AgentCard: React.FC<AgentCardProps> = ({
                   <View style={styles.footerIcon}>
                     <Ionicons name="phone-portrait-outline" size={14} color="#00B14F" />
                   </View>
-                  <Text style={styles.footerLabel}>Mobile</Text>
-                  <Text style={styles.footerValue} numberOfLines={1} ellipsizeMode="tail">
+                  <Text style={[styles.footerLabel, { color: theme.muted }]}>Mobile</Text>
+                  <Text style={[styles.footerValue, { color: theme.text }]} numberOfLines={1} ellipsizeMode="tail">
                     {agent.mobile_money_provider}
                   </Text>
                 </View>
@@ -259,7 +267,7 @@ export const AgentCard: React.FC<AgentCardProps> = ({
         </View>
 
         {userAmount != null && userAmount > 0 && (
-          <View style={canHandleAmount ? styles.canHandleRow : styles.cannotHandleRow}>
+          <View style={[canHandleAmount ? styles.canHandleRow : styles.cannotHandleRow, { borderTopColor: theme.border }]}>
             <Ionicons
               name={canHandleAmount ? "checkmark-circle" : "warning"}
               size={16}
@@ -386,7 +394,6 @@ const styles = StyleSheet.create({
   footer: {
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: "#F3F4F6",
     gap: 10,
   },
   footerRow: {

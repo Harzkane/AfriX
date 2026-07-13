@@ -1,8 +1,16 @@
-import React, { useEffect } from "react";
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl } from "react-native";
+import React, { useCallback, useEffect, useState } from "react";
+import {
+    View,
+    Text,
+    StyleSheet,
+    ScrollView,
+    TouchableOpacity,
+    RefreshControl,
+    useColorScheme,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Surface } from "react-native-paper";
 import { useRouter } from "expo-router";
+import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useAuthStore } from "@/stores";
@@ -16,114 +24,161 @@ const getCommissionPresentation = (tx: any, tokenType: string) => {
     const label = tx.fee_kind === "agent_commission"
         ? (tx.fee_label || "Agent Commission")
         : "Commission earned";
-
     return { amount, label };
 };
 
 export default function AgentDashboard() {
     const router = useRouter();
     const { user } = useAuthStore();
-    const { stats, dashboardData, fetchAgentStats, fetchDashboard, fetchPendingRequests, fetchWithdrawalRequests, withdrawalRequests, loading } = useAgentStore();
+    const colorScheme = useColorScheme();
+    const isDark = colorScheme === "dark";
+    const {
+        stats,
+        dashboardData,
+        fetchAgentStats,
+        fetchDashboard,
+        fetchPendingRequests,
+        fetchWithdrawalRequests,
+        withdrawalRequests,
+        loading,
+    } = useAgentStore();
 
-    useEffect(() => {
-        loadData();
-    }, []);
+    const theme = {
+        bg: isDark ? "#090B14" : "#F5F4FC",
+        card: isDark ? "rgba(18, 14, 36, 0.92)" : "#FFFFFF",
+        text: isDark ? "#F8FAFC" : "#0F172A",
+        muted: isDark ? "#94A3B8" : "#64748B",
+        border: isDark ? "#1E1638" : "#EDE9FE",
+        accent: "#7C3AED",
+        accentLight: isDark ? "rgba(124, 58, 237, 0.15)" : "rgba(124, 58, 237, 0.08)",
+        green: "#00B14F",
+        greenLight: isDark ? "rgba(0, 177, 79, 0.12)" : "rgba(0, 177, 79, 0.06)",
+        amber: "#D97706",
+        amberLight: isDark ? "rgba(217, 119, 6, 0.12)" : "rgba(217, 119, 6, 0.06)",
+        blue: "#3B82F6",
+        blueLight: isDark ? "rgba(59, 130, 246, 0.12)" : "rgba(59, 130, 246, 0.06)",
+        danger: "#EF4444",
+        dangerLight: isDark ? "rgba(239, 68, 68, 0.12)" : "rgba(239, 68, 68, 0.06)",
+    };
 
-    const loadData = async () => {
+    const loadData = useCallback(async () => {
         await Promise.all([fetchAgentStats(), fetchDashboard(), fetchPendingRequests(), fetchWithdrawalRequests()]);
-    };
+    }, [fetchAgentStats, fetchDashboard, fetchPendingRequests, fetchWithdrawalRequests]);
 
-    const getDepositStatusMeta = (status?: string) => {
-        switch ((status || "").toLowerCase()) {
-            case "completed":
-            case "verified":
-                return {
-                    label: "Verified",
-                    backgroundColor: "#F0FDF4",
-                    textColor: "#00B14F",
-                };
-            case "pending":
-                return {
-                    label: "Pending",
-                    backgroundColor: "#FFFBEB",
-                    textColor: "#D97706",
-                };
-            case "failed":
-            case "rejected":
-                return {
-                    label: "Rejected",
-                    backgroundColor: "#FEF2F2",
-                    textColor: "#EF4444",
-                };
-            default:
-                return {
-                    label: "Processing",
-                    backgroundColor: "#EFF6FF",
-                    textColor: "#3B82F6",
-                };
-        }
-    };
+    useEffect(() => { loadData(); }, [loadData]);
 
+    useFocusEffect(useCallback(() => { loadData(); }, [loadData]));
+
+    // Computed values
     const totalEarningsUsdt = dashboardData?.financials?.total_earnings_usdt ?? 0;
     const availableCapacityUsdt = dashboardData?.financials?.available_capacity ?? stats?.available_capacity ?? 0;
+    const outstandingTokens = dashboardData?.financials?.outstanding_tokens ?? 0;
+    const totalDepositedFloat = dashboardData?.financials?.total_deposit ?? 0;
     const pendingRequestsCount = stats?.pending_requests || 0;
     const totalMintedUsdt = dashboardData?.financials?.total_minted_usdt ?? 0;
     const totalBurnedUsdt = dashboardData?.financials?.total_burned_usdt ?? 0;
 
+    const getWithdrawalStatusColor = (status: string) => {
+        switch (status) {
+            case "pending": return { bg: theme.amberLight, text: theme.amber };
+            case "paid": return { bg: theme.greenLight, text: theme.green };
+            case "approved": return { bg: theme.blueLight, text: theme.blue };
+            case "rejected": return { bg: theme.dangerLight, text: theme.danger };
+            default: return { bg: theme.accentLight, text: theme.accent };
+        }
+    };
+
+    const getDepositStatusColor = (status?: string) => {
+        const s = (status || "").toLowerCase();
+        if (s === "completed" || s === "verified") return { bg: theme.greenLight, text: theme.green, label: "Verified" };
+        if (s === "pending") return { bg: theme.amberLight, text: theme.amber, label: "Pending" };
+        if (s === "failed" || s === "rejected") return { bg: theme.dangerLight, text: theme.danger, label: "Rejected" };
+        return { bg: theme.blueLight, text: theme.blue, label: "Processing" };
+    };
+
+    const getInitials = (name?: string) => {
+        if (!name) return "A";
+        return name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2);
+    };
+
     return (
-        <View style={styles.container}>
-            <View style={styles.headerWrapper}>
-                <LinearGradient
-                    colors={["#00B14F", "#008F40"]}
-                    style={styles.headerGradient}
-                />
-                <SafeAreaView edges={["top"]} style={styles.headerContent}>
-                    <View style={styles.header}>
-                        <View style={styles.headerTop}>
-                            <View>
-                                <Text style={styles.greeting}>Agent Dashboard</Text>
-                                <Text style={styles.subGreeting}>Welcome back, {user?.full_name}</Text>
-                            </View>
-                            <TouchableOpacity
-                                style={styles.switchButton}
-                                onPress={() => router.replace("/(tabs)")}
-                            >
-                                <Ionicons name="swap-horizontal" size={18} color="#FFFFFF" />
-                                <Text style={styles.switchText}>Switch to User</Text>
-                            </TouchableOpacity>
-                        </View>
+        <View style={[styles.container, { backgroundColor: theme.bg }]}>
+            {/* Background Glow */}
+            <LinearGradient
+                colors={isDark ? ["rgba(124, 58, 237, 0.18)", "rgba(9, 11, 20, 0)"] : ["rgba(124, 58, 237, 0.12)", "rgba(255, 255, 255, 0)"]}
+                style={styles.backgroundGlow}
+                pointerEvents="none"
+            />
+
+            {/* Sticky Top Header */}
+            <SafeAreaView edges={["top"]} style={[styles.headerContainer, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
+                <View style={styles.headerRow}>
+                    <View style={styles.headerLeft}>
+                        <Text style={[styles.logoText, { color: theme.text }]}>
+                            Afri<Text style={{ color: "#00B14F" }}>X</Text> <Text style={{ color: theme.accent, fontSize: 16 }}>Agent</Text>
+                        </Text>
                     </View>
-                </SafeAreaView>
-            </View>
+                    <View style={styles.headerRight}>
+                        <TouchableOpacity
+                            style={[styles.switchBtn, { backgroundColor: theme.accentLight, borderColor: theme.border }]}
+                            onPress={() => router.replace("/(tabs)")}
+                            activeOpacity={0.8}
+                        >
+                            <Ionicons name="swap-horizontal" size={13} color={theme.accent} style={{ marginRight: 4 }} />
+                            <Text style={[styles.switchBtnText, { color: theme.accent }]}>User Mode</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            style={styles.avatarContainer}
+                            onPress={() => router.push("/agent/(tabs)/profile")}
+                        >
+                            <View style={[styles.agentRing, { borderColor: theme.accent }]} />
+                            <View style={styles.avatarMain}>
+                                <View style={styles.avatarInner}>
+                                    <Text style={styles.avatarInitials}>{getInitials(user?.full_name)}</Text>
+                                </View>
+                            </View>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </SafeAreaView>
+
             <ScrollView
-                contentContainerStyle={styles.content}
-                refreshControl={
-                    <RefreshControl refreshing={loading} onRefresh={loadData} tintColor="#FFFFFF" />
-                }
+                contentContainerStyle={styles.scrollContent}
+                refreshControl={<RefreshControl refreshing={loading} onRefresh={loadData} tintColor={theme.accent} />}
+                showsVerticalScrollIndicator={false}
             >
+
+                {/* ─── Hero Earnings Card ─── */}
                 <LinearGradient
-                    colors={["#0E7A43", "#00B14F", "#26C26A"]}
-                    start={{ x: 1, y: 0.5 }}
+                    colors={["#5B21B6", "#7C3AED", "#6D28D9"]}
+                    start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
                     style={styles.heroCard}
                 >
+                    {/* Top row */}
                     <View style={styles.heroTopRow}>
                         <View style={styles.heroBadge}>
-                            <Ionicons name="sparkles" size={14} color="#E9FFE7" />
+                            <Ionicons name="flash" size={12} color="#EDE9FE" />
                             <Text style={styles.heroBadgeText}>Live Agent Snapshot</Text>
                         </View>
-                        <Text style={styles.heroPendingText}>{pendingRequestsCount} pending</Text>
+                        {pendingRequestsCount > 0 && (
+                            <View style={styles.heroPendingChip}>
+                                <View style={styles.heroPendingDot} />
+                                <Text style={styles.heroPendingText}>{pendingRequestsCount} pending</Text>
+                            </View>
+                        )}
                     </View>
+
+                    {/* Earnings */}
                     <Text style={styles.heroLabel}>Total Earnings</Text>
-                    <Text style={styles.heroValue}>
-                        {formatAmount(totalEarningsUsdt, "USDT")} USDT
-                    </Text>
-                    <Text style={styles.heroSubtext}>
-                        Combined commission performance across your completed mint and burn activity.
-                    </Text>
+                    <Text style={styles.heroValue}>{formatAmount(totalEarningsUsdt, "USDT")} <Text style={styles.heroValueSuffix}>USDT</Text></Text>
+                    <Text style={styles.heroSubtext}>Combined commission across your completed mint and burn activity.</Text>
+
+                    {/* Stats strip */}
                     <View style={styles.heroStatsRow}>
                         <View style={styles.heroStatBlock}>
-                            <Text style={styles.heroStatCaption}>Capacity</Text>
+                            <Text style={styles.heroStatCaption}>Float Capacity</Text>
                             <Text style={styles.heroStatValue}>{formatAmount(availableCapacityUsdt, "USDT")} USDT</Text>
                         </View>
                         <View style={styles.heroDivider} />
@@ -131,472 +186,431 @@ export default function AgentDashboard() {
                             <Text style={styles.heroStatCaption}>Success Rate</Text>
                             <Text style={styles.heroStatValue}>{dashboardData?.performance?.success_rate || "100%"}</Text>
                         </View>
+                        <View style={styles.heroDivider} />
+                        <View style={styles.heroStatBlock}>
+                            <Text style={styles.heroStatCaption}>Avg Response</Text>
+                            <Text style={styles.heroStatValue}>{dashboardData?.performance?.response_time || "5"} min</Text>
+                        </View>
                     </View>
                 </LinearGradient>
 
+                {/* ─── Quick Insight Pills ─── */}
                 <View style={styles.insightRow}>
-                    <Surface style={styles.insightCard}>
-                        <View style={[styles.insightIcon, { backgroundColor: "#FFFBEB" }]}>
-                            <Ionicons name="time-outline" size={18} color="#D97706" />
+                    {[
+                        { icon: "time-outline", iconBg: theme.amberLight, iconColor: theme.amber, label: "Pending", value: String(pendingRequestsCount) },
+                        { icon: "analytics-outline", iconBg: theme.blueLight, iconColor: theme.blue, label: "Net Activity", value: `${formatAmount(totalMintedUsdt - totalBurnedUsdt, "USDT")} USDT` },
+                        { icon: "star", iconBg: isDark ? "rgba(245,158,11,0.12)" : "#FFFBEB", iconColor: "#F59E0B", label: "Rating", value: dashboardData?.agent?.rating || "5.0" },
+                    ].map((item) => (
+                        <View key={item.label} style={[styles.insightCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                            <View style={[styles.insightIconBox, { backgroundColor: item.iconBg }]}>
+                                <Ionicons name={item.icon as any} size={16} color={item.iconColor} />
+                            </View>
+                            <Text style={[styles.insightLabel, { color: theme.muted }]}>{item.label}</Text>
+                            <Text style={[styles.insightValue, { color: theme.text }]} numberOfLines={1} ellipsizeMode="tail">{item.value}</Text>
                         </View>
-                        <Text style={styles.insightLabel}>Pending Requests</Text>
-                        <Text style={[styles.insightValue, { color: "#B45309" }]}>{pendingRequestsCount}</Text>
-                    </Surface>
-                    <Surface style={styles.insightCard}>
-                        <View style={[styles.insightIcon, { backgroundColor: "#EFF6FF" }]}>
-                            <Ionicons name="analytics-outline" size={18} color="#2563EB" />
-                        </View>
-                        <Text style={styles.insightLabel}>Net Activity</Text>
-                        <Text style={styles.insightValue}>
-                            {formatAmount(totalMintedUsdt - totalBurnedUsdt, "USDT")} USDT
-                        </Text>
-                    </Surface>
+                    ))}
                 </View>
 
-                {/* Quick Actions */}
+                {/* ─── Quick Actions ─── */}
                 <View style={styles.section}>
-                    <Text style={[styles.sectionTitle, styles.sectionTitleStandalone]}>Quick Actions</Text>
-                    <View style={styles.actionStack}>
-                        <TouchableOpacity
-                            style={styles.actionButton}
-                            onPress={() => router.push({ pathname: "/agent/requests", params: { tab: "mint" } })}
-                            activeOpacity={0.7}
-                        >
-                            <Surface style={styles.actionSurface}>
-                                <View style={styles.actionMain}>
-                                    <View style={[styles.actionIcon, { backgroundColor: "#F5F3FF" }]}>
-                                        <Ionicons name="list" size={22} color="#7C3AED" />
+                    <Text style={[styles.sectionTitle, { color: theme.muted }]}>QUICK ACTIONS</Text>
+                    <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                        {[
+                            {
+                                icon: "list", iconBg: theme.accentLight, iconColor: theme.accent,
+                                label: "Review Requests", sub: "Process incoming mint and burn tasks.",
+                                onPress: () => router.push({ pathname: "/agent/requests", params: { tab: "mint" } } as any),
+                            },
+                            {
+                                icon: "wallet", iconBg: theme.greenLight, iconColor: theme.green,
+                                label: "Deposit Funds", sub: "Top up your float and keep exchange capacity healthy.",
+                                onPress: () => router.push("/agent/deposit"),
+                            },
+                            {
+                                icon: "cash-outline", iconBg: theme.blueLight, iconColor: theme.blue,
+                                label: "Request Withdrawal", sub: "Cash out your earned commissions.",
+                                onPress: () => router.push("/modals/agent/withdrawal-request?from=agent-dashboard"),
+                            },
+                        ].map((action, idx, arr) => (
+                            <View key={action.label}>
+                                <TouchableOpacity style={styles.actionRow} onPress={action.onPress} activeOpacity={0.7}>
+                                    <View style={[styles.actionIconBox, { backgroundColor: action.iconBg }]}>
+                                        <Ionicons name={action.icon as any} size={20} color={action.iconColor} />
                                     </View>
-                                    <View style={styles.actionContent}>
-                                        <Text style={styles.actionText}>Review Requests</Text>
-                                        <Text style={styles.actionSubtext}>Process incoming mint and burn tasks quickly.</Text>
+                                    <View style={styles.actionTextWrap}>
+                                        <Text style={[styles.actionLabel, { color: theme.text }]}>{action.label}</Text>
+                                        <Text style={[styles.actionSub, { color: theme.muted }]}>{action.sub}</Text>
                                     </View>
-                                </View>
-                                <Ionicons name="chevron-forward" size={18} color="#9CA3AF" />
-                            </Surface>
-                        </TouchableOpacity>
-
-                        <TouchableOpacity
-                            style={styles.actionButton}
-                            onPress={() => router.push("/agent/deposit")}
-                            activeOpacity={0.7}
-                        >
-                            <Surface style={styles.actionSurface}>
-                                <View style={styles.actionMain}>
-                                    <View style={[styles.actionIcon, { backgroundColor: "#F0FDF4" }]}>
-                                        <Ionicons name="wallet" size={22} color="#00B14F" />
-                                    </View>
-                                    <View style={styles.actionContent}>
-                                        <Text style={styles.actionText}>Deposit Funds</Text>
-                                        <Text style={styles.actionSubtext}>Top up your float and keep exchange capacity healthy.</Text>
-                                    </View>
-                                </View>
-                                <Ionicons name="chevron-forward" size={18} color="#9CA3AF" />
-                            </Surface>
-                        </TouchableOpacity>
+                                    <Ionicons name="chevron-forward" size={16} color={theme.muted} />
+                                </TouchableOpacity>
+                                {idx < arr.length - 1 && <View style={[styles.divider, { backgroundColor: theme.border }]} />}
+                            </View>
+                        ))}
                     </View>
                 </View>
 
-                {/* Recent Deposits */}
+                {/* ─── Agent Float & Liquidity ─── */}
+                <View style={styles.section}>
+                    <Text style={[styles.sectionTitle, { color: theme.muted }]}>FLOAT & LIQUIDITY</Text>
+                    <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                        {[
+                            {
+                                icon: "speedometer-outline", iconBg: theme.accentLight, iconColor: theme.accent,
+                                label: "Available Capacity", sub: "Liquidity limit to process trades",
+                                value: `${formatAmount(availableCapacityUsdt, "USDT")} USDT`,
+                                valueColor: theme.accent,
+                            },
+                            {
+                                icon: "hourglass-outline", iconBg: theme.amberLight, iconColor: theme.amber,
+                                label: "Outstanding Balance", sub: "Float currently tied in processes",
+                                value: `${formatAmount(outstandingTokens, "USDT")} USDT`,
+                                valueColor: theme.amber,
+                            },
+                            {
+                                icon: "wallet-outline", iconBg: theme.greenLight, iconColor: theme.green,
+                                label: "Total Deposited Float", sub: "Agent collateral in smart contract",
+                                value: `${formatAmount(totalDepositedFloat, "USDT")} USDT`,
+                                valueColor: theme.green,
+                            },
+                        ].map((row, idx, arr) => (
+                            <View key={row.label}>
+                                <View style={styles.floatRow}>
+                                    <View style={[styles.actionIconBox, { backgroundColor: row.iconBg }]}>
+                                        <Ionicons name={row.icon as any} size={20} color={row.iconColor} />
+                                    </View>
+                                    <View style={styles.floatTextWrap}>
+                                        <Text style={[styles.floatLabel, { color: theme.text }]}>{row.label}</Text>
+                                        <Text style={[styles.floatSub, { color: theme.muted }]}>{row.sub}</Text>
+                                    </View>
+                                    <Text style={[styles.floatValue, { color: row.valueColor }]} numberOfLines={1}>{row.value}</Text>
+                                </View>
+                                {idx < arr.length - 1 && <View style={[styles.divider, { backgroundColor: theme.border }]} />}
+                            </View>
+                        ))}
+                    </View>
+                </View>
+
+                {/* ─── Token Performance ─── */}
+                <View style={styles.section}>
+                    <Text style={[styles.sectionTitle, { color: theme.muted }]}>TOKEN PERFORMANCE</Text>
+                    <View style={[styles.tokenPanel, { backgroundColor: theme.card, borderColor: theme.border }]}>
+
+                        {/* Column header chips */}
+                        <View style={styles.tokenColHeaders}>
+                            <View style={styles.tokenColHeaderLabel} />
+                            {[
+                                { label: "Earnings", icon: "cash-outline", iconColor: theme.green, iconBg: theme.greenLight },
+                                { label: "Minted", icon: "arrow-up-circle-outline", iconColor: theme.blue, iconBg: theme.blueLight },
+                                { label: "Burned", icon: "flame-outline", iconColor: theme.danger, iconBg: theme.dangerLight },
+                            ].map((col) => (
+                                <View key={col.label} style={styles.tokenColHeaderCell}>
+                                    <View style={[styles.tokenColIconBox, { backgroundColor: col.iconBg }]}>
+                                        <Ionicons name={col.icon as any} size={13} color={col.iconColor} />
+                                    </View>
+                                    <Text style={[styles.tokenColHeaderText, { color: theme.muted }]}>{col.label}</Text>
+                                </View>
+                            ))}
+                        </View>
+
+                        <View style={[styles.tokenDivider, { backgroundColor: theme.border }]} />
+
+                        {/* NT Row */}
+                        {[
+                            { code: "NT", codeBg: theme.accentLight, codeColor: theme.accent },
+                            { code: "CT", codeBg: isDark ? "rgba(245,158,11,0.12)" : "#FFFBEB", codeColor: "#D97706" },
+                        ].map((tok, tokIdx, tokArr) => (
+                            <View key={tok.code}>
+                                <View style={styles.tokenDataRow}>
+                                    {/* Token badge */}
+                                    <View style={[styles.tokenBadge, { backgroundColor: tok.codeBg }]}>
+                                        <Text style={[styles.tokenBadgeText, { color: tok.codeColor }]}>{tok.code}</Text>
+                                    </View>
+
+                                    {/* Earnings cell */}
+                                    <View style={styles.tokenDataCell}>
+                                        <Text style={[styles.tokenDataPrimary, { color: theme.text }]} numberOfLines={1}>
+                                            {formatAmount((dashboardData?.financials?.total_earnings_by_token as Record<string, number>)?.[tok.code] ?? 0, tok.code)} {tok.code}
+                                        </Text>
+                                        <Text style={[styles.tokenDataSub, { color: theme.muted }]} numberOfLines={1}>
+                                            ≈ {formatAmount((dashboardData?.financials?.total_earnings_by_token_usdt as Record<string, number>)?.[tok.code] ?? 0, "USDT")} USDT
+                                        </Text>
+                                    </View>
+
+                                    {/* Minted cell */}
+                                    <View style={styles.tokenDataCell}>
+                                        <Text style={[styles.tokenDataPrimary, { color: theme.text }]} numberOfLines={1}>
+                                            {formatAmount((dashboardData?.financials?.total_minted_by_token as Record<string, number>)?.[tok.code] ?? 0, tok.code)} {tok.code}
+                                        </Text>
+                                        <Text style={[styles.tokenDataSub, { color: theme.muted }]} numberOfLines={1}>
+                                            ≈ {formatAmount((dashboardData?.financials?.total_minted_by_token_usdt as Record<string, number>)?.[tok.code] ?? 0, "USDT")} USDT
+                                        </Text>
+                                    </View>
+
+                                    {/* Burned cell */}
+                                    <View style={styles.tokenDataCell}>
+                                        <Text style={[styles.tokenDataPrimary, { color: theme.text }]} numberOfLines={1}>
+                                            {formatAmount((dashboardData?.financials?.total_burned_by_token as Record<string, number>)?.[tok.code] ?? 0, tok.code)} {tok.code}
+                                        </Text>
+                                        <Text style={[styles.tokenDataSub, { color: theme.muted }]} numberOfLines={1}>
+                                            ≈ {formatAmount((dashboardData?.financials?.total_burned_by_token_usdt as Record<string, number>)?.[tok.code] ?? 0, "USDT")} USDT
+                                        </Text>
+                                    </View>
+                                </View>
+                                {tokIdx < tokArr.length - 1 && <View style={[styles.tokenDivider, { backgroundColor: theme.border }]} />}
+                            </View>
+                        ))}
+                    </View>
+                </View>
+
+                {/* ─── Recent Deposits ─── */}
                 <View style={styles.section}>
                     <View style={styles.sectionHeader}>
-                        <Text style={styles.sectionTitle}>Recent Deposits</Text>
-                        <TouchableOpacity onPress={() => router.push("/agent/deposit-history")}>
-                            <Text style={styles.viewAllText}>View All</Text>
+                        <Text style={[styles.sectionTitle, { color: theme.muted }]}>RECENT DEPOSITS</Text>
+                        <TouchableOpacity onPress={() => router.push("/agent/deposit-history")} activeOpacity={0.7}>
+                            <Text style={[styles.viewAll, { color: theme.accent }]}>View All</Text>
                         </TouchableOpacity>
                     </View>
                     {dashboardData?.deposit_history && dashboardData.deposit_history.length > 0 ? (
-                        <Surface style={styles.listCard}>
-                            <View style={styles.listIntro}>
-                                <Text style={styles.listIntroTitle}>Latest funding activity</Text>
-                                <Text style={styles.listIntroText}>Recent top-ups to your working balance and their verification state.</Text>
-                            </View>
+                        <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
                             {dashboardData.deposit_history.map((deposit: any, index: number) => {
-                                const depositStatus = getDepositStatusMeta(deposit.status);
+                                const ds = getDepositStatusColor(deposit.status);
                                 return (
-                                <TouchableOpacity
-                                    key={deposit.id}
-                                    activeOpacity={0.7}
-                                    onPress={() => router.push("/agent/deposit-history")}
-                                >
-                                    <View>
-                                        <View style={styles.listItem}>
-                                            <View style={[styles.listItemIcon, { backgroundColor: "#F0FDF4" }]}>
-                                                <Ionicons name="arrow-down" size={20} color="#00B14F" />
+                                    <View key={deposit.id}>
+                                        <TouchableOpacity
+                                            style={styles.listRow}
+                                            activeOpacity={0.7}
+                                            onPress={() => router.push("/agent/deposit-history")}
+                                        >
+                                            <View style={[styles.listIcon, { backgroundColor: theme.greenLight }]}>
+                                                <Ionicons name="arrow-down" size={18} color={theme.green} />
                                             </View>
-                                            <View style={styles.listItemInfo}>
-                                                <Text style={styles.listItemEyebrow}>Deposit</Text>
-                                                <Text style={styles.listItemAmount}>+{formatAmount(deposit.amount, "USDT")} USDT</Text>
-                                                <Text style={styles.listItemDate}>
-                                                    {formatDate(deposit.created_at)}
-                                                </Text>
+                                            <View style={styles.listInfo}>
+                                                <Text style={[styles.listEyebrow, { color: theme.muted }]}>Deposit</Text>
+                                                <Text style={[styles.listAmount, { color: theme.text }]}>+{formatAmount(deposit.amount, "USDT")} USDT</Text>
+                                                <Text style={[styles.listDate, { color: theme.muted }]}>{formatDate(deposit.created_at)}</Text>
                                             </View>
-                                            <View style={[styles.depositStatus, { backgroundColor: depositStatus.backgroundColor }]}>
-                                                <Text style={[styles.depositStatusText, { color: depositStatus.textColor }]}>
-                                                    {depositStatus.label}
-                                                </Text>
+                                            <View style={[styles.statusPill, { backgroundColor: ds.bg }]}>
+                                                <Text style={[styles.statusPillText, { color: ds.text }]}>{ds.label}</Text>
                                             </View>
-                                        </View>
-                                        {index < dashboardData.deposit_history.length - 1 && <View style={styles.divider} />}
+                                        </TouchableOpacity>
+                                        {index < dashboardData.deposit_history.length - 1 && (
+                                            <View style={[styles.divider, { backgroundColor: theme.border }]} />
+                                        )}
                                     </View>
-                                </TouchableOpacity>
                                 );
                             })}
-                        </Surface>
+                        </View>
                     ) : (
-                        <Surface style={styles.emptyCard}>
-                            <Text style={styles.emptyText}>No recent deposits</Text>
-                        </Surface>
+                        <View style={[styles.emptyCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                            <Ionicons name="wallet-outline" size={28} color={theme.muted} style={{ marginBottom: 8 }} />
+                            <Text style={[styles.emptyText, { color: theme.muted }]}>No recent deposits</Text>
+                        </View>
                     )}
                 </View>
 
-                <View style={styles.section}>
-                    <Text style={[styles.sectionTitle, styles.sectionTitleStandalone]}>Token Performance</Text>
-                    <Surface style={styles.tokenPanel}>
-                        <View style={styles.tokenBlock}>
-                            <View style={[styles.tokenCard, styles.tokenCardPositive]}>
-                            <View style={styles.tokenBlockHeader}>
-                                <View>
-                                    <Text style={styles.tokenSectionLabel}>Earnings</Text>
-                                    <Text style={styles.tokenPanelHint}>Commission by token</Text>
-                                </View>
-                                <View style={[styles.tokenHeaderIcon, { backgroundColor: "#ECFDF5" }]}>
-                                    <Ionicons name="cash-outline" size={18} color="#059669" />
-                                </View>
-                            </View>
-                            <View style={styles.tokenRows}>
-                                <View style={styles.tokenRow}>
-                                    <Text style={styles.tokenCode}>NT</Text>
-                                    <View style={styles.tokenAmounts}>
-                                        <Text style={styles.tokenPrimaryValue}>
-                                            {formatAmount((dashboardData?.financials?.total_earnings_by_token as Record<string, number>)?.NT ?? 0, "NT")} NT
-                                        </Text>
-                                        <Text style={styles.tokenSecondaryValue}>
-                                            About {formatAmount((dashboardData?.financials?.total_earnings_by_token_usdt as Record<string, number>)?.NT ?? 0, "USDT")} USDT
-                                        </Text>
-                                    </View>
-                                </View>
-                                <View style={styles.tokenRowDivider} />
-                                <View style={styles.tokenRow}>
-                                    <Text style={styles.tokenCode}>CT</Text>
-                                    <View style={styles.tokenAmounts}>
-                                        <Text style={styles.tokenPrimaryValue}>
-                                            {formatAmount((dashboardData?.financials?.total_earnings_by_token as Record<string, number>)?.CT ?? 0, "CT")} CT
-                                        </Text>
-                                        <Text style={styles.tokenSecondaryValue}>
-                                            About {formatAmount((dashboardData?.financials?.total_earnings_by_token_usdt as Record<string, number>)?.CT ?? 0, "USDT")} USDT
-                                        </Text>
-                                    </View>
-                                </View>
-                            </View>
-                            </View>
-                        </View>
-
-                        <View style={styles.tokenBlock}>
-                            <View style={[styles.tokenCard, styles.tokenCardInfo]}>
-                            <View style={styles.tokenBlockHeader}>
-                                <View>
-                                    <Text style={styles.tokenSectionLabel}>Minted</Text>
-                                    <Text style={styles.tokenPanelHint}>Issued to users</Text>
-                                </View>
-                                <View style={[styles.tokenHeaderIcon, { backgroundColor: "#EFF6FF" }]}>
-                                    <Ionicons name="arrow-up-circle-outline" size={18} color="#2563EB" />
-                                </View>
-                            </View>
-                            <View style={styles.tokenRows}>
-                                <View style={styles.tokenRow}>
-                                    <Text style={styles.tokenCode}>NT</Text>
-                                    <View style={styles.tokenAmounts}>
-                                        <Text style={styles.tokenPrimaryValue}>
-                                            {formatAmount((dashboardData?.financials?.total_minted_by_token as Record<string, number>)?.NT ?? 0, "NT")} NT
-                                        </Text>
-                                        <Text style={styles.tokenSecondaryValue}>
-                                            About {formatAmount((dashboardData?.financials?.total_minted_by_token_usdt as Record<string, number>)?.NT ?? 0, "USDT")} USDT
-                                        </Text>
-                                    </View>
-                                </View>
-                                <View style={styles.tokenRowDivider} />
-                                <View style={styles.tokenRow}>
-                                    <Text style={styles.tokenCode}>CT</Text>
-                                    <View style={styles.tokenAmounts}>
-                                        <Text style={styles.tokenPrimaryValue}>
-                                            {formatAmount((dashboardData?.financials?.total_minted_by_token as Record<string, number>)?.CT ?? 0, "CT")} CT
-                                        </Text>
-                                        <Text style={styles.tokenSecondaryValue}>
-                                            About {formatAmount((dashboardData?.financials?.total_minted_by_token_usdt as Record<string, number>)?.CT ?? 0, "USDT")} USDT
-                                        </Text>
-                                    </View>
-                                </View>
-                            </View>
-                            </View>
-                        </View>
-
-                        <View style={styles.tokenBlockLast}>
-                            <View style={[styles.tokenCard, styles.tokenCardDanger]}>
-                            <View style={styles.tokenBlockHeader}>
-                                <View>
-                                    <Text style={styles.tokenSectionLabel}>Burned</Text>
-                                    <Text style={styles.tokenPanelHint}>Redeemed from users</Text>
-                                </View>
-                                <View style={[styles.tokenHeaderIcon, { backgroundColor: "#FEF2F2" }]}>
-                                    <Ionicons name="arrow-down-circle-outline" size={18} color="#DC2626" />
-                                </View>
-                            </View>
-                            <View style={styles.tokenRows}>
-                                <View style={styles.tokenRow}>
-                                    <Text style={styles.tokenCode}>NT</Text>
-                                    <View style={styles.tokenAmounts}>
-                                        <Text style={styles.tokenPrimaryValue}>
-                                            {formatAmount((dashboardData?.financials?.total_burned_by_token as Record<string, number>)?.NT ?? 0, "NT")} NT
-                                        </Text>
-                                        <Text style={styles.tokenSecondaryValue}>
-                                            About {formatAmount((dashboardData?.financials?.total_burned_by_token_usdt as Record<string, number>)?.NT ?? 0, "USDT")} USDT
-                                        </Text>
-                                    </View>
-                                </View>
-                                <View style={styles.tokenRowDivider} />
-                                <View style={styles.tokenRow}>
-                                    <Text style={styles.tokenCode}>CT</Text>
-                                    <View style={styles.tokenAmounts}>
-                                        <Text style={styles.tokenPrimaryValue}>
-                                            {formatAmount((dashboardData?.financials?.total_burned_by_token as Record<string, number>)?.CT ?? 0, "CT")} CT
-                                        </Text>
-                                        <Text style={styles.tokenSecondaryValue}>
-                                            About {formatAmount((dashboardData?.financials?.total_burned_by_token_usdt as Record<string, number>)?.CT ?? 0, "USDT")} USDT
-                                        </Text>
-                                    </View>
-                                </View>
-                            </View>
-                            </View>
-                        </View>
-                    </Surface>
-                </View>
-
-                {/* Recent Withdrawals Summary */}
+                {/* ─── Recent Withdrawals ─── */}
                 <View style={styles.section}>
                     <View style={styles.sectionHeader}>
-                        <Text style={styles.sectionTitle}>Recent Withdrawals</Text>
-                        <TouchableOpacity onPress={() => router.push("/agent/withdrawal-history")}>
-                            <Text style={styles.viewAllText}>View All</Text>
+                        <Text style={[styles.sectionTitle, { color: theme.muted }]}>RECENT WITHDRAWALS</Text>
+                        <TouchableOpacity onPress={() => router.push("/agent/withdrawal-history")} activeOpacity={0.7}>
+                            <Text style={[styles.viewAll, { color: theme.accent }]}>View All</Text>
                         </TouchableOpacity>
                     </View>
                     {withdrawalRequests.length > 0 ? (
-                        <Surface style={styles.listCard}>
-                            <View style={styles.listIntro}>
-                                <Text style={styles.listIntroTitle}>Payout requests</Text>
-                                <Text style={styles.listIntroText}>Track cash-out requests as they move from review to payment.</Text>
-                            </View>
-                            {withdrawalRequests.slice(0, 2).map((request: WithdrawalRequest, index: number) => (
-                                <TouchableOpacity
-                                    key={request.id}
-                                    activeOpacity={0.7}
-                                    onPress={() => router.push("/agent/withdrawal-history")}
-                                >
-                                    <View>
-                                        <View style={styles.listItem}>
-                                            <View style={[styles.listItemIcon, { backgroundColor: "#FEF2F2" }]}>
-                                                <Ionicons name="arrow-up" size={20} color="#EF4444" />
+                        <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                            {withdrawalRequests.slice(0, 3).map((request: WithdrawalRequest, index: number) => {
+                                const ws = getWithdrawalStatusColor(request.status);
+                                return (
+                                    <View key={request.id}>
+                                        <TouchableOpacity
+                                            style={styles.listRow}
+                                            activeOpacity={0.7}
+                                            onPress={() => router.push("/agent/withdrawal-history")}
+                                        >
+                                            <View style={[styles.listIcon, { backgroundColor: theme.dangerLight }]}>
+                                                <Ionicons name="arrow-up" size={18} color={theme.danger} />
                                             </View>
-                                            <View style={styles.listItemInfo}>
-                                                <Text style={styles.listItemEyebrow}>Withdrawal</Text>
-                                                <Text style={styles.listItemAmount}>{formatAmount(request.amount_usd, "USDT")} USDT</Text>
-                                                <Text style={styles.listItemDate}>
-                                                    {formatDate(request.created_at)}
-                                                </Text>
+                                            <View style={styles.listInfo}>
+                                                <Text style={[styles.listEyebrow, { color: theme.muted }]}>Withdrawal</Text>
+                                                <Text style={[styles.listAmount, { color: theme.text }]}>{formatAmount(request.amount_usd, "USDT")} USDT</Text>
+                                                <Text style={[styles.listDate, { color: theme.muted }]}>{formatDate(request.created_at)}</Text>
                                             </View>
-                                            <View style={[styles.statusBadge, {
-                                                backgroundColor:
-                                                    request.status === "pending" ? "#FFFBEB" :
-                                                        request.status === "paid" ? "#F0FDF4" :
-                                                            request.status === "rejected" ? "#FEF2F2" : "#EFF6FF"
-                                            }]}>
-                                                <Text style={[styles.statusText, {
-                                                    color:
-                                                        request.status === "pending" ? "#D97706" :
-                                                            request.status === "paid" ? "#00B14F" :
-                                                                request.status === "rejected" ? "#EF4444" : "#3B82F6"
-                                                }]}>
+                                            <View style={[styles.statusPill, { backgroundColor: ws.bg }]}>
+                                                <Text style={[styles.statusPillText, { color: ws.text }]}>
                                                     {request.status === "approved" ? "Approved" : request.status.charAt(0).toUpperCase() + request.status.slice(1)}
                                                 </Text>
                                             </View>
-                                        </View>
-                                        {index < Math.min(withdrawalRequests.length, 2) - 1 && <View style={styles.divider} />}
-                                    </View>
-                                </TouchableOpacity>
-                            ))}
-                        </Surface>
-                    ) : (
-                        <Surface style={styles.emptyCard}>
-                            <Text style={styles.emptyText}>No withdrawal requests</Text>
-                        </Surface>
-                    )}
-                </View>
-
-                {/* Performance Summary */}
-                <View style={styles.section}>
-                    <View style={styles.sectionHeader}>
-                        <Text style={styles.sectionTitle}>Performance Summary</Text>
-                    </View>
-                    <Surface style={styles.performanceCard}>
-                        <View style={styles.performanceRow}>
-                            <View style={styles.performanceItem}>
-                                <View style={[styles.perfIconWrapper, { backgroundColor: "#FFFBEB" }]}>
-                                    <Ionicons name="star" size={20} color="#F59E0B" />
-                                </View>
-                                <Text style={styles.performanceLabel}>Rating</Text>
-                                <Text style={styles.performanceValue}>{dashboardData?.agent?.rating || "5.0"}</Text>
-                            </View>
-                            <View style={styles.performanceItem}>
-                                <View style={[styles.perfIconWrapper, { backgroundColor: "#F5F3FF" }]}>
-                                    <Ionicons name="time" size={20} color="#7C3AED" />
-                                </View>
-                                <Text style={styles.performanceLabel}>Avg Response</Text>
-                                <Text style={styles.performanceValue}>{dashboardData?.performance?.response_time || "5"} min</Text>
-                            </View>
-                            <View style={styles.performanceItem}>
-                                <View style={[styles.perfIconWrapper, { backgroundColor: "#F0FDF4" }]}>
-                                    <Ionicons name="checkmark-circle" size={20} color="#00B14F" />
-                                </View>
-                                <Text style={styles.performanceLabel}>Success Rate</Text>
-                                <Text style={styles.performanceValue}>{dashboardData?.performance?.success_rate || "100%"}</Text>
-                            </View>
-                        </View>
-                    </Surface>
-                </View>
-
-                {/* Recent Transactions */}
-                <View style={styles.section}>
-                    <View style={styles.sectionHeader}>
-                        <Text style={styles.sectionTitle}>Recent Transactions</Text>
-                        <TouchableOpacity onPress={() => router.push({ pathname: "/agent/requests", params: { tab: "history" } })}>
-                            <Text style={styles.viewAllText}>View All</Text>
-                        </TouchableOpacity>
-                    </View>
-                    {dashboardData?.recent_transactions && dashboardData.recent_transactions.length > 0 ? (
-                        <Surface style={styles.listCard}>
-                            <View style={styles.listIntro}>
-                                <Text style={styles.listIntroTitle}>Agent exchange activity</Text>
-                                <Text style={styles.listIntroText}>Your most recent mint and burn transactions with earned commission context.</Text>
-                            </View>
-                            {dashboardData.recent_transactions.slice(0, 5).map((tx: any, index: number) => {
-                                const isMint = tx.type === 'mint';
-                                const userName = isMint ? tx.toUser?.full_name : tx.fromUser?.full_name;
-                                const tokenType = tx.token_type || "NT";
-                                const commission = getCommissionPresentation(tx, tokenType);
-
-                                return (
-                                    <View key={tx.id}>
-                                        <TouchableOpacity
-                                            activeOpacity={0.7}
-                                            onPress={() => router.push(`/agent/transaction-details/${tx.id}`)}
-                                        >
-                                            <View style={styles.listItem}>
-                                            <View style={[styles.listItemIcon, { backgroundColor: isMint ? "#F0FDF4" : "#FFFBEB" }]}>
-                                                <Ionicons
-                                                    name={isMint ? "arrow-up" : "arrow-down"}
-                                                    size={20}
-                                                    color={isMint ? "#00B14F" : "#F59E0B"}
-                                                />
-                                            </View>
-                                            <View style={styles.listItemInfo}>
-                                                <Text style={styles.listItemEyebrow}>{isMint ? "Mint Transaction" : "Burn Transaction"}</Text>
-                                                <Text style={styles.listItemType}>{userName}</Text>
-                                                <Text style={styles.listItemDate}>
-                                                    {formatDate(tx.created_at)}
-                                                </Text>
-                                                </View>
-                                                <View style={styles.listItemAmounts}>
-                                                    <Text style={styles.listItemAmountValue}>{formatAmount(tx.amount, tx.token_type)} {tx.token_type}</Text>
-                                                    <Text style={styles.transactionCommission}>+{commission.amount} {tokenType} {commission.label.toLowerCase()}</Text>
-                                                </View>
-                                            </View>
                                         </TouchableOpacity>
-                                        {index < Math.min(dashboardData.recent_transactions.length, 5) - 1 && <View style={styles.divider} />}
+                                        {index < Math.min(withdrawalRequests.length, 3) - 1 && (
+                                            <View style={[styles.divider, { backgroundColor: theme.border }]} />
+                                        )}
                                     </View>
                                 );
                             })}
-                        </Surface>
+                        </View>
                     ) : (
-                        <Surface style={styles.emptyCard}>
-                            <Text style={styles.emptyText}>No recent transactions</Text>
-                        </Surface>
+                        <View style={[styles.emptyCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                            <Ionicons name="cash-outline" size={28} color={theme.muted} style={{ marginBottom: 8 }} />
+                            <Text style={[styles.emptyText, { color: theme.muted }]}>No withdrawal requests</Text>
+                        </View>
                     )}
                 </View>
 
-                <View style={styles.bottomSpacer} />
+                {/* ─── Recent Transactions ─── */}
+                <View style={styles.section}>
+                    <View style={styles.sectionHeader}>
+                        <Text style={[styles.sectionTitle, { color: theme.muted }]}>RECENT TRANSACTIONS</Text>
+                        <TouchableOpacity onPress={() => router.push({ pathname: "/agent/requests", params: { tab: "history" } } as any)} activeOpacity={0.7}>
+                            <Text style={[styles.viewAll, { color: theme.accent }]}>View All</Text>
+                        </TouchableOpacity>
+                    </View>
+                    {dashboardData?.recent_transactions && dashboardData.recent_transactions.length > 0 ? (
+                        <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                            {dashboardData.recent_transactions.slice(0, 5).map((tx: any, index: number) => {
+                                const isMint = tx.type === "mint";
+                                const userName = isMint ? tx.toUser?.full_name : tx.fromUser?.full_name;
+                                const tokenType = tx.token_type || "NT";
+                                const commission = getCommissionPresentation(tx, tokenType);
+                                return (
+                                    <View key={tx.id}>
+                                        <TouchableOpacity
+                                            style={styles.listRow}
+                                            activeOpacity={0.7}
+                                            onPress={() => router.push(`/agent/transaction-details/${tx.id}`)}
+                                        >
+                                            <View style={[styles.listIcon, { backgroundColor: isMint ? theme.greenLight : theme.amberLight }]}>
+                                                <Ionicons name={isMint ? "arrow-up" : "arrow-down"} size={18} color={isMint ? theme.green : theme.amber} />
+                                            </View>
+                                            <View style={styles.listInfo}>
+                                                <Text style={[styles.listEyebrow, { color: theme.muted }]}>{isMint ? "Mint Transaction" : "Burn Transaction"}</Text>
+                                                <Text style={[styles.listAmount, { color: theme.text }]}>{userName || "Unknown user"}</Text>
+                                                <Text style={[styles.listDate, { color: theme.muted }]}>{formatDate(tx.created_at)}</Text>
+                                            </View>
+                                            <View style={styles.txAmountCol}>
+                                                <Text style={[styles.txAmount, { color: theme.text }]}>{formatAmount(tx.amount, tx.token_type)} {tx.token_type}</Text>
+                                                <Text style={[styles.txCommission, { color: theme.green }]}>+{commission.amount} {tokenType}</Text>
+                                            </View>
+                                        </TouchableOpacity>
+                                        {index < Math.min(dashboardData.recent_transactions.length, 5) - 1 && (
+                                            <View style={[styles.divider, { backgroundColor: theme.border }]} />
+                                        )}
+                                    </View>
+                                );
+                            })}
+                        </View>
+                    ) : (
+                        <View style={[styles.emptyCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                            <Ionicons name="swap-horizontal" size={28} color={theme.muted} style={{ marginBottom: 8 }} />
+                            <Text style={[styles.emptyText, { color: theme.muted }]}>No recent transactions</Text>
+                        </View>
+                    )}
+                </View>
+
+                <View style={{ height: 40 }} />
             </ScrollView>
         </View>
     );
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: "#F9FAFB",
-    },
-    headerWrapper: {
-        zIndex: 10,
-        elevation: 8,
-        backgroundColor: "#00B14F",
-    },
-    headerGradient: {
+    container: { flex: 1 },
+
+    backgroundGlow: {
         position: "absolute",
-        top: 0,
-        left: 0,
-        right: 0,
-        height: 150,
+        top: 0, left: 0, right: 0,
+        height: 200,
     },
-    headerContent: {
+
+    // ── Header ──
+    headerContainer: {
         paddingHorizontal: 20,
+        paddingBottom: 12,
+        paddingTop: 10,
+        borderBottomWidth: 1,
+        zIndex: 10,
     },
-    header: {
-        paddingBottom: 20,
-    },
-    headerTop: {
+    headerRow: {
         flexDirection: "row",
         justifyContent: "space-between",
         alignItems: "center",
-        marginTop: 10,
     },
-    greeting: {
+    headerLeft: {
+        justifyContent: "center",
+    },
+    logoText: {
         fontSize: 24,
-        fontWeight: "700",
-        color: "#FFFFFF",
+        fontWeight: "800",
         letterSpacing: -0.5,
     },
-    subGreeting: {
-        fontSize: 14,
-        color: "rgba(255, 255, 255, 0.9)",
-        fontWeight: "500",
-        marginTop: 2,
-    },
-    switchButton: {
+    headerRight: {
         flexDirection: "row",
         alignItems: "center",
-        backgroundColor: "rgba(255, 255, 255, 0.2)",
+        gap: 12,
+    },
+    avatarContainer: {
+        width: 38,
+        height: 38,
+        justifyContent: "center",
+        alignItems: "center",
+        position: "relative",
+    },
+    avatarMain: {
+        width: 34,
+        height: 34,
+        borderRadius: 17,
+        justifyContent: "center",
+        alignItems: "center",
+        backgroundColor: "rgba(124, 58, 237, 0.12)",
+        borderWidth: 1,
+        borderColor: "rgba(124, 58, 237, 0.2)",
+    },
+    avatarInner: {
+        width: "100%",
+        height: "100%",
+        borderRadius: 17,
+        backgroundColor: "rgba(124, 58, 237, 0.15)",
+        justifyContent: "center",
+        alignItems: "center",
+        overflow: "hidden",
+    },
+    avatarInitials: {
+        color: "#7C3AED",
+        fontSize: 14,
+        fontWeight: "700",
+    },
+    agentRing: {
+        position: "absolute",
+        width: 38,
+        height: 38,
+        borderRadius: 19,
+        borderWidth: 1.5,
+        borderColor: "#7C3AED",
+    },
+    switchBtn: {
+        flexDirection: "row",
+        alignItems: "center",
         paddingHorizontal: 12,
-        paddingVertical: 8,
-        borderRadius: 12,
-        gap: 6,
+        paddingVertical: 7,
+        borderRadius: 16,
+        borderWidth: 1,
     },
-    switchText: {
-        fontSize: 13,
-        fontWeight: "600",
-        color: "#FFFFFF",
+    switchBtnText: { fontSize: 12, fontWeight: "700" },
+
+    scrollContent: {
+        paddingHorizontal: 16,
+        paddingTop: 10,
     },
-    content: {
-        padding: 20,
-        paddingTop: 28,
-    },
+
+    // ── Hero Card ──
     heroCard: {
         borderRadius: 28,
         padding: 22,
         marginBottom: 16,
-        shadowColor: "#0B7A42",
-        shadowOpacity: 0.16,
-        shadowRadius: 18,
-        shadowOffset: { width: 0, height: 12 },
-        elevation: 6,
+        shadowColor: "#7C3AED",
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.35,
+        shadowRadius: 20,
+        elevation: 8,
     },
     heroTopRow: {
         flexDirection: "row",
@@ -607,422 +621,224 @@ const styles = StyleSheet.create({
     heroBadge: {
         flexDirection: "row",
         alignItems: "center",
-        gap: 6,
-        backgroundColor: "rgba(255,255,255,0.16)",
+        gap: 5,
+        backgroundColor: "rgba(255,255,255,0.15)",
         paddingHorizontal: 10,
-        paddingVertical: 6,
+        paddingVertical: 5,
         borderRadius: 999,
     },
-    heroBadgeText: {
-        fontSize: 12,
-        fontWeight: "700",
-        color: "#F0FFF4",
+    heroBadgeText: { fontSize: 10, fontWeight: "800", color: "#EDE9FE", textTransform: "uppercase", letterSpacing: 0.4 },
+    heroPendingChip: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 5,
+        backgroundColor: "rgba(255,255,255,0.12)",
+        paddingHorizontal: 10,
+        paddingVertical: 5,
+        borderRadius: 999,
     },
-    heroPendingText: {
-        fontSize: 12,
-        fontWeight: "700",
-        color: "rgba(255,255,255,0.92)",
-    },
-    heroLabel: {
-        fontSize: 13,
-        fontWeight: "600",
-        color: "rgba(255,255,255,0.84)",
-        marginBottom: 6,
-    },
-    heroValue: {
-        fontSize: 31,
-        fontWeight: "800",
-        color: "#FFFFFF",
-        letterSpacing: -0.8,
-    },
-    heroSubtext: {
-        marginTop: 8,
-        fontSize: 13,
-        lineHeight: 20,
-        color: "rgba(255,255,255,0.84)",
-        maxWidth: "88%",
-    },
+    heroPendingDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: "#A7F3D0" },
+    heroPendingText: { fontSize: 11, fontWeight: "700", color: "#FFFFFF" },
+    heroLabel: { fontSize: 12, fontWeight: "700", color: "rgba(255,255,255,0.75)", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 6 },
+    heroValue: { fontSize: 34, fontWeight: "900", color: "#FFFFFF", letterSpacing: -1, marginBottom: 6 },
+    heroValueSuffix: { fontSize: 20, fontWeight: "700", color: "rgba(255,255,255,0.8)" },
+    heroSubtext: { fontSize: 13, lineHeight: 20, color: "rgba(255,255,255,0.75)", marginBottom: 18 },
     heroStatsRow: {
-        marginTop: 20,
         flexDirection: "row",
         alignItems: "center",
         backgroundColor: "rgba(255,255,255,0.12)",
-        borderRadius: 20,
-        paddingHorizontal: 16,
+        borderRadius: 18,
+        paddingHorizontal: 14,
         paddingVertical: 14,
     },
-    heroStatBlock: {
-        flex: 1,
-    },
-    heroDivider: {
-        width: 1,
-        alignSelf: "stretch",
-        backgroundColor: "rgba(255,255,255,0.16)",
-        marginHorizontal: 14,
-    },
-    heroStatCaption: {
-        fontSize: 11,
-        fontWeight: "700",
-        color: "rgba(255,255,255,0.72)",
-        marginBottom: 5,
-        textTransform: "uppercase",
-        letterSpacing: 0.5,
-    },
-    heroStatValue: {
-        fontSize: 15,
-        fontWeight: "700",
-        color: "#FFFFFF",
-    },
+    heroStatBlock: { flex: 1 },
+    heroDivider: { width: 1, alignSelf: "stretch", backgroundColor: "rgba(255,255,255,0.18)", marginHorizontal: 12 },
+    heroStatCaption: { fontSize: 10, fontWeight: "700", color: "rgba(255,255,255,0.68)", textTransform: "uppercase", letterSpacing: 0.4, marginBottom: 5 },
+    heroStatValue: { fontSize: 13, fontWeight: "800", color: "#FFFFFF" },
+
+    // ── Insight Pills ──
     insightRow: {
         flexDirection: "row",
-        gap: 12,
-        marginBottom: 16,
+        gap: 8,
+        marginBottom: 20,
     },
     insightCard: {
         flex: 1,
-        backgroundColor: "#FFFFFF",
-        padding: 16,
-        borderRadius: 22,
+        borderRadius: 20,
         borderWidth: 1,
-        borderColor: "#EEF2F7",
+        padding: 12,
+        alignItems: "flex-start",
+        shadowColor: "#000",
+        shadowOpacity: 0.03,
+        shadowRadius: 6,
+        shadowOffset: { width: 0, height: 2 },
+        elevation: 1,
     },
-    insightIcon: {
-        width: 34,
-        height: 34,
+    insightIconBox: {
+        width: 32,
+        height: 32,
         borderRadius: 11,
         alignItems: "center",
         justifyContent: "center",
-        marginBottom: 12,
+        marginBottom: 8,
     },
-    insightLabel: {
-        fontSize: 12,
-        color: "#6B7280",
-        fontWeight: "600",
-        marginBottom: 4,
-    },
-    insightValue: {
-        fontSize: 18,
-        fontWeight: "700",
-        color: "#111827",
-    },
-    tokenSectionLabel: {
-        fontSize: 12,
-        fontWeight: "800",
-        color: "#4B5563",
-        textTransform: "uppercase",
-        letterSpacing: 0.6,
-    },
-    section: {
-        marginTop: 12,
-        marginBottom: 20,
-    },
-    sectionHeader: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        alignItems: "center",
-        marginBottom: 12,
-    },
-    sectionTitle: {
-        fontSize: 18,
-        fontWeight: "700",
-        color: "#111827",
-        letterSpacing: -0.3,
-    },
-    sectionTitleStandalone: {
-        marginBottom: 12,
-    },
-    viewAllText: {
-        fontSize: 14,
-        color: "#00B14F",
-        fontWeight: "600",
-    },
-    tokenPanel: {
-        backgroundColor: "#FFFFFF",
+    insightLabel: { fontSize: 10, fontWeight: "700", textTransform: "uppercase", letterSpacing: 0.4, marginBottom: 4 },
+    insightValue: { fontSize: 13, fontWeight: "800" },
+
+    // ── Section ──
+    section: { marginBottom: 20 },
+    sectionHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 8 },
+    sectionTitle: { fontSize: 11, fontWeight: "800", letterSpacing: 0.8, marginBottom: 8, marginLeft: 2 },
+    viewAll: { fontSize: 13, fontWeight: "700" },
+
+    // ── Card ──
+    card: {
         borderRadius: 24,
         borderWidth: 1,
-        borderColor: "#EEF2F7",
-        padding: 18,
+        shadowColor: "#000",
+        shadowOpacity: 0.03,
+        shadowRadius: 8,
+        shadowOffset: { width: 0, height: 2 },
+        elevation: 2,
     },
-    tokenBlock: {
-        paddingBottom: 18,
-        marginBottom: 18,
-        borderBottomWidth: 1,
-        borderBottomColor: "#F3F4F6",
-    },
-    tokenBlockLast: {
-        paddingBottom: 0,
-        marginBottom: 0,
-    },
-    tokenCard: {
-        borderRadius: 20,
-        padding: 14,
-        borderWidth: 1,
-    },
-    tokenCardPositive: {
-        backgroundColor: "#F8FFFA",
-        borderColor: "#DDF7E5",
-    },
-    tokenCardInfo: {
-        backgroundColor: "#F8FBFF",
-        borderColor: "#DCEAFD",
-    },
-    tokenCardDanger: {
-        backgroundColor: "#FFF8F8",
-        borderColor: "#F8DADA",
-    },
-    tokenBlockHeader: {
+    divider: { height: 1 },
+
+    // ── Action Row ──
+    actionRow: {
         flexDirection: "row",
         alignItems: "center",
-        justifyContent: "space-between",
-        marginBottom: 14,
-    },
-    tokenPanelHint: {
-        fontSize: 13,
-        color: "#6B7280",
-        fontWeight: "500",
-        marginTop: 3,
-    },
-    tokenHeaderIcon: {
-        width: 34,
-        height: 34,
-        borderRadius: 12,
-        alignItems: "center",
-        justifyContent: "center",
-    },
-    tokenRows: {
-        gap: 10,
-    },
-    tokenRow: {
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "space-between",
-        gap: 16,
-    },
-    tokenRowDivider: {
-        height: 1,
-        backgroundColor: "#F3F4F6",
-    },
-    tokenCode: {
-        fontSize: 14,
-        fontWeight: "800",
-        color: "#111827",
-        minWidth: 34,
-    },
-    tokenAmounts: {
-        flex: 1,
-        alignItems: "flex-end",
-    },
-    tokenPrimaryValue: {
-        fontSize: 17,
-        fontWeight: "800",
-        color: "#111827",
-    },
-    tokenSecondaryValue: {
-        fontSize: 11,
-        color: "#7C8798",
-        fontWeight: "500",
-        marginTop: 3,
-    },
-    actionStack: {
-        gap: 12,
-    },
-    actionButton: {
-        width: "100%",
-    },
-    actionSurface: {
-        backgroundColor: "#FFFFFF",
-        padding: 16,
-        borderRadius: 22,
-        flexDirection: "row",
-        justifyContent: "space-between",
-        alignItems: "center",
-        borderWidth: 1,
-        borderColor: "#EEF2F7",
-    },
-    actionMain: {
-        flexDirection: "row",
-        alignItems: "center",
-        flex: 1,
-    },
-    actionIcon: {
-        width: 46,
-        height: 46,
-        borderRadius: 16,
-        alignItems: "center",
-        justifyContent: "center",
-        marginRight: 14,
-    },
-    actionContent: {
-        flex: 1,
-    },
-    actionText: {
-        fontSize: 15,
-        fontWeight: "700",
-        color: "#111827",
-    },
-    actionSubtext: {
-        fontSize: 12,
-        color: "#6B7280",
-        fontWeight: "500",
-        marginTop: 4,
-        lineHeight: 18,
-    },
-    listCard: {
-        backgroundColor: "#FFFFFF",
-        borderRadius: 24,
-        borderWidth: 1,
-        borderColor: "#EEF2F7",
-        overflow: "hidden",
-    },
-    listIntro: {
+        gap: 14,
         paddingHorizontal: 16,
-        paddingTop: 16,
-        paddingBottom: 12,
-        backgroundColor: "#FBFCFD",
-        borderBottomWidth: 1,
-        borderBottomColor: "#F1F5F9",
+        paddingVertical: 14,
     },
-    listIntroTitle: {
-        fontSize: 13,
-        fontWeight: "700",
-        color: "#111827",
+    actionIconBox: {
+        width: 42,
+        height: 42,
+        borderRadius: 14,
+        alignItems: "center",
+        justifyContent: "center",
     },
-    listIntroText: {
-        fontSize: 12,
-        lineHeight: 18,
-        color: "#6B7280",
-        fontWeight: "500",
-        marginTop: 4,
-    },
-    listItem: {
+    actionTextWrap: { flex: 1 },
+    actionLabel: { fontSize: 15, fontWeight: "700", marginBottom: 2 },
+    actionSub: { fontSize: 12, fontWeight: "500", lineHeight: 17 },
+
+    // ── Float Row ──
+    floatRow: {
         flexDirection: "row",
         alignItems: "center",
-        padding: 16,
         gap: 12,
+        paddingHorizontal: 16,
+        paddingVertical: 14,
     },
-    listItemIcon: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        alignItems: "center",
-        justifyContent: "center",
-    },
-    listItemInfo: {
-        flex: 1,
-    },
-    listItemEyebrow: {
-        fontSize: 11,
-        color: "#6B7280",
-        fontWeight: "700",
-        textTransform: "uppercase",
-        letterSpacing: 0.4,
-        marginBottom: 4,
-    },
-    listItemAmount: {
-        fontSize: 15,
-        fontWeight: "700",
-        color: "#111827",
-        marginBottom: 2,
-    },
-    listItemType: {
-        fontSize: 15,
-        fontWeight: "700",
-        color: "#111827",
-        marginBottom: 2,
-    },
-    listItemDate: {
-        fontSize: 12,
-        color: "#6B7280",
-        fontWeight: "500",
-    },
-    listItemAmounts: {
-        alignItems: "flex-end",
-    },
-    listItemAmountValue: {
-        fontSize: 15,
-        fontWeight: "700",
-        color: "#111827",
-        marginBottom: 2,
-    },
-    transactionCommission: {
-        fontSize: 12,
-        color: "#00B14F",
-        fontWeight: "600",
-    },
-    depositStatus: {
-        backgroundColor: "#F0FDF4",
-        paddingHorizontal: 10,
-        paddingVertical: 4,
-        borderRadius: 8,
-    },
-    depositStatusText: {
-        fontSize: 11,
-        color: "#00B14F",
-        fontWeight: "700",
-    },
-    statusBadge: {
-        paddingHorizontal: 10,
-        paddingVertical: 4,
-        borderRadius: 8,
-    },
-    statusText: {
-        fontSize: 11,
-        fontWeight: "700",
-    },
-    performanceCard: {
-        backgroundColor: "#FFFFFF",
+    floatTextWrap: { flex: 1 },
+    floatLabel: { fontSize: 14, fontWeight: "700", marginBottom: 2 },
+    floatSub: { fontSize: 12, fontWeight: "500" },
+    floatValue: { fontSize: 14, fontWeight: "800", flexShrink: 0, maxWidth: 120, textAlign: "right" },
+
+    // ── Token Performance ──
+    // ── Token Performance Panel (matrix) ──
+    tokenPanel: {
         borderRadius: 24,
         borderWidth: 1,
-        borderColor: "#EEF2F7",
-        padding: 20,
+        overflow: "hidden",
+        shadowColor: "#000",
+        shadowOpacity: 0.03,
+        shadowRadius: 8,
+        shadowOffset: { width: 0, height: 2 },
+        elevation: 2,
     },
-    performanceRow: {
+    tokenColHeaders: {
         flexDirection: "row",
-        justifyContent: "space-between",
+        alignItems: "center",
+        paddingHorizontal: 14,
+        paddingVertical: 12,
     },
-    performanceItem: {
+    tokenColHeaderLabel: { width: 38 },
+    tokenColHeaderCell: {
         flex: 1,
         alignItems: "center",
-        gap: 8,
+        gap: 5,
     },
-    perfIconWrapper: {
-        width: 44,
-        height: 44,
-        borderRadius: 22,
+    tokenColIconBox: {
+        width: 28,
+        height: 28,
+        borderRadius: 9,
         alignItems: "center",
         justifyContent: "center",
-        marginBottom: 4,
     },
-    performanceLabel: {
-        fontSize: 12,
-        color: "#6B7280",
-        fontWeight: "500",
-        textAlign: "center",
+    tokenColHeaderText: {
+        fontSize: 10,
+        fontWeight: "800",
+        textTransform: "uppercase",
+        letterSpacing: 0.3,
     },
-    performanceValue: {
-        fontSize: 16,
-        fontWeight: "700",
-        color: "#111827",
-    },
-    divider: {
-        height: 1,
-        backgroundColor: "#F3F4F6",
-        marginHorizontal: 16,
-    },
-    emptyCard: {
-        backgroundColor: "#FFFFFF",
-        padding: 30,
-        borderRadius: 24,
+    tokenDivider: { height: 1 },
+    tokenDataRow: {
+        flexDirection: "row",
         alignItems: "center",
+        paddingHorizontal: 14,
+        paddingVertical: 14,
+        gap: 4,
+    },
+    tokenBadge: {
+        width: 34,
+        height: 28,
+        borderRadius: 9,
+        alignItems: "center",
+        justifyContent: "center",
+        marginRight: 4,
+    },
+    tokenBadgeText: { fontSize: 11, fontWeight: "900", letterSpacing: 0.4 },
+    tokenDataCell: {
+        flex: 1,
+        alignItems: "center",
+    },
+    tokenDataPrimary: { fontSize: 12, fontWeight: "800", textAlign: "center" },
+    tokenDataSub: { fontSize: 10, fontWeight: "500", marginTop: 2, textAlign: "center" },
+
+
+    // ── List Rows ──
+    listRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 12,
+        paddingHorizontal: 16,
+        paddingVertical: 14,
+    },
+    listIcon: {
+        width: 38,
+        height: 38,
+        borderRadius: 13,
+        alignItems: "center",
+        justifyContent: "center",
+    },
+    listInfo: { flex: 1 },
+    listEyebrow: { fontSize: 10, fontWeight: "700", textTransform: "uppercase", letterSpacing: 0.4, marginBottom: 3 },
+    listAmount: { fontSize: 14, fontWeight: "700", marginBottom: 2 },
+    listDate: { fontSize: 11, fontWeight: "500" },
+    statusPill: {
+        paddingHorizontal: 10,
+        paddingVertical: 4,
+        borderRadius: 999,
+    },
+    statusPillText: { fontSize: 11, fontWeight: "700" },
+
+    // ── Tx Amounts ──
+    txAmountCol: { alignItems: "flex-end", flexShrink: 0, gap: 3 },
+    txAmount: { fontSize: 13, fontWeight: "800" },
+    txCommission: { fontSize: 11, fontWeight: "600" },
+
+    // ── Empty ──
+    emptyCard: {
+        borderRadius: 24,
         borderWidth: 1,
-        borderColor: "#EEF2F7",
+        padding: 30,
+        alignItems: "center",
+        shadowColor: "#000",
+        shadowOpacity: 0.02,
+        shadowRadius: 6,
+        shadowOffset: { width: 0, height: 2 },
+        elevation: 1,
     },
-    emptyText: {
-        fontSize: 14,
-        color: "#9CA3AF",
-        fontWeight: "500",
-    },
-    bottomSpacer: {
-        height: 100,
-    },
+    emptyText: { fontSize: 14, fontWeight: "600" },
 });

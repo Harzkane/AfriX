@@ -1,3 +1,4 @@
+// app/(auth)/login.tsx
 import React, { useState, useEffect } from "react";
 import {
   Text,
@@ -8,33 +9,44 @@ import {
   View,
   TouchableOpacity,
   ActivityIndicator,
+  TextInput as RNTextInput,
+  useColorScheme,
 } from "react-native";
-import { TextInput, Button, HelperText } from "react-native-paper";
+import { HelperText } from "react-native-paper";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import * as SecureStore from "expo-secure-store";
 import * as LocalAuthentication from "expo-local-authentication";
+import * as Haptics from "expo-haptics";
 import { useAuthStore } from "@/stores";
 import { Link, useRouter } from "expo-router";
 import { debugAuth } from "@/utils/debugAuth";
 
 const BIOMETRIC_LOGIN_KEY = "biometric_login_enabled";
 
-const COLORS = {
-  primary: "#16A34A", // enabled
-  disabled: "#9CA3AF", // disabled
-  textOnPrimary: "#ffffff",
-};
-
 export default function LoginScreen() {
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === "dark";
+  const router = useRouter();
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showBiometricUnlock, setShowBiometricUnlock] = useState(false);
-  const [biometricLabel, setBiometricLabel] = useState("Face ID or Touch ID");
+  const [biometricLabel, setBiometricLabel] = useState("Face ID / Touch ID");
   const [biometricLoading, setBiometricLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const { login, loading, error, unlockWithBiometric } = useAuthStore();
 
-  const router = useRouter();
+  const theme = {
+    background: isDark ? "#080E14" : "#F4F7FC",
+    card: isDark ? "rgba(16, 25, 36, 0.85)" : "#FFFFFF",
+    text: isDark ? "#F8FAFC" : "#0F172A",
+    muted: isDark ? "#94A3B8" : "#64748B",
+    border: isDark ? "#1E2E42" : "#E2E8F0",
+    inputBg: isDark ? "#162232" : "#F8FAFC",
+    accent: "#00B14F",
+    placeholder: isDark ? "#475569" : "#9CA3AF",
+  };
 
   useEffect(() => {
     (async () => {
@@ -63,19 +75,23 @@ export default function LoginScreen() {
   const isDisabled = loading || !email || !password;
 
   const handleBiometricUnlock = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setBiometricLoading(true);
     try {
       const success = await unlockWithBiometric();
-      if (success) router.replace("/");
+      if (success) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        router.replace("/");
+      }
     } finally {
       setBiometricLoading(false);
     }
   };
 
   const handleLogin = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     try {
       const response: any = await login({ email, password });
-
       if (response?.requires_2fa) {
         router.push({
           pathname: "/(auth)/two-factor",
@@ -83,55 +99,58 @@ export default function LoginScreen() {
         });
         return;
       }
-
-      // DEBUG: Verify token was saved
       await debugAuth();
-
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.replace("/");
     } catch {
-      // error handled in store
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     }
   };
 
   return (
-    <LinearGradient
-      colors={["#00B14F", "#008F40"]}
-      style={{ flex: 1 }}
-    >
-      {/* Decorative circles */}
-      <View style={styles.decorativeCircle1} />
-      <View style={styles.decorativeCircle2} />
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
+      {/* Ambient glows */}
+      <LinearGradient
+        colors={isDark ? ["#051811", "#080E14"] : ["#E8FDF0", "#F4F7FC"]}
+        style={StyleSheet.absoluteFillObject}
+      />
+      <View style={[styles.glowOrb1, { backgroundColor: isDark ? "rgba(0, 177, 79, 0.12)" : "rgba(0, 177, 79, 0.06)" }]} />
 
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
         <ScrollView
-          contentContainerStyle={styles.container}
+          contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
         >
-          {/* Logo/Brand Section */}
+          {/* Brand header */}
           <View style={styles.brandSection}>
-            <View style={styles.logoCircle}>
-              <Text style={styles.logoText}>AfriX</Text>
-            </View>
-            <Text style={styles.welcomeText}>Welcome Back</Text>
-            <Text style={styles.subtitle}>Sign in to continue</Text>
+            <LinearGradient
+              colors={["#00B14F", "#10B981"]}
+              style={styles.logoCircle}
+            >
+              <Ionicons name="swap-horizontal" size={32} color="#FFFFFF" />
+            </LinearGradient>
+            <Text style={[styles.welcomeText, { color: theme.text }]}>Welcome Back</Text>
+            <Text style={[styles.subtitle, { color: theme.muted }]}>Sign in to access your secure wallet</Text>
           </View>
 
-          {/* Biometric unlock - show when user has stored session + biometric enabled */}
+          {/* Biometrics */}
           {showBiometricUnlock && (
             <TouchableOpacity
-              style={styles.biometricButton}
+              style={[styles.biometricButton, { backgroundColor: isDark ? "rgba(0, 177, 79, 0.15)" : "#EAF8EF", borderColor: theme.accent + "30" }]}
               onPress={handleBiometricUnlock}
               disabled={biometricLoading || loading}
+              activeOpacity={0.8}
             >
               {biometricLoading ? (
-                <ActivityIndicator color="#FFFFFF" size="small" />
+                <ActivityIndicator color={theme.accent} size="small" />
               ) : (
                 <>
-                  <Ionicons name="finger-print" size={24} color="#FFFFFF" style={styles.biometricIcon} />
-                  <Text style={styles.biometricButtonText}>
+                  <Ionicons name="finger-print" size={20} color={theme.accent} style={{ marginRight: 8 }} />
+                  <Text style={[styles.biometricButtonText, { color: theme.accent }]}>
                     Unlock with {biometricLabel}
                   </Text>
                 </>
@@ -139,225 +158,290 @@ export default function LoginScreen() {
             </TouchableOpacity>
           )}
 
-          {/* Card Container */}
-          <View style={styles.card}>
-            <TextInput
-              label="Email"
-              value={email}
-              onChangeText={setEmail}
-              mode="outlined"
-              style={styles.input}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              outlineColor="rgba(0,0,0,0.1)"
-              activeOutlineColor="#00B14F"
-              textColor="#111827"
-              theme={{ colors: { background: '#FFFFFF', onSurfaceVariant: '#6B7280' } }}
-            />
+          {/* Form Card */}
+          <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
+            {/* Email Field */}
+            <View style={styles.inputGroup}>
+              <Text style={[styles.inputLabel, { color: theme.muted }]}>Email Address</Text>
+              <View style={[styles.inputRow, { backgroundColor: theme.inputBg, borderColor: theme.border }]}>
+                <View style={styles.inputIconBox}>
+                  <Ionicons name="mail-outline" size={18} color={theme.muted} />
+                </View>
+                <RNTextInput
+                  style={[styles.textInput, { color: theme.text }]}
+                  value={email}
+                  onChangeText={setEmail}
+                  placeholder="name@example.com"
+                  placeholderTextColor={theme.placeholder}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+              </View>
+            </View>
 
-            <TextInput
-              label="Password"
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-              mode="outlined"
-              style={styles.input}
-              outlineColor="rgba(0,0,0,0.1)"
-              activeOutlineColor="#00B14F"
-              textColor="#111827"
-              theme={{ colors: { background: '#FFFFFF', onSurfaceVariant: '#6B7280' } }}
-            />
+            {/* Password Field */}
+            <View style={styles.inputGroup}>
+              <Text style={[styles.inputLabel, { color: theme.muted }]}>Password</Text>
+              <View style={[styles.inputRow, { backgroundColor: theme.inputBg, borderColor: theme.border }]}>
+                <View style={styles.inputIconBox}>
+                  <Ionicons name="lock-closed-outline" size={18} color={theme.muted} />
+                </View>
+                <RNTextInput
+                  style={[styles.textInput, { color: theme.text }]}
+                  value={password}
+                  onChangeText={setPassword}
+                  placeholder="••••••••"
+                  placeholderTextColor={theme.placeholder}
+                  secureTextEntry={!showPassword}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+                <TouchableOpacity
+                  onPress={() => setShowPassword(!showPassword)}
+                  style={styles.eyeButton}
+                >
+                  <Ionicons
+                    name={showPassword ? "eye-off-outline" : "eye-outline"}
+                    size={18}
+                    color={theme.muted}
+                  />
+                </TouchableOpacity>
+              </View>
+            </View>
 
-            {error && <HelperText type="error" style={styles.errorText}>{error}</HelperText>}
+            {error && (
+              <View style={styles.errorContainer}>
+                <Ionicons name="alert-circle-outline" size={16} color="#EF4444" />
+                <Text style={styles.errorText}>{error}</Text>
+              </View>
+            )}
 
-            <Button
-              mode="contained"
+            {/* Login button */}
+            <TouchableOpacity
+              style={[styles.loginBtn, isDisabled && { opacity: 0.6 }]}
               onPress={handleLogin}
-              loading={loading}
               disabled={isDisabled}
-              buttonColor={isDisabled ? COLORS.disabled : COLORS.primary}
-              textColor={COLORS.textOnPrimary}
-              style={styles.btn}
-              contentStyle={styles.btnContent}
+              activeOpacity={0.85}
             >
-              Login
-            </Button>
+              <LinearGradient
+                colors={isDisabled ? ["#9CA3AF", "#6B7280"] : ["#00B14F", "#059669"]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.loginBtnGradient}
+              >
+                {loading ? (
+                  <ActivityIndicator color="#FFFFFF" size="small" />
+                ) : (
+                  <>
+                    <Text style={styles.loginBtnText}>Sign In</Text>
+                    <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />
+                  </>
+                )}
+              </LinearGradient>
+            </TouchableOpacity>
 
             <Link href="/(auth)/forgot-password" asChild>
-              <Button mode="text" style={styles.linkBtn} textColor="#00B14F">
-                Forgot Password?
-              </Button>
+              <TouchableOpacity style={styles.forgotBtn}>
+                <Text style={[styles.forgotBtnText, { color: theme.accent }]}>Forgot Password?</Text>
+              </TouchableOpacity>
             </Link>
           </View>
 
-          {/* Bottom Links */}
+          {/* Bottom links */}
           <View style={styles.bottomSection}>
             <Link href="/(auth)/resend-verification" asChild>
-              <Button mode="text" style={styles.linkBtnWhite} textColor="rgba(255,255,255,0.9)">
-                Resend Verification Email
-              </Button>
+              <TouchableOpacity style={styles.linkButton}>
+                <Text style={[styles.linkButtonText, { color: theme.muted }]}>
+                  Resend Verification Email
+                </Text>
+              </TouchableOpacity>
             </Link>
 
             <View style={styles.registerRow}>
-              <Text style={styles.registerText}>{"Don't have an account? "}</Text>
+              <Text style={[styles.registerText, { color: theme.muted }]}>Don&apos;t have an account? </Text>
               <Link href="/(auth)/register" asChild>
-                <Button mode="text" style={styles.registerLink} textColor="#FFFFFF" labelStyle={{ fontWeight: '700' }}>
-                  Register
-                </Button>
+                <TouchableOpacity>
+                  <Text style={[styles.registerLink, { color: theme.accent }]}>Register</Text>
+                </TouchableOpacity>
               </Link>
             </View>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </LinearGradient>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    flexGrow: 1,
-    justifyContent: "center",
-    padding: 24,
-    paddingTop: 60,
+    flex: 1,
   },
-
-  decorativeCircle1: {
+  glowOrb1: {
     position: "absolute",
-    width: 200,
-    height: 200,
-    borderRadius: 100,
-    backgroundColor: "rgba(255,255,255,0.1)",
+    width: 250,
+    height: 250,
+    borderRadius: 125,
     top: -50,
     right: -50,
   },
-
-  decorativeCircle2: {
-    position: "absolute",
-    width: 150,
-    height: 150,
-    borderRadius: 75,
-    backgroundColor: "rgba(255,255,255,0.08)",
-    bottom: 100,
-    left: -40,
+  scrollContent: {
+    flexGrow: 1,
+    justifyContent: "center",
+    paddingHorizontal: 24,
+    paddingTop: 50,
+    paddingBottom: 32,
   },
-
   brandSection: {
     alignItems: "center",
-    marginBottom: 40,
+    marginBottom: 28,
   },
-
   logoCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: "rgba(255,255,255,0.2)",
+    width: 72,
+    height: 72,
+    borderRadius: 24,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 20,
-    borderWidth: 2,
-    borderColor: "rgba(255,255,255,0.3)",
+    marginBottom: 16,
+    shadowColor: "#00B14F",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 6,
   },
-
-  logoText: {
-    fontSize: 24,
-    fontWeight: "800",
-    color: "#FFFFFF",
-    letterSpacing: 1,
-  },
-
   welcomeText: {
-    fontSize: 32,
-    fontWeight: "700",
-    color: "#FFFFFF",
-    marginBottom: 8,
-    textAlign: "center",
+    fontSize: 28,
+    fontWeight: "900",
+    letterSpacing: -0.5,
+    marginBottom: 6,
   },
-
   subtitle: {
-    fontSize: 16,
-    color: "rgba(255,255,255,0.85)",
-    textAlign: "center",
+    fontSize: 14,
+    fontWeight: "500",
   },
-
   biometricButton: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     alignSelf: "center",
-    backgroundColor: "rgba(255,255,255,0.25)",
-    paddingVertical: 14,
-    paddingHorizontal: 24,
-    borderRadius: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 16,
+    borderWidth: 1.5,
     marginBottom: 20,
-    minWidth: 220,
-    borderWidth: 2,
-    borderColor: "rgba(255,255,255,0.4)",
-  },
-  biometricIcon: {
-    marginRight: 10,
   },
   biometricButtonText: {
-    color: "#FFFFFF",
-    fontSize: 16,
+    fontSize: 14,
+    fontWeight: "800",
+  },
+  card: {
+    borderRadius: 26,
+    borderWidth: 1,
+    padding: 22,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.05,
+    shadowRadius: 16,
+    elevation: 3,
+    marginBottom: 20,
+  },
+  inputGroup: {
+    marginBottom: 16,
+  },
+  inputLabel: {
+    fontSize: 11,
+    fontWeight: "800",
+    textTransform: "uppercase",
+    letterSpacing: 0.6,
+    marginBottom: 8,
+    marginLeft: 2,
+  },
+  inputRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 1.5,
+    borderRadius: 16,
+    overflow: "hidden",
+  },
+  inputIconBox: {
+    width: 44,
+    alignSelf: "stretch",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  textInput: {
+    flex: 1,
+    paddingVertical: 14,
+    paddingHorizontal: 8,
+    fontSize: 15,
     fontWeight: "600",
   },
-
-  card: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 24,
-    padding: 24,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.15,
-    shadowRadius: 20,
-    elevation: 8,
-    marginBottom: 24,
+  eyeButton: {
+    width: 44,
+    alignSelf: "stretch",
+    alignItems: "center",
+    justifyContent: "center",
   },
-
-  input: {
+  errorContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
     marginBottom: 16,
-    backgroundColor: "#FFFFFF",
+    marginLeft: 2,
   },
-
   errorText: {
-    marginBottom: 8,
+    color: "#EF4444",
+    fontSize: 13,
+    fontWeight: "600",
+    flex: 1,
   },
-
-  btn: {
+  loginBtn: {
+    borderRadius: 18,
+    overflow: "hidden",
     marginTop: 8,
-    borderRadius: 12,
-    elevation: 0,
   },
-
-  btnContent: {
-    height: 50,
+  loginBtnGradient: {
+    height: 54,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
   },
-
-  linkBtn: {
-    marginTop: 12,
+  loginBtnText: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "800",
+  },
+  forgotBtn: {
     alignSelf: "center",
+    marginTop: 16,
+    paddingVertical: 4,
   },
-
+  forgotBtnText: {
+    fontSize: 14,
+    fontWeight: "800",
+  },
   bottomSection: {
     alignItems: "center",
+    gap: 12,
   },
-
-  linkBtnWhite: {
-    marginBottom: 8,
+  linkButton: {
+    paddingVertical: 6,
   },
-
+  linkButtonText: {
+    fontSize: 13,
+    fontWeight: "700",
+  },
   registerRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginTop: 8,
   },
-
   registerText: {
-    color: "rgba(255,255,255,0.9)",
-    fontSize: 15,
+    fontSize: 14,
+    fontWeight: "500",
   },
-
   registerLink: {
-    marginLeft: -8,
+    fontSize: 14,
+    fontWeight: "800",
   },
 });

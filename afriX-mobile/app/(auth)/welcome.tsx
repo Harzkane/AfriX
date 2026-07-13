@@ -1,148 +1,187 @@
 // app/(auth)/welcome.tsx
 import React from "react";
-import { View, Text, StyleSheet } from "react-native";
-import { Button } from "react-native-paper";
+import { View, Text, StyleSheet, TouchableOpacity, useColorScheme } from "react-native";
 import { Link } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
+import { Ionicons } from "@expo/vector-icons";
+import * as Haptics from "expo-haptics";
 
 export default function WelcomeScreen() {
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === "dark";
+
+  const handlePress = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+  };
+
   return (
-    <LinearGradient colors={["#00B14F", "#008F40"]} style={styles.container}>
-      {/* Decorative circles */}
-      <View style={styles.decorativeCircle1} />
-      <View style={styles.decorativeCircle2} />
+    <View style={styles.container}>
+      {/* Background Deep Glows */}
+      <LinearGradient
+        colors={isDark ? ["#051811", "#080E14"] : ["#E8FDF0", "#F4F7FC"]}
+        style={StyleSheet.absoluteFillObject}
+      />
+
+      {/* Decorative Blur Orbs */}
+      <View style={[styles.glowOrb1, { backgroundColor: isDark ? "rgba(0, 177, 79, 0.15)" : "rgba(0, 177, 79, 0.08)" }]} />
+      <View style={[styles.glowOrb2, { backgroundColor: isDark ? "rgba(59, 130, 246, 0.12)" : "rgba(59, 130, 246, 0.06)" }]} />
 
       <View style={styles.inner}>
         {/* Logo Section */}
         <View style={styles.logoSection}>
-          <View style={styles.logoCircle}>
-            <Text style={styles.logoText}>AfriX</Text>
-          </View>
-          <Text style={styles.title}>AfriX</Text>
-          <Text style={styles.subtitle}>
-            Your secure gateway to digital assets
+          <LinearGradient
+            colors={["#00B14F", "#10B981"]}
+            style={styles.logoCircle}
+          >
+            <Ionicons name="swap-horizontal" size={38} color="#FFFFFF" />
+          </LinearGradient>
+          <Text style={[styles.title, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+            Afri<Text style={{ color: "#00B14F" }}>X</Text>
+          </Text>
+          <Text style={[styles.subtitle, { color: isDark ? "#94A3B8" : "#475569" }]}>
+            Your premium gate to digital asset exchanges and fast local transfers.
           </Text>
         </View>
 
         {/* Buttons Card */}
-        <View style={styles.buttonCard}>
+        <View style={[styles.buttonCard, { backgroundColor: isDark ? "rgba(16, 25, 36, 0.85)" : "#FFFFFF", borderColor: isDark ? "#1E2E42" : "#E2E8F0" }]}>
           <Link href="/(auth)/register" asChild>
-            <Button
-              mode="contained"
-              style={styles.primaryBtn}
-              buttonColor="#00B14F"
-              contentStyle={{ paddingVertical: 8 }}
-            >
-              Get Started
-            </Button>
+            <TouchableOpacity style={styles.primaryBtn} onPress={handlePress} activeOpacity={0.85}>
+              <LinearGradient
+                colors={["#00B14F", "#059669"]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.btnGradient}
+              >
+                <Text style={styles.primaryBtnText}>Get Started</Text>
+                <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />
+              </LinearGradient>
+            </TouchableOpacity>
           </Link>
 
           <Link href="/(auth)/login" asChild>
-            <Button
-              mode="outlined"
-              style={styles.secondaryBtn}
-              textColor="#00B14F"
-              contentStyle={{ paddingVertical: 8 }}
+            <TouchableOpacity
+              style={[styles.secondaryBtn, { borderColor: isDark ? "#1E2E42" : "#E2E8F0", backgroundColor: isDark ? "#162232" : "#F8FAFC" }]}
+              onPress={handlePress}
+              activeOpacity={0.85}
             >
-              Login
-            </Button>
+              <Text style={[styles.secondaryBtnText, { color: isDark ? "#F8FAFC" : "#0F172A" }]}>Sign In</Text>
+              <Ionicons name="log-in-outline" size={18} color={isDark ? "#F8FAFC" : "#0F172A"} />
+            </TouchableOpacity>
           </Link>
         </View>
 
-        <Text style={styles.footerText}>
-          Empowering Africa, one token at a time
+        <Text style={[styles.footerText, { color: isDark ? "#475569" : "#94A3B8" }]}>
+          Empowering Africa, one instant transfer at a time.
         </Text>
       </View>
-    </LinearGradient>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    justifyContent: "center",
   },
-  decorativeCircle1: {
+  glowOrb1: {
     position: "absolute",
-    width: 250,
-    height: 250,
-    borderRadius: 125,
-    backgroundColor: "rgba(255,255,255,0.1)",
-    top: -80,
-    right: -80,
+    width: 320,
+    height: 320,
+    borderRadius: 160,
+    top: -60,
+    right: -60,
   },
-  decorativeCircle2: {
+  glowOrb2: {
     position: "absolute",
-    width: 180,
-    height: 180,
-    borderRadius: 90,
-    backgroundColor: "rgba(255,255,255,0.08)",
-    bottom: 120,
-    left: -60,
+    width: 240,
+    height: 240,
+    borderRadius: 120,
+    bottom: 80,
+    left: -40,
   },
   inner: {
     flex: 1,
     justifyContent: "center",
-    padding: 32,
+    paddingHorizontal: 28,
   },
   logoSection: {
     alignItems: "center",
-    marginBottom: 60,
+    marginBottom: 48,
   },
   logoCircle: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: "rgba(255,255,255,0.2)",
+    width: 90,
+    height: 90,
+    borderRadius: 30,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 24,
-    borderWidth: 3,
-    borderColor: "rgba(255,255,255,0.3)",
-  },
-  logoText: {
-    fontSize: 32,
-    fontWeight: "800",
-    color: "#FFFFFF",
-    letterSpacing: 1.5,
+    marginBottom: 20,
+    shadowColor: "#00B14F",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.25,
+    shadowRadius: 16,
+    elevation: 8,
   },
   title: {
-    fontSize: 44,
-    fontWeight: "700",
+    fontSize: 48,
+    fontWeight: "900",
     textAlign: "center",
-    color: "#FFFFFF",
-    marginBottom: 12,
-    letterSpacing: 0.5,
+    letterSpacing: -1,
+    marginBottom: 10,
   },
   subtitle: {
-    fontSize: 17,
+    fontSize: 15,
     textAlign: "center",
-    color: "rgba(255,255,255,0.9)",
-    paddingHorizontal: 10,
+    lineHeight: 22,
+    fontWeight: "500",
+    paddingHorizontal: 16,
   },
   buttonCard: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 24,
+    borderRadius: 28,
     padding: 24,
+    borderWidth: 1,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.15,
+    shadowOpacity: 0.08,
     shadowRadius: 20,
-    elevation: 8,
-    gap: 16,
+    elevation: 4,
+    gap: 12,
   },
   primaryBtn: {
-    borderRadius: 12,
-    elevation: 0,
+    borderRadius: 18,
+    overflow: "hidden",
+  },
+  btnGradient: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    height: 56,
+  },
+  primaryBtnText: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "800",
   },
   secondaryBtn: {
-    borderRadius: 12,
-    borderColor: "#00B14F",
-    borderWidth: 2,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    height: 56,
+    borderRadius: 18,
+    borderWidth: 1.5,
+  },
+  secondaryBtnText: {
+    fontSize: 16,
+    fontWeight: "800",
   },
   footerText: {
     textAlign: "center",
-    marginTop: 40,
-    fontSize: 14,
-    color: "rgba(255,255,255,0.8)",
+    marginTop: 48,
+    fontSize: 12,
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
   },
 });

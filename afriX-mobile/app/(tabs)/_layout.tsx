@@ -1,22 +1,28 @@
 // app/(tabs)/_layout.tsx
 import { Tabs } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { Platform } from "react-native";
+import { Platform, useColorScheme } from "react-native";
 import { useNotificationStore } from "@/stores";
 
 export default function TabLayout() {
   const unreadCount = useNotificationStore((s) => s.unreadCount);
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === "dark";
+  const tabBarBg = isDark ? "#0E1726" : "#FFFFFF";
+  const tabBarBorder = isDark ? "#1E2A3A" : "#E5E7EB";
+  const activeTint = "#00B14F";
+  const inactiveTint = isDark ? "#94A3B8" : "#9CA3AF";
 
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: "#00B14F",
-        tabBarInactiveTintColor: "#9CA3AF",
+        tabBarActiveTintColor: activeTint,
+        tabBarInactiveTintColor: inactiveTint,
         tabBarStyle: {
-          backgroundColor: "#FFFFFF",
+          backgroundColor: tabBarBg,
           borderTopWidth: 1,
-          borderTopColor: "#E5E7EB",
+          borderTopColor: tabBarBorder,
           height: Platform.OS === "ios" ? 88 : 68,
           paddingBottom: Platform.OS === "ios" ? 30 : 12,
           paddingTop: 10,
@@ -26,6 +32,10 @@ export default function TabLayout() {
         tabBarLabelStyle: {
           fontSize: 12,
           fontWeight: "600",
+        },
+        tabBarBadgeStyle: {
+          backgroundColor: activeTint,
+          color: "#FFFFFF",
         },
       }}
     >

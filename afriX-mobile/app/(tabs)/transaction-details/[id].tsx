@@ -6,12 +6,12 @@ import {
     ScrollView,
     TouchableOpacity,
     ActivityIndicator,
+    useColorScheme,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { Surface } from "react-native-paper";
 import apiClient from "@/services/apiClient";
 import { useAuthStore } from "@/stores";
 import { formatDate } from "@/utils/format";
@@ -22,6 +22,8 @@ export default function UserTransactionDetailScreen() {
     const { id, from } = useLocalSearchParams<{ id: string; from?: string }>();
     const router = useRouter();
     const { user } = useAuthStore();
+    const colorScheme = useColorScheme();
+    const isDark = colorScheme === "dark";
     const [tx, setTx] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -108,22 +110,38 @@ export default function UserTransactionDetailScreen() {
 
     if (loading) {
         return (
-            <View style={styles.centerContainer}>
+            <View
+                style={[
+                    styles.centerContainer,
+                    { backgroundColor: isDark ? "#07111A" : "#F9FAFB" },
+                ]}
+            >
                 <ActivityIndicator size="large" color="#00B14F" />
-                <Text style={styles.loadingText}>Loading transaction...</Text>
+                <Text
+                    style={[
+                        styles.loadingText,
+                        { color: isDark ? "#94A3B8" : "#6B7280" },
+                    ]}
+                >
+                    Loading transaction...
+                </Text>
             </View>
         );
     }
 
     if (error || !tx) {
         return (
-            <SafeAreaView style={styles.container}>
-                <View style={styles.errorContainer}>
-                    <View style={styles.errorIconWrap}>
+            <SafeAreaView style={[styles.container, { backgroundColor: isDark ? "#07111A" : "#F9FAFB" }]}>
+                <View style={[styles.errorContainer, { backgroundColor: isDark ? "#07111A" : "#F9FAFB" }]}>
+                    <View style={[styles.errorIconWrap, { backgroundColor: isDark ? "rgba(239,68,68,0.14)" : "#FEF2F2" }]}>
                         <Ionicons name="alert-circle-outline" size={28} color="#EF4444" />
                     </View>
-                    <Text style={styles.errorTitle}>Transaction unavailable</Text>
-                    <Text style={styles.errorText}>{error || "Transaction not found"}</Text>
+                    <Text style={[styles.errorTitle, { color: isDark ? "#F8FAFC" : "#111827" }]}>
+                        Transaction unavailable
+                    </Text>
+                    <Text style={[styles.errorText, { color: isDark ? "#94A3B8" : "#6B7280" }]}>
+                        {error || "Transaction not found"}
+                    </Text>
                     <TouchableOpacity onPress={goBack} style={styles.primaryButton} activeOpacity={0.85}>
                         <Text style={styles.primaryButtonText}>Go back</Text>
                     </TouchableOpacity>
@@ -155,153 +173,382 @@ export default function UserTransactionDetailScreen() {
         : (tx.fromUser?.full_name || tx.fromUser?.email || "—");
     const receivedAmount = parseFloat(String(tx.metadata?.received_amount ?? 0)) || 0;
     const statusColor = getStatusColor(tx.status);
+    const theme = {
+        background: isDark ? "#07111A" : "#F5F7FB",
+        card: isDark ? "#0E1726" : "#FFFFFF",
+        surface: isDark ? "#111C2B" : "#F8FAFC",
+        text: isDark ? "#F8FAFC" : "#0F172A",
+        muted: isDark ? "#94A3B8" : "#64748B",
+        border: isDark ? "#1E2A3A" : "#E2E8F0",
+        divider: isDark ? "#1E2A3A" : "#EEF2F7",
+        accent: "#00B14F",
+        accentSoft: isDark ? "rgba(0,177,79,0.14)" : "#EAF8EF",
+    };
 
     return (
-        <View style={styles.container}>
-            <View style={styles.headerWrapper}>
-                <LinearGradient colors={["#00B14F", "#008F40"]} style={styles.headerGradient} />
-                <SafeAreaView edges={["top"]} style={styles.headerContent}>
-                    <View style={styles.header}>
-                        <TouchableOpacity onPress={goBack} style={styles.headerButton} activeOpacity={0.8}>
-                            <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
-                        </TouchableOpacity>
-                        <Text style={styles.headerTitle}>Transaction Details</Text>
-                        <View style={styles.headerSpacer} />
+        <View style={[styles.container, { backgroundColor: theme.background }]}>
+            <LinearGradient
+                colors={
+                    isDark
+                        ? ["rgba(0,177,79,0.18)", "rgba(7,17,26,0)"]
+                        : ["rgba(0,177,79,0.08)", "rgba(245,247,251,0)"]
+                }
+                style={styles.backgroundGlow}
+                pointerEvents="none"
+            />
+
+            <SafeAreaView
+                edges={["top"]}
+                style={[
+                    styles.headerWrapper,
+                    { backgroundColor: theme.background, borderBottomColor: theme.border },
+                ]}
+            >
+                <View style={styles.header}>
+                    <TouchableOpacity
+                        onPress={goBack}
+                        style={[
+                            styles.headerButton,
+                            { backgroundColor: theme.card, borderColor: theme.border },
+                        ]}
+                        activeOpacity={0.8}
+                    >
+                        <Ionicons name="arrow-back" size={22} color={theme.text} />
+                    </TouchableOpacity>
+
+                    <View style={styles.headerCopy}>
+                        <Text style={[styles.headerTitle, { color: theme.text }]}>
+                            Transaction details
+                        </Text>
+                        <Text style={[styles.headerSubtitle, { color: theme.muted }]}>
+                            Review the amount, status, counterpart, and fee breakdown.
+                        </Text>
                     </View>
-                </SafeAreaView>
-            </View>
 
-            <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-                <LinearGradient colors={["#F7FFF9", "#FFFFFF"]} style={styles.summaryCard}>
-                    <Text style={styles.summaryEyebrow}>Activity Record</Text>
-                    <Text style={styles.summaryTitle}>{typeConfig.label} Transaction</Text>
-                    <Text style={styles.summaryText}>
-                        Review the amount, status, counterpart, and any fee details linked to this activity entry.
-                    </Text>
+                    <View
+                        style={[
+                            styles.headerStatusPill,
+                            {
+                                backgroundColor: `${statusColor}16`,
+                                borderColor: `${statusColor}28`,
+                            },
+                        ]}
+                    >
+                        <Text style={[styles.headerStatusText, { color: statusColor }]}>
+                            {String(tx.status || "").replace(/_/g, " ")}
+                        </Text>
+                    </View>
+                </View>
+            </SafeAreaView>
 
-                    <View style={styles.summaryTopRow}>
-                        <View style={[styles.typePill, { backgroundColor: typeConfig.bg, borderColor: typeConfig.border }]}>
+            <ScrollView
+                contentContainerStyle={styles.scrollContent}
+                showsVerticalScrollIndicator={false}
+            >
+                <LinearGradient
+                    colors={isDark ? ["#0E1726", "#111E2E"] : ["#FFFFFF", "#F4FBF7"]}
+                    style={[
+                        styles.heroCard,
+                        {
+                            borderColor: theme.border,
+                            shadowColor: isDark ? "#000" : "#0F172A",
+                        },
+                    ]}
+                >
+                    <View style={styles.heroTopRow}>
+                        <View style={styles.heroCopy}>
+                            <Text style={[styles.heroEyebrow, { color: theme.accent }]}>
+                                Activity Record
+                            </Text>
+                            <Text style={[styles.heroTitle, { color: theme.text }]}>
+                                {typeConfig.label} Transaction
+                            </Text>
+                            <Text style={[styles.heroText, { color: theme.muted }]}>
+                                Review the amount, status, counterpart, and any fee details linked to this activity entry.
+                            </Text>
+                        </View>
+
+                        <View
+                            style={[
+                                styles.heroTypePill,
+                                { backgroundColor: typeConfig.bg, borderColor: typeConfig.border },
+                            ]}
+                        >
                             <Ionicons name={typeConfig.icon} size={18} color={typeConfig.color} />
-                            <Text style={[styles.typePillText, { color: typeConfig.color }]}>{typeConfig.label}</Text>
-                        </View>
-
-                        <View style={[styles.statusPill, { backgroundColor: `${statusColor}16` }]}>
-                            <Text style={[styles.statusText, { color: statusColor }]}>
-                                {String(tx.status || "").replace(/_/g, " ").toUpperCase()}
+                            <Text style={[styles.heroTypeText, { color: typeConfig.color }]}>
+                                {typeConfig.label}
                             </Text>
                         </View>
                     </View>
 
-                    <View style={styles.amountContainer}>
+                    <View style={styles.heroAmountRow}>
                         <View>
-                            <Text style={styles.amountLabel}>
-                                {creditOrDebitLabel ? `${creditOrDebitLabel} Amount` : "Amount"}
+                            <Text style={[styles.amountLabel, { color: theme.muted }]}>
+                                {creditOrDebitLabel ? `${creditOrDebitLabel} amount` : "Amount"}
                             </Text>
-                            <Text style={styles.amountValue}>
+                            <Text style={[styles.amountValue, { color: theme.text }]}>
                                 {showAmountAsOut ? "-" : "+"}
                                 {amountValue.toLocaleString()} {tx.token_type || ""}
                             </Text>
                         </View>
-                        <View style={styles.amountMeta}>
-                            <Text style={styles.amountMetaLabel}>Date</Text>
-                            <Text style={styles.amountMetaValue}>{formatDate(tx.created_at, true)}</Text>
+                        <View style={[styles.heroDateChip, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+                            <Text style={[styles.heroDateLabel, { color: theme.muted }]}>Date</Text>
+                            <Text style={[styles.heroDateValue, { color: theme.text }]}>
+                                {formatDate(tx.created_at, true)}
+                            </Text>
+                        </View>
+                    </View>
+
+                    <View style={styles.heroMetaRow}>
+                        <View style={[styles.heroMetaChip, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+                            <Text style={[styles.heroMetaLabel, { color: theme.muted }]}>Direction</Text>
+                            <Text style={[styles.heroMetaValue, { color: theme.text }]}>
+                                {showAmountAsOut ? "Outgoing" : "Incoming"}
+                            </Text>
+                        </View>
+                        <View style={[styles.heroMetaChip, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+                            <Text style={[styles.heroMetaLabel, { color: theme.muted }]}>Counterparty</Text>
+                            <Text style={[styles.heroMetaValue, { color: theme.text }]}>
+                                {counterparty}
+                            </Text>
                         </View>
                     </View>
                 </LinearGradient>
 
-                <Surface style={styles.card}>
-                    <View style={styles.cardAccent} />
-                    <Text style={styles.cardTitle}>Transaction Summary</Text>
+                <View style={styles.sectionHeaderRow}>
+                    <Text style={[styles.sectionTitle, { color: theme.text }]}>
+                        Transaction summary
+                    </Text>
+                </View>
 
-                    <View style={styles.infoRow}>
-                        <Text style={styles.infoLabel}>{isOut ? "To" : "From"}</Text>
-                        <Text style={styles.infoValue}>{counterparty}</Text>
+                <View
+                    style={[
+                        styles.detailCard,
+                        {
+                            backgroundColor: theme.card,
+                            borderColor: theme.border,
+                            shadowColor: isDark ? "#000" : "#0F172A",
+                        },
+                    ]}
+                >
+                    <View style={[styles.cardAccent, { backgroundColor: typeConfig.color }]} />
+
+                    <View style={[styles.detailRow, { borderBottomColor: theme.divider }]}>
+                        <Text style={[styles.detailLabel, { color: theme.muted }]}>From / To</Text>
+                        <Text style={[styles.detailValue, { color: theme.text }]}>{counterparty}</Text>
                     </View>
 
-                    <View style={styles.infoRow}>
-                        <Text style={styles.infoLabel}>Token</Text>
-                        <Text style={styles.infoValue}>{tx.token_type || "—"}</Text>
+                    <View style={[styles.detailRow, { borderBottomColor: theme.divider }]}>
+                        <Text style={[styles.detailLabel, { color: theme.muted }]}>Token</Text>
+                        <Text style={[styles.detailValue, { color: theme.text }]}>{tx.token_type || "—"}</Text>
                     </View>
 
-                    <View style={styles.infoRow}>
-                        <Text style={styles.infoLabel}>Reference</Text>
-                        <Text style={styles.infoValue} numberOfLines={1}>{tx.reference || "—"}</Text>
+                    <View style={[styles.detailRow, { borderBottomColor: theme.divider }]}>
+                        <Text style={[styles.detailLabel, { color: theme.muted }]}>Reference</Text>
+                        <Text style={[styles.detailValue, { color: theme.text }]} numberOfLines={1}>
+                            {tx.reference || "—"}
+                        </Text>
                     </View>
 
                     {tx.description ? (
-                        <View style={styles.noteBlock}>
-                            <Text style={styles.noteLabel}>Description</Text>
-                            <Text style={styles.noteText}>{tx.description}</Text>
+                        <View style={[styles.noteBlock, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+                            <Text style={[styles.noteLabel, { color: theme.muted }]}>Description</Text>
+                            <Text style={[styles.noteText, { color: theme.text }]}>{tx.description}</Text>
                         </View>
                     ) : null}
-                </Surface>
+                </View>
 
-                {((normalizedType === "transfer" && isOut) || (normalizedType === "swap") || (normalizedType !== "transfer" && normalizedType !== "swap" && feeAmount > 0)) ? (
-                    <Surface style={styles.card}>
-                        <View style={styles.cardAccent} />
-                        <Text style={styles.cardTitle}>Settlement Details</Text>
+                {((normalizedType === "transfer" && isOut) ||
+                    normalizedType === "swap" ||
+                    (normalizedType !== "transfer" && normalizedType !== "swap" && feeAmount > 0)) ? (
+                    <>
+                        <View style={styles.sectionHeaderRow}>
+                            <Text style={[styles.sectionTitle, { color: theme.text }]}>
+                                Settlement details
+                            </Text>
+                        </View>
 
-                        {/* Fee Row */}
-                        {feeAmount > 0 ? (
-                            <View style={styles.infoStrip}>
-                                <Text style={styles.infoStripLabel}>{feeLabel}</Text>
-                                <Text style={styles.infoStripValue}>
-                                    {feeAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {tx.token_type || ""}
-                                </Text>
+                        <View
+                            style={[
+                                styles.detailCard,
+                                {
+                                    backgroundColor: theme.card,
+                                    borderColor: theme.border,
+                                    shadowColor: isDark ? "#000" : "#0F172A",
+                                },
+                            ]}
+                        >
+                            <View style={[styles.cardAccent, { backgroundColor: statusColor }]} />
+
+                            {feeAmount > 0 ? (
+                                <View
+                                    style={[
+                                        styles.infoStrip,
+                                        { backgroundColor: theme.surface, borderColor: theme.border },
+                                    ]}
+                                >
+                                    <Text style={[styles.infoStripLabel, { color: theme.muted }]}>
+                                        {feeLabel}
+                                    </Text>
+                                    <Text style={[styles.infoStripValue, { color: theme.text }]}>
+                                        {feeAmount.toLocaleString(undefined, {
+                                            minimumFractionDigits: 2,
+                                            maximumFractionDigits: 2,
+                                        })}{" "}
+                                        {tx.token_type || ""}
+                                    </Text>
+                                </View>
+                            ) : null}
+
+                            {normalizedType === "transfer" ? (
+                                <>
+                                    <View
+                                        style={[
+                                            styles.infoStrip,
+                                            { backgroundColor: theme.surface, borderColor: theme.border },
+                                        ]}
+                                    >
+                                        <Text style={[styles.infoStripLabel, { color: theme.muted }]}>
+                                            Recipient received
+                                        </Text>
+                                        <Text style={[styles.infoStripValue, { color: theme.text }]}>
+                                            {amountValue.toLocaleString(undefined, {
+                                                minimumFractionDigits: 2,
+                                                maximumFractionDigits: 2,
+                                            })}{" "}
+                                            {tx.token_type || ""}
+                                        </Text>
+                                    </View>
+                                    <View
+                                        style={[
+                                            styles.infoStrip,
+                                            { backgroundColor: theme.surface, borderColor: theme.border },
+                                        ]}
+                                    >
+                                        <Text style={[styles.infoStripLabel, { color: theme.muted }]}>
+                                            Total debited
+                                        </Text>
+                                        <Text style={[styles.infoStripValue, { color: theme.text }]}>
+                                            {(amountValue + feeAmount).toLocaleString(undefined, {
+                                                minimumFractionDigits: 2,
+                                                maximumFractionDigits: 2,
+                                            })}{" "}
+                                            {tx.token_type || ""}
+                                        </Text>
+                                    </View>
+                                </>
+                            ) : normalizedType === "swap" ? (
+                                <>
+                                    {showNetAfterFee ? (
+                                        <View
+                                            style={[
+                                                styles.infoStrip,
+                                                { backgroundColor: theme.surface, borderColor: theme.border },
+                                            ]}
+                                        >
+                                            <Text style={[styles.infoStripLabel, { color: theme.muted }]}>
+                                                Net swapped
+                                            </Text>
+                                            <Text style={[styles.infoStripValue, { color: theme.text }]}>
+                                                {(amountValue - feeAmount).toLocaleString(undefined, {
+                                                    minimumFractionDigits: 2,
+                                                    maximumFractionDigits: 2,
+                                                })}{" "}
+                                                {tx.token_type || ""}
+                                            </Text>
+                                        </View>
+                                    ) : null}
+                                    {receivedAmount > 0 && (
+                                        <View
+                                            style={[
+                                                styles.infoStrip,
+                                                { backgroundColor: theme.surface, borderColor: theme.border },
+                                            ]}
+                                        >
+                                            <Text style={[styles.infoStripLabel, { color: theme.muted }]}>
+                                                You received
+                                            </Text>
+                                            <Text style={[styles.infoStripValue, { color: theme.accent }]}>
+                                                +{receivedAmount.toLocaleString(undefined, {
+                                                    minimumFractionDigits: 2,
+                                                    maximumFractionDigits: 2,
+                                                })}{" "}
+                                                {tx.metadata?.to_token || ""}
+                                            </Text>
+                                        </View>
+                                    )}
+                                </>
+                            ) : (
+                                <>
+                                    {showNetAfterFee ? (
+                                        <View
+                                            style={[
+                                                styles.infoStrip,
+                                                { backgroundColor: theme.surface, borderColor: theme.border },
+                                            ]}
+                                        >
+                                            <Text style={[styles.infoStripLabel, { color: theme.muted }]}>
+                                                Net after fee
+                                            </Text>
+                                            <Text style={[styles.infoStripValue, { color: theme.text }]}>
+                                                {showAmountAsOut
+                                                    ? `${(amountValue - feeAmount).toLocaleString(undefined, {
+                                                          minimumFractionDigits: 2,
+                                                          maximumFractionDigits: 2,
+                                                      })} ${tx.token_type || ""}`
+                                                    : `${amountValue.toLocaleString(undefined, {
+                                                          minimumFractionDigits: 2,
+                                                          maximumFractionDigits: 2,
+                                                      })} ${tx.token_type || ""}`}
+                                            </Text>
+                                        </View>
+                                    ) : null}
+                                </>
+                            )}
+                        </View>
+                    </>
+                ) : null}
+
+                {tx.agent ? (
+                    <>
+                        <View style={styles.sectionHeaderRow}>
+                            <Text style={[styles.sectionTitle, { color: theme.text }]}>
+                                Agent context
+                            </Text>
+                        </View>
+
+                        <View
+                            style={[
+                                styles.detailCard,
+                                {
+                                    backgroundColor: theme.card,
+                                    borderColor: theme.border,
+                                    shadowColor: isDark ? "#000" : "#0F172A",
+                                },
+                            ]}
+                        >
+                            <View style={[styles.cardAccent, { backgroundColor: "#7C3AED" }]} />
+                            <View style={styles.agentRow}>
+                                <View style={styles.agentInfo}>
+                                    <Ionicons name="person-circle-outline" size={18} color={theme.muted} />
+                                    <View>
+                                        <Text style={[styles.detailLabel, { color: theme.muted }]}>
+                                            Agent
+                                        </Text>
+                                        <Text style={[styles.detailValue, { color: theme.text }]}>
+                                            {tx.agent.user?.full_name || "Agent"}
+                                        </Text>
+                                    </View>
+                                </View>
+                                <View style={[styles.agentRatingPill, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+                                    <Ionicons name="star" size={12} color="#FFB800" />
+                                    <Text style={[styles.agentRatingText, { color: theme.text }]}>
+                                        {(tx.agent.rating || 5.0).toFixed(1)}
+                                    </Text>
+                                </View>
                             </View>
-                        ) : null}
-
-                        {/* Details based on transaction type */}
-                        {normalizedType === "transfer" ? (
-                            <>
-                                <View style={styles.infoStrip}>
-                                    <Text style={styles.infoStripLabel}>Recipient Received</Text>
-                                    <Text style={styles.infoStripValue}>
-                                        {amountValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {tx.token_type || ""}
-                                    </Text>
-                                </View>
-                                <View style={styles.infoStrip}>
-                                    <Text style={styles.infoStripLabel}>Total Debited</Text>
-                                    <Text style={styles.infoStripValue}>
-                                        {(amountValue + feeAmount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {tx.token_type || ""}
-                                    </Text>
-                                </View>
-                            </>
-                        ) : normalizedType === "swap" ? (
-                            <>
-                                {showNetAfterFee && (
-                                    <View style={styles.infoStrip}>
-                                        <Text style={styles.infoStripLabel}>Net Swapped</Text>
-                                        <Text style={styles.infoStripValue}>
-                                            {(amountValue - feeAmount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {tx.token_type || ""}
-                                        </Text>
-                                    </View>
-                                )}
-                                {receivedAmount > 0 && (
-                                    <View style={styles.infoStrip}>
-                                        <Text style={styles.infoStripLabel}>You Received</Text>
-                                        <Text style={[styles.infoStripValue, styles.successValue]}>
-                                            +{receivedAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {tx.metadata?.to_token || ""}
-                                        </Text>
-                                    </View>
-                                )}
-                            </>
-                        ) : (
-                            // Fallback for any other type (mint, burn, etc.)
-                            <>
-                                {showNetAfterFee ? (
-                                    <View style={styles.infoStrip}>
-                                        <Text style={styles.infoStripLabel}>Net After Fee</Text>
-                                        <Text style={styles.infoStripValue}>
-                                            {showAmountAsOut
-                                                ? `${(amountValue - feeAmount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${tx.token_type || ""}`
-                                                : `${amountValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${tx.token_type || ""}`}
-                                        </Text>
-                                    </View>
-                                ) : null}
-                            </>
-                        )}
-                    </Surface>
+                        </View>
+                    </>
                 ) : null}
             </ScrollView>
         </View>
@@ -311,164 +558,202 @@ export default function UserTransactionDetailScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: "#F9FAFB",
     },
-    headerWrapper: {
-        zIndex: 10,
-        elevation: 8,
-        backgroundColor: "#00B14F",
-    },
-    headerGradient: {
+    backgroundGlow: {
         position: "absolute",
         top: 0,
         left: 0,
         right: 0,
-        height: 120,
+        height: 180,
     },
-    headerContent: {
-        paddingHorizontal: 16,
+    headerWrapper: {
+        zIndex: 10,
+        borderBottomWidth: 1,
     },
     header: {
         flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "space-between",
-        paddingBottom: 20,
-        marginTop: 10,
+        alignItems: "flex-start",
+        gap: 12,
+        paddingHorizontal: 16,
+        paddingVertical: 12,
     },
     headerButton: {
         width: 40,
         height: 40,
         borderRadius: 20,
-        backgroundColor: "rgba(255,255,255,0.2)",
         alignItems: "center",
         justifyContent: "center",
+        borderWidth: 1,
+    },
+    headerCopy: {
+        flex: 1,
+        paddingTop: 1,
     },
     headerTitle: {
         fontSize: 22,
-        fontWeight: "700",
-        color: "#FFFFFF",
+        fontWeight: "800",
         letterSpacing: -0.4,
     },
-    headerSpacer: {
-        width: 40,
+    headerSubtitle: {
+        marginTop: 4,
+        fontSize: 13,
+        lineHeight: 18,
+        fontWeight: "500",
     },
-    scrollContent: {
-        padding: 16,
-        paddingTop: 50,
-        paddingBottom: 40,
-    },
-    summaryCard: {
-        borderRadius: 22,
-        padding: 18,
-        marginTop: -34,
-        marginBottom: 16,
+    headerStatusPill: {
+        alignSelf: "flex-start",
+        paddingHorizontal: 10,
+        paddingVertical: 7,
+        borderRadius: 999,
         borderWidth: 1,
-        borderColor: "#E6F4EA",
     },
-    summaryEyebrow: {
+    headerStatusText: {
         fontSize: 11,
         fontWeight: "800",
-        color: "#00B14F",
-        textTransform: "uppercase",
-        letterSpacing: 0.5,
-        marginBottom: 6,
+        textTransform: "capitalize",
     },
-    summaryTitle: {
-        fontSize: 22,
+    scrollContent: {
+        paddingHorizontal: 16,
+        paddingTop: 14,
+        paddingBottom: 36,
+        gap: 18,
+    },
+    heroCard: {
+        borderRadius: 28,
+        padding: 18,
+        borderWidth: 1,
+        overflow: "hidden",
+        shadowOffset: {
+            width: 0,
+            height: 12,
+        },
+        shadowOpacity: 0.08,
+        shadowRadius: 24,
+        elevation: 3,
+    },
+    heroTopRow: {
+        flexDirection: "row",
+        alignItems: "flex-start",
+        justifyContent: "space-between",
+        gap: 14,
+    },
+    heroCopy: {
+        flex: 1,
+    },
+    heroEyebrow: {
+        fontSize: 11,
         fontWeight: "800",
-        color: "#111827",
-        letterSpacing: -0.5,
+        textTransform: "uppercase",
+        letterSpacing: 0.8,
+        marginBottom: 8,
     },
-    summaryText: {
+    heroTitle: {
+        fontSize: 24,
+        fontWeight: "800",
+        letterSpacing: -0.6,
+    },
+    heroText: {
+        marginTop: 6,
         fontSize: 13,
         lineHeight: 20,
-        color: "#6B7280",
         fontWeight: "500",
-        marginTop: 6,
-        marginBottom: 16,
     },
-    summaryTopRow: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        alignItems: "center",
-        marginBottom: 14,
-        gap: 12,
-    },
-    typePill: {
+    heroTypePill: {
         flexDirection: "row",
         alignItems: "center",
+        gap: 6,
         paddingHorizontal: 12,
         paddingVertical: 8,
         borderRadius: 999,
-        gap: 6,
         borderWidth: 1,
     },
-    typePillText: {
+    heroTypeText: {
         fontSize: 12,
         fontWeight: "800",
-        letterSpacing: 0.4,
         textTransform: "uppercase",
     },
-    statusPill: {
-        paddingHorizontal: 10,
-        paddingVertical: 6,
-        borderRadius: 999,
-    },
-    statusText: {
-        fontSize: 11,
-        fontWeight: "800",
-        letterSpacing: 0.4,
-    },
-    amountContainer: {
+    heroAmountRow: {
+        marginTop: 18,
         flexDirection: "row",
         justifyContent: "space-between",
         alignItems: "center",
-        backgroundColor: "#FBFCFD",
-        padding: 14,
-        borderRadius: 16,
-        borderWidth: 1,
-        borderColor: "#F1F5F9",
-        gap: 12,
+        gap: 14,
     },
     amountLabel: {
         fontSize: 12,
-        color: "#6B7280",
         fontWeight: "700",
         textTransform: "uppercase",
         letterSpacing: 0.4,
-        marginBottom: 5,
+        marginBottom: 4,
     },
     amountValue: {
-        fontSize: 20,
+        fontSize: 22,
         fontWeight: "800",
-        color: "#111827",
+        letterSpacing: -0.4,
     },
-    amountMeta: {
+    heroDateChip: {
         alignItems: "flex-end",
-        flexShrink: 1,
+        paddingHorizontal: 12,
+        paddingVertical: 10,
+        borderRadius: 16,
+        borderWidth: 1,
     },
-    amountMetaLabel: {
+    heroDateLabel: {
         fontSize: 11,
-        color: "#6B7280",
         fontWeight: "700",
         textTransform: "uppercase",
-        letterSpacing: 0.4,
-        marginBottom: 5,
+        letterSpacing: 0.3,
+        marginBottom: 2,
     },
-    amountMetaValue: {
+    heroDateValue: {
         fontSize: 13,
         fontWeight: "700",
-        color: "#111827",
-        textAlign: "right",
     },
-    card: {
-        backgroundColor: "#FFFFFF",
+    heroMetaRow: {
+        flexDirection: "row",
+        gap: 10,
+        marginTop: 14,
+        flexWrap: "wrap",
+    },
+    heroMetaChip: {
+        flex: 1,
+        minWidth: "46%",
+        paddingHorizontal: 12,
+        paddingVertical: 12,
+        borderRadius: 18,
+        borderWidth: 1,
+    },
+    heroMetaLabel: {
+        fontSize: 11,
+        fontWeight: "700",
+        textTransform: "uppercase",
+        letterSpacing: 0.3,
+        marginBottom: 3,
+    },
+    heroMetaValue: {
+        fontSize: 13,
+        fontWeight: "700",
+    },
+    sectionHeaderRow: {
+        marginTop: 2,
+    },
+    sectionTitle: {
+        fontSize: 18,
+        fontWeight: "800",
+        letterSpacing: -0.4,
+    },
+    detailCard: {
         borderRadius: 24,
         padding: 18,
-        marginBottom: 16,
         borderWidth: 1,
-        borderColor: "#EAF0F5",
         overflow: "hidden",
+        shadowOffset: {
+            width: 0,
+            height: 10,
+        },
+        shadowOpacity: 0.08,
+        shadowRadius: 18,
+        elevation: 2,
     },
     cardAccent: {
         position: "absolute",
@@ -476,47 +761,33 @@ const styles = StyleSheet.create({
         left: 0,
         right: 0,
         height: 4,
-        backgroundColor: "#00B14F",
     },
-    cardTitle: {
-        fontSize: 18,
-        fontWeight: "700",
-        color: "#111827",
-        marginBottom: 16,
-        marginTop: 6,
-    },
-    infoRow: {
+    detailRow: {
         flexDirection: "row",
         justifyContent: "space-between",
-        alignItems: "center",
+        alignItems: "flex-start",
+        gap: 12,
         paddingVertical: 12,
         borderBottomWidth: 1,
-        borderBottomColor: "#F3F4F6",
-        gap: 12,
     },
-    infoLabel: {
+    detailLabel: {
         fontSize: 14,
-        color: "#6B7280",
-        fontWeight: "500",
+        fontWeight: "600",
     },
-    infoValue: {
+    detailValue: {
         flex: 1,
-        fontSize: 15,
+        fontSize: 14,
         fontWeight: "700",
-        color: "#111827",
         textAlign: "right",
     },
     noteBlock: {
-        marginTop: 16,
-        backgroundColor: "#FBFCFD",
-        borderRadius: 14,
+        marginTop: 14,
+        borderRadius: 16,
         padding: 14,
         borderWidth: 1,
-        borderColor: "#F1F5F9",
     },
     noteLabel: {
-        fontSize: 12,
-        color: "#6B7280",
+        fontSize: 11,
         fontWeight: "700",
         textTransform: "uppercase",
         letterSpacing: 0.4,
@@ -525,7 +796,6 @@ const styles = StyleSheet.create({
     noteText: {
         fontSize: 14,
         lineHeight: 21,
-        color: "#111827",
         fontWeight: "500",
     },
     infoStrip: {
@@ -533,27 +803,20 @@ const styles = StyleSheet.create({
         justifyContent: "space-between",
         alignItems: "center",
         marginBottom: 12,
-        backgroundColor: "#F8FAFC",
         padding: 12,
-        borderRadius: 12,
+        borderRadius: 14,
         borderWidth: 1,
-        borderColor: "#EEF2F7",
         gap: 12,
     },
     infoStripLabel: {
         fontSize: 14,
-        color: "#6B7280",
         fontWeight: "600",
+        flex: 1,
     },
     infoStripValue: {
-        flex: 1,
         fontSize: 15,
-        color: "#111827",
         fontWeight: "700",
         textAlign: "right",
-    },
-    successValue: {
-        color: "#00B14F",
     },
     centerContainer: {
         flex: 1,
@@ -607,5 +870,32 @@ const styles = StyleSheet.create({
         fontSize: 16,
         fontWeight: "700",
         color: "#FFFFFF",
+    },
+    agentRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: 12,
+        paddingTop: 10,
+        paddingBottom: 2,
+    },
+    agentInfo: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 10,
+        flex: 1,
+    },
+    agentRatingPill: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 4,
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+        borderRadius: 999,
+        borderWidth: 1,
+    },
+    agentRatingText: {
+        fontSize: 12,
+        fontWeight: "800",
     },
 });

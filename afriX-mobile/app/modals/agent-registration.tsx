@@ -9,22 +9,36 @@ import {
     Alert,
     ActivityIndicator,
     Modal,
-    Platform,
+    useColorScheme,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Picker } from "@react-native-picker/picker";
+import { LinearGradient } from "expo-linear-gradient";
 import { SUPPORTED_COUNTRIES, Country } from "@/constants/countries";
 import apiClient from "@/services/apiClient";
 import { useAgentStore } from "@/stores/slices/agentSlice";
 
 export default function AgentRegistrationModal() {
     const router = useRouter();
+    const colorScheme = useColorScheme();
+    const isDark = colorScheme === "dark";
+
+    const theme = {
+        background: isDark ? "#07111A" : "#F5F7FB",
+        card: isDark ? "#0E1726" : "#FFFFFF",
+        cardAlt: isDark ? "#111C2B" : "#F8FAFC",
+        text: isDark ? "#F8FAFC" : "#0F172A",
+        muted: isDark ? "#94A3B8" : "#64748B",
+        border: isDark ? "#1E2A3A" : "#E2E8F0",
+        inputBg: isDark ? "#0D1C2E" : "#FFFFFF",
+        accent: "#00B14F",
+        accentSoft: isDark ? "rgba(0,177,79,0.14)" : "#EAF8EF",
+        danger: "#EF4444",
+    };
+
     const [loading, setLoading] = useState(false);
     const [showCountryPicker, setShowCountryPicker] = useState(false);
-
-    // Form state
     const [countries, setCountries] = useState<Country[]>(SUPPORTED_COUNTRIES);
     const [country, setCountry] = useState("NG");
     const [currency, setCurrency] = useState("NGN");
@@ -47,32 +61,25 @@ export default function AgentRegistrationModal() {
     };
 
     const validateAddress = (address: string): boolean => {
-        // Basic Ethereum address validation
-        const ethAddressRegex = /^0x[a-fA-F0-9]{40}$/;
-        return ethAddressRegex.test(address);
+        return /^0x[a-fA-F0-9]{40}$/.test(address);
     };
 
     const handleCountryChange = (countryCode: string) => {
         setCountry(countryCode);
-        const selectedCountry = countries.find((c) => c.code === countryCode);
-        if (selectedCountry) {
-            setCurrency(selectedCountry.currency);
-        }
+        const selected = countries.find((c) => c.code === countryCode);
+        if (selected) setCurrency(selected.currency);
         setShowCountryPicker(false);
     };
 
-    const getCountryName = () => {
-        return countries.find((c) => c.code === country)?.name || "Select Country";
-    };
+    const getCountryName = () =>
+        countries.find((c) => c.code === country)?.name || "Select Country";
 
     const handleSubmit = async () => {
-        // Validation
         const newErrors: { [key: string]: string } = {};
-
         if (!withdrawalAddress.trim()) {
             newErrors.withdrawalAddress = "Withdrawal address is required";
         } else if (!validateAddress(withdrawalAddress)) {
-            newErrors.withdrawalAddress = "Invalid Ethereum address format";
+            newErrors.withdrawalAddress = "Must be a valid Ethereum address (0x...)";
         }
 
         if (Object.keys(newErrors).length > 0) {
@@ -84,24 +91,15 @@ export default function AgentRegistrationModal() {
         setErrors({});
 
         try {
-            // Call API to register agent
             await useAgentStore.getState().registerAsAgent({
                 country,
                 currency,
                 withdrawal_address: withdrawalAddress,
             });
-
             Alert.alert(
                 "Registration Successful!",
                 "Your agent application has been submitted. Please complete KYC verification to continue.",
-                [
-                    {
-                        text: "Continue to KYC",
-                        onPress: () => {
-                            router.replace("/modals/agent-kyc");
-                        },
-                    },
-                ]
+                [{ text: "Continue to KYC", onPress: () => router.replace("/modals/agent-kyc") }]
             );
         } catch (error: any) {
             Alert.alert("Error", error.message || "Failed to register as agent");
@@ -110,168 +108,230 @@ export default function AgentRegistrationModal() {
         }
     };
 
+    const progressSteps = [
+        { label: "Register", active: true, done: false },
+        { label: "KYC", active: false, done: false },
+        { label: "Deposit", active: false, done: false },
+    ];
+
     return (
-        <SafeAreaView style={styles.container}>
+        <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
             {/* Header */}
-            <View style={styles.header}>
-                <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-                    <Ionicons name="arrow-back" size={24} color="#111827" />
+            <View style={[styles.header, { borderBottomColor: theme.border }]}>
+                <TouchableOpacity
+                    onPress={() => router.back()}
+                    style={[styles.navBtn, { backgroundColor: theme.card, borderColor: theme.border }]}
+                >
+                    <Ionicons name="arrow-back" size={20} color={theme.text} />
                 </TouchableOpacity>
-                <Text style={styles.headerTitle}>Agent Registration</Text>
-                <View style={{ width: 24 }} />
+                <Text style={[styles.headerTitle, { color: theme.text }]}>Agent Registration</Text>
+                <View style={{ width: 42 }} />
             </View>
 
-            <ScrollView contentContainerStyle={styles.content}>
-                {/* Progress Indicator */}
-                <View style={styles.progressContainer}>
-                    <View style={styles.progressStep}>
-                        <View style={[styles.progressDot, styles.progressDotActive]}>
-                            <Text style={styles.progressNumber}>1</Text>
-                        </View>
-                        <Text style={styles.progressLabel}>Register</Text>
-                    </View>
-                    <View style={styles.progressLine} />
-                    <View style={styles.progressStep}>
-                        <View style={styles.progressDot}>
-                            <Text style={styles.progressNumber}>2</Text>
-                        </View>
-                        <Text style={styles.progressLabel}>KYC</Text>
-                    </View>
-                    <View style={styles.progressLine} />
-                    <View style={styles.progressStep}>
-                        <View style={styles.progressDot}>
-                            <Text style={styles.progressNumber}>3</Text>
-                        </View>
-                        <Text style={styles.progressLabel}>Deposit</Text>
-                    </View>
+            <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+
+                {/* Stepper */}
+                <View style={[styles.stepperCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                    {progressSteps.map((step, i) => (
+                        <React.Fragment key={i}>
+                            <View style={styles.stepItem}>
+                                {step.active ? (
+                                    <LinearGradient
+                                        colors={["#00B14F", "#008F40"]}
+                                        style={styles.stepDot}
+                                    >
+                                        <Text style={styles.stepNum}>{i + 1}</Text>
+                                    </LinearGradient>
+                                ) : (
+                                    <View style={[styles.stepDot, { backgroundColor: theme.border }]}>
+                                        <Text style={[styles.stepNum, { color: theme.muted }]}>{i + 1}</Text>
+                                    </View>
+                                )}
+                                <Text style={[styles.stepLabel, { color: step.active ? theme.accent : theme.muted }]}>
+                                    {step.label}
+                                </Text>
+                            </View>
+                            {i < progressSteps.length - 1 && (
+                                <View style={[styles.stepLine, { backgroundColor: theme.border }]} />
+                            )}
+                        </React.Fragment>
+                    ))}
                 </View>
 
-                {/* Form */}
-                <View style={styles.form}>
-                    <Text style={styles.formTitle}>Basic Information</Text>
-                    <Text style={styles.formDescription}>
-                        Provide your location and withdrawal details
+                {/* Hero Intro */}
+                <LinearGradient
+                    colors={["#00B14F", "#008F40"]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.heroBanner}
+                >
+                    <View style={styles.heroIconCircle}>
+                        <Ionicons name="person-add" size={26} color="#00B14F" />
+                    </View>
+                    <Text style={styles.heroEyebrow}>STEP 1 OF 3</Text>
+                    <Text style={styles.heroTitle}>Basic Information</Text>
+                    <Text style={styles.heroSubtitle}>
+                        Provide your location and the wallet address where you'd like to receive your earnings.
                     </Text>
+                </LinearGradient>
 
-                    {/* Country Selector */}
-                    <View style={styles.inputGroup}>
-                        <Text style={styles.label}>Country *</Text>
+                {/* Form Card */}
+                <View style={[styles.formCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+
+                    {/* Country */}
+                    <View style={styles.fieldGroup}>
+                        <Text style={[styles.fieldLabel, { color: theme.muted }]}>COUNTRY *</Text>
                         <TouchableOpacity
-                            style={styles.selectInput}
+                            style={[styles.selectField, { backgroundColor: theme.inputBg, borderColor: theme.border }]}
                             onPress={() => setShowCountryPicker(true)}
+                            activeOpacity={0.7}
                         >
-                            <Text style={styles.selectInputText}>{getCountryName()}</Text>
-                            <Ionicons name="chevron-down" size={20} color="#6B7280" />
+                            <View style={styles.selectFieldLeft}>
+                                <View style={[styles.fieldIconBox, { backgroundColor: theme.accentSoft }]}>
+                                    <Ionicons name="earth" size={16} color={theme.accent} />
+                                </View>
+                                <Text style={[styles.selectFieldText, { color: theme.text }]}>{getCountryName()}</Text>
+                            </View>
+                            <Ionicons name="chevron-down" size={18} color={theme.muted} />
                         </TouchableOpacity>
                     </View>
 
-                    {/* Currency (Auto-filled) */}
-                    <View style={styles.inputGroup}>
-                        <Text style={styles.label}>Currency</Text>
-                        <View style={styles.disabledInput}>
-                            <Text style={styles.disabledInputText}>{currency}</Text>
-                            <Ionicons name="lock-closed" size={16} color="#9CA3AF" />
+                    <View style={[styles.fieldDivider, { backgroundColor: theme.border }]} />
+
+                    {/* Currency (auto) */}
+                    <View style={styles.fieldGroup}>
+                        <Text style={[styles.fieldLabel, { color: theme.muted }]}>CURRENCY</Text>
+                        <View style={[styles.disabledField, { backgroundColor: isDark ? "#09121D" : "#F1F5F9", borderColor: theme.border }]}>
+                            <View style={styles.selectFieldLeft}>
+                                <View style={[styles.fieldIconBox, { backgroundColor: theme.border }]}>
+                                    <Ionicons name="cash-outline" size={16} color={theme.muted} />
+                                </View>
+                                <Text style={[styles.disabledFieldText, { color: theme.muted }]}>{currency}</Text>
+                            </View>
+                            <Ionicons name="lock-closed" size={14} color={theme.muted} />
                         </View>
-                        <Text style={styles.helperText}>
+                        <Text style={[styles.helperText, { color: theme.muted }]}>
                             Automatically set based on your country
                         </Text>
                     </View>
 
+                    <View style={[styles.fieldDivider, { backgroundColor: theme.border }]} />
+
                     {/* Withdrawal Address */}
-                    <View style={styles.inputGroup}>
-                        <Text style={styles.label}>USDT Withdrawal Address (Polygon) *</Text>
-                        <TextInput
-                            style={[
-                                styles.input,
-                                errors.withdrawalAddress && styles.inputError,
-                            ]}
-                            placeholder="0x..."
-                            value={withdrawalAddress}
-                            onChangeText={(text) => {
-                                setWithdrawalAddress(text);
-                                if (errors.withdrawalAddress) {
-                                    setErrors({ ...errors, withdrawalAddress: "" });
-                                }
-                            }}
-                            autoCapitalize="none"
-                            autoCorrect={false}
-                        />
+                    <View style={styles.fieldGroup}>
+                        <Text style={[styles.fieldLabel, { color: theme.muted }]}>USDT WITHDRAWAL ADDRESS (POLYGON) *</Text>
+                        <View style={[
+                            styles.inputWrapper,
+                            {
+                                backgroundColor: theme.inputBg,
+                                borderColor: errors.withdrawalAddress ? theme.danger : theme.border
+                            }
+                        ]}>
+                            <View style={[styles.fieldIconBox, { backgroundColor: theme.accentSoft, marginRight: 10 }]}>
+                                <Ionicons name="wallet-outline" size={16} color={theme.accent} />
+                            </View>
+                            <TextInput
+                                style={[styles.textInput, { color: theme.text }]}
+                                placeholder="0x..."
+                                placeholderTextColor={theme.muted}
+                                value={withdrawalAddress}
+                                onChangeText={(text) => {
+                                    setWithdrawalAddress(text);
+                                    if (errors.withdrawalAddress) {
+                                        setErrors({ ...errors, withdrawalAddress: "" });
+                                    }
+                                }}
+                                autoCapitalize="none"
+                                autoCorrect={false}
+                            />
+                        </View>
                         {errors.withdrawalAddress ? (
                             <Text style={styles.errorText}>{errors.withdrawalAddress}</Text>
                         ) : (
-                            <Text style={styles.helperText}>
+                            <Text style={[styles.helperText, { color: theme.muted }]}>
                                 Your earnings will be sent to this address
                             </Text>
                         )}
                     </View>
-
-                    {/* Info Box */}
-                    <View style={styles.infoBox}>
-                        <Ionicons name="information-circle" size={20} color="#00B14F" />
-                        <Text style={styles.infoText}>
-                            Make sure your withdrawal address is correct. You can update it later in
-                            settings.
-                        </Text>
-                    </View>
                 </View>
+
+                {/* Warning info */}
+                <View style={[styles.infoBanner, { backgroundColor: theme.accentSoft, borderColor: theme.accent + "30" }]}>
+                    <Ionicons name="information-circle" size={20} color={theme.accent} />
+                    <Text style={[styles.infoBannerText, { color: theme.accent }]}>
+                        Make sure your withdrawal address is correct. You can update it later in settings.
+                    </Text>
+                </View>
+
+                <View style={{ height: 100 }} />
             </ScrollView>
 
-            {/* Footer */}
-            <View style={styles.footer}>
+            {/* Footer CTA */}
+            <View style={[styles.footer, { backgroundColor: theme.card, borderTopColor: theme.border }]}>
                 <TouchableOpacity
-                    style={[styles.submitButton, loading && styles.submitButtonDisabled]}
+                    style={[styles.submitBtn, { backgroundColor: theme.accent, opacity: loading ? 0.6 : 1 }]}
                     onPress={handleSubmit}
                     disabled={loading}
+                    activeOpacity={0.85}
                 >
                     {loading ? (
                         <ActivityIndicator color="#FFFFFF" />
                     ) : (
-                        <Text style={styles.submitButtonText}>Continue to KYC</Text>
+                        <>
+                            <Text style={styles.submitBtnText}>Continue to KYC</Text>
+                            <Ionicons name="arrow-forward" size={20} color="#FFF" />
+                        </>
                     )}
                 </TouchableOpacity>
             </View>
 
-            {/* Country Picker Modal */}
+            {/* Country Picker Bottom Sheet */}
             <Modal
                 visible={showCountryPicker}
-                transparent={true}
+                transparent
                 animationType="slide"
                 onRequestClose={() => setShowCountryPicker(false)}
             >
                 <View style={styles.modalOverlay}>
-                    <View style={styles.modalContent}>
-                        <View style={styles.modalHeader}>
-                            <Text style={styles.modalTitle}>Select Country</Text>
-                            <TouchableOpacity onPress={() => setShowCountryPicker(false)}>
-                                <Ionicons name="close" size={24} color="#111827" />
+                    <View style={[styles.modalSheet, { backgroundColor: theme.card }]}>
+                        {/* Handle */}
+                        <View style={[styles.sheetHandle, { backgroundColor: theme.border }]} />
+
+                        {/* Modal Header */}
+                        <View style={[styles.modalHeader, { borderBottomColor: theme.border }]}>
+                            <Text style={[styles.modalTitle, { color: theme.text }]}>Select Country</Text>
+                            <TouchableOpacity
+                                onPress={() => setShowCountryPicker(false)}
+                                style={[styles.modalCloseBtn, { backgroundColor: theme.cardAlt }]}
+                            >
+                                <Ionicons name="close" size={18} color={theme.text} />
                             </TouchableOpacity>
                         </View>
-                        <ScrollView style={styles.countryList}>
+
+                        <ScrollView style={styles.countryList} showsVerticalScrollIndicator={false}>
                             {countries.map((c) => (
                                 <TouchableOpacity
                                     key={c.code}
                                     style={[
-                                        styles.countryOption,
-                                        country === c.code && styles.countryOptionSelected,
+                                        styles.countryRow,
+                                        { borderBottomColor: theme.border },
+                                        country === c.code && { backgroundColor: theme.accentSoft },
                                     ]}
-                                    onPress={() => {
-                                        handleCountryChange(c.code);
-                                        setShowCountryPicker(false);
-                                    }}
+                                    onPress={() => handleCountryChange(c.code)}
+                                    activeOpacity={0.7}
                                 >
-                                    <Text
-                                        style={[
-                                            styles.countryOptionText,
-                                            country === c.code && styles.countryOptionTextSelected,
-                                        ]}
-                                    >
+                                    <Text style={[
+                                        styles.countryRowText,
+                                        { color: country === c.code ? theme.accent : theme.text }
+                                    ]}>
                                         {c.name}
                                     </Text>
                                     {country === c.code && (
-                                        <Ionicons name="checkmark" size={20} color="#00B14F" />
+                                        <Ionicons name="checkmark-circle" size={20} color={theme.accent} />
                                     )}
                                 </TouchableOpacity>
                             ))}
+                            <View style={{ height: 40 }} />
                         </ScrollView>
                     </View>
                 </View>
@@ -281,10 +341,7 @@ export default function AgentRegistrationModal() {
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: "#FFFFFF",
-    },
+    container: { flex: 1 },
     header: {
         flexDirection: "row",
         alignItems: "center",
@@ -292,211 +349,233 @@ const styles = StyleSheet.create({
         paddingHorizontal: 16,
         paddingVertical: 12,
         borderBottomWidth: 1,
-        borderBottomColor: "#F3F4F6",
     },
-    backButton: {
-        padding: 4,
-    },
-    headerTitle: {
-        fontSize: 18,
-        fontWeight: "600",
-        color: "#111827",
-    },
-    content: {
-        padding: 20,
-    },
-    progressContainer: {
-        flexDirection: "row",
+    navBtn: {
+        width: 42,
+        height: 42,
+        borderRadius: 21,
+        borderWidth: 1,
         alignItems: "center",
         justifyContent: "center",
-        marginBottom: 32,
     },
-    progressStep: {
+    headerTitle: { fontSize: 18, fontWeight: "800" },
+    content: { padding: 16 },
+
+    // Stepper
+    stepperCard: {
+        flexDirection: "row",
         alignItems: "center",
-    },
-    progressDot: {
-        width: 40,
-        height: 40,
         borderRadius: 20,
-        backgroundColor: "#F3F4F6",
+        borderWidth: 1,
+        paddingHorizontal: 20,
+        paddingVertical: 16,
+        marginBottom: 16,
+    },
+    stepItem: { alignItems: "center", gap: 6 },
+    stepDot: {
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        alignItems: "center",
         justifyContent: "center",
-        alignItems: "center",
-        marginBottom: 8,
     },
-    progressDotActive: {
-        backgroundColor: "#00B14F",
-    },
-    progressNumber: {
-        fontSize: 16,
-        fontWeight: "600",
-        color: "#FFFFFF",
-    },
-    progressLabel: {
-        fontSize: 12,
-        color: "#6B7280",
-    },
-    progressLine: {
-        width: 40,
-        height: 2,
-        backgroundColor: "#F3F4F6",
-        marginHorizontal: 8,
-        marginBottom: 28,
-    },
-    form: {
-        marginBottom: 24,
-    },
-    formTitle: {
-        fontSize: 20,
-        fontWeight: "700",
-        color: "#111827",
-        marginBottom: 8,
-    },
-    formDescription: {
-        fontSize: 14,
-        color: "#6B7280",
-        marginBottom: 24,
-    },
-    inputGroup: {
-        marginBottom: 20,
-    },
-    label: {
-        fontSize: 14,
-        fontWeight: "600",
-        color: "#374151",
-        marginBottom: 8,
-    },
-    selectInput: {
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "space-between",
-        borderWidth: 1,
-        borderColor: "#D1D5DB",
-        borderRadius: 8,
-        padding: 12,
-        backgroundColor: "#FFFFFF",
-    },
-    selectInputText: {
-        fontSize: 16,
-        color: "#111827",
-    },
-    input: {
-        borderWidth: 1,
-        borderColor: "#D1D5DB",
-        borderRadius: 8,
-        padding: 12,
-        fontSize: 16,
-        color: "#111827",
-        backgroundColor: "#FFFFFF",
-    },
-    inputError: {
-        borderColor: "#EF4444",
-    },
-    disabledInput: {
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "space-between",
-        borderWidth: 1,
-        borderColor: "#E5E7EB",
-        borderRadius: 8,
-        padding: 12,
-        backgroundColor: "#F9FAFB",
-    },
-    disabledInputText: {
-        fontSize: 16,
-        color: "#6B7280",
-    },
-    helperText: {
-        fontSize: 12,
-        color: "#6B7280",
-        marginTop: 4,
-    },
-    errorText: {
-        fontSize: 12,
-        color: "#EF4444",
-        marginTop: 4,
-    },
-    infoBox: {
-        flexDirection: "row",
-        alignItems: "flex-start",
-        backgroundColor: "#F0FDF4",
-        padding: 12,
-        borderRadius: 8,
-        borderWidth: 1,
-        borderColor: "#00B14F",
-    },
-    infoText: {
-        fontSize: 13,
-        color: "#065F46",
-        marginLeft: 8,
+    stepNum: { color: "#FFF", fontSize: 14, fontWeight: "800" },
+    stepLabel: { fontSize: 12, fontWeight: "700" },
+    stepLine: {
         flex: 1,
-        lineHeight: 18,
+        height: 2,
+        marginHorizontal: 6,
+        marginBottom: 22,
     },
+
+    // Hero
+    heroBanner: {
+        borderRadius: 24,
+        padding: 22,
+        marginBottom: 16,
+    },
+    heroIconCircle: {
+        width: 52,
+        height: 52,
+        borderRadius: 26,
+        backgroundColor: "#FFFFFF",
+        alignItems: "center",
+        justifyContent: "center",
+        marginBottom: 14,
+    },
+    heroEyebrow: {
+        fontSize: 10,
+        fontWeight: "800",
+        color: "rgba(255,255,255,0.7)",
+        letterSpacing: 1,
+        marginBottom: 4,
+    },
+    heroTitle: {
+        fontSize: 24,
+        fontWeight: "900",
+        color: "#FFFFFF",
+        letterSpacing: -0.4,
+        marginBottom: 8,
+    },
+    heroSubtitle: {
+        fontSize: 14,
+        fontWeight: "500",
+        color: "rgba(255,255,255,0.85)",
+        lineHeight: 20,
+    },
+
+    // Form
+    formCard: {
+        borderRadius: 24,
+        borderWidth: 1,
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        marginBottom: 14,
+    },
+    fieldGroup: {
+        paddingVertical: 14,
+        gap: 8,
+    },
+    fieldLabel: {
+        fontSize: 10,
+        fontWeight: "800",
+        letterSpacing: 0.8,
+    },
+    fieldIconBox: {
+        width: 32,
+        height: 32,
+        borderRadius: 10,
+        alignItems: "center",
+        justifyContent: "center",
+    },
+    selectField: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+        borderWidth: 1,
+        borderRadius: 14,
+        paddingVertical: 10,
+        paddingLeft: 10,
+        paddingRight: 14,
+    },
+    selectFieldLeft: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 10,
+        flex: 1,
+    },
+    selectFieldText: {
+        fontSize: 15,
+        fontWeight: "700",
+    },
+    disabledField: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+        borderWidth: 1,
+        borderRadius: 14,
+        paddingVertical: 10,
+        paddingLeft: 10,
+        paddingRight: 14,
+    },
+    disabledFieldText: {
+        fontSize: 15,
+        fontWeight: "600",
+    },
+    inputWrapper: {
+        flexDirection: "row",
+        alignItems: "center",
+        borderWidth: 1,
+        borderRadius: 14,
+        paddingVertical: 10,
+        paddingLeft: 10,
+        paddingRight: 14,
+    },
+    textInput: {
+        flex: 1,
+        fontSize: 15,
+        fontWeight: "600",
+        paddingVertical: 4,
+    },
+    helperText: { fontSize: 12, fontWeight: "500" },
+    errorText: { fontSize: 12, fontWeight: "600", color: "#EF4444" },
+    fieldDivider: { height: 1 },
+
+    // Info
+    infoBanner: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 10,
+        padding: 14,
+        borderRadius: 16,
+        borderWidth: 1,
+        marginBottom: 8,
+    },
+    infoBannerText: { flex: 1, fontSize: 13, fontWeight: "600", lineHeight: 18 },
+
+    // Footer
     footer: {
+        position: "absolute",
+        bottom: 0,
+        left: 0,
+        right: 0,
         padding: 16,
         borderTopWidth: 1,
-        borderTopColor: "#F3F4F6",
     },
-    submitButton: {
-        backgroundColor: "#00B14F",
-        paddingVertical: 16,
-        borderRadius: 12,
+    submitBtn: {
+        flexDirection: "row",
         alignItems: "center",
+        justifyContent: "center",
+        paddingVertical: 16,
+        borderRadius: 18,
+        gap: 8,
     },
-    submitButtonDisabled: {
-        opacity: 0.6,
-    },
-    submitButtonText: {
-        color: "#FFFFFF",
-        fontSize: 16,
-        fontWeight: "600",
-    },
+    submitBtnText: { color: "#FFF", fontSize: 16, fontWeight: "800" },
+
+    // Country modal
     modalOverlay: {
         flex: 1,
-        backgroundColor: "rgba(0, 0, 0, 0.5)",
+        backgroundColor: "rgba(0,0,0,0.55)",
         justifyContent: "flex-end",
     },
-    modalContent: {
-        backgroundColor: "#FFFFFF",
-        borderTopLeftRadius: 20,
-        borderTopRightRadius: 20,
-        paddingTop: 20,
-        paddingBottom: 20,
-        maxHeight: "60%",
+    modalSheet: {
+        borderTopLeftRadius: 28,
+        borderTopRightRadius: 28,
+        paddingTop: 12,
+        maxHeight: "65%",
     },
-    countryList: {
-        paddingBottom: 20,
+    sheetHandle: {
+        width: 44,
+        height: 4,
+        borderRadius: 2,
+        alignSelf: "center",
+        marginBottom: 14,
     },
     modalHeader: {
         flexDirection: "row",
         justifyContent: "space-between",
         alignItems: "center",
         paddingHorizontal: 20,
-        paddingBottom: 16,
+        paddingBottom: 14,
         borderBottomWidth: 1,
-        borderBottomColor: "#F3F4F6",
     },
-    modalTitle: {
-        fontSize: 18,
-        fontWeight: "600",
-        color: "#111827",
+    modalTitle: { fontSize: 18, fontWeight: "800" },
+    modalCloseBtn: {
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        alignItems: "center",
+        justifyContent: "center",
     },
-    countryOption: {
+    countryList: { paddingHorizontal: 16, paddingTop: 8 },
+    countryRow: {
         flexDirection: "row",
         justifyContent: "space-between",
         alignItems: "center",
-        padding: 16,
+        paddingVertical: 14,
+        paddingHorizontal: 12,
+        borderRadius: 12,
         borderBottomWidth: 1,
-        borderBottomColor: "#F3F4F6",
     },
-    countryOptionSelected: {
-        backgroundColor: "#F0FDF4",
-    },
-    countryOptionText: {
-        fontSize: 16,
-        color: "#111827",
-    },
-    countryOptionTextSelected: {
-        color: "#00B14F",
-        fontWeight: "600",
-    },
+    countryRowText: { fontSize: 16, fontWeight: "600" },
 });

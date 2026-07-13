@@ -8,11 +8,13 @@ import {
   RefreshControl,
   TouchableOpacity,
   ActivityIndicator,
+  useColorScheme,
+  Animated,
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import apiClient from "@/services/apiClient";
 import { API_ENDPOINTS } from "@/constants/api";
@@ -90,6 +92,38 @@ const ACTIVE_ACTIVITY_STATUSES = [
 export default function TransactionHistoryScreen() {
   const router = useRouter();
   const { user } = useAuthStore();
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === "dark";
+
+  const insets = useSafeAreaInsets();
+  const [headerMaxHeight, setHeaderMaxHeight] = useState(insets.top + 70);
+  const scrollY = useRef(new Animated.Value(0)).current;
+
+  const handleHeaderLayout = (e: any) => {
+    const { height } = e.nativeEvent.layout;
+    if (height > headerMaxHeight) {
+      setHeaderMaxHeight(height);
+    }
+  };
+
+  const subtitleOpacity = scrollY.interpolate({
+    inputRange: [0, 50],
+    outputRange: [1, 0],
+    extrapolate: "clamp",
+  });
+
+  const subtitleMaxHeight = scrollY.interpolate({
+    inputRange: [0, 50],
+    outputRange: [80, 0],
+    extrapolate: "clamp",
+  });
+
+  const subtitleMargin = scrollY.interpolate({
+    inputRange: [0, 50],
+    outputRange: [4, 0],
+    extrapolate: "clamp",
+  });
+
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [pendingReviews, setPendingReviews] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
@@ -98,6 +132,7 @@ export default function TransactionHistoryScreen() {
     "mint",
     "burn",
     "swap",
+    "collection",
     "transfer",
     "credit",
     "debit",
@@ -301,6 +336,38 @@ export default function TransactionHistoryScreen() {
       ? "Review every request and transaction outcome across mint, burn, swap, transfer, credit, and debit in one timeline."
       : `Review your ${filter} activity and track the current status of each entry.`;
 
+  const completedCount = transactions.filter((tx) =>
+    ["confirmed", "completed"].includes((tx.status || "").toLowerCase()),
+  ).length;
+  const failedCount = transactions.filter((tx) =>
+    ["rejected", "expired", "cancelled", "failed"].includes(
+      (tx.status || "").toLowerCase(),
+    ),
+  ).length;
+  const activeCount = pendingCount;
+
+  const theme = {
+    background: isDark ? "#07111A" : "#F5F7FB",
+    card: isDark ? "#0E1726" : "#FFFFFF",
+    surface: isDark ? "#111C2B" : "#F8FAFC",
+    text: isDark ? "#F8FAFC" : "#0F172A",
+    muted: isDark ? "#94A3B8" : "#64748B",
+    border: isDark ? "#1E2A3A" : "#E2E8F0",
+    divider: isDark ? "#1E2A3A" : "#EEF2F7",
+    accent: "#00B14F",
+    accentSoft: isDark ? "rgba(0,177,79,0.14)" : "#EAF8EF",
+    warning: "#F59E0B",
+    danger: "#EF4444",
+    info: "#3B82F6",
+  };
+
+  const activityStats = [
+    { label: "Total", value: transactions.length },
+    { label: "Active", value: activeCount },
+    { label: "Completed", value: completedCount },
+    { label: "Issues", value: failedCount },
+  ];
+
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
       case "confirmed":
@@ -335,6 +402,8 @@ export default function TransactionHistoryScreen() {
       case "credit":
       case "debit":
         return "swap-horizontal";
+      case "collection":
+        return "folder-open";
       default:
         return "cash";
     }
@@ -348,6 +417,8 @@ export default function TransactionHistoryScreen() {
         return { bg: "#FEF3C7", color: "#F59E0B" };
       case "swap":
         return { bg: "#F5F3FF", color: "#7C3AED" };
+      case "collection":
+        return { bg: "#ECFDF5", color: "#059669" };
       case "transfer":
       case "credit":
         return { bg: "#EFF6FF", color: "#3B82F6" };
@@ -399,7 +470,7 @@ export default function TransactionHistoryScreen() {
         params: { requestId: requestId },
       });
     } else if (
-      ["swap", "transfer", "credit", "debit"].includes(
+      ["swap", "collection", "transfer", "credit", "debit"].includes(
         (tx.type || "").toLowerCase(),
       )
     ) {
@@ -411,77 +482,66 @@ export default function TransactionHistoryScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.headerWrapper}>
-        <LinearGradient
-          colors={["#00B14F", "#008F40"]}
-          style={styles.headerGradient}
-        />
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
+      <LinearGradient
+        colors={
+          isDark
+            ? ["rgba(0,177,79,0.18)", "rgba(7,17,26,0)"]
+            : ["rgba(0,177,79,0.08)", "rgba(245,247,251,0)"]
+        }
+        style={styles.backgroundGlow}
+        pointerEvents="none"
+      />
+
+      <Animated.View
+        onLayout={handleHeaderLayout}
+        style={[
+          styles.headerWrapper,
+          {
+            backgroundColor: theme.background,
+            borderBottomColor: theme.border,
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            zIndex: 10,
+          },
+        ]}
+      >
         <SafeAreaView edges={["top"]} style={styles.headerContent}>
           <View style={styles.headerTop}>
             <TouchableOpacity
               onPress={() => router.back()}
-              style={styles.backButton}
+              style={[
+                styles.backButton,
+                { backgroundColor: theme.card, borderColor: theme.border },
+              ]}
             >
-              <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
+              <Ionicons name="arrow-back" size={22} color={theme.text} />
             </TouchableOpacity>
-            <Text style={styles.title}>Activity</Text>
-            <View style={styles.placeholder} />
+
+            <View style={styles.headerCopy}>
+              <Text style={[styles.title, { color: theme.text }]}>Activity</Text>
+              <Animated.View style={{
+                opacity: subtitleOpacity,
+                maxHeight: subtitleMaxHeight,
+                marginTop: subtitleMargin,
+                overflow: "hidden"
+              }}>
+                <Text style={[styles.headerSubtitle, { color: theme.muted }]}>
+                  Track every request, transfer, swap, and admin outcome.
+                </Text>
+              </Animated.View>
+            </View>
+
+            <View style={[styles.headerBadge, { backgroundColor: theme.card, borderColor: theme.border }]}>
+              <View style={[styles.liveDot, { backgroundColor: theme.accent }]} />
+              <Text style={[styles.headerBadgeText, { color: theme.text }]}>Live</Text>
+            </View>
           </View>
         </SafeAreaView>
-      </View>
+      </Animated.View>
 
-      <View style={styles.tabsContainer}>
-        <LinearGradient
-          colors={["#F7FFF9", "#FFFFFF"]}
-          style={styles.summaryCard}
-        >
-          <Text style={styles.summaryEyebrow}>User Timeline</Text>
-          <Text style={styles.summaryTitle}>{currentFilterLabel}</Text>
-          <Text style={styles.summaryText}>{currentFilterSummary}</Text>
-          <View style={styles.summaryMetaRow}>
-            <View style={styles.summaryMetaPill}>
-              <Text style={styles.summaryMetaValue}>{transactions.length}</Text>
-              <Text style={styles.summaryMetaLabel}>Total</Text>
-            </View>
-            <View style={styles.summaryMetaPill}>
-              <Text style={styles.summaryMetaValue}>{pendingCount}</Text>
-              <Text style={styles.summaryMetaLabel}>Pending</Text>
-            </View>
-          </View>
-        </LinearGradient>
-
-        <ScrollView
-          ref={filterScrollRef}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.tabs}
-          style={styles.filterScroll}
-        >
-          {FILTERS.map((f, index) => (
-            <TouchableOpacity
-              key={f}
-              style={[styles.tab, filter === f && styles.activeTab]}
-              onPress={() => handleFilterPress(f)}
-              onLayout={(e) => {
-                const x =
-                  e.nativeEvent?.layout?.x ??
-                  (e as { layout?: { x: number } }).layout?.x;
-                if (typeof x === "number") tabLayoutX.current[index] = x;
-              }}
-            >
-              <Text
-                style={[styles.tabText, filter === f && styles.activeTabText]}
-                numberOfLines={1}
-              >
-                {String(f).charAt(0).toUpperCase() + String(f).slice(1)}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-      </View>
-
-      {/* Transaction List */}
       <ScrollView
         style={styles.list}
         contentContainerStyle={styles.listContent}
@@ -489,58 +549,203 @@ export default function TransactionHistoryScreen() {
           <RefreshControl
             refreshing={loading}
             onRefresh={fetchTransactions}
-            tintColor="#00B14F"
+            tintColor={theme.accent}
           />
         }
+        showsVerticalScrollIndicator={false}
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+          { useNativeDriver: false }
+        )}
+        scrollEventThrottle={16}
       >
-        {loading && transactions.length === 0 ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#00B14F" />
-            <Text style={styles.loadingText}>Loading activity...</Text>
-          </View>
-        ) : filteredTransactions.length === 0 ? (
-          <View style={styles.emptyStateContainer}>
-            {/* Empty State Card */}
-            <View style={styles.emptyStateCard}>
-              <View style={styles.emptyStateIconContainer}>
-                <View style={styles.emptyStateIconBg}>
-                  <Ionicons name="receipt-outline" size={64} color="#00B14F" />
-                </View>
+        {/* Spacer matching the header height */}
+        <View style={{ height: headerMaxHeight }} />
+        <View style={styles.screenContent}>
+          <LinearGradient
+            colors={isDark ? ["#0E1726", "#111E2E"] : ["#FFFFFF", "#F4FBF7"]}
+            style={[
+              styles.heroCard,
+              { borderColor: theme.border, shadowColor: isDark ? "#000" : "#0F172A" },
+            ]}
+          >
+            <View style={styles.heroTopRow}>
+              <View style={styles.heroCopy}>
+                <Text style={[styles.heroEyebrow, { color: theme.accent }]}>
+                  Activity timeline
+                </Text>
+                <Text style={[styles.heroTitle, { color: theme.text }]}>
+                  {currentFilterLabel}
+                </Text>
+                <Text style={[styles.heroSubtitle, { color: theme.muted }]}>
+                  {currentFilterSummary}
+                </Text>
               </View>
 
-              <Text style={styles.emptyStateTitle}>
+              <View style={[styles.heroPill, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+                <Text style={[styles.heroPillLabel, { color: theme.text }]}>
+                  Updated now
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.heroStatsGrid}>
+              {activityStats.map((item) => (
+                <View
+                  key={item.label}
+                  style={[styles.heroStatCard, { backgroundColor: theme.card, borderColor: theme.border }]}
+                >
+                  <Text style={[styles.heroStatValue, { color: theme.text }]}>
+                    {item.value}
+                  </Text>
+                  <Text style={[styles.heroStatLabel, { color: theme.muted }]}>
+                    {item.label}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          </LinearGradient>
+
+          <View style={styles.sectionHeaderRow}>
+            <View>
+              <Text style={[styles.sectionTitleText, { color: theme.text }]}>
+                Filters
+              </Text>
+              <Text style={[styles.sectionSubtitle, { color: theme.muted }]}>
+                Narrow the feed by transaction type.
+              </Text>
+            </View>
+            <View style={[styles.sectionBadge, { backgroundColor: theme.card, borderColor: theme.border }]}>
+              <Text style={[styles.sectionBadgeText, { color: theme.text }]}>
+                {filteredTransactions.length}
+              </Text>
+              <Text style={[styles.sectionBadgeLabel, { color: theme.muted }]}>
+                items
+              </Text>
+            </View>
+          </View>
+
+          <ScrollView
+            ref={filterScrollRef}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={[
+              styles.tabs,
+              { backgroundColor: theme.card, borderColor: theme.border },
+            ]}
+            style={styles.filterScroll}
+          >
+            {FILTERS.map((f, index) => (
+              <TouchableOpacity
+                key={f}
+                style={[
+                  styles.tab,
+                  { borderColor: theme.border },
+                  filter === f && styles.activeTab,
+                ]}
+                onPress={() => handleFilterPress(f)}
+                onLayout={(e) => {
+                  const x =
+                    e.nativeEvent?.layout?.x ??
+                    (e as { layout?: { x: number } }).layout?.x;
+                  if (typeof x === "number") tabLayoutX.current[index] = x;
+                }}
+              >
+                <Text
+                  style={[
+                    styles.tabText,
+                    { color: theme.muted },
+                    filter === f && styles.activeTabText,
+                  ]}
+                  numberOfLines={1}
+                >
+                  {String(f).charAt(0).toUpperCase() + String(f).slice(1)}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+
+          <View style={styles.sectionHeaderRow}>
+            <View>
+              <Text style={[styles.sectionTitleText, { color: theme.text }]}>
+                Recent activity
+              </Text>
+              <Text style={[styles.sectionSubtitle, { color: theme.muted }]}>
+                Latest entries appear first.
+              </Text>
+            </View>
+            <View style={[styles.sectionBadge, { backgroundColor: theme.card, borderColor: theme.border }]}>
+              <Text style={[styles.sectionBadgeText, { color: theme.text }]}>
+                {transactions.length}
+              </Text>
+              <Text style={[styles.sectionBadgeLabel, { color: theme.muted }]}>
+                total
+              </Text>
+            </View>
+          </View>
+
+          {loading && transactions.length === 0 ? (
+            <View style={[styles.loadingContainer, { backgroundColor: theme.card, borderColor: theme.border }]}>
+              <ActivityIndicator size="large" color={theme.accent} />
+              <Text style={[styles.loadingText, { color: theme.muted }]}>
+                Loading activity...
+              </Text>
+            </View>
+          ) : filteredTransactions.length === 0 ? (
+            <View
+              style={[
+                styles.emptyStateCard,
+                { backgroundColor: theme.card, borderColor: theme.border },
+              ]}
+            >
+              <View
+                style={[
+                  styles.emptyStateIconBg,
+                  {
+                    backgroundColor: theme.accentSoft,
+                    borderColor: isDark ? "rgba(0,177,79,0.2)" : "#D1FAE5",
+                  },
+                ]}
+              >
+                <Ionicons name="receipt-outline" size={46} color={theme.accent} />
+              </View>
+
+              <Text style={[styles.emptyStateTitle, { color: theme.text }]}>
                 {filter === "all"
-                  ? "No Activity Yet"
+                  ? "No activity yet"
                   : filter === "mint"
-                    ? "No Mint Transactions"
+                    ? "No mint transactions"
                     : filter === "burn"
-                      ? "No Burn Transactions"
-                      : filter === "swap"
-                        ? "No Swap Transactions"
-                        : filter === "transfer"
-                          ? "No Transfer Transactions"
-                          : filter === "credit"
-                            ? "No Credit Transactions"
-                            : "No Debit Transactions"}
+                      ? "No burn transactions"
+                  : filter === "swap"
+                    ? "No swap transactions"
+                    : filter === "collection"
+                      ? "No collection transactions"
+                    : filter === "transfer"
+                      ? "No transfer transactions"
+                      : filter === "credit"
+                        ? "No credit transactions"
+                            : "No debit transactions"}
               </Text>
 
-              <Text style={styles.emptyStateDescription}>
+              <Text style={[styles.emptyStateDescription, { color: theme.muted }]}>
                 {filter === "all"
                   ? "Your requests and transaction history will appear here once you start buying, selling, swapping, or transferring tokens."
                   : filter === "mint"
                     ? "You haven't purchased any tokens yet. Start by buying your first tokens from a trusted agent."
                     : filter === "burn"
                       ? "You haven't sold any tokens yet. Start by selling tokens to convert them to fiat currency."
-                      : filter === "swap"
-                        ? "You haven't swapped any tokens yet. Use Swap to convert between different token types."
-                        : filter === "transfer"
-                          ? "You haven't sent or received any tokens yet. Start by using Send or Receive to move tokens."
+                        : filter === "swap"
+                          ? "You haven't swapped any tokens yet. Use Swap to convert between different token types."
+                          : filter === "collection"
+                            ? "You haven't received any collection activity yet. Collection entries will appear here when available."
+                          : filter === "transfer"
+                            ? "You haven't sent or received any tokens yet. Start by using Send or Receive to move tokens."
                           : filter === "credit"
                             ? "You don't have any incoming credits yet. Credits appear when you receive tokens from another user."
                             : "You don't have any debits yet. Debits appear when you send tokens to another user."}
               </Text>
 
-              {/* Quick Actions */}
               <View style={styles.emptyStateActions}>
                 {filter === "all" || filter === "mint" ? (
                   <TouchableOpacity
@@ -583,7 +788,6 @@ export default function TransactionHistoryScreen() {
                 ) : null}
               </View>
 
-              {/* Info Section */}
               <View style={styles.emptyStateInfo}>
                 <View style={styles.infoItem}>
                   <View style={styles.infoIcon}>
@@ -593,7 +797,7 @@ export default function TransactionHistoryScreen() {
                       color="#00B14F"
                     />
                   </View>
-                  <Text style={styles.infoText}>
+                  <Text style={[styles.infoText, { color: theme.muted }]}>
                     All transactions are secure and protected
                   </Text>
                 </View>
@@ -601,248 +805,286 @@ export default function TransactionHistoryScreen() {
                   <View style={styles.infoIcon}>
                     <Ionicons name="time-outline" size={16} color="#6B7280" />
                   </View>
-                  <Text style={styles.infoText}>
+                  <Text style={[styles.infoText, { color: theme.muted }]}>
                     Track request progress, final outcomes, and completed transactions in one place
                   </Text>
                 </View>
               </View>
             </View>
+          ) : (
+            <>
+              {filteredTransactions.map((tx) => {
+                const typeTone = getTypeStyle(tx.type);
 
-            {/* What You'll See Section */}
-            <View style={styles.whatYoullSeeCard}>
-              <Text style={styles.whatYoullSeeTitle}>
-                What you&apos;ll see here
-              </Text>
-              <View style={styles.whatYoullSeeList}>
-                <View style={styles.whatYoullSeeItem}>
-                  <View
+                return (
+                  <TouchableOpacity
+                    key={tx.id}
                     style={[
-                      styles.whatYoullSeeIcon,
-                      { backgroundColor: "#F0FDF4" },
+                      styles.transactionCard,
+                      {
+                        backgroundColor: theme.card,
+                        borderColor: theme.border,
+                        shadowColor: isDark ? "#000" : "#0F172A",
+                      },
                     ]}
+                    onPress={() => handleTransactionPress(tx)}
+                    activeOpacity={0.75}
                   >
-                    <Ionicons name="add-circle" size={18} color="#00B14F" />
-                  </View>
-                  <View style={styles.whatYoullSeeContent}>
-                    <Text style={styles.whatYoullSeeItemTitle}>
-                      Mint Transactions
-                    </Text>
-                    <Text style={styles.whatYoullSeeItemDescription}>
-                      When you buy tokens from agents
-                    </Text>
-                  </View>
-                </View>
-                <View style={styles.whatYoullSeeItem}>
-                  <View
-                    style={[
-                      styles.whatYoullSeeIcon,
-                      { backgroundColor: "#FEF3C7" },
-                    ]}
-                  >
-                    <Ionicons name="remove-circle" size={18} color="#F59E0B" />
-                  </View>
-                  <View style={styles.whatYoullSeeContent}>
-                    <Text style={styles.whatYoullSeeItemTitle}>
-                      Burn Transactions
-                    </Text>
-                    <Text style={styles.whatYoullSeeItemDescription}>
-                      When you sell tokens to agents
-                    </Text>
-                  </View>
-                </View>
-                <View style={styles.whatYoullSeeItem}>
-                  <View
-                    style={[
-                      styles.whatYoullSeeIcon,
-                      { backgroundColor: "#EFF6FF" },
-                    ]}
-                  >
-                    <Ionicons
-                      name="swap-horizontal"
-                      size={18}
-                      color="#3B82F6"
+                    <View
+                      style={[
+                        styles.cardAccent,
+                        { backgroundColor: typeTone.color },
+                      ]}
                     />
-                  </View>
-                  <View style={styles.whatYoullSeeContent}>
-                    <Text style={styles.whatYoullSeeItemTitle}>Transfers</Text>
-                    <Text style={styles.whatYoullSeeItemDescription}>
-                      When you send or receive tokens
-                    </Text>
-                  </View>
-                </View>
-              </View>
-            </View>
-          </View>
-        ) : (
-          <>
-            {filteredTransactions.map((tx) => (
-              <TouchableOpacity
-                key={tx.id}
-                style={styles.transactionCard}
-                onPress={() => handleTransactionPress(tx)}
-                activeOpacity={0.7}
-              >
-                <View
-                  style={[
-                    styles.cardAccent,
-                    { backgroundColor: getTypeStyle(tx.type).color },
-                  ]}
-                />
-                <View style={styles.transactionHeader}>
-                  <View style={styles.transactionLeft}>
-                    <View
-                      style={[
-                        styles.iconContainer,
-                        styles.avatar,
-                        {
-                          backgroundColor: getTypeStyle(tx.type).bg,
-                          borderColor: getTypeStyle(tx.type).bg,
-                        },
-                      ]}
-                    >
-                      <Ionicons
-                        name={getTypeIcon(tx.type)}
-                        size={18}
-                        color={getTypeStyle(tx.type).color}
-                      />
-                    </View>
-                    <View style={styles.transactionMeta}>
-                      <Text style={styles.eyebrow}>
-                        {isAdminResolvedActivity(tx)
-                          ? "Admin Resolution"
-                          : getCreditDebitLabel(tx) || "Transaction"}
-                      </Text>
-                      <Text style={styles.transactionType}>
-                        {isAdminResolvedActivity(tx) && tx.type === "mint"
-                          ? "Mint Credit"
-                          : tx.type.charAt(0).toUpperCase() + tx.type.slice(1)}
-                      </Text>
-                      <Text style={styles.transactionDate}>
-                        {formatDate(tx.created_at, true)}
-                      </Text>
-                    </View>
-                  </View>
-                  <View style={styles.transactionRight}>
-                    <View
-                      style={[
-                        styles.statusBadge,
-                        { backgroundColor: getStatusColor(tx.status) + "18" },
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.statusText,
-                          { color: getStatusColor(tx.status) },
-                        ]}
-                      >
-                        {tx.status}
-                      </Text>
-                    </View>
-                  </View>
-                </View>
 
-                <View style={styles.transactionBody}>
-                  <View style={styles.amountContainer}>
-                    <View>
-                      <Text style={styles.amountLabel}>Amount</Text>
-                      <Text style={styles.transactionAmount}>
-                        {getAmountPrefix(tx)}
-                        {parseFloat(tx.amount).toLocaleString()} {tx.token_type}
-                      </Text>
-                    </View>
-                    <View style={styles.amountMeta}>
-                      <Text style={styles.amountMetaLabel}>Status</Text>
-                      <Text
-                        style={[
-                          styles.amountMetaValue,
-                          { color: getStatusColor(tx.status) },
-                        ]}
-                      >
-                        {tx.status}
-                      </Text>
-                    </View>
-                  </View>
-                </View>
+                    <View style={styles.transactionHeader}>
+                      <View style={styles.transactionLeft}>
+                        <View
+                          style={[
+                            styles.avatar,
+                            {
+                              backgroundColor: typeTone.bg,
+                              borderColor: typeTone.bg,
+                            },
+                          ]}
+                        >
+                          <Ionicons
+                            name={getTypeIcon(tx.type)}
+                            size={18}
+                            color={typeTone.color}
+                          />
+                        </View>
+                        <View style={styles.transactionMeta}>
+                          <View style={styles.transactionMetaRow}>
+                            <Text style={[styles.eyebrow, { color: theme.muted }]}>
+                              {isAdminResolvedActivity(tx)
+                                ? "Admin Resolution"
+                                : getCreditDebitLabel(tx) || "Transaction"}
+                            </Text>
+                            {pendingReviews.has(tx.id) ? (
+                              <View
+                                style={[
+                                  styles.pendingBadge,
+                                  {
+                                    backgroundColor: theme.accentSoft,
+                                    borderColor: isDark
+                                      ? "rgba(0,177,79,0.2)"
+                                      : "#D1FAE5",
+                                  },
+                                ]}
+                              >
+                                <Text
+                                  style={[
+                                    styles.pendingBadgeText,
+                                    { color: theme.accent },
+                                  ]}
+                                >
+                                  Pending review
+                                </Text>
+                              </View>
+                            ) : null}
+                          </View>
+                          <Text style={[styles.transactionType, { color: theme.text }]}>
+                            {isAdminResolvedActivity(tx) && tx.type === "mint"
+                              ? "Mint Credit"
+                              : tx.type.charAt(0).toUpperCase() + tx.type.slice(1)}
+                          </Text>
+                          <Text style={[styles.transactionDate, { color: theme.muted }]}>
+                            {formatDate(tx.created_at, true)}
+                          </Text>
+                        </View>
+                      </View>
 
-                {tx.type === "swap" &&
-                tx.metadata?.received_amount != null &&
-                tx.metadata?.to_token ? (
-                  <View style={styles.infoStrip}>
-                    <Text style={styles.infoStripLabel}>Received</Text>
-                    <Text style={styles.infoStripValue}>
-                      {parseFloat(String(tx.metadata.received_amount)).toLocaleString()}{" "}
-                      {tx.metadata.to_token}
-                    </Text>
-                  </View>
-                ) : null}
-
-                {parseFloat(String(tx.fee_amount ?? tx.fee ?? "0")) > 0 ? (
-                  <View style={styles.infoStrip}>
-                    <Text style={styles.infoStripLabel}>
-                      {tx.fee_label || "Fee"}
-                    </Text>
-                    <Text style={styles.infoStripValue}>
-                      {String(tx.fee_amount ?? tx.fee ?? "0")} {tx.token_type}
-                    </Text>
-                  </View>
-                ) : null}
-
-                {isAdminResolvedActivity(tx) ? (
-                  <View style={styles.infoStrip}>
-                    <Text style={styles.infoStripLabel}>Resolution</Text>
-                    <Text style={styles.infoStripValue}>
-                      {tx.metadata?.resolution_action === "penalize_agent"
-                        ? "Admin resolved in your favor"
-                        : "Admin credited your wallet"}
-                    </Text>
-                  </View>
-                ) : null}
-
-                {tx.agent && (
-                  <View style={styles.agentSection}>
-                    <View style={styles.agentInfo}>
-                      <Ionicons
-                        name="person-circle-outline"
-                        size={16}
-                        color="#6B7280"
-                      />
-                      <Text style={styles.agentName}>
-                        {tx.agent.user?.full_name || "Agent"}
-                      </Text>
-                      <View style={styles.ratingContainer}>
-                        <Ionicons name="star" size={12} color="#FFB800" />
-                        <Text style={styles.ratingText}>
-                          {(tx.agent.rating || 5.0).toFixed(1)}
-                        </Text>
+                      <View style={styles.transactionRight}>
+                        <View
+                          style={[
+                            styles.statusBadge,
+                            {
+                              backgroundColor: getStatusColor(tx.status) + "18",
+                              borderColor: getStatusColor(tx.status) + "28",
+                            },
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.statusText,
+                              { color: getStatusColor(tx.status) },
+                            ]}
+                          >
+                            {tx.status}
+                          </Text>
+                        </View>
                       </View>
                     </View>
 
-                    {pendingReviews.has(tx.id) && (
-                      <TouchableOpacity
-                        style={styles.rateButton}
-                        onPress={() =>
-                          router.push({
-                            pathname: "/modals/buy-tokens/rate-agent",
-                            params: { transactionId: tx.id },
-                          })
-                        }
+                    <View style={styles.transactionBody}>
+                      <View
+                        style={[
+                          styles.amountContainer,
+                          { backgroundColor: theme.surface, borderColor: theme.border },
+                        ]}
                       >
-                        <Ionicons name="star-outline" size={16} color="#8B5CF6" />
-                        <Text style={styles.rateButtonText}>Rate Agent</Text>
-                      </TouchableOpacity>
-                    )}
-                  </View>
-                )}
+                        <View>
+                          <Text style={[styles.amountLabel, { color: theme.muted }]}>
+                            Amount
+                          </Text>
+                          <Text style={[styles.transactionAmount, { color: theme.text }]}>
+                            {getAmountPrefix(tx)}
+                            {parseFloat(tx.amount).toLocaleString()} {tx.token_type}
+                          </Text>
+                        </View>
+                        <View style={styles.amountMeta}>
+                          <Text style={[styles.amountMetaLabel, { color: theme.muted }]}>
+                            Status
+                          </Text>
+                          <Text
+                            style={[
+                              styles.amountMetaValue,
+                              { color: getStatusColor(tx.status) },
+                            ]}
+                          >
+                            {tx.status}
+                          </Text>
+                        </View>
+                      </View>
+                    </View>
 
-                <View style={styles.footer}>
-                  <Text style={styles.actionText}>Tap to view details</Text>
-                  <Ionicons name="chevron-forward" size={16} color="#9CA3AF" />
-                </View>
-              </TouchableOpacity>
-            ))}
-          </>
-        )}
-        <View style={styles.bottomSpacer} />
+                    {tx.type === "swap" &&
+                    tx.metadata?.received_amount != null &&
+                    tx.metadata?.to_token ? (
+                      <View
+                        style={[
+                          styles.infoStrip,
+                          { backgroundColor: theme.surface, borderColor: theme.border },
+                        ]}
+                      >
+                        <Text style={[styles.infoStripLabel, { color: theme.muted }]}>
+                          Received
+                        </Text>
+                        <Text style={[styles.infoStripValue, { color: theme.text }]}>
+                          {parseFloat(String(tx.metadata.received_amount)).toLocaleString()}{" "}
+                          {tx.metadata.to_token}
+                        </Text>
+                      </View>
+                    ) : null}
+
+                    {parseFloat(String(tx.fee_amount ?? tx.fee ?? "0")) > 0 ? (
+                      <View
+                        style={[
+                          styles.infoStrip,
+                          { backgroundColor: theme.surface, borderColor: theme.border },
+                        ]}
+                      >
+                        <Text style={[styles.infoStripLabel, { color: theme.muted }]}>
+                          {tx.fee_label || "Fee"}
+                        </Text>
+                        <Text style={[styles.infoStripValue, { color: theme.text }]}>
+                          {String(tx.fee_amount ?? tx.fee ?? "0")} {tx.token_type}
+                        </Text>
+                      </View>
+                    ) : null}
+
+                    {isAdminResolvedActivity(tx) ? (
+                      <View
+                        style={[
+                          styles.infoStrip,
+                          { backgroundColor: theme.surface, borderColor: theme.border },
+                        ]}
+                      >
+                        <Text style={[styles.infoStripLabel, { color: theme.muted }]}>
+                          Resolution
+                        </Text>
+                        <Text style={[styles.infoStripValue, { color: theme.text }]}>
+                          {tx.metadata?.resolution_action === "penalize_agent"
+                            ? "Admin resolved in your favor"
+                            : "Admin credited your wallet"}
+                        </Text>
+                      </View>
+                    ) : null}
+
+                    {tx.agent && (
+                      <View
+                        style={[
+                          styles.agentSection,
+                          { borderTopColor: theme.divider },
+                        ]}
+                      >
+                        <View style={styles.agentInfo}>
+                          <Ionicons
+                            name="person-circle-outline"
+                            size={16}
+                            color={theme.muted}
+                          />
+                          <Text style={[styles.agentName, { color: theme.muted }]}>
+                            {tx.agent.user?.full_name || "Agent"}
+                          </Text>
+                          <View style={styles.ratingContainer}>
+                            <Ionicons name="star" size={12} color="#FFB800" />
+                            <Text style={[styles.ratingText, { color: theme.muted }]}>
+                              {(tx.agent.rating || 5.0).toFixed(1)}
+                            </Text>
+                          </View>
+                        </View>
+
+                        {pendingReviews.has(tx.id) && (
+                          <TouchableOpacity
+                            style={[
+                              styles.rateButton,
+                              {
+                                backgroundColor: isDark
+                                  ? "rgba(124,58,237,0.14)"
+                                  : "#FAF5FF",
+                                borderColor: isDark
+                                  ? "rgba(216,180,254,0.3)"
+                                  : "#E9D5FF",
+                              },
+                            ]}
+                            onPress={() =>
+                              router.push({
+                                pathname: "/modals/buy-tokens/rate-agent",
+                                params: { transactionId: tx.id },
+                              })
+                            }
+                          >
+                            <Ionicons
+                              name="star-outline"
+                              size={16}
+                              color="#8B5CF6"
+                            />
+                            <Text style={styles.rateButtonText}>Rate Agent</Text>
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                    )}
+
+                    <TouchableOpacity
+                      style={[
+                        styles.footerButton,
+                        {
+                          borderTopColor: theme.divider,
+                          backgroundColor: theme.surface,
+                        },
+                      ]}
+                      activeOpacity={0.85}
+                      onPress={() => handleTransactionPress(tx)}
+                    >
+                      <Text style={[styles.actionText, { color: theme.text }]}>
+                        View transaction details
+                      </Text>
+                      <Ionicons
+                        name="chevron-forward"
+                        size={16}
+                        color={theme.muted}
+                      />
+                    </TouchableOpacity>
+                  </TouchableOpacity>
+                );
+              })}
+            </>
+          )}
+
+          <View style={styles.bottomSpacer} />
+        </View>
       </ScrollView>
     </View>
   );
@@ -851,218 +1093,275 @@ export default function TransactionHistoryScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F9FAFB",
+    backgroundColor: "#F5F7FB",
   },
-  headerWrapper: {
-    zIndex: 10,
-    elevation: 8,
-    backgroundColor: "#00B14F",
-  },
-  headerGradient: {
+  backgroundGlow: {
     position: "absolute",
     top: 0,
     left: 0,
     right: 0,
-    height: 120,
+    height: 180,
+  },
+  headerWrapper: {
+    zIndex: 10,
+    borderBottomWidth: 1,
   },
   headerContent: {
     paddingHorizontal: 16,
+    paddingBottom: 14,
   },
   headerTop: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
     justifyContent: "space-between",
-    paddingBottom: 20,
-    marginTop: 10,
+    gap: 12,
+    paddingTop: 6,
   },
   backButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: "rgba(255,255,255,0.2)",
     alignItems: "center",
     justifyContent: "center",
+    borderWidth: 1,
   },
   title: {
     fontSize: 24,
     fontWeight: "700",
-    color: "#FFFFFF",
-    textAlign: "center",
+    textAlign: "left",
     letterSpacing: -0.5,
   },
-  placeholder: {
-    width: 40,
+  headerCopy: {
+    flex: 1,
+    paddingTop: 1,
   },
-  tabsContainer: {
-    paddingHorizontal: 16,
-    paddingTop: 50,
-    paddingBottom: 8,
-  },
-  summaryCard: {
-    borderRadius: 22,
-    padding: 18,
-    marginTop: -34,
-    marginBottom: 14,
-    borderWidth: 1,
-    borderColor: "#E6F4EA",
-  },
-  summaryEyebrow: {
-    fontSize: 11,
-    fontWeight: "800",
-    color: "#00B14F",
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-    marginBottom: 6,
-  },
-  summaryTitle: {
-    fontSize: 22,
-    fontWeight: "800",
-    color: "#111827",
-    letterSpacing: -0.5,
-  },
-  summaryText: {
+  headerSubtitle: {
+    marginTop: 4,
     fontSize: 13,
-    lineHeight: 20,
-    color: "#6B7280",
+    lineHeight: 18,
     fontWeight: "500",
-    marginTop: 6,
   },
-  summaryMetaRow: {
-    flexDirection: "row",
-    gap: 10,
-    marginTop: 14,
-  },
-  summaryMetaPill: {
+  headerBadge: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 999,
-    paddingVertical: 8,
     paddingHorizontal: 12,
+    paddingVertical: 9,
+    borderRadius: 999,
     borderWidth: 1,
-    borderColor: "#EAF0F5",
   },
-  summaryMetaValue: {
-    fontSize: 14,
+  liveDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  headerBadgeText: {
+    fontSize: 12,
+    fontWeight: "700",
+    letterSpacing: 0.2,
+  },
+  screenContent: {
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    paddingBottom: 8,
+    gap: 18,
+  },
+  heroCard: {
+    borderRadius: 28,
+    padding: 18,
+    borderWidth: 1,
+    overflow: "hidden",
+    shadowOffset: {
+      width: 0,
+      height: 12,
+    },
+    shadowOpacity: 0.08,
+    shadowRadius: 28,
+    elevation: 3,
+  },
+  heroTopRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: 14,
+  },
+  heroCopy: {
+    flex: 1,
+  },
+  heroEyebrow: {
+    fontSize: 11,
     fontWeight: "800",
-    color: "#111827",
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
+    marginBottom: 8,
   },
-  summaryMetaLabel: {
+  heroTitle: {
+    fontSize: 24,
+    fontWeight: "800",
+    letterSpacing: -0.7,
+  },
+  heroSubtitle: {
+    marginTop: 6,
+    fontSize: 13,
+    lineHeight: 20,
+    fontWeight: "500",
+  },
+  heroPill: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 999,
+    borderWidth: 1,
+  },
+  heroPillLabel: {
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  heroStatsGrid: {
+    marginTop: 16,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+  },
+  heroStatCard: {
+    width: "48%",
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    borderRadius: 18,
+    borderWidth: 1,
+  },
+  heroStatValue: {
+    fontSize: 20,
+    fontWeight: "800",
+    letterSpacing: -0.5,
+  },
+  heroStatLabel: {
+    marginTop: 3,
     fontSize: 12,
     fontWeight: "600",
-    color: "#6B7280",
+  },
+  sectionHeaderRow: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  sectionTitleText: {
+    fontSize: 18,
+    fontWeight: "800",
+    letterSpacing: -0.4,
+  },
+  sectionSubtitle: {
+    marginTop: 4,
+    fontSize: 12,
+    lineHeight: 17,
+    fontWeight: "600",
+  },
+  sectionBadge: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    gap: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 999,
+    borderWidth: 1,
+  },
+  sectionBadgeText: {
+    fontSize: 14,
+    fontWeight: "800",
+  },
+  sectionBadgeLabel: {
+    fontSize: 11,
+    fontWeight: "600",
   },
   filterScroll: {
     minHeight: 52,
   },
   tabs: {
     flexDirection: "row",
-    backgroundColor: "#FFFFFF",
-    borderRadius: 18,
+    alignItems: "center",
+    borderRadius: 22,
     padding: 6,
-    gap: 12,
+    gap: 10,
     borderWidth: 1,
-    borderColor: "#EAF0F5",
   },
   tab: {
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 11,
     alignItems: "center",
-    borderRadius: 12,
+    borderRadius: 999,
     flexShrink: 0,
+    borderWidth: 1,
+    backgroundColor: "transparent",
   },
   activeTab: {
     backgroundColor: "#00B14F",
+    borderColor: "#00B14F",
   },
   tabText: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#6B7280",
   },
   activeTabText: {
     color: "#FFFFFF",
   },
   list: { flex: 1 },
-  listContent: { paddingBottom: 24 },
+  listContent: { paddingBottom: 28 },
   loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
     alignItems: "center",
-    paddingVertical: 80,
+    justifyContent: "center",
+    paddingVertical: 88,
+    borderRadius: 24,
+    borderWidth: 1,
   },
   loadingText: {
     marginTop: 12,
     fontSize: 15,
-    color: "#6B7280",
     fontWeight: "500",
   },
-  emptyStateContainer: {
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 40,
-  },
   emptyStateCard: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 20,
-    padding: 24,
+    borderRadius: 24,
+    padding: 22,
     alignItems: "center",
-    marginBottom: 16,
     borderWidth: 1,
-    borderColor: "#F3F4F6",
     shadowColor: "#000",
     shadowOffset: {
       width: 0,
       height: 2,
     },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  emptyStateIconContainer: {
-    marginBottom: 20,
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    elevation: 2,
   },
   emptyStateIconBg: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: "#F0FDF4",
+    width: 92,
+    height: 92,
+    borderRadius: 46,
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: 3,
-    borderColor: "#D1FAE5",
+    borderWidth: 2,
+    marginBottom: 18,
   },
   emptyStateTitle: {
     fontSize: 22,
-    fontWeight: "700",
-    color: "#111827",
+    fontWeight: "800",
     marginBottom: 8,
     textAlign: "center",
+    letterSpacing: -0.4,
   },
   emptyStateDescription: {
     fontSize: 14,
-    color: "#6B7280",
     textAlign: "center",
     lineHeight: 20,
     marginBottom: 24,
-    paddingHorizontal: 8,
   },
   emptyStateActions: {
     width: "100%",
     gap: 12,
-    marginBottom: 24,
+    marginBottom: 20,
   },
   emptyStateButton: {
-    borderRadius: 12,
+    borderRadius: 14,
     overflow: "hidden",
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
   },
   emptyStateButtonGradient: {
     flexDirection: "row",
@@ -1072,13 +1371,13 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   emptyStateButtonText: {
-    fontSize: 16,
-    fontWeight: "600",
+    fontSize: 15,
+    fontWeight: "700",
     color: "#FFFFFF",
   },
   emptyStateButtonSecondary: {
-    borderRadius: 12,
-    borderWidth: 2,
+    borderRadius: 14,
+    borderWidth: 1.5,
     borderColor: "#F59E0B",
     backgroundColor: "#FFFFFF",
   },
@@ -1086,87 +1385,63 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 12,
+    paddingVertical: 13,
     gap: 8,
   },
   emptyStateButtonTextSecondary: {
-    fontSize: 16,
-    fontWeight: "600",
+    fontSize: 15,
+    fontWeight: "700",
     color: "#F59E0B",
   },
   emptyStateInfo: {
     width: "100%",
     gap: 12,
-    paddingTop: 20,
+    paddingTop: 18,
     borderTopWidth: 1,
-    borderTopColor: "#F3F4F6",
+    borderTopColor: "#E5E7EB",
   },
   infoItem: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
     gap: 10,
   },
   infoIcon: {
     width: 24,
     alignItems: "center",
+    paddingTop: 1,
   },
   infoText: {
     flex: 1,
     fontSize: 13,
-    color: "#6B7280",
     lineHeight: 18,
+    fontWeight: "500",
   },
-  whatYoullSeeCard: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: "#F3F4F6",
-  },
-  whatYoullSeeTitle: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#111827",
-    marginBottom: 16,
-  },
-  whatYoullSeeList: {
-    gap: 16,
-  },
-  whatYoullSeeItem: {
+  pendingBadge: {
     flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 12,
-  },
-  whatYoullSeeIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
     alignItems: "center",
-    justifyContent: "center",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
+    borderWidth: 1,
   },
-  whatYoullSeeContent: {
-    flex: 1,
-  },
-  whatYoullSeeItemTitle: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#111827",
-    marginBottom: 2,
-  },
-  whatYoullSeeItemDescription: {
-    fontSize: 12,
-    color: "#6B7280",
-    lineHeight: 16,
+  pendingBadgeText: {
+    fontSize: 10,
+    fontWeight: "800",
+    letterSpacing: 0.2,
   },
   transactionCard: {
-    marginHorizontal: 16,
     marginBottom: 16,
     padding: 18,
-    backgroundColor: "#FFFFFF",
     borderRadius: 24,
     borderWidth: 1,
-    borderColor: "#EAF0F5",
     overflow: "hidden",
+    shadowOffset: {
+      width: 0,
+      height: 10,
+    },
+    shadowOpacity: 0.08,
+    shadowRadius: 18,
+    elevation: 2,
   },
   cardAccent: {
     position: "absolute",
@@ -1179,16 +1454,23 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "flex-start",
-    marginBottom: 16,
+    marginBottom: 14,
   },
   transactionLeft: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
     gap: 12,
     flex: 1,
   },
   transactionMeta: {
     flex: 1,
+  },
+  transactionMetaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 10,
+    marginBottom: 4,
   },
   avatar: {
     width: 44,
@@ -1205,20 +1487,16 @@ const styles = StyleSheet.create({
   eyebrow: {
     fontSize: 11,
     fontWeight: "800",
-    color: "#6B7280",
     textTransform: "uppercase",
     letterSpacing: 0.4,
-    marginBottom: 4,
   },
   transactionType: {
     fontSize: 16,
     fontWeight: "700",
-    color: "#111827",
     marginBottom: 2,
   },
   transactionDate: {
     fontSize: 12,
-    color: "#6B7280",
     fontWeight: "500",
   },
   transactionRight: {
@@ -1232,15 +1510,12 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    backgroundColor: "#FBFCFD",
     padding: 14,
-    borderRadius: 16,
+    borderRadius: 18,
     borderWidth: 1,
-    borderColor: "#F1F5F9",
   },
   amountLabel: {
     fontSize: 12,
-    color: "#6B7280",
     fontWeight: "700",
     textTransform: "uppercase",
     letterSpacing: 0.4,
@@ -1250,7 +1525,6 @@ const styles = StyleSheet.create({
   },
   amountMetaLabel: {
     fontSize: 11,
-    color: "#6B7280",
     fontWeight: "700",
     textTransform: "uppercase",
     letterSpacing: 0.4,
@@ -1259,13 +1533,11 @@ const styles = StyleSheet.create({
   amountMetaValue: {
     fontSize: 14,
     fontWeight: "700",
-    color: "#111827",
     textTransform: "capitalize",
   },
   transactionAmount: {
     fontSize: 18,
     fontWeight: "800",
-    color: "#111827",
   },
   statusBadge: {
     paddingHorizontal: 10,
@@ -1283,20 +1555,16 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: 12,
-    backgroundColor: "#F8FAFC",
     padding: 12,
-    borderRadius: 12,
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: "#EEF2F7",
   },
   infoStripLabel: {
     fontSize: 14,
-    color: "#6B7280",
     fontWeight: "600",
   },
   infoStripValue: {
     fontSize: 15,
-    color: "#111827",
     fontWeight: "700",
   },
   agentSection: {
@@ -1316,7 +1584,6 @@ const styles = StyleSheet.create({
   },
   agentName: {
     fontSize: 13,
-    color: "#6B7280",
     fontWeight: "500",
   },
   ratingContainer: {
@@ -1326,7 +1593,6 @@ const styles = StyleSheet.create({
   },
   ratingText: {
     fontSize: 12,
-    color: "#6B7280",
     fontWeight: "600",
   },
   rateButton: {
@@ -1350,12 +1616,18 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     borderTopWidth: 1,
-    borderTopColor: "#F3F4F6",
     paddingTop: 16,
+  },
+  footerButton: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    borderTopWidth: 1,
+    paddingTop: 16,
+    marginTop: 2,
   },
   actionText: {
     fontSize: 13,
-    color: "#9CA3AF",
     fontWeight: "500",
   },
   bottomSpacer: {

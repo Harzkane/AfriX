@@ -1,13 +1,16 @@
 // app/modals/buy-tokens/payment-instructions.tsx
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import {
   View,
   StyleSheet,
   ScrollView,
   Alert,
   TouchableOpacity,
+  Text,
+  ActivityIndicator,
+  useColorScheme,
+  Animated,
 } from "react-native";
-import { Text } from "react-native-paper";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useMintRequestStore, useAgentStore, useWalletStore } from "@/stores";
 import * as Clipboard from "expo-clipboard";
@@ -15,7 +18,7 @@ import { Ionicons } from "@expo/vector-icons";
 import apiClient from "@/services/apiClient";
 import { formatAmountOrCompact } from "@/utils/format";
 import { LinearGradient } from "expo-linear-gradient";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function PaymentInstructionsScreen() {
   const { tokenType, amount, agentId } = useLocalSearchParams<{
@@ -25,12 +28,57 @@ export default function PaymentInstructionsScreen() {
   }>();
 
   const router = useRouter();
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === "dark";
   const { selectedAgent, selectAgent } = useAgentStore();
   const { createMintRequest, loading } = useMintRequestStore();
   const { exchangeRates } = useWalletStore();
   const [fetchingAgent, setFetchingAgent] = useState(false);
 
-  // Fetch agent details if coming from agent profile (agentId provided but no selectedAgent or different agent)
+  const theme = {
+    background: isDark ? "#07111A" : "#F5F7FB",
+    card: isDark ? "#0E1726" : "#FFFFFF",
+    cardAlt: isDark ? "#111C2B" : "#F8FAFC",
+    text: isDark ? "#F8FAFC" : "#0F172A",
+    muted: isDark ? "#94A3B8" : "#64748B",
+    border: isDark ? "#1E2A3A" : "#E2E8F0",
+    accent: "#00B14F",
+    accentSoft: isDark ? "rgba(0,177,79,0.14)" : "#EAF8EF",
+    warning: "#F59E0B",
+    warningSoft: isDark ? "rgba(245,158,11,0.12)" : "#FEF3C7",
+    danger: "#EF4444",
+    dangerSoft: isDark ? "rgba(239,68,68,0.12)" : "#FEF2F2",
+  };
+
+  const insets = useSafeAreaInsets();
+  const [headerMaxHeight, setHeaderMaxHeight] = useState(insets.top + 70);
+  const scrollY = useRef(new Animated.Value(0)).current;
+
+  const handleHeaderLayout = (e: any) => {
+    const { height } = e.nativeEvent.layout;
+    if (height > headerMaxHeight) {
+      setHeaderMaxHeight(height);
+    }
+  };
+
+  const subtitleOpacity = scrollY.interpolate({
+    inputRange: [0, 50],
+    outputRange: [1, 0],
+    extrapolate: "clamp",
+  });
+
+  const subtitleMaxHeight = scrollY.interpolate({
+    inputRange: [0, 50],
+    outputRange: [80, 0],
+    extrapolate: "clamp",
+  });
+
+  const subtitleMargin = scrollY.interpolate({
+    inputRange: [0, 50],
+    outputRange: [4, 0],
+    extrapolate: "clamp",
+  });
+
   useEffect(() => {
     const fetchAgentDetails = async () => {
       if (agentId && (!selectedAgent || selectedAgent.id !== agentId)) {
@@ -50,10 +98,10 @@ export default function PaymentInstructionsScreen() {
     fetchAgentDetails();
   }, [agentId, selectedAgent]);
 
-  const handleCopyAccount = async () => {
-    if (selectedAgent?.phone_number) {
-      await Clipboard.setStringAsync(selectedAgent.phone_number);
-      Alert.alert("Copied", "Agent contact copied to clipboard");
+  const handleCopyText = async (text: string, label: string) => {
+    if (text) {
+      await Clipboard.setStringAsync(text);
+      Alert.alert("Copied!", `${label} copied to clipboard`);
     }
   };
 
@@ -70,7 +118,6 @@ export default function PaymentInstructionsScreen() {
         params: { requestId: request.id },
       });
     } catch (error: any) {
-      // Check if this is a self-transaction error
       const errorMessage = error.message || "";
       if (errorMessage.includes("cannot create mint requests to themselves")) {
         Alert.alert(
@@ -84,313 +131,233 @@ export default function PaymentInstructionsScreen() {
     }
   };
 
+  const timelineSteps = [
+    { num: "1", label: "Transfer Funds", desc: "Send local currency to the agent's account details below." },
+    { num: "2", label: "Take Screenshot", desc: "Capture transaction receipt as official payment proof." },
+    { num: "3", label: "Upload Proof", desc: "Confirm transfer and upload image to lock escrow." },
+    { num: "4", label: "Confirmation", desc: "Wait for agent release (~5-15 minutes)." },
+  ];
+
   return (
-    <View style={styles.container}>
-      {/* Gradient Header */}
-      <View style={styles.headerWrapper}>
-        <LinearGradient
-          colors={["#00B14F", "#008F40"]}
-          style={styles.headerGradient}
-        />
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
+      
+      {/* Collapsible Header */}
+      <Animated.View
+        onLayout={handleHeaderLayout}
+        style={[
+          styles.headerWrapper,
+          {
+            backgroundColor: theme.background,
+            borderBottomColor: theme.border,
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            zIndex: 10,
+          },
+        ]}
+      >
         <SafeAreaView edges={["top"]} style={styles.headerContent}>
           <View style={styles.headerTop}>
             <TouchableOpacity
               onPress={() => router.back()}
-              style={styles.backButton}
+              style={[styles.backButton, { backgroundColor: theme.card, borderColor: theme.border }]}
+              activeOpacity={0.85}
             >
-              <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
+              <Ionicons name="arrow-back" size={22} color={theme.text} />
             </TouchableOpacity>
-            <View style={styles.headerText}>
-              <Text style={styles.title}>Payment Instructions</Text>
-              <Text style={styles.subtitle}>
-                Send payment to agent and upload proof
-              </Text>
+
+            <View style={styles.headerCopy}>
+              <Text style={[styles.title, { color: theme.text }]}>Payment Instructions</Text>
+              <Animated.View style={{
+                opacity: subtitleOpacity,
+                maxHeight: subtitleMaxHeight,
+                marginTop: subtitleMargin,
+                overflow: "hidden"
+              }}>
+                <Text style={[styles.headerSubtitle, { color: theme.muted }]}>
+                  Send payment to the selected agent and keep your payment receipt.
+                </Text>
+              </Animated.View>
             </View>
+            <View style={{ width: 42 }} />
           </View>
         </SafeAreaView>
-      </View>
+      </Animated.View>
 
-      <ScrollView style={styles.list} showsVerticalScrollIndicator={false}>
+      <Animated.ScrollView
+        style={styles.list}
+        contentContainerStyle={[styles.scrollContent, { paddingTop: headerMaxHeight + 16 }]}
+        showsVerticalScrollIndicator={false}
+        onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: false })}
+        scrollEventThrottle={16}
+      >
         {fetchingAgent ? (
           <View style={styles.loadingContainer}>
-            <Text style={styles.loadingText}>Loading agent details...</Text>
+            <ActivityIndicator size="small" color={theme.accent} />
+            <Text style={[styles.loadingText, { color: theme.muted }]}>Loading agent details...</Text>
           </View>
         ) : !selectedAgent ? (
           <View style={styles.errorContainer}>
-            <Text style={styles.errorText}>Agent information not available</Text>
+            <Text style={[styles.errorText, { color: theme.danger }]}>Agent information not available</Text>
           </View>
         ) : (
           <>
-            <LinearGradient
-              colors={["#F7FFF9", "#FFFFFF"]}
-              style={styles.summaryCard}
-            >
-              <Text style={styles.summaryEyebrow}>Next Step</Text>
-              <Text style={styles.summaryTitle}>Pay the selected agent</Text>
-              <Text style={styles.summaryText}>
-                Review the agent details below, make the transfer, then continue to upload your payment proof.
+            {/* Amount Banner Section */}
+            <View style={[styles.amountBanner, { backgroundColor: theme.card, borderColor: theme.border }]}>
+              <Text style={[styles.amountLabel, { color: theme.muted }]}>SEND EXACTLY</Text>
+              <Text style={[styles.amountText, { color: theme.accent }]}>
+                {tokenType === "NT" ? "₦" : "XOF "}
+                {parseFloat(amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}
               </Text>
-            </LinearGradient>
-
-            {/* Agent Details Card */}
-            <View style={styles.card}>
-              <View style={styles.cardHeader}>
-                <Ionicons name="person-circle-outline" size={24} color="#00B14F" />
-                <Text style={styles.cardTitle}>Agent Details</Text>
+              <View style={[styles.tokenTag, { backgroundColor: theme.accentSoft }]}>
+                <Text style={[styles.tokenTagText, { color: theme.accent }]}>To Buy: {amount} {tokenType}</Text>
               </View>
-              <View style={styles.cardContent}>
-                <View style={styles.row}>
-                  <Text style={styles.rowLabel}>Tier</Text>
-                  <View style={styles.tierRow}>
-                    <View style={styles.tierBadge}>
-                      <Text style={styles.tierText}>
-                        {(selectedAgent?.tier || "").toUpperCase()}
-                      </Text>
+            </View>
+
+            {/* Agent Profile Cards */}
+            <View style={[styles.agentHeaderCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+              <View style={styles.agentMetaRow}>
+                <View style={[styles.avatarCircle, { backgroundColor: theme.accentSoft }]}>
+                  <Ionicons name="person" size={20} color={theme.accent} />
+                </View>
+                <View style={styles.agentIdentity}>
+                  <Text style={[styles.agentName, { color: theme.text }]}>{selectedAgent.name || "Agent"}</Text>
+                  <Text style={[styles.agentTier, { color: theme.muted }]}>
+                    {(selectedAgent?.tier || "Bronze").toUpperCase()} TIER
+                  </Text>
+                </View>
+                <View style={[styles.ratingBadge, { backgroundColor: theme.background }]}>
+                  <Ionicons name="star" size={13} color="#FFB800" />
+                  <Text style={[styles.ratingText, { color: theme.text }]}>{(selectedAgent?.rating ?? 0.0).toFixed(1)}</Text>
+                </View>
+              </View>
+            </View>
+
+            {/* Payment Details Section */}
+            <Text style={[styles.sectionHeading, { color: theme.muted }]}>TRANSFER ACCOUNT DETAILS</Text>
+
+            {(selectedAgent as any)?.bank_name && (
+              <View style={[styles.paymentCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                <View style={styles.cardInfoRow}>
+                  <View style={styles.cardCol}>
+                    <Text style={[styles.cardLabel, { color: theme.muted }]}>BANK NAME</Text>
+                    <Text style={[styles.cardVal, { color: theme.text }]}>{(selectedAgent as any).bank_name}</Text>
+                  </View>
+                </View>
+                <View style={[styles.cardDivider, { backgroundColor: theme.border }]} />
+                <View style={styles.cardInfoRow}>
+                  <View style={styles.cardCol}>
+                    <Text style={[styles.cardLabel, { color: theme.muted }]}>ACCOUNT NAME</Text>
+                    <Text style={[styles.cardVal, { color: theme.text }]}>{(selectedAgent as any).account_name || "N/A"}</Text>
+                  </View>
+                </View>
+                <View style={[styles.cardDivider, { backgroundColor: theme.border }]} />
+                <View style={styles.cardInfoRow}>
+                  <View style={styles.cardCol}>
+                    <Text style={[styles.cardLabel, { color: theme.muted }]}>ACCOUNT NUMBER</Text>
+                    <Text style={[styles.cardVal, { color: theme.text, fontFamily: "monospace" }]}>
+                      {(selectedAgent as any).account_number || "N/A"}
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    style={[styles.copyIconBox, { backgroundColor: theme.accentSoft }]}
+                    onPress={() => handleCopyText((selectedAgent as any).account_number, "Account number")}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="copy-outline" size={16} color={theme.accent} />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+
+            {(selectedAgent as any)?.mobile_money_provider && (
+              <View style={[styles.paymentCard, { backgroundColor: theme.card, borderColor: theme.border, marginTop: 12 }]}>
+                <View style={styles.cardInfoRow}>
+                  <View style={styles.cardCol}>
+                    <Text style={[styles.cardLabel, { color: theme.muted }]}>MOBILE MONEY PROVIDER</Text>
+                    <Text style={[styles.cardVal, { color: theme.text }]}>{(selectedAgent as any).mobile_money_provider}</Text>
+                  </View>
+                </View>
+                <View style={[styles.cardDivider, { backgroundColor: theme.border }]} />
+                <View style={styles.cardInfoRow}>
+                  <View style={styles.cardCol}>
+                    <Text style={[styles.cardLabel, { color: theme.muted }]}>MOBILE NUMBER</Text>
+                    <Text style={[styles.cardVal, { color: theme.text, fontFamily: "monospace" }]}>
+                      {(selectedAgent as any).mobile_money_number || "N/A"}
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    style={[styles.copyIconBox, { backgroundColor: theme.accentSoft }]}
+                    onPress={() => handleCopyText((selectedAgent as any).mobile_money_number, "Mobile number")}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="copy-outline" size={16} color={theme.accent} />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+
+            {/* How to Pay Timeline */}
+            <Text style={[styles.sectionHeading, { color: theme.muted }]}>HOW TO COMPLETE TRANSFER</Text>
+            <View style={[styles.timelineContainer, { backgroundColor: theme.card, borderColor: theme.border }]}>
+              {timelineSteps.map((step, idx) => (
+                <View key={step.num} style={styles.timelineRow}>
+                  <View style={styles.timelineLeft}>
+                    <View style={[styles.timelineDot, { backgroundColor: theme.accent }]}>
+                      <Text style={styles.timelineDotText}>{step.num}</Text>
                     </View>
-                    {(selectedAgent?.is_online === true || selectedAgent?.status === "active") && (
-                      <View style={styles.activePill}>
-                        <Text style={styles.activePillText}>Active</Text>
-                      </View>
+                    {idx < timelineSteps.length - 1 && (
+                      <View style={[styles.timelineLine, { backgroundColor: theme.border }]} />
                     )}
                   </View>
-                </View>
-
-                {([(selectedAgent as any)?.city, (selectedAgent as any)?.country].filter(Boolean).length > 0) && (
-                  <View style={styles.row}>
-                    <Text style={styles.rowLabel}>Location</Text>
-                    <View style={styles.locationValue}>
-                      <Ionicons name="location-outline" size={14} color="#6B7280" />
-                      <Text style={styles.rowValue}>
-                        {[(selectedAgent as any).city, (selectedAgent as any).country].filter(Boolean).join(", ")}
-                      </Text>
-                    </View>
-                  </View>
-                )}
-
-                <View style={styles.row}>
-                  <Text style={styles.rowLabel}>Rating</Text>
-                  <View style={styles.ratingRow}>
-                    <Ionicons name="star" size={16} color="#FFB800" />
-                    <Text style={styles.rowValue}>
-                      {(selectedAgent?.rating ?? 0).toFixed(1)}
-                    </Text>
+                  <View style={styles.timelineRight}>
+                    <Text style={[styles.timelineLabel, { color: theme.text }]}>{step.label}</Text>
+                    <Text style={[styles.timelineDesc, { color: theme.muted }]}>{step.desc}</Text>
                   </View>
                 </View>
-
-                {(selectedAgent as any)?.commission_rate != null && (
-                  <View style={styles.row}>
-                    <Text style={styles.rowLabel}>Fee</Text>
-                    <Text style={styles.rowValue}>
-                      ~{((selectedAgent as any).commission_rate * 100).toFixed(1)}%
-                    </Text>
-                  </View>
-                )}
-
-                {(() => {
-                  const cap = Number((selectedAgent as any)?.available_capacity) || 0;
-                  const maxStored = (selectedAgent as any)?.max_transaction_limit != null ? Number((selectedAgent as any).max_transaction_limit) : null;
-                  const t = tokenType === "NT" || tokenType === "CT" ? tokenType : "NT";
-                  const rate = t === "NT" ? exchangeRates.USDT_TO_NT : exchangeRates.USDT_TO_CT;
-                  const capacityInLocal = rate && rate > 0 && cap > 0 ? cap * rate : null;
-                  const maxTradeDisplay = capacityInLocal != null ? capacityInLocal : maxStored;
-                  return maxTradeDisplay != null && maxTradeDisplay > 0 ? (
-                    <View style={styles.row}>
-                      <Text style={styles.rowLabel}>Max/trade</Text>
-                      <Text style={styles.rowValue}>
-                        {formatAmountOrCompact(maxTradeDisplay, t)}
-                      </Text>
-                    </View>
-                  ) : null;
-                })()}
-
-                {selectedAgent?.phone_number && (
-                  <View style={styles.row}>
-                    <Text style={styles.rowLabel}>Phone</Text>
-                    <TouchableOpacity
-                      style={styles.phoneRow}
-                      onPress={handleCopyAccount}
-                      activeOpacity={0.7}
-                    >
-                      <Text style={styles.phoneNumber}>
-                        {selectedAgent.phone_number}
-                      </Text>
-                      <Ionicons name="copy-outline" size={16} color="#00B14F" />
-                    </TouchableOpacity>
-                  </View>
-                )}
-
-                {/* Payment: Bank and/or Mobile Money */}
-                <View style={styles.divider} />
-
-                {(selectedAgent as any)?.bank_name ? (
-                  <>
-                    <Text style={styles.sectionSubtitle}>Pay via Bank</Text>
-                    <View style={styles.row}>
-                      <Text style={styles.rowLabel}>Bank Name</Text>
-                      <Text style={styles.rowValue}>{(selectedAgent as any).bank_name}</Text>
-                    </View>
-                    <View style={styles.row}>
-                      <Text style={styles.rowLabel}>Account Name</Text>
-                      <Text style={styles.rowValue}>{(selectedAgent as any).account_name || "N/A"}</Text>
-                    </View>
-                    <View style={styles.row}>
-                      <Text style={styles.rowLabel}>Account Number</Text>
-                      <TouchableOpacity
-                        style={styles.phoneRow}
-                        onPress={async () => {
-                          if ((selectedAgent as any).account_number) {
-                            await Clipboard.setStringAsync((selectedAgent as any).account_number);
-                            Alert.alert("Copied", "Account number copied to clipboard");
-                          }
-                        }}
-                        activeOpacity={0.7}
-                      >
-                        <Text style={styles.phoneNumber}>
-                          {(selectedAgent as any).account_number || "N/A"}
-                        </Text>
-                        <Ionicons name="copy-outline" size={16} color="#00B14F" />
-                      </TouchableOpacity>
-                    </View>
-                  </>
-                ) : null}
-
-                {(selectedAgent as any)?.mobile_money_provider ? (
-                  <>
-                    {((selectedAgent as any)?.bank_name) ? <View style={styles.divider} /> : null}
-                    <Text style={styles.sectionSubtitle}>Or pay via Mobile Money</Text>
-                    <View style={styles.row}>
-                      <Text style={styles.rowLabel}>Provider</Text>
-                      <Text style={styles.rowValue}>{(selectedAgent as any).mobile_money_provider}</Text>
-                    </View>
-                    <View style={styles.row}>
-                      <Text style={styles.rowLabel}>Number</Text>
-                      <TouchableOpacity
-                        style={styles.phoneRow}
-                        onPress={async () => {
-                          if ((selectedAgent as any).mobile_money_number) {
-                            await Clipboard.setStringAsync((selectedAgent as any).mobile_money_number);
-                            Alert.alert("Copied", "Number copied to clipboard");
-                          }
-                        }}
-                        activeOpacity={0.7}
-                      >
-                        <Text style={styles.phoneNumber}>
-                          {(selectedAgent as any).mobile_money_number || "N/A"}
-                        </Text>
-                        <Ionicons name="copy-outline" size={16} color="#00B14F" />
-                      </TouchableOpacity>
-                    </View>
-                  </>
-                ) : null}
-
-                {!(selectedAgent as any)?.bank_name && !(selectedAgent as any)?.mobile_money_provider ? (
-                  <View style={styles.row}>
-                    <Text style={styles.rowLabel}>Payment details</Text>
-                    <Text style={styles.rowValue}>N/A</Text>
-                  </View>
-                ) : null}
-              </View>
+              ))}
             </View>
 
-            {/* Payment Details Card */}
-            <View style={styles.card}>
-              <View style={styles.cardHeader}>
-                <Ionicons name="wallet-outline" size={24} color="#00B14F" />
-                <Text style={styles.cardTitle}>Payment Details</Text>
-              </View>
-              <View style={styles.cardContent}>
-                <View style={styles.row}>
-                  <Text style={styles.rowLabel}>Amount</Text>
-                  <Text style={styles.amount}>
-                    {tokenType === "NT" ? "₦" : "XOF "}
-                    {parseFloat(amount).toLocaleString()}
-                  </Text>
-                </View>
-
-                <View style={styles.row}>
-                  <Text style={styles.rowLabel}>Token Type</Text>
-                  <View style={styles.tokenBadge}>
-                    <Text style={styles.tokenBadgeText}>{tokenType}</Text>
-                  </View>
-                </View>
-              </View>
-            </View>
-
-            {/* Instructions Card */}
-            <View style={styles.instructionsCard}>
-              <View style={styles.instructionsHeader}>
-                <Ionicons name="information-circle" size={24} color="#00B14F" />
-                <Text style={styles.instructionsTitle}>How to Pay</Text>
-              </View>
-              <View style={styles.steps}>
-                <View style={styles.step}>
-                  <View style={styles.stepNumber}>
-                    <Text style={styles.stepNumberText}>1</Text>
-                  </View>
-                  <Text style={styles.stepText}>Transfer exact amount to agent</Text>
-                </View>
-
-                <View style={styles.step}>
-                  <View style={styles.stepNumber}>
-                    <Text style={styles.stepNumberText}>2</Text>
-                  </View>
-                  <Text style={styles.stepText}>Save payment receipt/screenshot</Text>
-                </View>
-
-                <View style={styles.step}>
-                  <View style={styles.stepNumber}>
-                    <Text style={styles.stepNumberText}>3</Text>
-                  </View>
-                  <Text style={styles.stepText}>Upload proof in next step</Text>
-                </View>
-
-                <View style={styles.step}>
-                  <View style={styles.stepNumber}>
-                    <Text style={styles.stepNumberText}>4</Text>
-                  </View>
-                  <Text style={styles.stepText}>
-                    Wait for confirmation (~5-15 min)
-                  </Text>
-                </View>
-              </View>
-            </View>
-
-            {/* Warning */}
-            <View style={styles.warning}>
-              <Ionicons name="warning-outline" size={20} color="#F59E0B" />
-              <Text style={styles.warningText}>
-                Only proceed after payment. Do not upload fake proof.
+            {/* Warning Box */}
+            <View style={[styles.warningBox, { backgroundColor: theme.warningSoft, borderColor: theme.warning + "30" }]}>
+              <Ionicons name="warning-outline" size={20} color={theme.warning} />
+              <Text style={[styles.warningText, { color: isDark ? "#FFF" : "#92400E" }]}>
+                Only click proceed after making the payment. Submission of fake payment receipts will lead to immediate ban.
               </Text>
             </View>
 
-            {/* Buttons */}
-            <TouchableOpacity
-              style={styles.copyBtn}
-              onPress={handleCopyAccount}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="copy-outline" size={20} color="#00B14F" />
-              <Text style={styles.copyBtnText}>Copy Agent Contact</Text>
-            </TouchableOpacity>
+            {/* Copy contact option */}
+            {selectedAgent?.phone_number && (
+              <TouchableOpacity
+                style={[styles.copyContactBtn, { backgroundColor: theme.card, borderColor: theme.border }]}
+                onPress={() => handleCopyText(selectedAgent.phone_number, "Agent phone")}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="chatbubble-ellipses-outline" size={18} color={theme.accent} />
+                <Text style={[styles.copyContactText, { color: theme.text }]}>Copy Agent Contact Info</Text>
+              </TouchableOpacity>
+            )}
 
+            {/* Primary Action Button (inside ScrollView) */}
             <TouchableOpacity
-              style={[styles.proceedBtn, loading && styles.proceedBtnDisabled]}
+              style={[styles.proceedBtn, { backgroundColor: theme.accent }, loading && styles.proceedBtnDisabled]}
               onPress={handleProceed}
               disabled={loading}
               activeOpacity={0.8}
             >
               <Text style={styles.proceedBtnText}>
-                {loading ? "Creating Request..." : "I've Made Payment - Upload Proof"}
+                {loading ? "Creating request..." : "I've Made Payment - Upload Proof"}
               </Text>
               {!loading && (
-                <Ionicons name="arrow-forward" size={20} color="#FFFFFF" />
+                <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />
               )}
             </TouchableOpacity>
           </>
         )}
 
         <View style={styles.bottomSpacer} />
-      </ScrollView>
+      </Animated.ScrollView>
     </View>
   );
 }
@@ -398,312 +365,246 @@ export default function PaymentInstructionsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F3F4F6",
   },
   headerWrapper: {
-    marginBottom: 8,
-  },
-  headerGradient: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 70,
+    borderBottomWidth: 1,
   },
   headerContent: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
   },
   headerTop: {
     flexDirection: "row",
-    alignItems: "flex-start",
+    alignItems: "center",
     paddingTop: 10,
-    paddingBottom: 3,
+    paddingBottom: 16,
   },
   backButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
     marginRight: 12,
-    marginTop: 4,
-    padding: 4,
   },
-  headerText: {
+  headerCopy: {
     flex: 1,
   },
   title: {
-    fontSize: 24,
-    fontWeight: "700",
-    color: "#FFFFFF",
-    marginBottom: 2,
+    fontSize: 22,
+    fontWeight: "900",
     letterSpacing: -0.5,
   },
-  subtitle: {
+  headerSubtitle: {
     fontSize: 13,
-    color: "rgba(255, 255, 255, 0.9)",
-    fontWeight: "500",
     lineHeight: 18,
+    fontWeight: "500",
   },
   list: {
     flex: 1,
-    paddingTop: 10,
-
   },
-  summaryCard: {
-    marginHorizontal: 20,
-    marginBottom: 18,
+  scrollContent: {
+    paddingHorizontal: 16,
+  },
+  amountBanner: {
     borderRadius: 24,
-    padding: 20,
     borderWidth: 1,
-    borderColor: "#E6F4EA",
+    paddingVertical: 24,
+    alignItems: "center",
+    marginBottom: 16,
+    gap: 8,
   },
-  summaryEyebrow: {
+  amountLabel: {
     fontSize: 11,
     fontWeight: "800",
-    color: "#00B14F",
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-    marginBottom: 8,
+    letterSpacing: 0.8,
   },
-  summaryTitle: {
-    fontSize: 22,
+  amountText: {
+    fontSize: 34,
+    fontWeight: "900",
+    letterSpacing: -0.5,
+  },
+  tokenTag: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  tokenTagText: {
+    fontSize: 12,
     fontWeight: "700",
-    color: "#111827",
-    marginBottom: 8,
-    letterSpacing: -0.4,
   },
-  summaryText: {
-    fontSize: 14,
-    color: "#6B7280",
-    lineHeight: 21,
-  },
-  card: {
-    marginHorizontal: 20,
-    marginBottom: 16,
-    backgroundColor: "#FFFFFF",
+  agentHeaderCard: {
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: "#F3F4F6",
-    overflow: "hidden",
+    padding: 16,
+    marginBottom: 24,
   },
-  cardHeader: {
+  agentMetaRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-    paddingHorizontal: 18,
-    paddingVertical: 14,
-    backgroundColor: "#F9FAFB",
-    borderBottomWidth: 1,
-    borderBottomColor: "#F3F4F6",
   },
-  cardTitle: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: "#111827",
-  },
-  cardContent: {
-    padding: 18,
-    gap: 16,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: "#F3F4F6",
-    marginVertical: 4,
-  },
-  sectionSubtitle: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: "#6B7280",
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-    marginTop: 8,
-    marginBottom: 4,
-  },
-  row: {
-    flexDirection: "row",
-    justifyContent: "space-between",
+  avatarCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
   },
-  rowLabel: {
-    fontSize: 14,
-    color: "#6B7280",
-    fontWeight: "500",
+  agentIdentity: {
+    flex: 1,
+    gap: 2,
   },
-  rowValue: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#111827",
+  agentName: {
+    fontSize: 16,
+    fontWeight: "800",
   },
-  tierRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  tierBadge: {
-    backgroundColor: "#F0FDF4",
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "#D1FAE5",
-  },
-  tierText: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#00B14F",
-  },
-  activePill: {
-    backgroundColor: "#D1FAE5",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: "#00B14F",
-  },
-  activePillText: {
+  agentTier: {
     fontSize: 11,
-    fontWeight: "600",
-    color: "#059669",
-    textTransform: "uppercase",
+    fontWeight: "700",
   },
-  locationValue: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  ratingRow: {
+  ratingBadge: {
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-  },
-  phoneRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    backgroundColor: "#F9FAFB",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 10,
-  },
-  phoneNumber: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#111827",
-  },
-  amount: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#00B14F",
-  },
-  tokenBadge: {
-    backgroundColor: "#F0FDF4",
-    paddingHorizontal: 12,
-    paddingVertical: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
     borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "#D1FAE5",
   },
-  tokenBadgeText: {
+  ratingText: {
     fontSize: 12,
-    fontWeight: "600",
-    color: "#00B14F",
+    fontWeight: "700",
   },
-  instructionsCard: {
-    marginHorizontal: 20,
-    marginBottom: 16,
-    backgroundColor: "#F0FDF4",
-    borderRadius: 20,
+  sectionHeading: {
+    fontSize: 10,
+    fontWeight: "800",
+    letterSpacing: 0.8,
+    marginBottom: 10,
+    marginLeft: 4,
+  },
+  paymentCard: {
+    borderRadius: 22,
     borderWidth: 1,
-    borderColor: "#D1FAE5",
-    padding: 18,
+    paddingHorizontal: 16,
+    paddingVertical: 4,
+    marginBottom: 20,
   },
-  instructionsHeader: {
+  cardInfoRow: {
     flexDirection: "row",
+    justifyContent: "space-between",
     alignItems: "center",
-    gap: 8,
-    marginBottom: 16,
+    paddingVertical: 14,
   },
-  instructionsTitle: {
+  cardCol: {
+    gap: 4,
+  },
+  cardLabel: {
+    fontSize: 10,
+    fontWeight: "800",
+    letterSpacing: 0.5,
+  },
+  cardVal: {
     fontSize: 15,
-    fontWeight: "600",
-    color: "#111827",
+    fontWeight: "700",
   },
-  steps: {
-    gap: 12,
-  },
-  step: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 12,
-  },
-  stepNumber: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: "#00B14F",
+  copyIconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
     alignItems: "center",
     justifyContent: "center",
   },
-  stepNumberText: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: "#FFFFFF",
+  cardDivider: {
+    height: 1,
   },
-  stepText: {
-    flex: 1,
-    fontSize: 14,
-    color: "#111827",
-    lineHeight: 24,
+  timelineContainer: {
+    borderRadius: 24,
+    borderWidth: 1,
+    padding: 16,
+    marginBottom: 20,
   },
-  warning: {
+  timelineRow: {
     flexDirection: "row",
+    gap: 14,
+  },
+  timelineLeft: {
     alignItems: "center",
-    gap: 12,
-    marginHorizontal: 20,
-    marginBottom: 16,
-    backgroundColor: "#FFFBEB",
+    width: 22,
+  },
+  timelineDot: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  timelineDotText: {
+    fontSize: 11,
+    fontWeight: "900",
+    color: "#FFF",
+  },
+  timelineLine: {
+    width: 2,
+    flex: 1,
+    minHeight: 28,
+    marginVertical: 4,
+  },
+  timelineRight: {
+    flex: 1,
+    paddingBottom: 16,
+    gap: 2,
+  },
+  timelineLabel: {
+    fontSize: 14,
+    fontWeight: "800",
+  },
+  timelineDesc: {
+    fontSize: 12,
+    fontWeight: "500",
+    lineHeight: 16,
+  },
+  warningBox: {
+    flexDirection: "row",
     padding: 16,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: "#FEF3C7",
+    marginBottom: 20,
+    gap: 12,
   },
   warningText: {
     flex: 1,
     fontSize: 13,
-    color: "#92400E",
+    fontWeight: "600",
     lineHeight: 18,
   },
-  copyBtn: {
+  copyContactBtn: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    marginHorizontal: 20,
-    marginBottom: 12,
     paddingVertical: 14,
     borderRadius: 16,
-    borderWidth: 2,
-    borderColor: "#00B14F",
-    backgroundColor: "#FFFFFF",
+    borderWidth: 1.5,
+    marginBottom: 10,
   },
-  copyBtnText: {
+  copyContactText: {
     fontSize: 15,
-    fontWeight: "600",
-    color: "#00B14F",
+    fontWeight: "700",
   },
   proceedBtn: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    marginHorizontal: 20,
     paddingVertical: 16,
-    borderRadius: 16,
-    backgroundColor: "#00B14F",
-    marginBottom: 20,
+    borderRadius: 18,
   },
   proceedBtnDisabled: {
-    backgroundColor: "#E5E7EB",
+    opacity: 0.65,
   },
   proceedBtnText: {
-    fontSize: 15,
-    fontWeight: "600",
+    fontSize: 16,
+    fontWeight: "800",
     color: "#FFFFFF",
   },
   bottomSpacer: {
@@ -712,10 +613,12 @@ const styles = StyleSheet.create({
   loadingContainer: {
     padding: 40,
     alignItems: "center",
+    justifyContent: "center",
+    gap: 12,
   },
   loadingText: {
     fontSize: 14,
-    color: "#9CA3AF",
+    fontWeight: "600",
   },
   errorContainer: {
     padding: 40,
@@ -723,6 +626,6 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: 14,
-    color: "#EF4444",
+    fontWeight: "600",
   },
 });

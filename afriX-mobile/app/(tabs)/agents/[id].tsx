@@ -1,5 +1,5 @@
 // app/(tabs)/agents/[id].tsx
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState, useRef } from "react";
 import {
     View,
     Text,
@@ -9,10 +9,12 @@ import {
     ActivityIndicator,
     Linking,
     Alert,
+    useColorScheme,
+    Animated,
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import apiClient from "@/services/apiClient";
 import { SUPPORTED_COUNTRIES, stripLeadingZero } from "@/constants/countries";
@@ -119,6 +121,43 @@ export default function AgentProfileScreen() {
     const params = useLocalSearchParams();
     const agentId = params.id as string;
     const { exchangeRates } = useWalletStore();
+    const colorScheme = useColorScheme();
+    const isDark = colorScheme === "dark";
+    const theme = {
+        background: isDark ? "#07111A" : "#F5F7FB",
+        card: isDark ? "#0E1726" : "#FFFFFF",
+        cardAlt: isDark ? "#111C2B" : "#F8FAFC",
+        text: isDark ? "#F8FAFC" : "#0F172A",
+        muted: isDark ? "#94A3B8" : "#64748B",
+        border: isDark ? "#1E2A3A" : "#E2E8F0",
+        accent: "#00B14F",
+        accentSoft: isDark ? "rgba(0,177,79,0.14)" : "#EAF8EF",
+        blueSoft: isDark ? "rgba(59,130,246,0.14)" : "#EFF6FF",
+        purpleSoft: isDark ? "rgba(139,92,246,0.14)" : "#F5F3FF",
+    };
+
+    const insets = useSafeAreaInsets();
+    const [headerMaxHeight, setHeaderMaxHeight] = useState(insets.top + 70);
+    const scrollY = useRef(new Animated.Value(0)).current;
+
+    const handleHeaderLayout = (e: any) => {
+        const { height } = e.nativeEvent.layout;
+        if (height > headerMaxHeight) {
+            setHeaderMaxHeight(height);
+        }
+    };
+
+    const subtitleOpacity = scrollY.interpolate({
+        inputRange: [0, 50],
+        outputRange: [1, 0],
+        extrapolate: "clamp",
+    });
+
+    const subtitleMaxHeight = scrollY.interpolate({
+        inputRange: [0, 50],
+        outputRange: [80, 0],
+        extrapolate: "clamp",
+    });
 
     const [agent, setAgent] = useState<AgentProfile | null>(null);
     const [reviews, setReviews] = useState<Review[]>([]);
@@ -209,21 +248,21 @@ export default function AgentProfileScreen() {
 
     if (loading) {
         return (
-            <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color="#00B14F" />
-                <Text style={styles.loadingText}>Loading agent profile...</Text>
+            <View style={[styles.loadingContainer, { backgroundColor: theme.background }]}>
+                <ActivityIndicator size="large" color={theme.accent} />
+                <Text style={[styles.loadingText, { color: theme.muted }]}>Loading agent profile...</Text>
             </View>
         );
     }
 
     if (!agent) {
         return (
-            <View style={styles.errorContainer}>
-                <View style={styles.errorIconWrap}>
+            <View style={[styles.errorContainer, { backgroundColor: theme.background }]}>
+                <View style={[styles.errorIconWrap, { backgroundColor: isDark ? "rgba(239,68,68,0.14)" : "#FEF2F2" }]}>
                     <Ionicons name="person-circle-outline" size={28} color="#EF4444" />
                 </View>
-                <Text style={styles.errorTitle}>Agent not found</Text>
-                <Text style={styles.errorText}>
+                <Text style={[styles.errorTitle, { color: theme.text }]}>Agent not found</Text>
+                <Text style={[styles.errorText, { color: theme.muted }]}>
                     We couldn&apos;t load this agent profile right now.
                 </Text>
                 <TouchableOpacity style={styles.primaryButton} onPress={() => router.back()} activeOpacity={0.85}>
@@ -251,42 +290,80 @@ export default function AgentProfileScreen() {
         .slice(0, 2);
     const formattedPhoneNumber = formatContactNumber(agent.phone_number, agent.country);
     const formattedWhatsAppNumber = formatContactNumber(agent.whatsapp_number, agent.country);
+    const feePercent = agent.commission_rate != null ? (Number(agent.commission_rate) * 100).toFixed(1) : null;
 
     return (
-        <View style={styles.container}>
-            <View style={styles.headerWrapper}>
-                <LinearGradient
-                    colors={["#00B14F", "#008F40"]}
-                    style={styles.headerGradient}
-                />
+        <View style={[styles.container, { backgroundColor: theme.background }]}>
+            <LinearGradient
+                colors={isDark ? ["rgba(0,177,79,0.22)", "rgba(7,17,26,0)"] : ["rgba(0,177,79,0.18)", "rgba(255,255,255,0)"]}
+                style={styles.heroGradient}
+                pointerEvents="none"
+            />
+
+            {/* Fixed Header */}
+            <Animated.View
+                onLayout={handleHeaderLayout}
+                style={[
+                    styles.headerWrapper,
+                    {
+                        backgroundColor: theme.background,
+                        borderBottomColor: theme.border,
+                        position: "absolute",
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        zIndex: 10,
+                    },
+                ]}
+            >
                 <SafeAreaView edges={["top"]} style={styles.headerContent}>
                     <View style={styles.headerTop}>
                         <TouchableOpacity
                             onPress={() => router.back()}
-                            style={styles.headerBackButton}
+                            style={[styles.headerBackButton, { backgroundColor: theme.card, borderColor: theme.border }]}
                             activeOpacity={0.8}
                         >
-                            <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
+                            <Ionicons name="arrow-back" size={22} color={theme.text} />
                         </TouchableOpacity>
-                        <Text style={styles.headerTitle}>Agent Profile</Text>
+                        <View style={styles.headerTitleWrap}>
+                            <Text style={[styles.headerKicker, { color: theme.text }]}>Agent Profile</Text>
+                            <Animated.View style={{
+                                opacity: subtitleOpacity,
+                                maxHeight: subtitleMaxHeight,
+                                overflow: "hidden"
+                            }}>
+                                <Text style={[styles.headerTitle, { color: theme.muted }]}>Review before you trade</Text>
+                            </Animated.View>
+                        </View>
                         <View style={styles.placeholder} />
                     </View>
                 </SafeAreaView>
-            </View>
+            </Animated.View>
 
-            <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer} showsVerticalScrollIndicator={false}>
+            <ScrollView
+                style={styles.content}
+                contentContainerStyle={styles.contentContainer}
+                showsVerticalScrollIndicator={false}
+                onScroll={Animated.event(
+                    [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+                    { useNativeDriver: false }
+                )}
+                scrollEventThrottle={16}
+            >
+                {/* Spacer matching the header height */}
+                <View style={{ height: headerMaxHeight }} />
                 <LinearGradient
-                    colors={["#F7FFF9", "#FFFFFF"]}
-                    style={styles.summaryCard}
+                    colors={isDark ? ["#0E1726", "#111E2E"] : ["#F7FFF9", "#FFFFFF"]}
+                    style={[styles.summaryCard, { borderColor: theme.border }]}
                 >
-                    <Text style={styles.summaryEyebrow}>Verified Agent</Text>
-                    <Text style={styles.summaryTitle}>Review this agent before you trade</Text>
-                    <Text style={styles.summaryText}>
+                    <Text style={[styles.summaryEyebrow, { color: theme.accent }]}>Verified Agent</Text>
+                    <Text style={[styles.summaryTitle, { color: theme.text }]}>Choose an agent with confidence</Text>
+                    <Text style={[styles.summaryText, { color: theme.muted }]}>
                         Check capacity, response speed, payment channels, and recent feedback before you buy or sell tokens.
                     </Text>
                 </LinearGradient>
 
-                <View style={styles.profileCard}>
+                <View style={[styles.profileCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
                     <View style={styles.profileTopRow}>
                         <View style={styles.avatarContainer}>
                             <View style={[styles.avatar, { backgroundColor: `${tierColor}20` }]}>
@@ -299,7 +376,7 @@ export default function AgentProfileScreen() {
                             )}
                         </View>
                         <View style={styles.profileIdentity}>
-                            <Text style={styles.agentName}>{agent.full_name}</Text>
+                            <Text style={[styles.agentName, { color: theme.text }]}>{agent.full_name}</Text>
                             <View style={styles.metaPillsRow}>
                                 <View
                                     style={[
@@ -310,15 +387,15 @@ export default function AgentProfileScreen() {
                                     <Text style={[styles.tierText, { color: tierColor }]}>{agent.tier} agent</Text>
                                 </View>
                                 {isActive && (
-                                    <View style={styles.activePill}>
-                                        <Text style={styles.activePillText}>Active</Text>
+                                    <View style={[styles.activePill, { backgroundColor: theme.accentSoft, borderColor: theme.accent + "40" }]}>
+                                        <Text style={[styles.activePillText, { color: theme.accent }]}>Active</Text>
                                     </View>
                                 )}
                             </View>
                             {location ? (
                                 <View style={styles.locationRow}>
-                                    <Ionicons name="location-outline" size={14} color="#6B7280" />
-                                    <Text style={styles.locationText}>{location}</Text>
+                                    <Ionicons name="location-outline" size={14} color={theme.muted} />
+                                    <Text style={[styles.locationText, { color: theme.muted }]}>{location}</Text>
                                 </View>
                             ) : null}
                         </View>
@@ -335,139 +412,179 @@ export default function AgentProfileScreen() {
                                 />
                             ))}
                         </View>
-                        <Text style={styles.ratingText}>{agent.rating.toFixed(1)} rating</Text>
+                        <Text style={[styles.ratingText, { color: theme.text }]}>{agent.rating.toFixed(1)} rating</Text>
                     </View>
                 </View>
 
-                <View style={styles.statsCard}>
+                <View style={[styles.statsCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
                     <View style={styles.statItem}>
-                        <Ionicons name="wallet-outline" size={22} color="#00B14F" />
-                        <Text style={styles.statValue}>${formatAmountOrCompact(agent.available_capacity)}</Text>
-                        <Text style={styles.statLabel}>Capacity</Text>
+                        <View style={[styles.statIconWrap, { backgroundColor: theme.accentSoft }]}>
+                            <Ionicons name="wallet-outline" size={20} color={theme.accent} />
+                        </View>
+                        <Text style={[styles.statValue, { color: theme.text }]}>${formatAmountOrCompact(agent.available_capacity)}</Text>
+                        <Text style={[styles.statLabel, { color: theme.muted }]}>Capacity</Text>
                     </View>
-                    <View style={styles.statDivider} />
+                    <View style={[styles.statDivider, { backgroundColor: theme.border }]} />
                     <View style={styles.statItem}>
-                        <Ionicons name="time-outline" size={22} color="#3B82F6" />
-                        <Text style={styles.statValue}>~{agent.response_time_minutes} min</Text>
-                        <Text style={styles.statLabel}>Response</Text>
+                        <View style={[styles.statIconWrap, { backgroundColor: theme.blueSoft }]}>
+                            <Ionicons name="time-outline" size={20} color="#3B82F6" />
+                        </View>
+                        <Text style={[styles.statValue, { color: theme.text }]}>~{agent.response_time_minutes} min</Text>
+                        <Text style={[styles.statLabel, { color: theme.muted }]}>Response</Text>
                     </View>
-                    <View style={styles.statDivider} />
+                    <View style={[styles.statDivider, { backgroundColor: theme.border }]} />
                     <View style={styles.statItem}>
-                        <Ionicons name="swap-horizontal" size={22} color="#8B5CF6" />
-                        <Text style={styles.statValue}>{totalTransactions.toLocaleString()}</Text>
-                        <Text style={styles.statLabel}>Transactions</Text>
+                        <View style={[styles.statIconWrap, { backgroundColor: theme.purpleSoft }]}>
+                            <Ionicons name="swap-horizontal" size={20} color="#8B5CF6" />
+                        </View>
+                        <Text style={[styles.statValue, { color: theme.text }]}>{totalTransactions.toLocaleString()}</Text>
+                        <Text style={[styles.statLabel, { color: theme.muted }]}>Transactions</Text>
                     </View>
                 </View>
 
-                <View style={styles.highlightsRow}>
+                <View style={styles.quickRow}>
                     {maxTradeDisplay != null && maxTradeDisplay > 0 ? (
-                        <View style={styles.highlightPill}>
-                            <Ionicons name="card-outline" size={16} color="#6B7280" />
-                            <Text style={styles.highlightLabel}>Max/trade</Text>
-                            <Text style={styles.highlightValue}>
+                        <View style={[styles.highlightPill, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                            <Ionicons name="card-outline" size={16} color={theme.muted} />
+                            <Text style={[styles.highlightLabel, { color: theme.muted }]}>Max/trade</Text>
+                            <Text style={[styles.highlightValue, { color: theme.text }]}>
                                 {formatAmountOrCompact(maxTradeDisplay, maxTradeUnit)}
                             </Text>
                         </View>
                     ) : null}
-                    {agent.commission_rate != null ? (
-                        <View style={styles.highlightPill}>
-                            <Ionicons name="pricetag-outline" size={16} color="#6B7280" />
-                            <Text style={styles.highlightLabel}>Fee</Text>
-                            <Text style={styles.highlightValue}>~{(Number(agent.commission_rate) * 100).toFixed(1)}%</Text>
+                    {feePercent != null ? (
+                        <View style={[styles.highlightPill, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                            <Ionicons name="pricetag-outline" size={16} color={theme.muted} />
+                            <Text style={[styles.highlightLabel, { color: theme.muted }]}>Fee</Text>
+                            <Text style={[styles.highlightValue, { color: theme.text }]}>~{feePercent}%</Text>
                         </View>
                     ) : null}
                 </View>
 
+                <View style={styles.actionsGrid}>
+                    {agent.phone_number ? (
+                        <TouchableOpacity
+                            style={[styles.actionCard, { backgroundColor: theme.card, borderColor: theme.border }]}
+                            onPress={() => handleCall(agent.phone_number!)}
+                            activeOpacity={0.85}
+                        >
+                            <View style={[styles.actionIconWrap, { backgroundColor: theme.accentSoft }]}>
+                                <Ionicons name="call-outline" size={18} color={theme.accent} />
+                            </View>
+                            <Text style={[styles.actionTitle, { color: theme.text }]}>Call</Text>
+                            <Text style={[styles.actionSubtitle, { color: theme.muted }]}>{formattedPhoneNumber || agent.phone_number}</Text>
+                        </TouchableOpacity>
+                    ) : null}
+
+                    {agent.whatsapp_number ? (
+                        <TouchableOpacity
+                            style={[styles.actionCard, { backgroundColor: theme.card, borderColor: theme.border }]}
+                            onPress={() => handleWhatsApp(agent.whatsapp_number!)}
+                            activeOpacity={0.85}
+                        >
+                            <View style={[styles.actionIconWrap, { backgroundColor: isDark ? "rgba(37,211,102,0.16)" : "#ECFDF5" }]}>
+                                <Ionicons name="logo-whatsapp" size={18} color="#25D366" />
+                            </View>
+                            <Text style={[styles.actionTitle, { color: theme.text }]}>WhatsApp</Text>
+                            <Text style={[styles.actionSubtitle, { color: theme.muted }]}>{formattedWhatsAppNumber || agent.whatsapp_number}</Text>
+                        </TouchableOpacity>
+                    ) : null}
+                </View>
+
                 {(agent.phone_number || agent.whatsapp_number) && (
-                    <View style={styles.sectionCard}>
-                        <Text style={styles.sectionTitle}>Contact</Text>
+                    <View style={[styles.sectionCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                        <Text style={[styles.sectionTitle, { color: theme.text }]}>Contact</Text>
                         {agent.phone_number ? (
                             <TouchableOpacity
-                                style={styles.contactButton}
+                                style={[styles.contactButton, { backgroundColor: theme.cardAlt, borderColor: theme.border }]}
                                 onPress={() => handleCall(agent.phone_number!)}
                                 activeOpacity={0.8}
                             >
                                 <View style={styles.contactLeft}>
-                                    <View style={styles.contactIconWrap}>
-                                        <Ionicons name="call-outline" size={18} color="#00B14F" />
+                                    <View style={[styles.contactIconWrap, { backgroundColor: theme.accentSoft }]}>
+                                        <Ionicons name="call-outline" size={18} color={theme.accent} />
                                     </View>
                                     <View>
-                                        <Text style={styles.contactLabel}>Phone</Text>
-                                        <Text style={styles.contactText}>{formattedPhoneNumber || agent.phone_number}</Text>
+                                        <Text style={[styles.contactLabel, { color: theme.muted }]}>Phone</Text>
+                                        <Text style={[styles.contactText, { color: theme.text }]}>{formattedPhoneNumber || agent.phone_number}</Text>
                                     </View>
                                 </View>
-                                <Ionicons name="chevron-forward" size={18} color="#9CA3AF" />
+                                <Ionicons name="chevron-forward" size={18} color={theme.muted} />
                             </TouchableOpacity>
                         ) : null}
                         {agent.whatsapp_number ? (
                             <TouchableOpacity
-                                style={styles.contactButton}
+                                style={[styles.contactButton, { backgroundColor: theme.cardAlt, borderColor: theme.border }]}
                                 onPress={() => handleWhatsApp(agent.whatsapp_number!)}
                                 activeOpacity={0.8}
                             >
                                 <View style={styles.contactLeft}>
-                                    <View style={styles.contactIconWrap}>
+                                    <View style={[styles.contactIconWrap, { backgroundColor: isDark ? "rgba(37,211,102,0.14)" : "#ECFDF5" }]}>
                                         <Ionicons name="logo-whatsapp" size={18} color="#25D366" />
                                     </View>
                                     <View>
-                                        <Text style={styles.contactLabel}>WhatsApp</Text>
-                                        <Text style={styles.contactText}>{formattedWhatsAppNumber || agent.whatsapp_number}</Text>
+                                        <Text style={[styles.contactLabel, { color: theme.muted }]}>WhatsApp</Text>
+                                        <Text style={[styles.contactText, { color: theme.text }]}>{formattedWhatsAppNumber || agent.whatsapp_number}</Text>
                                     </View>
                                 </View>
-                                <Ionicons name="chevron-forward" size={18} color="#9CA3AF" />
+                                <Ionicons name="chevron-forward" size={18} color={theme.muted} />
                             </TouchableOpacity>
                         ) : null}
                     </View>
                 )}
 
                 {agent.bank_name ? (
-                    <View style={styles.sectionCard}>
-                        <Text style={styles.sectionTitle}>Bank Details</Text>
-                        <View style={styles.infoRow}>
-                            <Text style={styles.infoLabel}>Bank Name</Text>
-                            <Text style={styles.infoValue}>{agent.bank_name}</Text>
+                    <View style={[styles.sectionCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                        <Text style={[styles.sectionTitle, { color: theme.text }]}>Bank Details</Text>
+                        <View style={[styles.infoRow, { borderBottomColor: theme.border }]}>
+                            <Text style={[styles.infoLabel, { color: theme.muted }]}>Bank Name</Text>
+                            <Text style={[styles.infoValue, { color: theme.text }]}>{agent.bank_name}</Text>
                         </View>
                         {agent.account_number ? (
-                            <View style={styles.infoRow}>
-                                <Text style={styles.infoLabel}>Account Number</Text>
-                                <Text style={styles.infoValue}>{agent.account_number}</Text>
+                            <View style={[styles.infoRow, { borderBottomColor: theme.border }]}>
+                                <Text style={[styles.infoLabel, { color: theme.muted }]}>Account Number</Text>
+                                <Text style={[styles.infoValue, { color: theme.text }]}>{agent.account_number}</Text>
                             </View>
                         ) : null}
                         {agent.account_name ? (
                             <View style={styles.infoRowLast}>
-                                <Text style={styles.infoLabel}>Account Name</Text>
-                                <Text style={styles.infoValue}>{agent.account_name}</Text>
+                                <Text style={[styles.infoLabel, { color: theme.muted }]}>Account Name</Text>
+                                <Text style={[styles.infoValue, { color: theme.text }]}>{agent.account_name}</Text>
                             </View>
                         ) : null}
                     </View>
                 ) : null}
 
                 {(agent.currency === "XOF" || agent.mobile_money_provider || agent.mobile_money_number) && (
-                    <View style={styles.sectionCard}>
-                        <Text style={styles.sectionTitle}>Mobile Money</Text>
-                        <View style={styles.infoRow}>
-                            <Text style={styles.infoLabel}>Provider</Text>
-                            <Text style={styles.infoValue}>{agent.mobile_money_provider || "—"}</Text>
+                    <View style={[styles.sectionCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                        <Text style={[styles.sectionTitle, { color: theme.text }]}>Mobile Money</Text>
+                        <View style={[styles.infoRow, { borderBottomColor: theme.border }]}>
+                            <Text style={[styles.infoLabel, { color: theme.muted }]}>Provider</Text>
+                            <Text style={[styles.infoValue, { color: theme.text }]}>{agent.mobile_money_provider || "—"}</Text>
                         </View>
                         {agent.mobile_money_number ? (
                             <View style={styles.infoRowLast}>
-                                <Text style={styles.infoLabel}>Phone Number</Text>
-                                <Text style={styles.infoValue}>{agent.mobile_money_number}</Text>
+                                <Text style={[styles.infoLabel, { color: theme.muted }]}>Phone Number</Text>
+                                <Text style={[styles.infoValue, { color: theme.text }]}>{agent.mobile_money_number}</Text>
                             </View>
                         ) : null}
                     </View>
                 )}
 
                 {reviews.length > 0 && (
-                    <View style={styles.sectionCard}>
-                        <Text style={styles.sectionTitle}>Recent Reviews</Text>
+                    <View style={[styles.sectionCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                        <Text style={[styles.sectionTitle, { color: theme.text }]}>Recent Reviews</Text>
                         {reviews.map((review, index) => (
                             <View
                                 key={review.id}
-                                style={[styles.reviewCard, index === reviews.length - 1 && styles.reviewCardLast]}
+                                style={[
+                                    styles.reviewCard,
+                                    { borderBottomColor: theme.border },
+                                    index === reviews.length - 1 && styles.reviewCardLast,
+                                ]}
                             >
                                 <View style={styles.reviewHeader}>
-                                    <Text style={styles.reviewerName}>{review.user.full_name}</Text>
+                                    <Text style={[styles.reviewerName, { color: theme.text }]}>{review.user.full_name}</Text>
                                     <View style={styles.reviewStars}>
                                         {[1, 2, 3, 4, 5].map((star) => (
                                             <Ionicons
@@ -480,27 +597,24 @@ export default function AgentProfileScreen() {
                                     </View>
                                 </View>
                                 {review.review_text ? (
-                                    <Text style={styles.reviewText}>{review.review_text}</Text>
+                                    <Text style={[styles.reviewText, { color: theme.muted }]}>{review.review_text}</Text>
                                 ) : null}
-                                <Text style={styles.reviewDate}>{formatDate(review.created_at)}</Text>
+                                <Text style={[styles.reviewDate, { color: theme.muted }]}>{formatDate(review.created_at)}</Text>
                             </View>
                         ))}
                     </View>
                 )}
-            </ScrollView>
-
-            <SafeAreaView edges={["bottom"]} style={styles.footerWrapper}>
                 <View style={styles.actionBar}>
                     <TouchableOpacity
-                        style={[styles.actionButton, styles.sellButton]}
+                        style={[styles.actionButton, styles.sellButton, { backgroundColor: isDark ? "rgba(245,158,11,0.14)" : "#FEF3C7", borderColor: "#F59E0B" }]}
                         onPress={handleSellTokens}
                         activeOpacity={0.85}
                     >
                         <Ionicons name="arrow-down-circle-outline" size={20} color="#F59E0B" />
-                        <Text style={styles.sellButtonText}>Sell Tokens</Text>
+                        <Text style={[styles.sellButtonText, { color: "#F59E0B" }]}>Sell Tokens</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
-                        style={[styles.actionButton, styles.buyButton]}
+                        style={[styles.actionButton, styles.buyButton, { backgroundColor: theme.accent, shadowColor: theme.accent }]}
                         onPress={handleBuyTokens}
                         activeOpacity={0.85}
                     >
@@ -508,7 +622,7 @@ export default function AgentProfileScreen() {
                         <Text style={styles.buyButtonText}>Buy Tokens</Text>
                     </TouchableOpacity>
                 </View>
-            </SafeAreaView>
+            </ScrollView>
         </View>
     );
 }
@@ -516,33 +630,28 @@ export default function AgentProfileScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: "#F9FAFB",
     },
     loadingContainer: {
         flex: 1,
         justifyContent: "center",
         alignItems: "center",
-        backgroundColor: "#F9FAFB",
         paddingHorizontal: 24,
     },
     loadingText: {
         marginTop: 12,
         fontSize: 14,
-        color: "#6B7280",
         fontWeight: "500",
     },
     errorContainer: {
         flex: 1,
         justifyContent: "center",
         alignItems: "center",
-        backgroundColor: "#F9FAFB",
         padding: 24,
     },
     errorIconWrap: {
         width: 56,
         height: 56,
         borderRadius: 28,
-        backgroundColor: "#FEF2F2",
         alignItems: "center",
         justifyContent: "center",
         marginBottom: 16,
@@ -550,14 +659,13 @@ const styles = StyleSheet.create({
     errorTitle: {
         fontSize: 18,
         fontWeight: "700",
-        color: "#111827",
         marginBottom: 8,
     },
     errorText: {
         fontSize: 14,
-        color: "#6B7280",
         marginBottom: 20,
         textAlign: "center",
+        lineHeight: 20,
     },
     primaryButton: {
         backgroundColor: "#00B14F",
@@ -571,88 +679,93 @@ const styles = StyleSheet.create({
         fontWeight: "700",
     },
     headerWrapper: {
-        zIndex: 10,
-        elevation: 8,
-        backgroundColor: "#00B14F",
+        borderBottomWidth: 1,
     },
-    headerGradient: {
+    heroBlock: {
+        marginBottom: 10,
+    },
+    heroGradient: {
         position: "absolute",
         top: 0,
         left: 0,
         right: 0,
-        height: 120,
+        height: 210,
     },
     headerContent: {
         paddingHorizontal: 16,
+        paddingBottom: 8,
     },
     headerTop: {
         flexDirection: "row",
-        alignItems: "center",
+        alignItems: "flex-start",
         justifyContent: "space-between",
-        paddingBottom: 20,
-        marginTop: 10,
+        gap: 12,
+        marginTop: 8,
     },
     headerBackButton: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        backgroundColor: "rgba(255,255,255,0.2)",
+        width: 42,
+        height: 42,
+        borderRadius: 21,
+        borderWidth: 1,
         alignItems: "center",
         justifyContent: "center",
     },
-    headerTitle: {
-        fontSize: 22,
-        fontWeight: "700",
-        color: "#FFFFFF",
+    headerTitleWrap: {
+        flex: 1,
+        paddingTop: 2,
+    },
+    headerKicker: {
+        fontSize: 24,
+        fontWeight: "800",
         letterSpacing: -0.4,
     },
+    headerTitle: {
+        fontSize: 14,
+        fontWeight: "500",
+        lineHeight: 20,
+        marginTop: 4,
+    },
     placeholder: {
-        width: 40,
+        width: 42,
     },
     content: {
         flex: 1,
     },
     contentContainer: {
         paddingHorizontal: 16,
-        paddingTop: 50,
-        paddingBottom: 32,
+        paddingTop: 8,
+        paddingBottom: 48,
     },
     summaryCard: {
-        borderRadius: 22,
+        borderRadius: 24,
         padding: 18,
-        marginTop: -34,
+        marginTop: -24,
         marginBottom: 14,
         borderWidth: 1,
-        borderColor: "#E6F4EA",
     },
     summaryEyebrow: {
         fontSize: 11,
         fontWeight: "800",
-        color: "#00B14F",
         textTransform: "uppercase",
-        letterSpacing: 0.5,
+        letterSpacing: 0.6,
         marginBottom: 6,
     },
     summaryTitle: {
         fontSize: 22,
         fontWeight: "800",
-        color: "#111827",
         letterSpacing: -0.5,
     },
     summaryText: {
         fontSize: 13,
         lineHeight: 20,
-        color: "#6B7280",
         fontWeight: "500",
         marginTop: 6,
     },
     profileCard: {
-        backgroundColor: "#FFFFFF",
         borderRadius: 24,
         padding: 20,
         marginBottom: 14,
         borderWidth: 1,
-        borderColor: "#EAF0F5",
     },
     profileTopRow: {
         flexDirection: "row",
@@ -686,7 +799,6 @@ const styles = StyleSheet.create({
     agentName: {
         fontSize: 24,
         fontWeight: "800",
-        color: "#111827",
         marginBottom: 8,
         letterSpacing: -0.4,
     },
@@ -710,17 +822,14 @@ const styles = StyleSheet.create({
         letterSpacing: 0.4,
     },
     activePill: {
-        backgroundColor: "#D1FAE5",
         paddingHorizontal: 10,
         paddingVertical: 6,
         borderRadius: 999,
         borderWidth: 1,
-        borderColor: "#A7F3D0",
     },
     activePillText: {
         fontSize: 11,
         fontWeight: "800",
-        color: "#059669",
         textTransform: "uppercase",
         letterSpacing: 0.4,
     },
@@ -731,7 +840,6 @@ const styles = StyleSheet.create({
     },
     locationText: {
         fontSize: 14,
-        color: "#6B7280",
         fontWeight: "500",
     },
     ratingRow: {
@@ -741,7 +849,6 @@ const styles = StyleSheet.create({
         marginTop: 18,
         paddingTop: 16,
         borderTopWidth: 1,
-        borderTopColor: "#F3F4F6",
     },
     stars: {
         flexDirection: "row",
@@ -750,60 +857,58 @@ const styles = StyleSheet.create({
     ratingText: {
         fontSize: 14,
         fontWeight: "700",
-        color: "#111827",
     },
     statsCard: {
-        backgroundColor: "#FFFFFF",
         borderRadius: 24,
         padding: 18,
         flexDirection: "row",
         justifyContent: "space-around",
         marginBottom: 14,
         borderWidth: 1,
-        borderColor: "#EAF0F5",
     },
     statItem: {
         alignItems: "center",
         flex: 1,
     },
+    statIconWrap: {
+        width: 40,
+        height: 40,
+        borderRadius: 14,
+        alignItems: "center",
+        justifyContent: "center",
+    },
     statDivider: {
         width: 1,
-        backgroundColor: "#F3F4F6",
     },
     statValue: {
         fontSize: 16,
         fontWeight: "800",
-        color: "#111827",
         marginTop: 8,
         textAlign: "center",
     },
     statLabel: {
         fontSize: 12,
-        color: "#6B7280",
         marginTop: 4,
         fontWeight: "500",
         textAlign: "center",
     },
-    highlightsRow: {
+    quickRow: {
         flexDirection: "row",
-        flexWrap: "wrap",
         gap: 10,
+        flexWrap: "wrap",
         marginBottom: 14,
     },
     highlightPill: {
         flexDirection: "row",
         alignItems: "center",
         gap: 8,
-        backgroundColor: "#FFFFFF",
         borderRadius: 999,
         paddingVertical: 10,
         paddingHorizontal: 14,
         borderWidth: 1,
-        borderColor: "#EAF0F5",
     },
     highlightLabel: {
         fontSize: 12,
-        color: "#6B7280",
         fontWeight: "700",
         textTransform: "uppercase",
         letterSpacing: 0.4,
@@ -811,32 +916,55 @@ const styles = StyleSheet.create({
     highlightValue: {
         fontSize: 13,
         fontWeight: "700",
-        color: "#111827",
+    },
+    actionsGrid: {
+        flexDirection: "row",
+        gap: 12,
+        marginBottom: 14,
+    },
+    actionCard: {
+        flex: 1,
+        borderWidth: 1,
+        borderRadius: 20,
+        padding: 14,
+    },
+    actionIconWrap: {
+        width: 40,
+        height: 40,
+        borderRadius: 14,
+        alignItems: "center",
+        justifyContent: "center",
+        marginBottom: 12,
+    },
+    actionTitle: {
+        fontSize: 15,
+        fontWeight: "800",
+        marginBottom: 4,
+    },
+    actionSubtitle: {
+        fontSize: 12,
+        fontWeight: "500",
+        lineHeight: 18,
     },
     sectionCard: {
-        backgroundColor: "#FFFFFF",
         borderRadius: 24,
         padding: 18,
         marginBottom: 14,
         borderWidth: 1,
-        borderColor: "#EAF0F5",
     },
     sectionTitle: {
         fontSize: 18,
-        fontWeight: "700",
-        color: "#111827",
+        fontWeight: "800",
         marginBottom: 14,
     },
     contactButton: {
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "space-between",
-        backgroundColor: "#FBFCFD",
         padding: 14,
         borderRadius: 16,
         marginBottom: 10,
         borderWidth: 1,
-        borderColor: "#F1F5F9",
     },
     contactLeft: {
         flexDirection: "row",
@@ -848,13 +976,11 @@ const styles = StyleSheet.create({
         width: 40,
         height: 40,
         borderRadius: 14,
-        backgroundColor: "#F0FDF4",
         alignItems: "center",
         justifyContent: "center",
     },
     contactLabel: {
         fontSize: 12,
-        color: "#6B7280",
         fontWeight: "700",
         textTransform: "uppercase",
         letterSpacing: 0.4,
@@ -862,7 +988,6 @@ const styles = StyleSheet.create({
     },
     contactText: {
         fontSize: 15,
-        color: "#111827",
         fontWeight: "700",
     },
     infoRow: {
@@ -871,7 +996,6 @@ const styles = StyleSheet.create({
         alignItems: "center",
         paddingVertical: 12,
         borderBottomWidth: 1,
-        borderBottomColor: "#F3F4F6",
         gap: 12,
     },
     infoRowLast: {
@@ -883,7 +1007,6 @@ const styles = StyleSheet.create({
     },
     infoLabel: {
         fontSize: 14,
-        color: "#6B7280",
         fontWeight: "500",
     },
     infoValue: {
@@ -891,12 +1014,10 @@ const styles = StyleSheet.create({
         textAlign: "right",
         fontSize: 14,
         fontWeight: "700",
-        color: "#111827",
     },
     reviewCard: {
         paddingVertical: 14,
         borderBottomWidth: 1,
-        borderBottomColor: "#F3F4F6",
     },
     reviewCardLast: {
         borderBottomWidth: 0,
@@ -911,7 +1032,6 @@ const styles = StyleSheet.create({
     reviewerName: {
         fontSize: 14,
         fontWeight: "700",
-        color: "#111827",
     },
     reviewStars: {
         flexDirection: "row",
@@ -919,25 +1039,17 @@ const styles = StyleSheet.create({
     },
     reviewText: {
         fontSize: 14,
-        color: "#6B7280",
         lineHeight: 20,
         marginBottom: 8,
     },
     reviewDate: {
         fontSize: 12,
-        color: "#9CA3AF",
         fontWeight: "500",
-    },
-    footerWrapper: {
-        backgroundColor: "#FFFFFF",
-        borderTopWidth: 1,
-        borderTopColor: "#E5E7EB",
     },
     actionBar: {
         flexDirection: "row",
-        paddingHorizontal: 20,
-        paddingTop: 14,
-        paddingBottom: 10,
+        paddingTop: 16,
+        paddingBottom: 16,
         gap: 12,
     },
     actionButton: {
@@ -950,18 +1062,13 @@ const styles = StyleSheet.create({
         gap: 8,
     },
     sellButton: {
-        backgroundColor: "#FEF3C7",
         borderWidth: 1,
-        borderColor: "#F59E0B",
     },
     sellButtonText: {
         fontSize: 16,
         fontWeight: "700",
-        color: "#F59E0B",
     },
     buyButton: {
-        backgroundColor: "#00B14F",
-        shadowColor: "#00B14F",
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.18,
         shadowRadius: 8,

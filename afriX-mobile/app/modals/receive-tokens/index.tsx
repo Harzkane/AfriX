@@ -1,14 +1,17 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import {
-    View,
-    StyleSheet,
-    ScrollView,
-    TouchableOpacity,
-    Alert,
-    Share,
+  View,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  Alert,
+  Share,
+  useColorScheme,
+  Animated,
+  Text,
+  Platform,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { Text } from "react-native-paper";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -17,536 +20,408 @@ import * as Clipboard from "expo-clipboard";
 import * as Haptics from "expo-haptics";
 import { useAuthStore, useWalletStore } from "@/stores";
 
+const TOKENS = ["NT", "CT", "USDT"] as const;
+const TOKEN_LABELS: Record<string, string> = { NT: "Naira Token", CT: "CFA Token", USDT: "Tether" };
+const TOKEN_SUBTITLES: Record<string, string> = { NT: "Domestic", CT: "Regional", USDT: "Reserve" };
+
 export default function ReceiveTokensScreen() {
-    const router = useRouter();
-    const [tokenType, setTokenType] = useState<"NT" | "CT" | "USDT">("NT");
+  const router = useRouter();
+  const [tokenType, setTokenType] = useState<"NT" | "CT" | "USDT">("NT");
 
-    const { user } = useAuthStore();
-    const { getWalletByType } = useWalletStore();
+  const { user } = useAuthStore();
+  const { getWalletByType } = useWalletStore();
 
-    const wallet = getWalletByType(tokenType);
-    const walletAddress = wallet?.blockchain_address || "";
-    const userEmail = user?.email || "";
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === "dark";
+  const insets = useSafeAreaInsets();
+  const [headerMaxHeight, setHeaderMaxHeight] = useState(insets.top + 70);
+  const scrollY = useRef(new Animated.Value(0)).current;
 
+  const theme = {
+    background: isDark ? "#07111A" : "#F5F7FB",
+    card: isDark ? "#0E1726" : "#FFFFFF",
+    cardAlt: isDark ? "#111C2B" : "#F8FAFC",
+    text: isDark ? "#F8FAFC" : "#0F172A",
+    muted: isDark ? "#94A3B8" : "#64748B",
+    border: isDark ? "#1E2A3A" : "#E2E8F0",
+    accent: "#00B14F",
+    accentSoft: isDark ? "rgba(0,177,79,0.14)" : "#EAF8EF",
+    blue: "#3B82F6",
+    blueSoft: isDark ? "rgba(59,130,246,0.12)" : "#EFF6FF",
+    blueBorder: isDark ? "rgba(59,130,246,0.25)" : "#DBEAFE",
+    placeholder: isDark ? "#475569" : "#9CA3AF",
+    inputBg: isDark ? "#111C2B" : "#F9FAFB",
+  };
 
-    // QR code data - contains user email for P2P transfers
-    const qrData = JSON.stringify({
-        type: "afritoken_receive",
-        email: userEmail,
-        token: tokenType,
-        version: "1.0",
-    });
+  const handleHeaderLayout = (e: any) => {
+    const { height } = e.nativeEvent.layout;
+    if (height > headerMaxHeight) setHeaderMaxHeight(height);
+  };
 
-    const handleCopyAddress = async () => {
-        if (walletAddress) {
-            await Clipboard.setStringAsync(walletAddress);
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            Alert.alert("Copied!", "Wallet address copied to clipboard");
-        }
-    };
+  const subtitleOpacity = scrollY.interpolate({ inputRange: [0, 50], outputRange: [1, 0], extrapolate: "clamp" });
+  const subtitleMaxHeight = scrollY.interpolate({ inputRange: [0, 50], outputRange: [80, 0], extrapolate: "clamp" });
+  const subtitleMargin = scrollY.interpolate({ inputRange: [0, 50], outputRange: [4, 0], extrapolate: "clamp" });
 
-    const handleCopyEmail = async () => {
-        await Clipboard.setStringAsync(userEmail);
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        Alert.alert("Copied!", "Email address copied to clipboard");
-    };
+  const wallet = getWalletByType(tokenType);
+  const walletAddress = wallet?.blockchain_address || "";
+  const userEmail = user?.email || "";
 
-    const handleShare = async () => {
-        try {
-            const message = `Send me ${tokenType} tokens on AfriToken!\n\nMy email: ${userEmail}\n${walletAddress ? `Wallet: ${walletAddress}` : ""
-                }`;
+  const qrData = JSON.stringify({
+    type: "afritoken_receive",
+    email: userEmail,
+    token: tokenType,
+    version: "1.0",
+  });
 
-            await Share.share({
-                message,
-                title: "Receive AfriToken",
-            });
-        } catch (error) {
-            console.error("Share error:", error);
-        }
-    };
+  const handleCopyAddress = async () => {
+    if (walletAddress) {
+      await Clipboard.setStringAsync(walletAddress);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Alert.alert("Copied!", "Wallet address copied to clipboard");
+    }
+  };
 
-    return (
-        <View style={styles.container}>
-            <View style={styles.headerWrapper}>
-                <LinearGradient
-                    colors={["#00B14F", "#008F40"]}
-                    style={styles.headerGradient}
-                />
-                <SafeAreaView edges={["top"]} style={styles.headerContent}>
-                    <View style={styles.header}>
-                        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-                            <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
-                        </TouchableOpacity>
-                        <Text style={styles.headerTitle}>Receive Tokens</Text>
-                        <View style={{ width: 24 }} />
-                    </View>
-                </SafeAreaView>
-            </View>
+  const handleCopyEmail = async () => {
+    await Clipboard.setStringAsync(userEmail);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    Alert.alert("Copied!", "Email address copied to clipboard");
+  };
 
-            <ScrollView
-                style={styles.container}
-                contentContainerStyle={styles.content}
-                showsVerticalScrollIndicator={false}
+  const handleShare = async () => {
+    try {
+      const message = `Send me ${tokenType} tokens on AfriExchange!\n\nMy email: ${userEmail}\n${
+        walletAddress ? `Wallet Address: ${walletAddress}` : ""
+      }`;
+      await Share.share({
+        message,
+        title: "Receive AfriExchange Tokens",
+      });
+    } catch (e) {
+      console.error("Share error:", e);
+    }
+  };
+
+  return (
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
+      {/* Collapsible Header */}
+      <Animated.View
+        onLayout={handleHeaderLayout}
+        style={[styles.headerWrapper, { backgroundColor: theme.background, borderBottomColor: theme.border }]}
+      >
+        <SafeAreaView edges={["top"]} style={styles.headerSafeArea}>
+          <View style={styles.headerRow}>
+            <TouchableOpacity
+              onPress={() => router.back()}
+              style={[styles.backButton, { backgroundColor: theme.card, borderColor: theme.border }]}
+              activeOpacity={0.85}
             >
-                <LinearGradient
-                    colors={["#F7FFF9", "#FFFFFF"]}
-                    style={styles.heroCard}
-                >
-                    <Text style={styles.heroEyebrow}>Receive Instantly</Text>
-                    <Text style={styles.heroTitle}>Share your receive details</Text>
-                    <Text style={styles.heroSubtitle}>
-                        Let someone scan your QR code or use your email to send tokens directly to your AfriToken wallet.
-                    </Text>
-                </LinearGradient>
+              <Ionicons name="arrow-back" size={22} color={theme.text} />
+            </TouchableOpacity>
+            <View style={styles.headerText}>
+              <Text style={[styles.headerTitle, { color: theme.text }]}>Receive Tokens</Text>
+              <Animated.View style={{ opacity: subtitleOpacity, maxHeight: subtitleMaxHeight, marginTop: subtitleMargin, overflow: "hidden" }}>
+                <Text style={[styles.headerSubtitle, { color: theme.muted }]}>
+                  Share your credentials to receive payments.
+                </Text>
+              </Animated.View>
+            </View>
+            <View style={{ width: 42 }} />
+          </View>
+        </SafeAreaView>
+      </Animated.View>
 
-                {/* Token Type Selector */}
-                <View style={styles.section}>
-                    <Text style={styles.sectionEyebrow}>Token Selection</Text>
-                    <Text style={styles.label}>Select Token Type</Text>
-                    <View style={styles.tokenSelector}>
-                        <TouchableOpacity
-                            style={[
-                                styles.tokenOption,
-                                tokenType === "NT" && styles.tokenOptionActive,
-                            ]}
-                            onPress={() => setTokenType("NT")}
-                            activeOpacity={0.7}
-                        >
-                            <Text style={styles.tokenEyebrow}>Domestic</Text>
-                            <View
-                                style={[
-                                    styles.tokenIcon,
-                                    tokenType === "NT" && styles.tokenIconActive,
-                                ]}
-                            >
-                                <Ionicons
-                                    name="cash-outline"
-                                    size={24}
-                                    color={tokenType === "NT" ? "#00B14F" : "#9CA3AF"}
-                                />
-                            </View>
-                            <Text
-                                style={[
-                                    styles.tokenText,
-                                    tokenType === "NT" && styles.tokenTextActive,
-                                ]}
-                            >
-                                NT
-                            </Text>
-                        </TouchableOpacity>
+      <Animated.ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={[styles.content, { paddingTop: headerMaxHeight + 16 }]}
+        showsVerticalScrollIndicator={false}
+        onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: false })}
+        scrollEventThrottle={16}
+      >
+        {/* Ambient Glow */}
+        <LinearGradient
+          colors={isDark ? ["rgba(0,177,79,0.10)", "rgba(7,17,26,0)"] : ["rgba(0,177,79,0.08)", "rgba(245,247,251,0)"]}
+          style={styles.glow}
+          pointerEvents="none"
+        />
 
-                        <TouchableOpacity
-                            style={[
-                                styles.tokenOption,
-                                tokenType === "CT" && styles.tokenOptionActive,
-                            ]}
-                            onPress={() => setTokenType("CT")}
-                            activeOpacity={0.7}
-                        >
-                            <Text style={styles.tokenEyebrow}>Regional</Text>
-                            <View
-                                style={[
-                                    styles.tokenIcon,
-                                    tokenType === "CT" && styles.tokenIconActive,
-                                ]}
-                            >
-                                <Ionicons
-                                    name="leaf-outline"
-                                    size={24}
-                                    color={tokenType === "CT" ? "#10B981" : "#9CA3AF"}
-                                />
-                            </View>
-                            <Text
-                                style={[
-                                    styles.tokenText,
-                                    tokenType === "CT" && styles.tokenTextActive,
-                                ]}
-                            >
-                                CT
-                            </Text>
-                        </TouchableOpacity>
-
-                        <TouchableOpacity
-                            style={[
-                                styles.tokenOption,
-                                tokenType === "USDT" && styles.tokenOptionActive,
-                            ]}
-                            onPress={() => setTokenType("USDT")}
-                            activeOpacity={0.7}
-                        >
-                            <Text style={styles.tokenEyebrow}>Reserve</Text>
-                            <View
-                                style={[
-                                    styles.tokenIcon,
-                                    tokenType === "USDT" && styles.tokenIconActive,
-                                ]}
-                            >
-                                <Ionicons
-                                    name="logo-usd"
-                                    size={24}
-                                    color={tokenType === "USDT" ? "#3B82F6" : "#9CA3AF"}
-                                />
-                            </View>
-                            <Text
-                                style={[
-                                    styles.tokenText,
-                                    tokenType === "USDT" && styles.tokenTextActive,
-                                ]}
-                            >
-                                USDT
-                            </Text>
-                        </TouchableOpacity>
-                    </View>
-                </View>
-
-                {/* QR Code */}
-                <View style={styles.qrContainer}>
-                    <View style={styles.qrWrapper}>
-                        <QRCode value={qrData} size={220} backgroundColor="#FFFFFF" />
-                    </View>
-                    <Text style={styles.qrLabel}>Scan to send {tokenType}</Text>
-                </View>
-
-                {/* Email Address */}
-                <View style={styles.addressCard}>
-                    <View style={styles.addressHeader}>
-                        <Ionicons name="mail" size={20} color="#00B14F" />
-                        <Text style={styles.addressLabel}>Your Email</Text>
-                    </View>
-                    <TouchableOpacity
-                        style={styles.addressRow}
-                        onPress={handleCopyEmail}
-                        activeOpacity={0.7}
-                    >
-                        <Text style={styles.addressText} numberOfLines={1}>
-                            {userEmail}
-                        </Text>
-                        <Ionicons name="copy-outline" size={20} color="#6B7280" />
-                    </TouchableOpacity>
-                </View>
-
-                {/* Wallet Address (if available) */}
-                {walletAddress && (
-                    <View style={styles.addressCard}>
-                        <View style={styles.addressHeader}>
-                            <Ionicons name="wallet" size={20} color="#00B14F" />
-                            <Text style={styles.addressLabel}>Wallet Address</Text>
-                        </View>
-                        <TouchableOpacity
-                            style={styles.addressRow}
-                            onPress={handleCopyAddress}
-                            activeOpacity={0.7}
-                        >
-                            <Text style={styles.addressText} numberOfLines={1}>
-                                {walletAddress}
-                            </Text>
-                            <Ionicons name="copy-outline" size={20} color="#6B7280" />
-                        </TouchableOpacity>
-                    </View>
-                )}
-
-                {/* Info Card */}
-                <View style={styles.infoCard}>
-                    <Ionicons name="information-circle" size={20} color="#3B82F6" />
-                    <View style={styles.infoText}>
-                        <Text style={styles.infoTitle}>How to receive tokens</Text>
-                        <Text style={styles.infoDesc}>
-                            Share your QR code or email with the sender. They can scan it or
-                            enter your email to send you tokens.
-                        </Text>
-                    </View>
-                </View>
-
-            </ScrollView>
-
-            <SafeAreaView edges={["bottom"]} style={styles.footerWrapper}>
-                <View style={styles.footer}>
-                    <View style={styles.buttonContainer}>
-                        <TouchableOpacity
-                            style={styles.shareBtn}
-                            onPress={handleShare}
-                            activeOpacity={0.8}
-                        >
-                            <Ionicons name="share-outline" size={20} color="#FFFFFF" />
-                            <Text style={styles.shareBtnText}>Share</Text>
-                        </TouchableOpacity>
-
-                        <TouchableOpacity
-                            style={styles.doneBtn}
-                            onPress={() => router.back()}
-                            activeOpacity={0.7}
-                        >
-                            <Text style={styles.doneBtnText}>Done</Text>
-                        </TouchableOpacity>
-                    </View>
-                </View>
-            </SafeAreaView>
+        {/* INTRO CARD */}
+        <View style={[styles.introCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+          <Text style={[styles.introEyebrow, { color: theme.accent }]}>RECEIVE METHOD</Text>
+          <Text style={[styles.introTitle, { color: theme.text }]}>Share receive details</Text>
+          <Text style={[styles.introSubtitle, { color: theme.muted }]}>
+            Senders can scan your QR code or enter your registered account email to transfer tokens directly to your wallet.
+          </Text>
         </View>
-    );
+
+        {/* TOKEN SELECTION */}
+        <Text style={[styles.sectionLabel, { color: theme.muted }]}>Select Token Type</Text>
+        <View style={styles.tokenGrid}>
+          {TOKENS.map((token) => {
+            const isSelected = tokenType === token;
+            return (
+              <TouchableOpacity
+                key={token}
+                style={[
+                  styles.tokenCard,
+                  { backgroundColor: theme.card, borderColor: theme.border },
+                  isSelected && { borderColor: theme.accent, backgroundColor: theme.accentSoft },
+                ]}
+                onPress={() => setTokenType(token)}
+                activeOpacity={0.8}
+              >
+                {isSelected && (
+                  <View style={[styles.tokenCheck, { backgroundColor: theme.accent }]}>
+                    <Ionicons name="checkmark" size={10} color="#FFF" />
+                  </View>
+                )}
+                <Text style={[styles.tokenCardSub, { color: isSelected ? theme.accent : theme.muted }]}>
+                  {TOKEN_SUBTITLES[token]}
+                </Text>
+                <Text style={[styles.tokenCardLabel, { color: isSelected ? theme.accent : theme.text }]}>
+                  {token}
+                </Text>
+                <Text style={[styles.tokenCardName, { color: isSelected ? theme.accent + "AA" : theme.muted }]}>
+                  {TOKEN_LABELS[token]}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
+        {/* QR CODE CARD */}
+        <View style={[styles.qrCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+          <View style={styles.qrWrapper}>
+            <QRCode value={qrData} size={200} backgroundColor="#FFFFFF" />
+          </View>
+          <Text style={[styles.qrLabel, { color: theme.text }]}>Scan to Send {tokenType}</Text>
+        </View>
+
+        {/* ACCOUNT EMAIL CARD */}
+        <View style={[styles.addressCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+          <View style={styles.addressHeader}>
+            <Ionicons name="mail" size={18} color={theme.accent} />
+            <Text style={[styles.addressLabel, { color: theme.text }]}>Your Account Email</Text>
+          </View>
+          <TouchableOpacity style={[styles.addressRow, { backgroundColor: theme.inputBg, borderColor: theme.border }]} onPress={handleCopyEmail} activeOpacity={0.75}>
+            <Text style={[styles.addressText, { color: theme.text }]} numberOfLines={1}>
+              {userEmail}
+            </Text>
+            <Ionicons name="copy-outline" size={18} color={theme.accent} />
+          </TouchableOpacity>
+        </View>
+
+        {/* BLOCKCHAIN WALLET CARD */}
+        {!!walletAddress && (
+          <View style={[styles.addressCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+            <View style={styles.addressHeader}>
+              <Ionicons name="wallet" size={18} color={theme.accent} />
+              <Text style={[styles.addressLabel, { color: theme.text }]}>On-Chain Address</Text>
+            </View>
+            <TouchableOpacity style={[styles.addressRow, { backgroundColor: theme.inputBg, borderColor: theme.border }]} onPress={handleCopyAddress} activeOpacity={0.75}>
+              <Text style={[styles.addressText, { color: theme.text }]} numberOfLines={1}>
+                {walletAddress}
+              </Text>
+              <Ionicons name="copy-outline" size={18} color={theme.accent} />
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* TIP CARD */}
+        <View style={[styles.tipCard, { backgroundColor: theme.blueSoft, borderColor: theme.blueBorder }]}>
+          <View style={[styles.tipIconBox, { backgroundColor: theme.blue + "25" }]}>
+            <Ionicons name="information-circle-outline" size={18} color={theme.blue} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.tipTitle, { color: isDark ? "#93C5FD" : "#1E40AF" }]}>How to Receive</Text>
+            <Text style={[styles.tipDesc, { color: isDark ? "#BFDBFE" : "#1E3A8A" }]}>
+              Show this QR code to the sender. Senders can also complete transfers using your AfriExchange account email.
+            </Text>
+          </View>
+        </View>
+
+        {/* BUTTON ACTION ROW */}
+        <View style={styles.actionRow}>
+          <TouchableOpacity style={[styles.shareBtn, { backgroundColor: theme.accent }]} onPress={handleShare} activeOpacity={0.85}>
+            <Ionicons name="share-outline" size={18} color="#FFF" />
+            <Text style={styles.shareBtnText}>Share Details</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={{ height: 40 }} />
+      </Animated.ScrollView>
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: "#F3F4F6",
-    },
-    headerWrapper: {
-        // marginBottom: 20,
-    },
-    headerGradient: {
-        position: "absolute",
-        top: 0,
-        left: 0,
-        right: 0,
-        height: 120,
-    },
-    headerContent: {
-        paddingHorizontal: 16,
-    },
-    header: {
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "space-between",
-        paddingBottom: 20,
-        marginTop: 10,
-    },
-    backButton: {
-        width: 32,
-        height: 32,
-        borderRadius: 16,
-        backgroundColor: "rgba(255,255,255,0.2)",
-        alignItems: "center",
-        justifyContent: "center",
-    },
-    headerTitle: {
-        fontSize: 20,
-        fontWeight: "700",
-        color: "#FFFFFF",
-    },
-    content: {
-        paddingHorizontal: 20,
-        paddingTop: 20,
-        paddingBottom: 24,
-    },
-    heroCard: {
-        borderRadius: 24,
-        padding: 20,
-        marginBottom: 28,
-        borderWidth: 1,
-        borderColor: "#E6F4EA",
-    },
-    heroEyebrow: {
-        fontSize: 11,
-        fontWeight: "800",
-        color: "#00B14F",
-        textTransform: "uppercase",
-        letterSpacing: 0.5,
-        marginBottom: 8,
-    },
-    heroTitle: {
-        fontSize: 24,
-        fontWeight: "700",
-        color: "#111827",
-        marginBottom: 8,
-        letterSpacing: -0.4,
-    },
-    heroSubtitle: {
-        fontSize: 15,
-        color: "#6B7280",
-        lineHeight: 22,
-    },
-    section: {
-        marginBottom: 24,
-    },
-    sectionEyebrow: {
-        fontSize: 11,
-        fontWeight: "800",
-        color: "#00B14F",
-        textTransform: "uppercase",
-        letterSpacing: 0.5,
-        marginBottom: 6,
-    },
-    label: {
-        fontSize: 15,
-        fontWeight: "600",
-        color: "#111827",
-        marginBottom: 12,
-    },
-    tokenSelector: {
-        flexDirection: "row",
-        gap: 12,
-    },
-    tokenOption: {
-        flex: 1,
-        alignItems: "center",
-        justifyContent: "center",
-        backgroundColor: "#FFFFFF",
-        borderWidth: 2,
-        borderColor: "#F3F4F6",
-        borderRadius: 20,
-        padding: 14,
-        minWidth: 0,
-        // minHeight: 146,
-    },
-    tokenOptionActive: {
-        borderColor: "#00B14F",
-        backgroundColor: "#F0FDF4",
-    },
-    tokenIcon: {
-        width: 40,
-        height: 40,
-        borderRadius: 12,
-        backgroundColor: "#F9FAFB",
-        alignItems: "center",
-        justifyContent: "center",
-        marginBottom: 10,
-    },
-    tokenIconActive: {
-        backgroundColor: "#FFFFFF",
-    },
-    tokenEyebrow: {
-        fontSize: 10,
-        fontWeight: "800",
-        color: "#9CA3AF",
-        textTransform: "uppercase",
-        letterSpacing: 0.3,
-        marginBottom: 8,
-        textAlign: "center",
-    },
-    tokenText: {
-        fontSize: 14,
-        fontWeight: "600",
-        color: "#6B7280",
-        textAlign: "center",
-    },
-    tokenTextActive: {
-        color: "#00B14F",
-    },
-    qrContainer: {
-        alignItems: "center",
-        marginBottom: 32,
-    },
-    qrWrapper: {
-        padding: 24,
-        backgroundColor: "#FFFFFF",
-        borderRadius: 20,
-        borderWidth: 2,
-        borderColor: "#E5E7EB",
-        marginBottom: 16,
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 8,
-        elevation: 4,
-    },
-    qrLabel: {
-        fontSize: 14,
-        fontWeight: "600",
-        color: "#6B7280",
-    },
-    addressCard: {
-        backgroundColor: "#FBFCFD",
-        padding: 18,
-        borderRadius: 18,
-        marginBottom: 16,
-        borderWidth: 1,
-        borderColor: "#E5E7EB",
-    },
-    addressHeader: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 8,
-        marginBottom: 12,
-    },
-    addressLabel: {
-        fontSize: 13,
-        fontWeight: "600",
-        color: "#111827",
-    },
-    addressRow: {
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "space-between",
-        gap: 12,
-        backgroundColor: "#FFFFFF",
-        padding: 12,
-        borderRadius: 8,
-        borderWidth: 1,
-        borderColor: "#E5E7EB",
-    },
-    addressText: {
-        flex: 1,
-        fontSize: 13,
-        fontWeight: "500",
-        color: "#111827",
-        fontFamily: "monospace",
-    },
-    infoCard: {
-        flexDirection: "row",
-        alignItems: "flex-start",
-        gap: 12,
-        backgroundColor: "#EFF6FF",
-        padding: 18,
-        borderRadius: 18,
-        marginBottom: 24,
-        borderWidth: 1,
-        borderColor: "#BFDBFE",
-    },
-    infoText: {
-        flex: 1,
-    },
-    infoTitle: {
-        fontSize: 13,
-        fontWeight: "600",
-        color: "#111827",
-        marginBottom: 4,
-    },
-    infoDesc: {
-        fontSize: 13,
-        color: "#6B7280",
-        lineHeight: 18,
-    },
-    footerWrapper: {
-        backgroundColor: "#F3F4F6",
-        borderTopWidth: 1,
-        borderTopColor: "#E5E7EB",
-    },
-    footer: {
-        paddingHorizontal: 20,
-        paddingTop: 16,
-        paddingBottom: 24,
-    },
-    buttonContainer: {
-        flexDirection: "row",
-        gap: 12,
-    },
-    shareBtn: {
-        flex: 1,
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: 8,
-        backgroundColor: "#00B14F",
-        paddingVertical: 16,
-        borderRadius: 16,
-    },
-    shareBtnText: {
-        fontSize: 16,
-        fontWeight: "600",
-        color: "#FFFFFF",
-    },
-    doneBtn: {
-        flex: 1,
-        backgroundColor: "#F9FAFB",
-        paddingVertical: 16,
-        borderRadius: 16,
-        alignItems: "center",
-        borderWidth: 1,
-        borderColor: "#E5E7EB",
-    },
-    doneBtnText: {
-        fontSize: 16,
-        fontWeight: "600",
-        color: "#6B7280",
-    },
+  container: { flex: 1 },
+  headerWrapper: {
+    position: "absolute",
+    top: 0, left: 0, right: 0,
+    zIndex: 10,
+    borderBottomWidth: 1,
+  },
+  headerSafeArea: { paddingHorizontal: 16 },
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingTop: 10,
+    paddingBottom: 16,
+  },
+  backButton: {
+    width: 42, height: 42,
+    borderRadius: 21, borderWidth: 1,
+    alignItems: "center", justifyContent: "center",
+    marginRight: 12,
+  },
+  headerText: { flex: 1 },
+  headerTitle: { fontSize: 22, fontWeight: "900", letterSpacing: -0.5 },
+  headerSubtitle: { fontSize: 13, lineHeight: 18, fontWeight: "500" },
+  content: { paddingHorizontal: 16, paddingBottom: 24 },
+  glow: {
+    position: "absolute",
+    top: 0, left: 0, right: 0,
+    height: 200,
+  },
+  introCard: {
+    borderRadius: 24,
+    padding: 20,
+    marginBottom: 16,
+    borderWidth: 1,
+  },
+  introEyebrow: {
+    fontSize: 11,
+    fontWeight: "800",
+    letterSpacing: 0.5,
+    marginBottom: 8,
+  },
+  introTitle: {
+    fontSize: 22,
+    fontWeight: "800",
+    marginBottom: 8,
+    letterSpacing: -0.4,
+  },
+  introSubtitle: {
+    fontSize: 14,
+    lineHeight: 21,
+  },
+  sectionLabel: {
+    fontSize: 11,
+    fontWeight: "800",
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
+    marginBottom: 10,
+    marginTop: 4,
+  },
+  tokenGrid: {
+    flexDirection: "row",
+    gap: 10,
+    marginBottom: 16,
+  },
+  tokenCard: {
+    flex: 1,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    padding: 14,
+    alignItems: "center",
+    position: "relative",
+  },
+  tokenCheck: {
+    position: "absolute",
+    top: 8, right: 8,
+    width: 18, height: 18,
+    borderRadius: 9,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  tokenCardSub: { fontSize: 9, fontWeight: "800", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 4 },
+  tokenCardLabel: { fontSize: 18, fontWeight: "900", letterSpacing: -0.5, marginBottom: 2 },
+  tokenCardName: { fontSize: 10, fontWeight: "600", textAlign: "center" },
+  qrCard: {
+    borderRadius: 28,
+    borderWidth: 1,
+    padding: 24,
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  qrWrapper: {
+    padding: 14,
+    borderRadius: 20,
+    backgroundColor: "#FFFFFF",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 3,
+    marginBottom: 16,
+  },
+  qrLabel: {
+    fontSize: 15,
+    fontWeight: "800",
+  },
+  addressCard: {
+    borderRadius: 22,
+    borderWidth: 1,
+    padding: 16,
+    marginBottom: 14,
+  },
+  addressHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 12,
+  },
+  addressLabel: {
+    fontSize: 13,
+    fontWeight: "800",
+  },
+  addressRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    borderWidth: 1,
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  addressText: {
+    fontSize: 14,
+    fontWeight: "600",
+    fontFamily: Platform.OS === "ios" ? "Courier" : "monospace",
+    flex: 1,
+  },
+  tipCard: {
+    flexDirection: "row",
+    gap: 12,
+    padding: 14,
+    borderRadius: 20,
+    borderWidth: 1,
+    marginBottom: 20,
+  },
+  tipIconBox: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+  },
+  tipTitle: { fontSize: 14, fontWeight: "800", marginBottom: 4 },
+  tipDesc: { fontSize: 13, lineHeight: 19, fontWeight: "500" },
+  actionRow: {
+    gap: 12,
+  },
+  shareBtn: {
+    flexDirection: "row",
+    height: 58,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+  shareBtnText: {
+    color: "#FFF",
+    fontSize: 16,
+    fontWeight: "800",
+  },
 });

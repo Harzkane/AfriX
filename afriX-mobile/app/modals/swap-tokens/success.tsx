@@ -1,287 +1,239 @@
 // app/modals/swap-tokens/success.tsx
 import React, { useEffect } from "react";
-import { View, StyleSheet, TouchableOpacity, ScrollView } from "react-native";
-import { Text } from "react-native-paper";
+import {
+  View,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+  useColorScheme,
+  Text,
+} from "react-native";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import { useSwapStore } from "@/stores";
 import * as Haptics from "expo-haptics";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function SwapSuccessScreen() {
-    const router = useRouter();
-    const insets = useSafeAreaInsets();
-    const { fromToken, toToken, amount, estimatedReceive, swapFee, lastFee, lastReceivedAmount, reset } = useSwapStore();
+  const router = useRouter();
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === "dark";
+  const insets = useSafeAreaInsets();
 
-    const amountNum = parseFloat(amount) || 0;
-    const receivedNum = lastReceivedAmount ?? (parseFloat(estimatedReceive) || 0);
-    const feeNum = lastFee ?? (swapFee ?? 0);
+  const theme = {
+    background: isDark ? "#07111A" : "#F5F7FB",
+    card: isDark ? "#0E1726" : "#FFFFFF",
+    text: isDark ? "#F8FAFC" : "#0F172A",
+    muted: isDark ? "#94A3B8" : "#64748B",
+    border: isDark ? "#1E2A3A" : "#E2E8F0",
+    accent: "#00B14F",
+    accentSoft: isDark ? "rgba(0,177,79,0.14)" : "#EAF8EF",
+    accentBorder: isDark ? "rgba(0,177,79,0.3)" : "#BBF7D0",
+    blue: "#3B82F6",
+    blueSoft: isDark ? "rgba(59,130,246,0.12)" : "#EFF6FF",
+    blueBorder: isDark ? "rgba(59,130,246,0.25)" : "#DBEAFE",
+  };
 
-    useEffect(() => {
-        // Haptic feedback on success
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    }, []);
+  const { fromToken, toToken, amount, estimatedReceive, swapFee, lastFee, lastReceivedAmount, reset } = useSwapStore();
 
-    const handleDone = () => {
-        reset();
-        router.replace("/(tabs)");
-    };
+  const amountNum = parseFloat(amount) || 0;
+  const receivedNum = lastReceivedAmount ?? (parseFloat(estimatedReceive) || 0);
+  const feeNum = lastFee ?? (swapFee ?? 0);
 
-    const handleSwapAgain = () => {
-        reset();
-        router.replace("/modals/swap-tokens");
-    };
+  useEffect(() => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  }, []);
 
-    return (
-        <SafeAreaView style={styles.container} edges={["bottom"]}>
-            <ScrollView
-                bounces={false}
-                contentContainerStyle={[styles.scrollContent, { paddingBottom: Math.max(insets.bottom, 20) + 20 }]}
-                showsVerticalScrollIndicator={false}
-            >
-                <View style={styles.content}>
-                {/* Success Icon */}
-                <View style={styles.iconContainer}>
-                    <View style={styles.successCircle}>
-                        <Ionicons name="checkmark" size={64} color="#FFFFFF" />
-                    </View>
-                </View>
+  const handleDone = () => { reset(); router.replace("/(tabs)"); };
+  const handleSwapAgain = () => { reset(); router.replace("/modals/swap-tokens"); };
 
-                {/* Success Message */}
-                <Text style={styles.title}>Swap Successful!</Text>
-                <Text style={styles.subtitle}>
-                    Your tokens have been swapped successfully
-                </Text>
+  return (
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
+      {/* Ambient Glow */}
+      <LinearGradient
+        colors={isDark ? ["rgba(0,177,79,0.14)", "rgba(7,17,26,0)"] : ["rgba(0,177,79,0.10)", "rgba(245,247,251,0)"]}
+        style={styles.glow}
+        pointerEvents="none"
+      />
 
-                <View style={styles.summaryCard}>
-                    <Text style={styles.summaryEyebrow}>Completed</Text>
-                    <Text style={styles.summaryTitle}>Your balances are updated</Text>
-                    <Text style={styles.summaryText}>
-                        The conversion is complete and the received token amount is now reflected in your wallet.
-                    </Text>
-                </View>
+      <ScrollView
+        bounces={false}
+        contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + 40, paddingBottom: insets.bottom + 24 }]}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Success Icon */}
+        <View style={styles.iconContainer}>
+          <View style={[styles.outerRing, { backgroundColor: theme.accentSoft }]}>
+            <View style={[styles.innerRing, { backgroundColor: theme.accent }]}>
+              <Ionicons name="checkmark" size={48} color="#FFFFFF" />
+            </View>
+          </View>
+        </View>
 
-                {/* Swap Details */}
-                <View style={styles.detailsCard}>
-                    <View style={styles.swapRow}>
-                        <View style={styles.swapItem}>
-                            <Text style={styles.swapLabel}>Swapped</Text>
-                            <Text style={styles.swapValue}>
-                                {amountNum.toLocaleString(undefined, {
-                                    minimumFractionDigits: 2,
-                                    maximumFractionDigits: 2,
-                                })}{" "}
-                                {fromToken}
-                            </Text>
-                        </View>
+        {/* Heading */}
+        <Text style={[styles.title, { color: theme.text }]}>Swap Successful!</Text>
+        <Text style={[styles.subtitle, { color: theme.muted }]}>
+          Your tokens have been converted and your wallet is updated.
+        </Text>
 
-                        <Ionicons name="arrow-forward" size={24} color="#6B7280" />
+        {/* Summary banner card */}
+        <View style={[styles.summaryCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+          <Text style={[styles.summaryEyebrow, { color: theme.accent }]}>COMPLETED</Text>
+          <Text style={[styles.summaryTitle, { color: theme.text }]}>Balances are updated</Text>
+          <Text style={[styles.summarySubtitle, { color: theme.muted }]}>
+            The received amount is now reflected in your wallet.
+          </Text>
+        </View>
 
-                        <View style={styles.swapItem}>
-                            <Text style={styles.swapLabel}>Received</Text>
-                            <Text style={[styles.swapValue, styles.receiveValue]}>
-                                {receivedNum.toLocaleString(undefined, {
-                                    minimumFractionDigits: 2,
-                                    maximumFractionDigits: 2,
-                                })}{" "}
-                                {toToken}
-                            </Text>
-                        </View>
-                    </View>
-                    {feeNum > 0 && (
-                        <View style={[styles.swapRow, { marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: "#F3F4F6" }]}>
-                            <Text style={styles.swapLabel}>Platform fee</Text>
-                            <Text style={styles.swapValue}>
-                                {feeNum.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {fromToken}
-                            </Text>
-                        </View>
-                    )}
-                </View>
+        {/* Swap flow visual */}
+        <View style={styles.flowRow}>
+          <View style={[styles.flowCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+            <Text style={[styles.flowDirection, { color: theme.muted }]}>Swapped</Text>
+            <Text style={[styles.flowToken, { color: theme.text }]}>{fromToken}</Text>
+            <Text style={[styles.flowAmount, { color: theme.text }]}>
+              {amountNum.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </Text>
+          </View>
 
-                {/* Info Card */}
-                <View style={styles.infoCard}>
-                    <Ionicons name="information-circle" size={20} color="#3B82F6" />
-                    <Text style={styles.infoText}>
-                        Your wallet balances have been updated
-                    </Text>
-                </View>
+          <View style={[styles.flowArrow, { backgroundColor: theme.accentSoft, borderColor: theme.accentBorder }]}>
+            <Ionicons name="arrow-forward" size={20} color={theme.accent} />
+          </View>
 
-                {/* Action Buttons */}
-                <View style={styles.buttonContainer}>
-                    <TouchableOpacity
-                        style={styles.swapAgainBtn}
-                        onPress={handleSwapAgain}
-                        activeOpacity={0.7}
-                    >
-                        <Ionicons name="swap-horizontal" size={20} color="#00B14F" />
-                        <Text style={styles.swapAgainBtnText}>Swap Again</Text>
-                    </TouchableOpacity>
+          <View style={[styles.flowCard, { backgroundColor: theme.accentSoft, borderColor: theme.accentBorder }]}>
+            <Text style={[styles.flowDirection, { color: theme.accent }]}>Received</Text>
+            <Text style={[styles.flowToken, { color: theme.accent }]}>{toToken}</Text>
+            <Text style={[styles.flowAmount, { color: theme.accent }]}>
+              {receivedNum.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </Text>
+          </View>
+        </View>
 
-                    <TouchableOpacity
-                        style={styles.doneBtn}
-                        onPress={handleDone}
-                        activeOpacity={0.8}
-                    >
-                        <Text style={styles.doneBtnText}>Done</Text>
-                    </TouchableOpacity>
-                </View>
-                </View>
-            </ScrollView>
-        </SafeAreaView>
-    );
+        {/* Fee row */}
+        {feeNum > 0 && (
+          <View style={[styles.feeCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+            <View style={styles.feeRow}>
+              <Ionicons name="receipt-outline" size={16} color={theme.muted} />
+              <Text style={[styles.feeLabel, { color: theme.muted }]}>Platform Fee</Text>
+            </View>
+            <Text style={[styles.feeValue, { color: theme.text }]}>
+              {feeNum.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {fromToken}
+            </Text>
+          </View>
+        )}
+
+        {/* Info card */}
+        <View style={[styles.infoCard, { backgroundColor: theme.blueSoft, borderColor: theme.blueBorder }]}>
+          <View style={[styles.infoIconBox, { backgroundColor: theme.blue + "22" }]}>
+            <Ionicons name="wallet-outline" size={16} color={theme.blue} />
+          </View>
+          <Text style={[styles.infoText, { color: isDark ? "#BFDBFE" : "#1E3A8A" }]}>
+            Your wallet balances have been updated to reflect this swap.
+          </Text>
+        </View>
+
+        {/* Buttons */}
+        <View style={styles.btnCol}>
+          <TouchableOpacity
+            style={[styles.swapAgainBtn, { borderColor: theme.accent, backgroundColor: theme.accentSoft }]}
+            onPress={handleSwapAgain}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="swap-horizontal" size={20} color={theme.accent} />
+            <Text style={[styles.swapAgainText, { color: theme.accent }]}>Swap Again</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.doneBtn, { backgroundColor: theme.accent }]}
+            onPress={handleDone}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.doneBtnText}>Done</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: "#FFFFFF",
-    },
-    scrollContent: {
-        flexGrow: 1,
-    },
-    content: {
-        flexGrow: 1,
-        paddingHorizontal: 20,
-        // paddingTop: 60,
-        alignItems: "center",
-    },
-    iconContainer: {
-        marginBottom: 32,
-    },
-    successCircle: {
-        width: 100,
-        height: 100,
-        borderRadius: 60,
-        backgroundColor: "#00B14F",
-        alignItems: "center",
-        justifyContent: "center",
-        shadowColor: "#00B14F",
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
-        elevation: 8,
-    },
-    title: {
-        fontSize: 28,
-        fontWeight: "700",
-        color: "#111827",
-        marginBottom: 8,
-        textAlign: "center",
-    },
-    subtitle: {
-        fontSize: 16,
-        color: "#9CA3AF",
-        marginBottom: 24,
-        textAlign: "center",
-    },
-    summaryCard: {
-        width: "100%",
-        backgroundColor: "#F7FFF9",
-        padding: 20,
-        borderRadius: 20,
-        marginBottom: 24,
-        borderWidth: 1,
-        borderColor: "#E6F4EA",
-    },
-    summaryEyebrow: {
-        fontSize: 11,
-        fontWeight: "800",
-        color: "#00B14F",
-        textTransform: "uppercase",
-        letterSpacing: 0.5,
-        marginBottom: 8,
-    },
-    summaryTitle: {
-        fontSize: 22,
-        fontWeight: "700",
-        color: "#111827",
-        marginBottom: 8,
-        letterSpacing: -0.4,
-    },
-    summaryText: {
-        fontSize: 14,
-        color: "#6B7280",
-        lineHeight: 21,
-    },
-    detailsCard: {
-        width: "100%",
-        backgroundColor: "#FBFCFD",
-        padding: 24,
-        borderRadius: 20,
-        marginBottom: 24,
-        borderWidth: 1,
-        borderColor: "#E5E7EB",
-    },
-    swapRow: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        alignItems: "center",
-    },
-    swapItem: {
-        flex: 1,
-        alignItems: "center",
-    },
-    swapLabel: {
-        fontSize: 12,
-        color: "#6B7280",
-        marginBottom: 8,
-    },
-    swapValue: {
-        fontSize: 18,
-        fontWeight: "700",
-        color: "#111827",
-        textAlign: "center",
-    },
-    receiveValue: {
-        color: "#00B14F",
-    },
-    infoCard: {
-        width: "100%",
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 12,
-        backgroundColor: "#EFF6FF",
-        padding: 18,
-        borderRadius: 18,
-        marginBottom: 40,
-        borderWidth: 1,
-        borderColor: "#BFDBFE",
-    },
-    infoText: {
-        flex: 1,
-        fontSize: 13,
-        color: "#1E40AF",
-    },
-    buttonContainer: {
-        width: "100%",
-        gap: 12,
-        marginTop: "auto",
-    },
-    swapAgainBtn: {
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: 8,
-        backgroundColor: "#F0FDF4",
-        paddingVertical: 16,
-        borderRadius: 16,
-        borderWidth: 2,
-        borderColor: "#00B14F",
-    },
-    swapAgainBtnText: {
-        fontSize: 16,
-        fontWeight: "600",
-        color: "#00B14F",
-    },
-    doneBtn: {
-        backgroundColor: "#00B14F",
-        paddingVertical: 16,
-        borderRadius: 16,
-        alignItems: "center",
-    },
-    doneBtnText: {
-        fontSize: 16,
-        fontWeight: "600",
-        color: "#FFFFFF",
-    },
+  container: { flex: 1 },
+  glow: {
+    position: "absolute",
+    top: 0, left: 0, right: 0, height: 300,
+  },
+  scrollContent: {
+    paddingHorizontal: 20,
+    alignItems: "center",
+  },
+  iconContainer: { marginBottom: 24 },
+  outerRing: {
+    width: 120, height: 120, borderRadius: 60,
+    alignItems: "center", justifyContent: "center",
+  },
+  innerRing: {
+    width: 88, height: 88, borderRadius: 44,
+    alignItems: "center", justifyContent: "center",
+    shadowColor: "#00B14F",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  title: {
+    fontSize: 28, fontWeight: "900", letterSpacing: -0.5,
+    textAlign: "center", marginBottom: 8,
+  },
+  subtitle: {
+    fontSize: 14, fontWeight: "500", textAlign: "center",
+    lineHeight: 20, marginBottom: 28,
+  },
+  summaryCard: {
+    width: "100%", borderRadius: 24, borderWidth: 1, padding: 20, marginBottom: 16,
+  },
+  summaryEyebrow: { fontSize: 11, fontWeight: "800", letterSpacing: 0.5, marginBottom: 8 },
+  summaryTitle: { fontSize: 20, fontWeight: "800", marginBottom: 6, letterSpacing: -0.4 },
+  summarySubtitle: { fontSize: 14, lineHeight: 20, fontWeight: "500" },
+  flowRow: {
+    width: "100%", flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 14,
+  },
+  flowCard: {
+    flex: 1, borderRadius: 22, borderWidth: 1.5, padding: 16, alignItems: "center",
+  },
+  flowDirection: { fontSize: 11, fontWeight: "700", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 6 },
+  flowToken: { fontSize: 20, fontWeight: "900", letterSpacing: -0.5, marginBottom: 4 },
+  flowAmount: { fontSize: 16, fontWeight: "700" },
+  flowArrow: {
+    width: 44, height: 44, borderRadius: 22,
+    alignItems: "center", justifyContent: "center",
+    borderWidth: 1.5, flexShrink: 0,
+  },
+  feeCard: {
+    width: "100%", borderRadius: 18, borderWidth: 1, padding: 14,
+    flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 14,
+  },
+  feeRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+  feeLabel: { fontSize: 13, fontWeight: "600" },
+  feeValue: { fontSize: 13, fontWeight: "700" },
+  infoCard: {
+    width: "100%", flexDirection: "row", gap: 12,
+    padding: 14, borderRadius: 20, borderWidth: 1, marginBottom: 28,
+    alignItems: "center",
+  },
+  infoIconBox: {
+    width: 38, height: 38, borderRadius: 12,
+    alignItems: "center", justifyContent: "center", flexShrink: 0,
+  },
+  infoText: { flex: 1, fontSize: 13, fontWeight: "500", lineHeight: 19 },
+  btnCol: { width: "100%", gap: 12 },
+  swapAgainBtn: {
+    flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8,
+    height: 58, borderRadius: 20, borderWidth: 2,
+  },
+  swapAgainText: { fontSize: 16, fontWeight: "800" },
+  doneBtn: {
+    height: 58, borderRadius: 20,
+    alignItems: "center", justifyContent: "center",
+  },
+  doneBtnText: { fontSize: 16, fontWeight: "800", color: "#FFF" },
 });

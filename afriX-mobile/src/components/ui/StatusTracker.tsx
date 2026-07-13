@@ -1,6 +1,6 @@
 // src/components/ui/StatusTracker.tsx
 import React from "react";
-import { View, StyleSheet } from "react-native";
+import { View, StyleSheet, useColorScheme } from "react-native";
 import { Text } from "react-native-paper";
 import { Ionicons } from "@expo/vector-icons";
 
@@ -16,6 +16,17 @@ interface StatusTrackerProps {
 export const StatusTracker: React.FC<StatusTrackerProps> = ({
   currentStatus,
 }) => {
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === "dark";
+  const theme = {
+    text: isDark ? "#F8FAFC" : "#111827",
+    muted: isDark ? "#94A3B8" : "#6B7280",
+    border: isDark ? "#1E2A3A" : "#E5E7EB",
+    current: "#FFB800",
+    completed: "#00B14F",
+    failed: "#FF4444",
+  };
+
   // Define status progression order for successful flow
   const statusOrder = ["pending", "proof_submitted", "confirmed"];
   const currentIndex = statusOrder.indexOf(currentStatus);
@@ -71,9 +82,10 @@ export const StatusTracker: React.FC<StatusTrackerProps> = ({
             <View
               style={[
                 styles.icon,
-                step.status === "completed" && styles.iconCompleted,
-                step.status === "current" && styles.iconCurrent,
-                step.status === "failed" && styles.iconFailed,
+                { backgroundColor: theme.border },
+                step.status === "completed" && { backgroundColor: theme.completed },
+                step.status === "current" && { backgroundColor: theme.current },
+                step.status === "failed" && { backgroundColor: theme.failed },
               ]}
             >
               {step.status === "completed" ? (
@@ -90,8 +102,9 @@ export const StatusTracker: React.FC<StatusTrackerProps> = ({
               <View
                 style={[
                   styles.line,
-                  step.status === "completed" && styles.lineCompleted,
-                  step.status === "failed" && styles.lineFailed,
+                  { backgroundColor: theme.border },
+                  step.status === "completed" && { backgroundColor: theme.completed },
+                  step.status === "failed" && { backgroundColor: theme.failed },
                 ]}
               />
             )}
@@ -99,9 +112,10 @@ export const StatusTracker: React.FC<StatusTrackerProps> = ({
           <Text
             style={[
               styles.label,
-              step.status === "completed" && styles.labelCompleted,
-              step.status === "current" && styles.labelCurrent,
-              step.status === "failed" && styles.labelFailed,
+              { color: theme.muted },
+              step.status === "completed" && { color: theme.text, fontWeight: "600" },
+              step.status === "current" && { color: theme.text, fontWeight: "700" },
+              step.status === "failed" && { color: theme.failed, fontWeight: "600" },
             ]}
           >
             {step.label}
@@ -162,19 +176,6 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 14,
-    color: "#6B7280",
     paddingTop: 6,
-  },
-  labelCompleted: {
-    color: "#1A1A1A",
-    fontWeight: "500",
-  },
-  labelCurrent: {
-    color: "#1A1A1A",
-    fontWeight: "600",
-  },
-  labelFailed: {
-    color: "#FF4444",
-    fontWeight: "500",
   },
 });

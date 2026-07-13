@@ -1,193 +1,216 @@
 import React from "react";
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from "react-native";
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, useColorScheme } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 
 export default function AgentLearnMoreModal() {
   const router = useRouter();
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === "dark";
+
+  const theme = {
+    background: isDark ? "#07111A" : "#F5F7FB",
+    card: isDark ? "#0E1726" : "#FFFFFF",
+    cardAlt: isDark ? "#111C2B" : "#F8FAFC",
+    text: isDark ? "#F8FAFC" : "#0F172A",
+    muted: isDark ? "#94A3B8" : "#64748B",
+    border: isDark ? "#1E2A3A" : "#E2E8F0",
+    accent: "#00B14F",
+    accentSoft: isDark ? "rgba(0,177,79,0.14)" : "#EAF8EF",
+    blue: "#3B82F6",
+    blueSoft: isDark ? "rgba(59,130,246,0.12)" : "#EFF6FF",
+    warning: "#F59E0B",
+    warningSoft: isDark ? "rgba(245,158,11,0.12)" : "#FEF3C7",
+    purple: "#8B5CF6",
+    purpleSoft: isDark ? "rgba(139,92,246,0.12)" : "#F5F3FF",
+  };
+
+  const steps = [
+    {
+      num: "1",
+      title: "Quick Registration",
+      desc: "Choose your country, confirm your currency, and add a Polygon USDT withdrawal address.",
+      color: theme.accent,
+      bg: theme.accentSoft,
+    },
+    {
+      num: "2",
+      title: "KYC Verification",
+      desc: "Upload ID, selfie, and proof of address so the team can verify your identity.",
+      color: theme.blue,
+      bg: theme.blueSoft,
+    },
+    {
+      num: "3",
+      title: "Admin Approval",
+      desc: "Your documents are reviewed. Once approved, you can deposit USDT to activate.",
+      color: theme.warning,
+      bg: theme.warningSoft,
+    },
+    {
+      num: "4",
+      title: "Deposit USDT & Start Earning",
+      desc: "Deposit at least the minimum USDT, get capacity, and start handling buy/sell requests from users.",
+      color: theme.purple,
+      bg: theme.purpleSoft,
+    },
+  ];
+
+  const bullets = [
+    { icon: "swap-horizontal", text: "Mint tokens when users buy with cash." },
+    { icon: "cash-outline", text: "Burn tokens when users sell for cash." },
+    { icon: "shield-checkmark-outline", text: "Earn fees while the system protects users via escrow." },
+  ];
+
+  const paymentBullets = [
+    { icon: "card-outline", text: "Nigeria (NT): bank transfers." },
+    { icon: "phone-portrait-outline", text: "XOF countries (CT): bank or mobile money (Orange Money, Wave, Moov, etc.)." },
+  ];
+
+  const responsibilityBullets = [
+    { icon: "checkmark-circle", text: "Verify every payment in your own bank/mobile money app before confirming." },
+    { icon: "time-outline", text: "Respond quickly (target under 15 minutes) to keep high ratings and more business." },
+    { icon: "alert-circle-outline", text: "Follow dispute rules – if you don't deliver, your deposit can be slashed." },
+  ];
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
       {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.closeButton}>
-          <Ionicons name="close" size={28} color="#111827" />
+      <View style={[styles.header, { borderBottomColor: theme.border }]}>
+        <TouchableOpacity onPress={() => router.back()} style={[styles.navBtn, { backgroundColor: theme.card, borderColor: theme.border }]}>
+          <Ionicons name="close" size={20} color={theme.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>About Becoming an Agent</Text>
-        <View style={{ width: 28 }} />
+        <Text style={[styles.headerTitle, { color: theme.text }]}>About Becoming an Agent</Text>
+        <View style={{ width: 42 }} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.content}>
-        {/* Intro */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>What is an AfriToken Agent?</Text>
-          <Text style={styles.bodyText}>
-            Agents are independent partners who help users exchange tokens (NT/CT) for local
-            currency. You&apos;re not a bank or employee – you run your own small exchange
-            business using the AfriToken platform.
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        {/* Hero Banner */}
+        <LinearGradient
+          colors={["#00B14F", "#008F40"]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.heroBanner}
+        >
+          <View style={styles.heroBannerIconRow}>
+            <View style={styles.heroIconCircle}>
+              <Ionicons name="information-circle" size={28} color="#00B14F" />
+            </View>
+          </View>
+          <Text style={styles.heroEyebrow}>AGENT GUIDE</Text>
+          <Text style={styles.heroTitle}>What is an AfriX Agent?</Text>
+          <Text style={styles.heroSubtitle}>
+            Agents are independent partners who help users exchange tokens (NT/CT) for local currency. You run your own small exchange business using the AfriX platform.
           </Text>
-          <View style={styles.bulletList}>
-            <View style={styles.bulletItem}>
-              <Ionicons name="swap-horizontal" size={18} color="#00B14F" />
-              <Text style={styles.bulletText}>Mint tokens when users buy with cash.</Text>
+        </LinearGradient>
+
+        {/* What you do */}
+        <Text style={[styles.sectionHeading, { color: theme.muted }]}>WHAT YOU DO</Text>
+        <View style={[styles.bulletCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+          {bullets.map((b, i) => (
+            <View key={i}>
+              <View style={styles.bulletRow}>
+                <View style={[styles.bulletIconBox, { backgroundColor: theme.accentSoft }]}>
+                  <Ionicons name={b.icon as any} size={17} color={theme.accent} />
+                </View>
+                <Text style={[styles.bulletText, { color: theme.text }]}>{b.text}</Text>
+              </View>
+              {i < bullets.length - 1 && <View style={[styles.divider, { backgroundColor: theme.border }]} />}
             </View>
-            <View style={styles.bulletItem}>
-              <Ionicons name="cash-outline" size={18} color="#00B14F" />
-              <Text style={styles.bulletText}>Burn tokens when users sell for cash.</Text>
-            </View>
-            <View style={styles.bulletItem}>
-              <Ionicons name="shield-checkmark-outline" size={18} color="#00B14F" />
-              <Text style={styles.bulletText}>Earn fees while the system protects users via escrow.</Text>
-            </View>
+          ))}
+        </View>
+
+        {/* How it works */}
+        <Text style={[styles.sectionHeading, { color: theme.muted }]}>HOW THE SYSTEM WORKS</Text>
+        <View style={[styles.infoCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+          <Text style={[styles.infoCardTitle, { color: theme.text }]}>Security Deposit & Capacity</Text>
+          <Text style={[styles.infoCardBody, { color: theme.muted }]}>
+            You deposit USDT as a security bond. Your minting capacity equals your deposit in USDT. When you mint tokens, capacity goes down; when you burn tokens, capacity goes back up.
+          </Text>
+          <View style={[styles.exampleBox, { backgroundColor: theme.accentSoft, borderColor: theme.accent + "30" }]}>
+            <Text style={[styles.exampleText, { color: theme.accent }]}>
+              Example: Deposit 1,000 USDT → you can mint/burn up to 1,000 USDT worth of tokens across users.
+            </Text>
           </View>
         </View>
 
-        {/* How the system works */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>How the System Works</Text>
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>Security Deposit & Capacity</Text>
-            <Text style={styles.bodyText}>
-              You deposit USDT as a security bond. Your minting capacity is equal to your deposit
-              in USDT. When you mint tokens, capacity goes down; when you burn tokens, capacity
-              goes back up.
-            </Text>
-            <Text style={styles.exampleText}>
-              Example: Deposit 1,000 USDT → you can mint/burn up to 1,000 USDT worth of tokens
-              across users.
-            </Text>
-          </View>
-
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>Escrow Protection</Text>
-            <Text style={styles.bodyText}>
-              For sells (burn), user tokens are locked in escrow until you send fiat and the
-              system confirms. If there is a dispute and you don&apos;t deliver, your deposit can
-              be slashed and the user refunded.
-            </Text>
-          </View>
+        <View style={[styles.infoCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+          <Text style={[styles.infoCardTitle, { color: theme.text }]}>Escrow Protection</Text>
+          <Text style={[styles.infoCardBody, { color: theme.muted }]}>
+            For sells (burn), user tokens are locked in escrow until you send fiat and the system confirms. If there is a dispute and you don't deliver, your deposit can be slashed and the user refunded.
+          </Text>
         </View>
 
         {/* Steps */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Steps to Become an Agent</Text>
-          <View style={styles.stepsList}>
-            <View style={styles.stepRow}>
-              <View style={[styles.stepBadge, { backgroundColor: "#ECFDF5" }]}>
-                <Text style={styles.stepNumber}>1</Text>
+        <Text style={[styles.sectionHeading, { color: theme.muted }]}>STEPS TO BECOME AN AGENT</Text>
+        <View style={styles.stepsList}>
+          {steps.map((step, i) => (
+            <View key={i} style={styles.stepRow}>
+              <View style={styles.stepLeftCol}>
+                <View style={[styles.stepNumCircle, { backgroundColor: step.bg }]}>
+                  <Text style={[styles.stepNumText, { color: step.color }]}>{step.num}</Text>
+                </View>
+                {i < steps.length - 1 && <View style={[styles.stepConnector, { backgroundColor: theme.border }]} />}
               </View>
-              <View style={styles.stepText}>
-                <Text style={styles.stepTitle}>Quick Registration</Text>
-                <Text style={styles.stepDescription}>
-                  Choose your country, confirm your currency, and add a Polygon USDT withdrawal
-                  address.
-                </Text>
-              </View>
-            </View>
-            <View style={styles.stepRow}>
-              <View style={[styles.stepBadge, { backgroundColor: "#EFF6FF" }]}>
-                <Text style={styles.stepNumber}>2</Text>
-              </View>
-              <View style={styles.stepText}>
-                <Text style={styles.stepTitle}>KYC Verification</Text>
-                <Text style={styles.stepDescription}>
-                  Upload ID, selfie, and proof of address so the team can verify your identity.
-                </Text>
+              <View style={[styles.stepContent, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                <Text style={[styles.stepTitle, { color: theme.text }]}>{step.title}</Text>
+                <Text style={[styles.stepDesc, { color: theme.muted }]}>{step.desc}</Text>
               </View>
             </View>
-            <View style={styles.stepRow}>
-              <View style={[styles.stepBadge, { backgroundColor: "#FEF3C7" }]}>
-                <Text style={styles.stepNumber}>3</Text>
-              </View>
-              <View style={styles.stepText}>
-                <Text style={styles.stepTitle}>Admin Approval</Text>
-                <Text style={styles.stepDescription}>
-                  Your documents are reviewed. Once approved, you can deposit USDT to activate.
-                </Text>
-              </View>
-            </View>
-            <View style={styles.stepRow}>
-              <View style={[styles.stepBadge, { backgroundColor: "#F0FDF4" }]}>
-                <Text style={styles.stepNumber}>4</Text>
-              </View>
-              <View style={styles.stepText}>
-                <Text style={styles.stepTitle}>Deposit USDT & Start Earning</Text>
-                <Text style={styles.stepDescription}>
-                  Deposit at least the minimum USDT, get capacity, and start handling buy/sell
-                  requests from users.
-                </Text>
-              </View>
-            </View>
-          </View>
+          ))}
         </View>
 
-        {/* Payment methods */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Payment Methods</Text>
-          <View style={styles.card}>
-            <Text style={styles.bodyText}>
-              You receive and send fiat directly to users using local rails:
-            </Text>
-            <View style={styles.bulletList}>
-              <View style={styles.bulletItem}>
-                <Ionicons name="card-outline" size={18} color="#00B14F" />
-                <Text style={styles.bulletText}>Nigeria (NT): bank transfers.</Text>
+        {/* Payment Methods */}
+        <Text style={[styles.sectionHeading, { color: theme.muted }]}>PAYMENT METHODS</Text>
+        <View style={[styles.bulletCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+          <Text style={[styles.infoCardBody, { color: theme.muted, marginBottom: 12 }]}>
+            You receive and send fiat directly to users using local rails:
+          </Text>
+          {paymentBullets.map((b, i) => (
+            <View key={i}>
+              <View style={styles.bulletRow}>
+                <View style={[styles.bulletIconBox, { backgroundColor: theme.accentSoft }]}>
+                  <Ionicons name={b.icon as any} size={17} color={theme.accent} />
+                </View>
+                <Text style={[styles.bulletText, { color: theme.text }]}>{b.text}</Text>
               </View>
-              <View style={styles.bulletItem}>
-                <Ionicons name="phone-portrait-outline" size={18} color="#00B14F" />
-                <Text style={styles.bulletText}>
-                  XOF countries (CT): bank or mobile money (Orange Money, Wave, Moov, etc.).
-                </Text>
-              </View>
+              {i < paymentBullets.length - 1 && <View style={[styles.divider, { backgroundColor: theme.border }]} />}
             </View>
-            <Text style={styles.bodyText}>
-              Users see your bank or mobile money details when they choose you as their agent.
-            </Text>
-          </View>
+          ))}
+          <Text style={[styles.infoCardBody, { color: theme.muted, marginTop: 12 }]}>
+            Users see your bank or mobile money details when they choose you as their agent.
+          </Text>
         </View>
 
         {/* Responsibilities */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Your Responsibilities</Text>
-          <View style={styles.card}>
-            <View style={styles.bulletList}>
-              <View style={styles.bulletItem}>
-                <Ionicons name="checkmark-circle" size={18} color="#00B14F" />
-                <Text style={styles.bulletText}>
-                  Verify every payment in your own bank/mobile money app before confirming.
-                </Text>
+        <Text style={[styles.sectionHeading, { color: theme.muted }]}>YOUR RESPONSIBILITIES</Text>
+        <View style={[styles.bulletCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+          {responsibilityBullets.map((b, i) => (
+            <View key={i}>
+              <View style={styles.bulletRow}>
+                <View style={[styles.bulletIconBox, { backgroundColor: theme.accentSoft }]}>
+                  <Ionicons name={b.icon as any} size={17} color={theme.accent} />
+                </View>
+                <Text style={[styles.bulletText, { color: theme.text }]}>{b.text}</Text>
               </View>
-              <View style={styles.bulletItem}>
-                <Ionicons name="time-outline" size={18} color="#00B14F" />
-                <Text style={styles.bulletText}>
-                  Respond quickly (target under 15 minutes) to keep high ratings and more
-                  business.
-                </Text>
-              </View>
-              <View style={styles.bulletItem}>
-                <Ionicons name="alert-circle-outline" size={18} color="#00B14F" />
-                <Text style={styles.bulletText}>
-                  Follow dispute rules – if you don&apos;t deliver, your deposit can be slashed.
-                </Text>
-              </View>
+              {i < responsibilityBullets.length - 1 && <View style={[styles.divider, { backgroundColor: theme.border }]} />}
             </View>
-            <Text style={styles.bodyText}>
-              For full details, you&apos;ll see the Agent Handbook inside your agent dashboard
-              after approval.
-            </Text>
-          </View>
+          ))}
+          <Text style={[styles.infoCardBody, { color: theme.muted, marginTop: 12 }]}>
+            For full details, you'll see the Agent Handbook inside your agent dashboard after approval.
+          </Text>
         </View>
+
+        <View style={{ height: 40 }} />
       </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#FFFFFF",
-  },
+  container: { flex: 1 },
   header: {
     flexDirection: "row",
     alignItems: "center",
@@ -195,101 +218,127 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: "#F3F4F6",
   },
-  closeButton: {
-    padding: 4,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#111827",
-  },
-  content: {
-    padding: 20,
-    paddingBottom: 32,
-  },
-  section: {
-    marginBottom: 24,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#111827",
-    marginBottom: 12,
-  },
-  bodyText: {
-    fontSize: 14,
-    color: "#4B5563",
-    lineHeight: 20,
-  },
-  bulletList: {
-    marginTop: 12,
-    gap: 8,
-  },
-  bulletItem: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 8,
-  },
-  bulletText: {
-    flex: 1,
-    fontSize: 14,
-    color: "#374151",
-    lineHeight: 20,
-  },
-  card: {
-    padding: 16,
-    borderRadius: 12,
-    backgroundColor: "#F9FAFB",
+  navBtn: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     borderWidth: 1,
-    borderColor: "#E5E7EB",
-    gap: 8,
-  },
-  cardTitle: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: "#111827",
-    marginBottom: 4,
-  },
-  exampleText: {
-    marginTop: 4,
-    fontSize: 13,
-    color: "#6B7280",
-  },
-  stepsList: {
-    gap: 12,
-  },
-  stepRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 12,
-  },
-  stepBadge: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
     alignItems: "center",
     justifyContent: "center",
   },
-  stepNumber: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#111827",
+  headerTitle: { fontSize: 18, fontWeight: "800" },
+  content: { padding: 16, paddingBottom: 32 },
+  heroBanner: {
+    borderRadius: 24,
+    padding: 22,
+    marginBottom: 24,
   },
-  stepText: {
-    flex: 1,
+  heroBannerIconRow: { marginBottom: 14 },
+  heroIconCircle: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: "#FFFFFF",
+    alignItems: "center",
+    justifyContent: "center",
   },
-  stepTitle: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: "#111827",
-    marginBottom: 2,
+  heroEyebrow: {
+    fontSize: 10,
+    fontWeight: "800",
+    color: "rgba(255,255,255,0.7)",
+    letterSpacing: 1,
+    marginBottom: 6,
   },
-  stepDescription: {
+  heroTitle: {
+    fontSize: 24,
+    fontWeight: "900",
+    color: "#FFFFFF",
+    letterSpacing: -0.4,
+    marginBottom: 10,
+  },
+  heroSubtitle: {
     fontSize: 14,
-    color: "#4B5563",
+    fontWeight: "500",
+    color: "rgba(255,255,255,0.85)",
     lineHeight: 20,
   },
+  sectionHeading: {
+    fontSize: 10,
+    fontWeight: "800",
+    letterSpacing: 0.8,
+    marginBottom: 10,
+    marginLeft: 4,
+  },
+  bulletCard: {
+    borderRadius: 20,
+    borderWidth: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    marginBottom: 20,
+  },
+  bulletRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 12,
+    gap: 12,
+  },
+  bulletIconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  bulletText: { flex: 1, fontSize: 14, fontWeight: "600", lineHeight: 20 },
+  divider: { height: 1 },
+  infoCard: {
+    borderRadius: 20,
+    borderWidth: 1,
+    padding: 16,
+    marginBottom: 12,
+    gap: 10,
+  },
+  infoCardTitle: { fontSize: 15, fontWeight: "800" },
+  infoCardBody: { fontSize: 14, fontWeight: "500", lineHeight: 20 },
+  exampleBox: {
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  exampleText: { fontSize: 13, fontWeight: "600", lineHeight: 18 },
+  stepsList: { marginBottom: 20 },
+  stepRow: {
+    flexDirection: "row",
+    gap: 14,
+    marginBottom: 0,
+  },
+  stepLeftCol: {
+    alignItems: "center",
+    width: 40,
+  },
+  stepNumCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  stepNumText: { fontSize: 16, fontWeight: "900" },
+  stepConnector: {
+    width: 2,
+    flex: 1,
+    minHeight: 12,
+    marginVertical: 4,
+  },
+  stepContent: {
+    flex: 1,
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 14,
+    marginBottom: 8,
+    gap: 4,
+  },
+  stepTitle: { fontSize: 15, fontWeight: "800" },
+  stepDesc: { fontSize: 13, fontWeight: "500", lineHeight: 18 },
 });
-

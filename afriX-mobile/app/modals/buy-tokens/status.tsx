@@ -1,13 +1,29 @@
-import React, { useEffect, useState } from "react";
-import { View, StyleSheet, ScrollView, RefreshControl, Modal, TextInput, TouchableOpacity, Alert, KeyboardAvoidingView, Platform, Image, Linking } from "react-native";
-import { Text, ActivityIndicator, Surface } from "react-native-paper";
+import React, { useEffect, useRef, useState } from "react";
+import {
+  View,
+  StyleSheet,
+  ScrollView,
+  RefreshControl,
+  Modal,
+  TextInput,
+  TouchableOpacity,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  Image,
+  Linking,
+  useColorScheme,
+  Animated,
+  Text,
+  ActivityIndicator,
+} from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useMintRequestStore, useWalletStore } from "@/stores";
 import { StatusTracker } from "@/components/ui/StatusTracker";
 import { TimerComponent } from "@/components/ui/TimerComponent";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { formatDate } from "@/utils/format";
 import apiClient from "@/services/apiClient";
 
@@ -22,14 +38,46 @@ export default function MintStatusScreen() {
   const [disputeDetails, setDisputeDetails] = useState("");
   const [canRate, setCanRate] = useState(true);
 
-  // Helper function to check if status is terminal (no more updates expected)
-  const isTerminalStatus = (status: string) => {
-    return ["confirmed", "cancelled", "rejected", "expired", "refunded"].includes(
-      (status || "").toLowerCase()
-    );
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === "dark";
+  const insets = useSafeAreaInsets();
+  const [headerMaxHeight, setHeaderMaxHeight] = useState(insets.top + 70);
+  const scrollY = useRef(new Animated.Value(0)).current;
+
+  const handleHeaderLayout = (e: any) => {
+    const { height } = e.nativeEvent.layout;
+    if (height > headerMaxHeight) setHeaderMaxHeight(height);
   };
 
-  // Expired by time = don't poll; show expired state
+  const subtitleOpacity = scrollY.interpolate({ inputRange: [0, 50], outputRange: [1, 0], extrapolate: "clamp" });
+  const subtitleMaxHeight = scrollY.interpolate({ inputRange: [0, 50], outputRange: [80, 0], extrapolate: "clamp" });
+  const subtitleMargin = scrollY.interpolate({ inputRange: [0, 50], outputRange: [4, 0], extrapolate: "clamp" });
+
+  const theme = {
+    background: isDark ? "#07111A" : "#F5F7FB",
+    card: isDark ? "#0E1726" : "#FFFFFF",
+    cardAlt: isDark ? "#111C2B" : "#F8FAFC",
+    text: isDark ? "#F8FAFC" : "#0F172A",
+    muted: isDark ? "#94A3B8" : "#64748B",
+    border: isDark ? "#1E2A3A" : "#E2E8F0",
+    accent: "#00B14F",
+    accentSoft: isDark ? "rgba(0,177,79,0.14)" : "#EAF8EF",
+    warning: "#F59E0B",
+    warningSoft: isDark ? "rgba(245,158,11,0.12)" : "#FFFBEB",
+    warningBorder: isDark ? "rgba(245,158,11,0.25)" : "#FEF3C7",
+    danger: "#EF4444",
+    dangerSoft: isDark ? "rgba(239,68,68,0.12)" : "#FEF2F2",
+    dangerBorder: isDark ? "rgba(239,68,68,0.25)" : "#FEE2E2",
+    blue: "#3B82F6",
+    blueSoft: isDark ? "rgba(59,130,246,0.12)" : "#EFF6FF",
+    blueBorder: isDark ? "rgba(59,130,246,0.25)" : "#DBEAFE",
+    successSoft: isDark ? "rgba(0,177,79,0.12)" : "#F0FDF4",
+    successBorder: isDark ? "rgba(0,177,79,0.25)" : "#D1FAE5",
+  };
+
+  const isTerminalStatus = (status: string) =>
+    ["confirmed", "cancelled", "rejected", "expired", "refunded"].includes((status || "").toLowerCase());
+
   const isExpiredByTime = (req: { expires_at?: string } | null) => {
     if (!req?.expires_at) return false;
     return new Date(req.expires_at).getTime() <= Date.now();
@@ -37,23 +85,14 @@ export default function MintStatusScreen() {
 
   useEffect(() => {
     if (!requestId) return;
-    // Initial fetch once when screen opens
     checkStatus(requestId);
-
-    // Poll every 10s only when request is not terminal and not expired by time
     const interval = setInterval(() => {
       const state = useMintRequestStore.getState();
       const req = state.currentRequest;
-      if (
-        req &&
-        req.id === requestId &&
-        !isTerminalStatus(req.status) &&
-        !isExpiredByTime(req)
-      ) {
+      if (req && req.id === requestId && !isTerminalStatus(req.status) && !isExpiredByTime(req)) {
         state.checkStatus(requestId);
       }
     }, 10000);
-
     return () => clearInterval(interval);
   }, [checkStatus, requestId]);
 
@@ -64,7 +103,7 @@ export default function MintStatusScreen() {
   };
 
   const handleGoHome = async () => {
-    await fetchWallets(); // Refresh balances
+    await fetchWallets();
     router.replace("/(tabs)");
   };
 
@@ -78,25 +117,17 @@ export default function MintStatusScreen() {
     });
   };
 
-  const handleOpenDispute = () => {
-    setShowDisputeModal(true);
-  };
-
   const handleSubmitDispute = async () => {
     if (!currentRequest || !disputeReason.trim()) {
       Alert.alert("Error", "Please provide a reason for the dispute");
       return;
     }
-
     try {
       await openDispute(currentRequest.id, disputeReason, disputeDetails);
       setShowDisputeModal(false);
       setDisputeReason("");
       setDisputeDetails("");
-      Alert.alert(
-        "Dispute Submitted",
-        "Your dispute has been submitted. Our support team will review it shortly."
-      );
+      Alert.alert("Dispute Submitted", "Our support team will review it shortly.");
     } catch (error: any) {
       Alert.alert("Error", error.message || "Failed to open dispute");
     }
@@ -104,58 +135,36 @@ export default function MintStatusScreen() {
 
   const handleDismiss = async () => {
     if (!currentRequest) return;
-
-    // If it's expired but still pending in DB, we use cancel to delete it
     if (currentRequest.status.toLowerCase() === "pending") {
-      try {
-        await useMintRequestStore.getState().cancelMintRequest(currentRequest.id);
-      } catch (e) {
-        // Ignore error if cancel fails (e.g. network), just clear local state below
-        console.log("Failed to cancel expired request:", e);
-      }
+      try { await useMintRequestStore.getState().cancelMintRequest(currentRequest.id); }
+      catch (e) { console.log("Failed to cancel expired request:", e); }
     }
-
-    // Always clear local state and go home
     useMintRequestStore.getState().clearRequest();
     router.replace("/(tabs)");
   };
 
-  // Decide if we should show the "Rate Experience" button.
   useEffect(() => {
     const checkCanRate = async () => {
       if (!currentRequest) return;
-
       const isCompleted = (currentRequest.status || "").toLowerCase() === "confirmed";
-
       try {
-        if (!isCompleted) {
-          setCanRate(false);
-          return;
-        }
-
+        if (!isCompleted) { setCanRate(false); return; }
         const { data } = await apiClient.get("/transactions/pending-review");
         const pending = data?.data?.transactions || data?.data || [];
-
-        const requestIdMatch = pending.find((tx: any) => tx.id === currentRequest.id);
-        const relatedRequestIdMatch = pending.find(
-          (tx: any) => tx.request_id === currentRequest.id
-        );
-        const match = requestIdMatch || relatedRequestIdMatch;
-
+        const match = pending.find((tx: any) => tx.id === currentRequest.id || tx.request_id === currentRequest.id);
         setCanRate(!!match);
-      } catch {
-        setCanRate(true);
-      }
+      } catch { setCanRate(true); }
     };
-
     checkCanRate();
   }, [currentRequest]);
 
   if (!currentRequest) {
     return (
-      <View style={styles.loading}>
-        <ActivityIndicator size="large" color="#00B14F" />
-        <Text style={styles.loadingText}>Loading request status...</Text>
+      <View style={[styles.loading, { backgroundColor: theme.background }]}>
+        <View style={[styles.loadingCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+          <ActivityIndicator size="large" color={theme.accent} />
+          <Text style={[styles.loadingText, { color: theme.muted }]}>Loading request status…</Text>
+        </View>
       </View>
     );
   }
@@ -163,305 +172,331 @@ export default function MintStatusScreen() {
   const statusLower = (currentRequest.status || "").toLowerCase();
   const isCompleted = statusLower === "confirmed";
   const isExpiredByStatus = statusLower === "expired";
-  // Only treat time-based expiry as "expired" while the request is not already completed.
-  // This prevents a successfully minted request from later being shown as "Request Expired"
-  // just because its original expires_at time has passed.
   const isExpiredByTimeNow = !isCompleted && isExpiredByTime(currentRequest);
   const isExpired = isExpiredByStatus || isExpiredByTimeNow;
   const isCancelled = currentRequest.status === "cancelled" || currentRequest.status === "CANCELLED";
   const isRejected = currentRequest.status.toLowerCase() === "rejected";
   const isDisputed = currentRequest.status.toLowerCase() === "disputed";
   const hasExistingDispute = !!currentRequest.latest_dispute;
-  const hasResolvedDispute =
-    (currentRequest.latest_dispute?.status || "").toLowerCase() === "resolved";
+  const hasResolvedDispute = (currentRequest.latest_dispute?.status || "").toLowerCase() === "resolved";
   const isFailed = isExpired || isCancelled || isRejected;
-
 
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
-      case "confirmed":
-        return "#00B14F";
-      case "pending":
-      case "proof_submitted":
-        return "#FFB800";
-      case "expired":
-      case "cancelled":
-      case "rejected":
-        return "#EF4444";
-      case "disputed":
-        return "#F59E0B";
-      default:
-        return "#6B7280";
+      case "confirmed": return "#00B14F";
+      case "pending": case "proof_submitted": return "#FFB800";
+      case "expired": case "cancelled": case "rejected": return "#EF4444";
+      case "disputed": return "#F59E0B";
+      default: return "#6B7280";
+    }
+  };
+
+  const statusColor = getStatusColor(currentRequest.status);
+
+  const getStatusIcon = (status: string): any => {
+    switch (status.toLowerCase()) {
+      case "confirmed": return "checkmark-circle";
+      case "pending": return "time";
+      case "proof_submitted": return "search";
+      case "expired": return "timer-outline";
+      case "cancelled": return "close-circle";
+      case "rejected": return "close-circle";
+      case "disputed": return "alert-circle";
+      default: return "ellipse-outline";
+    }
+  };
+
+  const getStatusLabel = (status: string) => {
+    switch (status.toLowerCase()) {
+      case "confirmed": return "Confirmed";
+      case "pending": return "Pending";
+      case "proof_submitted": return "Under Review";
+      case "expired": return "Expired";
+      case "cancelled": return "Cancelled";
+      case "rejected": return "Rejected";
+      case "disputed": return "In Dispute";
+      default: return status.replace("_", " ");
     }
   };
 
   return (
-    <View style={styles.container}>
-      {/* Header Section */}
-      <View style={styles.headerWrapper}>
-        <LinearGradient
-          colors={["#00B14F", "#008F40"]}
-          style={styles.headerGradient}
-        />
-        <SafeAreaView edges={["top"]} style={styles.headerContent}>
-          <View style={styles.headerTop}>
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
+      {/* Fixed collapsible header */}
+      <Animated.View
+        onLayout={handleHeaderLayout}
+        style={[
+          styles.headerWrapper,
+          { backgroundColor: theme.background, borderBottomColor: theme.border },
+        ]}
+      >
+        <SafeAreaView edges={["top"]} style={styles.headerSafeArea}>
+          <View style={styles.headerRow}>
             <TouchableOpacity
               onPress={() => router.push("/activity")}
-              style={styles.backButton}
+              style={[styles.backButton, { backgroundColor: theme.card, borderColor: theme.border }]}
+              activeOpacity={0.85}
             >
-              <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
+              <Ionicons name="arrow-back" size={22} color={theme.text} />
             </TouchableOpacity>
             <View style={styles.headerText}>
-              <Text style={styles.headerTitle}>Mint Request Status</Text>
-              <Text style={styles.headerSubtitle}>
-                Track progress and complete any next steps
-              </Text>
+              <Text style={[styles.headerTitle, { color: theme.text }]}>Request Status</Text>
+              <Animated.View style={{ opacity: subtitleOpacity, maxHeight: subtitleMaxHeight, marginTop: subtitleMargin, overflow: "hidden" }}>
+                <Text style={[styles.headerSubtitle, { color: theme.muted }]}>
+                  Track progress and take action when needed.
+                </Text>
+              </Animated.View>
             </View>
+            <View style={{ width: 42 }} />
           </View>
         </SafeAreaView>
-      </View>
+      </Animated.View>
 
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
+      <Animated.ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={[styles.content, { paddingTop: headerMaxHeight + 16 }]}
         showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#00B14F" />
-        }
+        onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: false })}
+        scrollEventThrottle={16}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.accent} />}
       >
-        <View style={styles.mainContent}>
+        {/* Ambient glow */}
+        <LinearGradient
+          colors={isDark ? ["rgba(0,177,79,0.10)", "rgba(7,17,26,0)"] : ["rgba(0,177,79,0.08)", "rgba(245,247,251,0)"]}
+          style={styles.glow}
+          pointerEvents="none"
+        />
+
+        {/* STATUS HERO CARD */}
+        <View style={[styles.heroCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
           <LinearGradient
-            colors={["#F7FFF9", "#FFFFFF"]}
-            style={styles.summaryCard}
-          >
-            <Text style={styles.summaryEyebrow}>Live Status</Text>
-            <Text style={styles.summaryTitle}>Stay on top of this mint request</Text>
-            <Text style={styles.summaryText}>
-              Follow your request from proof submission to token confirmation and take action quickly if anything needs attention.
-            </Text>
-          </LinearGradient>
-
-          {/* Status Header Chip */}
-          <View style={styles.statusChipContainer}>
-            <View style={[styles.statusBadge, { backgroundColor: getStatusColor(currentRequest.status) + "20" }]}>
-              <Text style={[styles.statusBadgeText, { color: getStatusColor(currentRequest.status) }]}>
-                {currentRequest.status.replace("_", " ").toUpperCase()}
+            colors={isDark ? ["rgba(0,177,79,0.08)", "rgba(14,23,38,0)"] : ["rgba(0,177,79,0.05)", "rgba(255,255,255,0)"]}
+            style={StyleSheet.absoluteFill}
+          />
+          <View style={styles.heroTop}>
+            <View style={[styles.heroIconRing, { backgroundColor: statusColor + "20" }]}>
+              <Ionicons name={getStatusIcon(currentRequest.status)} size={28} color={statusColor} />
+            </View>
+            <View style={styles.heroMeta}>
+              <View style={[styles.statusPill, { backgroundColor: statusColor + "20" }]}>
+                <View style={[styles.statusPillDot, { backgroundColor: statusColor }]} />
+                <Text style={[styles.statusPillText, { color: statusColor }]}>
+                  {getStatusLabel(currentRequest.status)}
+                </Text>
+              </View>
+              <Text style={[styles.heroRef, { color: theme.muted }]}>
+                Ref: {currentRequest.id.split("-")[0].toUpperCase()}
               </Text>
             </View>
-            <Text style={styles.refText}>Ref: {currentRequest.id.split('-')[0].toUpperCase()}</Text>
           </View>
-
-          {/* Timer - only show if not in terminal state and not already expired by time */}
-          {!isTerminalStatus(currentRequest.status) &&
-            new Date(currentRequest.expires_at).getTime() > Date.now() && (
-              <Surface style={styles.timerCard} elevation={0}>
-                <TimerComponent
-                  expiresAt={currentRequest.expires_at}
-                  onExpire={() => checkStatus(requestId)}
-                />
-              </Surface>
-            )}
-
-          {/* Status Tracker */}
-          <Surface style={styles.card} elevation={0}>
-            <Text style={styles.cardTitle}>Tracking Progress</Text>
-            <StatusTracker currentStatus={currentRequest.status} />
-          </Surface>
-
-          {/* Request Details */}
-          <Surface style={styles.card} elevation={0}>
-            <Text style={styles.cardTitle}>Transaction Details</Text>
-
-            <View style={styles.detail}>
-              <Text style={styles.detailLabel}>Amount to Buy</Text>
-              <Text style={styles.detailValue}>
-                {parseFloat(currentRequest.amount).toLocaleString()}{" "}
-                <Text style={styles.tokenSymbol}>{currentRequest.token_type}</Text>
-              </Text>
-            </View>
-
-            <View style={styles.divider} />
-
-            <View style={styles.detail}>
-              <Text style={styles.detailLabel}>Date Created</Text>
-              <Text style={styles.detailText}>
-                {formatDate(currentRequest.created_at, true)}
-              </Text>
-            </View>
-          </Surface>
-
-          {/* Payment Proof (user-uploaded) */}
-          {currentRequest.payment_proof_url && (
-            <Surface style={styles.card} elevation={0}>
-              <Text style={styles.cardTitle}>Payment Proof</Text>
-              <Text style={styles.proofHint}>
-                This is the payment proof you uploaded. The agent will verify your transfer using this image.
-              </Text>
-              <TouchableOpacity
-                onPress={() => Linking.openURL(currentRequest.payment_proof_url!)}
-                activeOpacity={0.9}
-              >
-                <Image
-                  source={{ uri: currentRequest.payment_proof_url }}
-                  style={styles.proofImage}
-                  resizeMode="cover"
-                />
-              </TouchableOpacity>
-              <Text style={styles.proofTapHint}>Tap image to view full size</Text>
-            </Surface>
-          )}
-
-          {/* Status Specific Message Cards */}
-          {currentRequest.status.toLowerCase() === "pending" && !isExpired && (
-            <Surface style={[styles.messageCard, styles.pendingMessage]} elevation={0}>
-              <Ionicons name="information-circle" size={20} color="#FFB800" />
-              <View style={styles.messageContent}>
-                <Text style={styles.messageTitle}>Needs Action</Text>
-                <Text style={styles.messageText}>Please upload your payment proof so the agent can confirm your receipt.</Text>
-                <TouchableOpacity
-                  style={styles.actionButton}
-                  onPress={() =>
-                    router.push({
-                      pathname: "/modals/buy-tokens/upload-proof",
-                      params: { requestId: currentRequest.id },
-                    })
-                  }
-                >
-                  <Text style={styles.actionButtonText}>Upload Proof Now</Text>
-                  <Ionicons name="arrow-forward" size={16} color="#FFFFFF" />
-                </TouchableOpacity>
-              </View>
-            </Surface>
-          )}
-
-          {currentRequest.status.toLowerCase() === "proof_submitted" && (
-            <Surface style={[styles.messageCard, styles.warningMessage]} elevation={0}>
-              <Ionicons name="search" size={20} color="#3B82F6" />
-              <View style={styles.messageContent}>
-                <Text style={[styles.messageTitle, { color: "#1E40AF" }]}>Pending Review</Text>
-                <Text style={[styles.messageText, { color: "#1E3A8A" }]}>
-                  The agent is currently verifying your payment. You will be notified once it&apos;s complete.
-                </Text>
-              </View>
-            </Surface>
-          )}
-
-          {isCompleted && (
-            <Surface style={[styles.messageCard, styles.successMessage]} elevation={0}>
-              <Ionicons name="checkmark-circle" size={24} color="#00B14F" />
-              <View style={styles.messageContent}>
-                <Text style={styles.successTitle}>Successfully Minted!</Text>
-                <Text style={styles.successText}>
-                  Your {parseFloat(currentRequest.amount).toLocaleString()} {currentRequest.token_type} tokens are now available in your wallet.
-                </Text>
-              </View>
-            </Surface>
-          )}
-
-          {(isExpired || isCancelled || isRejected) && (
-            <Surface style={[styles.messageCard, styles.errorMessage]} elevation={0}>
-              <Ionicons name="close-circle" size={24} color="#EF4444" />
-              <View style={styles.messageContent}>
-                <Text style={styles.errorTitle}>
-                  {isExpired ? "Request Expired" : isCancelled ? "Request Cancelled" : "Payment Rejected"}
-                </Text>
-                <Text style={styles.errorText}>
-                  {isRejected
-                    ? hasResolvedDispute
-                      ? "This request was closed after dispute review. If you still need help, please contact support."
-                      : "Your payment proof was rejected. If you have any concerns, you can open a dispute."
-                    : "This transaction was not completed within the time limit or was manually cancelled."}
-                </Text>
-                {isRejected && !hasExistingDispute && (
-                  <TouchableOpacity
-                    style={[styles.actionButton, { backgroundColor: "#EF4444", marginTop: 12 }]}
-                    onPress={handleOpenDispute}
-                  >
-                    <Text style={styles.actionButtonText}>Open Dispute</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-            </Surface>
-          )}
-
-          {isDisputed && (
-            <Surface style={[styles.messageCard, styles.disputeMessage]} elevation={0}>
-              <Ionicons name="alert-circle" size={24} color="#F59E0B" />
-              <View style={styles.messageContent}>
-                <Text style={[styles.messageTitle, { color: "#92400E" }]}>Dispute Opened</Text>
-                <Text style={[styles.messageText, { color: "#92400E" }]}>
-                  Our support team is investigating this transaction. We will reach out to you via email soon.
-                </Text>
-              </View>
-            </Surface>
-          )}
-
-          {/* Action Buttons */}
-          <View style={styles.footerActions}>
-            {isCompleted && canRate ? (
-              <TouchableOpacity
-                style={styles.primaryBtn}
-                onPress={async () => {
-                  try {
-                    const { data } = await apiClient.get("/transactions/pending-review");
-                    const pending = data?.data?.transactions || data?.data || [];
-                    const transaction = pending.find(
-                      (tx: any) => tx.id === currentRequest.id || tx.request_id === currentRequest.id
-                    );
-
-                    router.replace({
-                      pathname: "/modals/buy-tokens/rate-agent",
-                      params: { transactionId: transaction?.id || currentRequest.id },
-                    });
-                  } catch {
-                    router.replace({
-                      pathname: "/modals/buy-tokens/rate-agent",
-                      params: { transactionId: currentRequest.id },
-                    });
-                  }
-                }}
-              >
-                <Text style={styles.primaryBtnText}>Rate Experience</Text>
-                <Ionicons name="star" size={20} color="#FFFFFF" />
-              </TouchableOpacity>
-            ) : isFailed ? (
-              <View style={styles.footerRow}>
-                <TouchableOpacity
-                  style={styles.dismissBtn}
-                  onPress={handleDismiss}
-                >
-                  <Text style={styles.dismissBtnText}>Dismiss</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={[styles.primaryBtn, { flex: 1 }]} onPress={handleCreateNew}>
-                  <Text style={styles.primaryBtnText}>Try Again</Text>
-                  <Ionicons name="refresh" size={20} color="#FFFFFF" />
-                </TouchableOpacity>
-              </View>
-            ) : isDisputed ? (
-              <TouchableOpacity style={styles.secondaryBtn} onPress={handleGoHome}>
-                <Ionicons name="home-outline" size={20} color="#6B7280" />
-                <Text style={styles.secondaryBtnText}>Dashboard</Text>
-              </TouchableOpacity>
-            ) : (
-              <TouchableOpacity style={styles.secondaryBtn} onPress={handleGoHome}>
-                <Ionicons name="home-outline" size={20} color="#6B7280" />
-                <Text style={styles.secondaryBtnText}>Dashboard</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-
-          {/* Help Support Link */}
-          <TouchableOpacity
-            style={styles.helpLink}
-            onPress={() => router.push("/(tabs)/profile")}
-          >
-            <Text style={styles.helpLinkText}>Need help with this request?</Text>
-            <Text style={styles.supportText}>Contact Support</Text>
-          </TouchableOpacity>
+          <Text style={[styles.heroAmount, { color: theme.text }]}>
+            {parseFloat(currentRequest.amount).toLocaleString()}{" "}
+            <Text style={[styles.heroToken, { color: theme.muted }]}>{currentRequest.token_type}</Text>
+          </Text>
+          <Text style={[styles.heroDate, { color: theme.muted }]}>
+            Created {formatDate(currentRequest.created_at, true)}
+          </Text>
         </View>
-      </ScrollView>
 
-      {/* Dispute Modal */}
+        {/* TIMER */}
+        {!isTerminalStatus(currentRequest.status) &&
+          new Date(currentRequest.expires_at).getTime() > Date.now() && (
+            <View style={[styles.timerCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+              <TimerComponent expiresAt={currentRequest.expires_at} onExpire={() => checkStatus(requestId)} />
+            </View>
+          )}
+
+        {/* STATUS TRACKER */}
+        <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
+          <View style={styles.cardHeader}>
+            <Ionicons name="git-branch-outline" size={16} color={theme.accent} />
+            <Text style={[styles.cardTitle, { color: theme.text }]}>Tracking Progress</Text>
+          </View>
+          <StatusTracker currentStatus={currentRequest.status} />
+        </View>
+
+        {/* PAYMENT PROOF */}
+        {currentRequest.payment_proof_url && (
+          <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
+            <View style={styles.cardHeader}>
+              <Ionicons name="image-outline" size={16} color={theme.accent} />
+              <Text style={[styles.cardTitle, { color: theme.text }]}>Payment Proof</Text>
+            </View>
+            <Text style={[styles.proofHint, { color: theme.muted }]}>
+              Your uploaded receipt — the agent will verify this image.
+            </Text>
+            <TouchableOpacity
+              onPress={() => Linking.openURL(currentRequest.payment_proof_url!)}
+              activeOpacity={0.9}
+              style={styles.proofTouchable}
+            >
+              <Image source={{ uri: currentRequest.payment_proof_url }} style={styles.proofImage} resizeMode="cover" />
+              <View style={styles.proofOverlay}>
+                <View style={styles.proofTapBadge}>
+                  <Ionicons name="expand-outline" size={14} color="#FFF" />
+                  <Text style={styles.proofTapText}>View full size</Text>
+                </View>
+              </View>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* STATUS MESSAGE CARDS */}
+        {statusLower === "pending" && !isExpired && (
+          <View style={[styles.messageCard, { backgroundColor: theme.warningSoft, borderColor: theme.warningBorder }]}>
+            <View style={[styles.messageIconBox, { backgroundColor: theme.warning + "25" }]}>
+              <Ionicons name="information-circle" size={20} color={theme.warning} />
+            </View>
+            <View style={styles.messageBody}>
+              <Text style={[styles.messageTitle, { color: theme.text }]}>Action Required</Text>
+              <Text style={[styles.messageText, { color: theme.muted }]}>
+                Please upload your payment proof so the agent can confirm your transfer.
+              </Text>
+              <TouchableOpacity
+                style={[styles.msgActionBtn, { backgroundColor: theme.accent }]}
+                onPress={() => router.push({ pathname: "/modals/buy-tokens/upload-proof", params: { requestId: currentRequest.id } })}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.msgActionBtnText}>Upload Proof Now</Text>
+                <Ionicons name="arrow-forward" size={14} color="#FFF" />
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+
+        {statusLower === "proof_submitted" && (
+          <View style={[styles.messageCard, { backgroundColor: theme.blueSoft, borderColor: theme.blueBorder }]}>
+            <View style={[styles.messageIconBox, { backgroundColor: theme.blue + "25" }]}>
+              <Ionicons name="search" size={20} color={theme.blue} />
+            </View>
+            <View style={styles.messageBody}>
+              <Text style={[styles.messageTitle, { color: theme.text }]}>Under Review</Text>
+              <Text style={[styles.messageText, { color: theme.muted }]}>
+                The agent is verifying your payment. You'll be notified once complete.
+              </Text>
+            </View>
+          </View>
+        )}
+
+        {isCompleted && (
+          <View style={[styles.messageCard, { backgroundColor: theme.successSoft, borderColor: theme.successBorder }]}>
+            <View style={[styles.messageIconBox, { backgroundColor: theme.accent + "25" }]}>
+              <Ionicons name="checkmark-circle" size={20} color={theme.accent} />
+            </View>
+            <View style={styles.messageBody}>
+              <Text style={[styles.messageTitle, { color: theme.text }]}>Successfully Minted!</Text>
+              <Text style={[styles.messageText, { color: theme.muted }]}>
+                {parseFloat(currentRequest.amount).toLocaleString()} {currentRequest.token_type} tokens are now in your wallet.
+              </Text>
+            </View>
+          </View>
+        )}
+
+        {isFailed && (
+          <View style={[styles.messageCard, { backgroundColor: theme.dangerSoft, borderColor: theme.dangerBorder }]}>
+            <View style={[styles.messageIconBox, { backgroundColor: theme.danger + "25" }]}>
+              <Ionicons name="close-circle" size={20} color={theme.danger} />
+            </View>
+            <View style={styles.messageBody}>
+              <Text style={[styles.messageTitle, { color: theme.text }]}>
+                {isExpired ? "Request Expired" : isCancelled ? "Request Cancelled" : "Payment Rejected"}
+              </Text>
+              <Text style={[styles.messageText, { color: theme.muted }]}>
+                {isRejected
+                  ? hasResolvedDispute
+                    ? "This request was closed after dispute review. Contact support if you need further help."
+                    : "Your payment proof was rejected. If you have concerns, you can open a dispute."
+                  : "This transaction was not completed in time or was manually cancelled."}
+              </Text>
+              {isRejected && !hasExistingDispute && (
+                <TouchableOpacity
+                  style={[styles.msgActionBtn, { backgroundColor: theme.danger, marginTop: 12 }]}
+                  onPress={() => setShowDisputeModal(true)}
+                  activeOpacity={0.85}
+                >
+                  <Ionicons name="shield-outline" size={14} color="#FFF" />
+                  <Text style={styles.msgActionBtnText}>Open Dispute</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+        )}
+
+        {isDisputed && (
+          <View style={[styles.messageCard, { backgroundColor: theme.warningSoft, borderColor: theme.warningBorder }]}>
+            <View style={[styles.messageIconBox, { backgroundColor: theme.warning + "25" }]}>
+              <Ionicons name="alert-circle" size={20} color={theme.warning} />
+            </View>
+            <View style={styles.messageBody}>
+              <Text style={[styles.messageTitle, { color: theme.text }]}>Dispute Opened</Text>
+              <Text style={[styles.messageText, { color: theme.muted }]}>
+                Our support team is investigating. We'll reach out to you via email soon.
+              </Text>
+            </View>
+          </View>
+        )}
+
+        {/* FOOTER ACTIONS */}
+        <View style={styles.footerActions}>
+          {isCompleted && canRate ? (
+            <TouchableOpacity
+              style={[styles.primaryBtn, { backgroundColor: theme.accent }]}
+              onPress={async () => {
+                try {
+                  const { data } = await apiClient.get("/transactions/pending-review");
+                  const pending = data?.data?.transactions || data?.data || [];
+                  const transaction = pending.find(
+                    (tx: any) => tx.id === currentRequest.id || tx.request_id === currentRequest.id
+                  );
+                  router.replace({ pathname: "/modals/buy-tokens/rate-agent", params: { transactionId: transaction?.id || currentRequest.id } });
+                } catch {
+                  router.replace({ pathname: "/modals/buy-tokens/rate-agent", params: { transactionId: currentRequest.id } });
+                }
+              }}
+              activeOpacity={0.85}
+            >
+              <Ionicons name="star" size={18} color="#FFF" />
+              <Text style={styles.primaryBtnText}>Rate Experience</Text>
+            </TouchableOpacity>
+          ) : isFailed ? (
+            <View style={styles.footerRow}>
+              <TouchableOpacity
+                style={[styles.secondaryBtn, { backgroundColor: theme.card, borderColor: theme.border, flex: 1 }]}
+                onPress={handleDismiss}
+                activeOpacity={0.8}
+              >
+                <Text style={[styles.secondaryBtnText, { color: theme.muted }]}>Dismiss</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.primaryBtn, { flex: 1, backgroundColor: theme.accent }]}
+                onPress={handleCreateNew}
+                activeOpacity={0.85}
+              >
+                <Ionicons name="refresh" size={18} color="#FFF" />
+                <Text style={styles.primaryBtnText}>Try Again</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <TouchableOpacity
+              style={[styles.secondaryBtn, { backgroundColor: theme.card, borderColor: theme.border }]}
+              onPress={handleGoHome}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="home-outline" size={18} color={theme.muted} />
+              <Text style={[styles.secondaryBtnText, { color: theme.text }]}>Go to Dashboard</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {/* SUPPORT LINK */}
+        <TouchableOpacity style={styles.helpLink} onPress={() => router.push("/(tabs)/profile")} activeOpacity={0.7}>
+          <Text style={[styles.helpLinkText, { color: theme.muted }]}>Need help with this request?</Text>
+          <Text style={[styles.supportText, { color: theme.accent }]}>Contact Support</Text>
+        </TouchableOpacity>
+
+        <View style={{ height: 40 }} />
+      </Animated.ScrollView>
+
+      {/* DISPUTE MODAL */}
       <Modal
         visible={showDisputeModal}
         animationType="slide"
@@ -472,58 +507,62 @@ export default function MintStatusScreen() {
           behavior={Platform.OS === "ios" ? "padding" : "height"}
           style={styles.modalOverlay}
         >
-          <View style={styles.modalContent}>
+          <View style={[styles.modalSheet, { backgroundColor: isDark ? "#0E1726" : "#FFFFFF" }]}>
             <View style={styles.modalHandle} />
+
             <View style={styles.modalHeader}>
-              <View style={styles.modalTitleWrap}>
-                <View style={styles.modalIconWrap}>
+              <View style={styles.modalTitleRow}>
+                <View style={[styles.modalIconBox, { backgroundColor: isDark ? "rgba(245,158,11,0.15)" : "#FFF7E8" }]}>
                   <Ionicons name="shield-outline" size={18} color="#F59E0B" />
                 </View>
-                <Text style={styles.modalTitle}>Open Dispute</Text>
+                <Text style={[styles.modalTitle, { color: isDark ? "#F8FAFC" : "#111827" }]}>Open Dispute</Text>
               </View>
-              <TouchableOpacity onPress={() => setShowDisputeModal(false)}>
-                <Ionicons name="close" size={24} color="#111827" />
+              <TouchableOpacity
+                onPress={() => setShowDisputeModal(false)}
+                style={[styles.modalCloseBtn, { backgroundColor: isDark ? "#1E2A3A" : "#F3F4F6" }]}
+              >
+                <Ionicons name="close" size={18} color={isDark ? "#94A3B8" : "#4B5563"} />
               </TouchableOpacity>
             </View>
 
-            <Text style={styles.modalDescription}>
-              Please explain why you believe your payment proof was wrongly rejected. Our support team will investigate.
+            <Text style={[styles.modalDescription, { color: isDark ? "#94A3B8" : "#6B7280" }]}>
+              Explain why you believe your payment proof was wrongly rejected. Our support team will investigate.
             </Text>
 
-            <Text style={styles.inputLabel}>Reason *</Text>
+            <Text style={[styles.inputLabel, { color: isDark ? "#CBD5E1" : "#374151" }]}>Reason *</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, { backgroundColor: isDark ? "#111C2B" : "#FBFCFD", borderColor: isDark ? "#1E2A3A" : "#E4E7EC", color: isDark ? "#F8FAFC" : "#111827" }]}
               placeholder="e.g., I have valid payment proof"
-              placeholderTextColor="#98A2B3"
+              placeholderTextColor={isDark ? "#475569" : "#98A2B3"}
               value={disputeReason}
               onChangeText={setDisputeReason}
               multiline
               numberOfLines={2}
             />
 
-            <Text style={styles.inputLabel}>Additional Details (Optional)</Text>
+            <Text style={[styles.inputLabel, { color: isDark ? "#CBD5E1" : "#374151" }]}>Additional Details (Optional)</Text>
             <TextInput
-              style={[styles.input, styles.textArea]}
+              style={[styles.input, styles.textArea, { backgroundColor: isDark ? "#111C2B" : "#FBFCFD", borderColor: isDark ? "#1E2A3A" : "#E4E7EC", color: isDark ? "#F8FAFC" : "#111827" }]}
               placeholder="Provide any additional information..."
-              placeholderTextColor="#98A2B3"
+              placeholderTextColor={isDark ? "#475569" : "#98A2B3"}
               value={disputeDetails}
               onChangeText={setDisputeDetails}
               multiline
               numberOfLines={4}
             />
 
-            <View style={styles.modalButtons}>
+            <View style={styles.modalBtns}>
               <TouchableOpacity
-                style={[styles.modalButton, styles.cancelBtn]}
+                style={[styles.modalBtn, { backgroundColor: isDark ? "#1E2A3A" : "#F3F4F6" }]}
                 onPress={() => setShowDisputeModal(false)}
               >
-                <Text style={styles.cancelBtnText}>Cancel</Text>
+                <Text style={[styles.modalCancelText, { color: isDark ? "#94A3B8" : "#4B5563" }]}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.modalButton, styles.submitBtn]}
+                style={[styles.modalBtn, { backgroundColor: "#EF4444" }]}
                 onPress={handleSubmitDispute}
               >
-                <Text style={styles.submitBtnText}>Submit Dispute</Text>
+                <Text style={styles.modalSubmitText}>Submit Dispute</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -534,356 +573,196 @@ export default function MintStatusScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#F3F4F6",
+  container: { flex: 1 },
+  loading: { flex: 1, justifyContent: "center", alignItems: "center", padding: 24 },
+  loadingCard: {
+    padding: 32,
+    borderRadius: 24,
+    alignItems: "center",
+    gap: 14,
+    borderWidth: 1,
+    minWidth: 200,
   },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingBottom: 40,
-  },
+  loadingText: { fontSize: 14, fontWeight: "600" },
   headerWrapper: {
-    marginBottom: 8,
-  },
-  headerGradient: {
     position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 118,
+    top: 0, left: 0, right: 0,
+    zIndex: 10,
+    borderBottomWidth: 1,
   },
-  headerContent: {
-    paddingHorizontal: 20,
-  },
-  headerTop: {
+  headerSafeArea: { paddingHorizontal: 16 },
+  headerRow: {
     flexDirection: "row",
-    alignItems: "flex-start",
-    marginTop: 14,
-    paddingBottom: 0,
-  },
-  headerText: {
-    flex: 1,
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: "700",
-    color: "#FFFFFF",
-    marginBottom: 2,
-    letterSpacing: -0.5,
-  },
-  headerSubtitle: {
-    fontSize: 13,
-    color: "rgba(255, 255, 255, 0.9)",
-    fontWeight: "500",
-    lineHeight: 18,
+    alignItems: "center",
+    paddingTop: 10,
+    paddingBottom: 16,
   },
   backButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
     marginRight: 12,
-    marginTop: 4,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "rgba(255,255,255,0.2)",
-    alignItems: "center",
-    justifyContent: "center",
   },
-  loading: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#FFFFFF",
+  headerText: { flex: 1 },
+  headerTitle: { fontSize: 22, fontWeight: "900", letterSpacing: -0.5 },
+  headerSubtitle: { fontSize: 13, lineHeight: 18, fontWeight: "500" },
+  content: { paddingHorizontal: 16, paddingBottom: 24 },
+  glow: {
+    position: "absolute",
+    top: 0, left: 0, right: 0,
+    height: 200,
   },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 14,
-    color: "#9CA3AF",
-    fontWeight: "500",
-  },
-  mainContent: {
-    paddingHorizontal: 20,
-    marginTop: 16,
-  },
-  summaryCard: {
-    borderRadius: 24,
+  heroCard: {
+    borderRadius: 28,
+    borderWidth: 1,
     padding: 20,
-    marginBottom: 18,
-    borderWidth: 1,
-    borderColor: "#E6F4EA",
+    marginBottom: 14,
+    overflow: "hidden",
   },
-  summaryEyebrow: {
-    fontSize: 11,
-    fontWeight: "800",
-    color: "#00B14F",
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-    marginBottom: 8,
-  },
-  summaryTitle: {
-    fontSize: 22,
-    fontWeight: "700",
-    color: "#111827",
-    marginBottom: 8,
-    letterSpacing: -0.4,
-  },
-  summaryText: {
-    fontSize: 14,
-    color: "#6B7280",
-    lineHeight: 21,
-  },
-  statusChipContainer: {
+  heroTop: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
+    gap: 14,
     marginBottom: 16,
   },
-  statusBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+  heroIconRing: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  heroMeta: { flex: 1, gap: 6 },
+  statusPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
     borderRadius: 20,
+    alignSelf: "flex-start",
   },
-  statusBadgeText: {
-    fontSize: 12,
-    fontWeight: "700",
-    letterSpacing: 0.5,
-  },
-  refText: {
-    fontSize: 12,
-    color: "#6B7280",
+  statusPillDot: { width: 7, height: 7, borderRadius: 4 },
+  statusPillText: { fontSize: 12, fontWeight: "800", letterSpacing: 0.3 },
+  heroRef: {
+    fontSize: 11,
     fontWeight: "600",
-    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+    fontFamily: Platform.OS === "ios" ? "Courier" : "monospace",
   },
+  heroAmount: {
+    fontSize: 32,
+    fontWeight: "900",
+    letterSpacing: -1,
+    marginBottom: 4,
+  },
+  heroToken: { fontSize: 20, fontWeight: "700" },
+  heroDate: { fontSize: 12, fontWeight: "500" },
   timerCard: {
-    borderRadius: 20,
-    padding: 16,
-    backgroundColor: "#FFFFFF",
-    marginBottom: 16,
+    borderRadius: 22,
     borderWidth: 1,
-    borderColor: "#E5E7EB",
+    padding: 16,
+    marginBottom: 14,
   },
   card: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 20,
-    padding: 20,
-    marginBottom: 16,
+    borderRadius: 22,
     borderWidth: 1,
-    borderColor: "#F3F4F6",
+    padding: 18,
+    marginBottom: 14,
   },
-  cardTitle: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#111827",
+  cardHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
     marginBottom: 16,
   },
-  detail: {
+  cardTitle: { fontSize: 15, fontWeight: "800" },
+  proofHint: { fontSize: 13, fontWeight: "500", marginBottom: 12 },
+  proofTouchable: { borderRadius: 18, overflow: "hidden", position: "relative" },
+  proofImage: { width: "100%", height: 220 },
+  proofOverlay: {
+    position: "absolute",
+    bottom: 0, left: 0, right: 0,
+    padding: 12,
+    alignItems: "flex-end",
+    backgroundColor: "rgba(0,0,0,0.2)",
+  },
+  proofTapBadge: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
+    gap: 5,
+    backgroundColor: "rgba(0,0,0,0.45)",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
   },
-  detailLabel: {
-    fontSize: 14,
-    color: "#6B7280",
-    fontWeight: "500",
-  },
-  detailValue: {
-    fontSize: 18,
-    fontWeight: "800",
-    color: "#111827",
-  },
-  detailText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#374151",
-  },
-  tokenSymbol: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#6B7280",
-  },
-  divider: {
-    height: 1,
-    backgroundColor: "#F3F4F6",
-    marginVertical: 12,
-  },
-  proofHint: {
-    fontSize: 13,
-    color: "#6B7280",
-    marginBottom: 12,
-  },
-  proofImage: {
-    width: "100%",
-    height: 220,
-    borderRadius: 12,
-    backgroundColor: "#E5E7EB",
-  },
-  proofTapHint: {
-    marginTop: 8,
-    fontSize: 12,
-    color: "#6B7280",
-  },
+  proofTapText: { color: "#FFF", fontSize: 12, fontWeight: "700" },
   messageCard: {
     flexDirection: "row",
-    padding: 16,
     borderRadius: 20,
-    marginBottom: 20,
-    gap: 12,
     borderWidth: 1,
+    padding: 14,
+    gap: 12,
+    marginBottom: 14,
   },
-  messageContent: {
-    flex: 1,
+  messageIconBox: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
   },
-  messageTitle: {
-    fontSize: 15,
-    fontWeight: "700",
-    marginBottom: 4,
-  },
-  messageText: {
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  pendingMessage: {
-    backgroundColor: "#FFFBEB",
-    borderColor: "#FEF3C7",
-  },
-  warningMessage: {
-    backgroundColor: "#EFF6FF",
-    borderColor: "#DBEAFE",
-  },
-  successMessage: {
-    backgroundColor: "#F0FDF4",
-    borderColor: "#DCFCE7",
-  },
-  errorMessage: {
-    backgroundColor: "#FEF2F2",
-    borderColor: "#FEE2E2",
-  },
-  disputeMessage: {
-    backgroundColor: "#FFFBEB",
-    borderColor: "#FEF3C7",
-  },
-  successTitle: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#166534",
-    marginBottom: 4,
-  },
-  successText: {
-    fontSize: 14,
-    color: "#15803D",
-    lineHeight: 20,
-  },
-  errorTitle: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#991B1B",
-    marginBottom: 4,
-  },
-  errorText: {
-    fontSize: 14,
-    color: "#B91C1C",
-    lineHeight: 20,
-  },
-  actionButton: {
-    backgroundColor: "#00B14F",
+  messageBody: { flex: 1 },
+  messageTitle: { fontSize: 14, fontWeight: "800", marginBottom: 4 },
+  messageText: { fontSize: 13, lineHeight: 19, fontWeight: "500" },
+  msgActionBtn: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 12,
-    borderRadius: 14,
-    marginTop: 16,
+    gap: 6,
+    paddingVertical: 10,
+    borderRadius: 12,
+    marginTop: 12,
+  },
+  msgActionBtnText: { color: "#FFF", fontSize: 13, fontWeight: "800" },
+  footerActions: { gap: 12, marginTop: 6 },
+  footerRow: { flexDirection: "row", gap: 12 },
+  primaryBtn: {
+    flexDirection: "row",
+    height: 58,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
     gap: 8,
   },
-  actionButtonText: {
-    color: "#FFFFFF",
-    fontSize: 14,
-    fontWeight: "700",
-  },
-  footerActions: {
-    gap: 12,
-    marginTop: 10,
-  },
-  footerRow: {
-    flexDirection: "row",
-    gap: 12,
-  },
-  primaryBtn: {
-    backgroundColor: "#00B14F",
-    flexDirection: "row",
-    height: 56,
-    borderRadius: 16,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 10,
-    shadowColor: "#00B14F",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  primaryBtnText: {
-    color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "700",
-  },
+  primaryBtnText: { color: "#FFF", fontSize: 16, fontWeight: "800" },
   secondaryBtn: {
-    backgroundColor: "#FFFFFF",
     flexDirection: "row",
-    height: 56,
-    borderRadius: 16,
+    height: 58,
+    borderRadius: 20,
     alignItems: "center",
     justifyContent: "center",
-    gap: 10,
+    gap: 8,
     borderWidth: 1,
-    borderColor: "#E5E7EB",
   },
-  secondaryBtnText: {
-    color: "#374151",
-    fontSize: 16,
-    fontWeight: "700",
-  },
-  dismissBtn: {
-    backgroundColor: "#EFF6FF",
-    flexDirection: "row",
-    height: 56,
-    borderRadius: 16,
-    alignItems: "center",
-    justifyContent: "center",
-    flex: 1,
-    borderWidth: 1,
-    borderColor: "#DBEAFE",
-  },
-  dismissBtnText: {
-    color: "#1E40AF",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  helpLink: {
-    alignItems: "center",
-    marginTop: 30,
-    gap: 4,
-  },
-  helpLinkText: {
-    fontSize: 13,
-    color: "#6B7280",
-  },
-  supportText: {
-    fontSize: 14,
-    color: "#00B14F",
-    fontWeight: "700",
-  },
+  secondaryBtnText: { fontSize: 16, fontWeight: "700" },
+  helpLink: { alignItems: "center", marginTop: 20, gap: 4 },
+  helpLinkText: { fontSize: 13, fontWeight: "500" },
+  supportText: { fontSize: 14, fontWeight: "800" },
   modalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(15, 23, 42, 0.45)",
+    backgroundColor: "rgba(7,17,26,0.55)",
     justifyContent: "flex-end",
   },
-  modalContent: {
-    backgroundColor: "#FFFFFF",
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
+  modalSheet: {
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
     paddingHorizontal: 20,
     paddingTop: 12,
-    paddingBottom: Platform.OS === 'ios' ? 36 : 24,
+    paddingBottom: Platform.OS === "ios" ? 40 : 28,
   },
   modalHandle: {
     alignSelf: "center",
@@ -891,84 +770,42 @@ const styles = StyleSheet.create({
     height: 5,
     borderRadius: 999,
     backgroundColor: "#D0D5DD",
-    marginBottom: 16,
+    marginBottom: 20,
   },
   modalHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 16,
+    marginBottom: 12,
   },
-  modalTitleWrap: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
-  modalIconWrap: {
+  modalTitleRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+  modalIconBox: {
     width: 36,
     height: 36,
-    borderRadius: 18,
+    borderRadius: 10,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#FFF7E8",
   },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: "800",
-    color: "#111827",
+  modalTitle: { fontSize: 20, fontWeight: "900" },
+  modalCloseBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  modalDescription: {
-    fontSize: 14,
-    color: "#6B7280",
-    lineHeight: 22,
-    marginBottom: 24,
-  },
-  inputLabel: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: "#374151",
-    marginBottom: 8,
-  },
+  modalDescription: { fontSize: 14, lineHeight: 21, marginBottom: 20 },
+  inputLabel: { fontSize: 13, fontWeight: "700", marginBottom: 8 },
   input: {
-    backgroundColor: "#FBFCFD",
     borderWidth: 1,
-    borderColor: "#E4E7EC",
     borderRadius: 16,
     padding: 14,
     fontSize: 15,
-    color: "#111827",
     marginBottom: 16,
   },
-  textArea: {
-    height: 120,
-    textAlignVertical: "top",
-  },
-  modalButtons: {
-    flexDirection: "row",
-    gap: 12,
-    marginTop: 8,
-  },
-  modalButton: {
-    flex: 1,
-    height: 56,
-    borderRadius: 16,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  cancelBtn: {
-    backgroundColor: "#F3F4F6",
-  },
-  cancelBtnText: {
-    color: "#4B5563",
-    fontSize: 16,
-    fontWeight: "700",
-  },
-  submitBtn: {
-    backgroundColor: "#EF4444",
-  },
-  submitBtnText: {
-    color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "700",
-  },
+  textArea: { height: 110, textAlignVertical: "top" },
+  modalBtns: { flexDirection: "row", gap: 12, marginTop: 8 },
+  modalBtn: { flex: 1, height: 56, borderRadius: 18, alignItems: "center", justifyContent: "center" },
+  modalCancelText: { fontSize: 15, fontWeight: "700" },
+  modalSubmitText: { color: "#FFF", fontSize: 15, fontWeight: "800" },
 });

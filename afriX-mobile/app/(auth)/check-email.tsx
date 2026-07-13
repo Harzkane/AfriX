@@ -1,55 +1,83 @@
 // app/(auth)/check-email.tsx
 import React from "react";
-import { View, StyleSheet } from "react-native";
-import { Text, Button } from "react-native-paper";
+import { View, StyleSheet, Text, TouchableOpacity, useColorScheme } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import * as Haptics from "expo-haptics";
 
 export default function CheckEmailScreen() {
   const router = useRouter();
   const { email } = useLocalSearchParams<{ email: string }>();
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === "dark";
+
+  const theme = {
+    background: isDark ? "#080E14" : "#F4F7FC",
+    card: isDark ? "rgba(16, 25, 36, 0.85)" : "#FFFFFF",
+    text: isDark ? "#F8FAFC" : "#0F172A",
+    muted: isDark ? "#94A3B8" : "#64748B",
+    border: isDark ? "#1E2E42" : "#E2E8F0",
+    accent: "#00B14F",
+  };
+
+  const handleBackToLogin = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    router.replace("/(auth)/login");
+  };
 
   return (
-    <LinearGradient colors={["#00B14F", "#008F40"]} style={styles.container}>
-      {/* Decorative circles */}
-      <View style={styles.decorativeCircle1} />
-      <View style={styles.decorativeCircle2} />
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
+      {/* Background gradients */}
+      <LinearGradient
+        colors={isDark ? ["#051811", "#080E14"] : ["#E8FDF0", "#F4F7FC"]}
+        style={StyleSheet.absoluteFillObject}
+      />
+      <View style={[styles.glowOrb1, { backgroundColor: isDark ? "rgba(0, 177, 79, 0.12)" : "rgba(0, 177, 79, 0.06)" }]} />
 
       <View style={styles.inner}>
-        {/* Icon Section */}
-        <View style={styles.iconSection}>
-          <View style={styles.iconCircle}>
-            <Ionicons name="mail-outline" size={48} color="#FFFFFF" />
-          </View>
-          <Text style={styles.title}>Check Your Email</Text>
-          <Text style={styles.subtitle}>{"We've sent you a reset link"}</Text>
+        {/* Brand header */}
+        <View style={styles.brandSection}>
+          <LinearGradient
+            colors={["#00B14F", "#10B981"]}
+            style={styles.logoCircle}
+          >
+            <Ionicons name="mail-open-outline" size={34} color="#FFFFFF" />
+          </LinearGradient>
+          <Text style={[styles.welcomeText, { color: theme.text }]}>Check Your Email</Text>
+          <Text style={[styles.subtitle, { color: theme.muted }]}>We sent you a password reset link</Text>
         </View>
- 
-        {/* Card Container */}
-        <View style={styles.card}>
-          <Text style={styles.message}>
+
+        {/* Message Card */}
+        <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
+          <Text style={[styles.messageText, { color: theme.text }]}>
             {email
               ? `We sent a password reset link to ${email}. Follow the instructions to reset your password.`
               : "We sent a password reset link to your email. Follow the instructions to reset your password."}
           </Text>
- 
-          <Button
-            mode="contained"
-            onPress={() => router.replace("/(auth)/login")}
-            style={styles.button}
-            buttonColor="#00B14F"
-            contentStyle={{ paddingVertical: 8 }}
+
+          <TouchableOpacity
+            style={styles.loginBtn}
+            onPress={handleBackToLogin}
+            activeOpacity={0.85}
           >
-            Back to Login
-          </Button>
+            <LinearGradient
+              colors={["#00B14F", "#059669"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.loginBtnGradient}
+            >
+              <Text style={styles.loginBtnText}>Back to Login</Text>
+              <Ionicons name="arrow-back" size={18} color="#FFFFFF" />
+            </LinearGradient>
+          </TouchableOpacity>
         </View>
- 
-        <Text style={styles.footerText}>
-          {"Didn't receive the email? Check your spam folder"}
+
+        <Text style={[styles.footerText, { color: theme.muted }]}>
+          Didn&apos;t receive the email? Check your spam folder
         </Text>
       </View>
-    </LinearGradient>
+    </View>
   );
 }
 
@@ -57,81 +85,84 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  decorativeCircle1: {
+  glowOrb1: {
     position: "absolute",
-    width: 200,
-    height: 200,
-    borderRadius: 100,
-    backgroundColor: "rgba(255,255,255,0.1)",
+    width: 250,
+    height: 250,
+    borderRadius: 125,
     top: -50,
     right: -50,
   },
-  decorativeCircle2: {
-    position: "absolute",
-    width: 150,
-    height: 150,
-    borderRadius: 75,
-    backgroundColor: "rgba(255,255,255,0.08)",
-    bottom: 100,
-    left: -40,
-  },
   inner: {
     flex: 1,
-    padding: 24,
+    paddingHorizontal: 24,
     justifyContent: "center",
   },
-  iconSection: {
+  brandSection: {
     alignItems: "center",
-    marginBottom: 40,
+    marginBottom: 28,
   },
-  iconCircle: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: "rgba(255,255,255,0.2)",
+  logoCircle: {
+    width: 72,
+    height: 72,
+    borderRadius: 24,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 24,
-    borderWidth: 2,
-    borderColor: "rgba(255,255,255,0.3)",
+    marginBottom: 16,
+    shadowColor: "#00B14F",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 6,
   },
-  title: {
-    fontSize: 32,
-    fontWeight: "700",
-    color: "#FFFFFF",
-    marginBottom: 8,
-    textAlign: "center",
+  welcomeText: {
+    fontSize: 28,
+    fontWeight: "900",
+    letterSpacing: -0.5,
+    marginBottom: 6,
   },
   subtitle: {
-    fontSize: 16,
-    color: "rgba(255,255,255,0.85)",
+    fontSize: 14,
+    fontWeight: "500",
     textAlign: "center",
   },
   card: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 24,
-    padding: 24,
+    borderRadius: 26,
+    borderWidth: 1,
+    padding: 22,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.15,
-    shadowRadius: 20,
-    elevation: 8,
-    marginBottom: 24,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.05,
+    shadowRadius: 16,
+    elevation: 3,
+    marginBottom: 20,
   },
-  message: {
-    fontSize: 16,
+  messageText: {
+    fontSize: 15,
     textAlign: "center",
     marginBottom: 24,
-    color: "#374151",
-    lineHeight: 24,
+    lineHeight: 22,
+    fontWeight: "500",
   },
-  button: {
-    borderRadius: 12,
-    elevation: 0,
+  loginBtn: {
+    borderRadius: 18,
+    overflow: "hidden",
+  },
+  loginBtnGradient: {
+    height: 54,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+  loginBtnText: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "800",
   },
   footerText: {
     textAlign: "center",
-    fontSize: 14,
-    color: "rgba(255,255,255,0.8)",
+    fontSize: 13,
+    fontWeight: "600",
   },
 });

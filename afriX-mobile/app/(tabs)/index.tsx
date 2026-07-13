@@ -322,6 +322,16 @@ export default function DashboardScreen() {
             </Text>
           </View>
           <View style={styles.headerRight}>
+            {isAgentUser && (
+              <TouchableOpacity
+                style={[styles.switchBtn, { backgroundColor: isDark ? "rgba(124, 58, 237, 0.15)" : "rgba(124, 58, 237, 0.08)", borderColor: colors.border }]}
+                onPress={() => router.replace("/agent/dashboard")}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="swap-horizontal" size={13} color="#7C3AED" style={{ marginRight: 4 }} />
+                <Text style={[styles.switchBtnText, { color: "#7C3AED" }]}>Agent</Text>
+              </TouchableOpacity>
+            )}
             <TouchableOpacity
               style={[styles.bellBtn, { backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "#F3F4F6" }]}
               onPress={() => router.push("/settings/notification-inbox")}
@@ -641,32 +651,7 @@ export default function DashboardScreen() {
             </View>
           </TouchableOpacity>
 
-          {/* Agent shortcut workspace button */}
-          {isAgentUser && (
-            <TouchableOpacity
-              style={styles.agentShortcutCard}
-              activeOpacity={0.85}
-              onPress={() => router.replace("/agent/dashboard")}
-            >
-              <LinearGradient
-                colors={isDark ? ["#2E1065", "#1E1B4B"] : ["#F5F3FF", "#EDE9FE"]}
-                style={styles.agentShortcutGradient}
-              >
-                <View style={styles.agentShortcutContent}>
-                  <View style={[styles.agentShortcutIcon, { backgroundColor: isDark ? "rgba(124,58,237,0.2)" : "#FFFFFFB3" }]}>
-                    <Ionicons name="briefcase" size={20} color="#7C3AED" />
-                  </View>
-                  <View style={styles.agentShortcutText}>
-                    <Text style={[styles.agentShortcutTitle, { color: isDark ? "#C084FC" : "#5B21B6" }]}>Agent Dashboard</Text>
-                    <Text style={[styles.agentShortcutSubtitle, { color: isDark ? "#A78BFA" : "#6D28D9" }]}>
-                      Switch to your agent workspace
-                    </Text>
-                  </View>
-                  <Ionicons name="chevron-forward" size={20} color="#7C3AED" />
-                </View>
-              </LinearGradient>
-            </TouchableOpacity>
-          )}
+
 
           {/* Verification Level & Limits Card */}
           <View style={[styles.verificationCard, { backgroundColor: colors.cardBg, borderColor: colors.border }]}>
@@ -1030,6 +1015,18 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
+  },
+  switchBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 16,
+    borderWidth: 1,
+  },
+  switchBtnText: {
+    fontSize: 12,
+    fontWeight: "700",
   },
   bellBtn: {
     width: 38,

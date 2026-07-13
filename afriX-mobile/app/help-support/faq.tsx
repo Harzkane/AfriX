@@ -1,21 +1,27 @@
-import React, { useState } from "react";
+// app/help-support/faq.tsx
+import React, { useState, useRef } from "react";
 import {
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
+  useColorScheme,
+  Animated,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
+import * as Haptics from "expo-haptics";
 
 type FaqItem = { id: string; q: string; a: string };
 
-const SECTIONS: { title: string; items: FaqItem[] }[] = [
+const SECTIONS: { title: string; icon: string; color: string; items: FaqItem[] }[] = [
   {
     title: "Getting Started",
+    icon: "rocket-outline",
+    color: "#3B82F6",
     items: [
       {
         id: "what-is",
@@ -36,6 +42,8 @@ const SECTIONS: { title: string; items: FaqItem[] }[] = [
   },
   {
     title: "Tokens Explained",
+    icon: "cube-outline",
+    color: "#8B5CF6",
     items: [
       {
         id: "nt-ct",
@@ -51,6 +59,8 @@ const SECTIONS: { title: string; items: FaqItem[] }[] = [
   },
   {
     title: "Acquiring Tokens",
+    icon: "cart-outline",
+    color: "#00B14F",
     items: [
       {
         id: "how-buy",
@@ -66,6 +76,8 @@ const SECTIONS: { title: string; items: FaqItem[] }[] = [
   },
   {
     title: "Selling Tokens",
+    icon: "cash-outline",
+    color: "#F59E0B",
     items: [
       {
         id: "how-sell",
@@ -86,6 +98,8 @@ const SECTIONS: { title: string; items: FaqItem[] }[] = [
   },
   {
     title: "Security & Safety",
+    icon: "shield-checkmark-outline",
+    color: "#EF4444",
     items: [
       {
         id: "protect",
@@ -101,126 +115,166 @@ const SECTIONS: { title: string; items: FaqItem[] }[] = [
   },
   {
     title: "Fees",
+    icon: "receipt-outline",
+    color: "#0F766E",
     items: [
       {
         id: "fees",
         q: "What are the fees?",
-        a: "P2P transfer is 0.5 percent, swap is 1.5 percent, receive is free, buy and sell with agents are included in the quoted rate, and merchant payments are paid by the merchant. All fees are shown before you confirm.",
+        a: "P2P transfer is 0.5%, swap is 1.5%, receive is free, buy and sell with agents are included in the quoted rate, and merchant payments are paid by the merchant. All fees are shown before you confirm.",
       },
     ],
   },
 ];
 
+const TOTAL_TOPICS = SECTIONS.reduce((acc, s) => acc + s.items.length, 0);
+
 export default function FullFaqScreen() {
   const router = useRouter();
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === "dark";
+  const insets = useSafeAreaInsets();
+  const scrollY = useRef(new Animated.Value(0)).current;
+  const [headerMaxHeight, setHeaderMaxHeight] = useState(insets.top + 70);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
+  const theme = {
+    background: isDark ? "#07111A" : "#F5F7FB",
+    card: isDark ? "#0E1726" : "#FFFFFF",
+    text: isDark ? "#F8FAFC" : "#0F172A",
+    muted: isDark ? "#94A3B8" : "#64748B",
+    border: isDark ? "#1E2A3A" : "#E2E8F0",
+    divider: isDark ? "#1A2638" : "#F1F5F9",
+    accent: "#00B14F",
+    accentSoft: isDark ? "rgba(0,177,79,0.14)" : "#EAF8EF",
+    accentBorder: isDark ? "rgba(0,177,79,0.3)" : "#BBF7D0",
+  };
+
+  const subtitleOpacity = scrollY.interpolate({ inputRange: [0, 50], outputRange: [1, 0], extrapolate: "clamp" });
+  const subtitleMaxHeight = scrollY.interpolate({ inputRange: [0, 50], outputRange: [80, 0], extrapolate: "clamp" });
+  const subtitleMargin = scrollY.interpolate({ inputRange: [0, 50], outputRange: [4, 0], extrapolate: "clamp" });
+
   const toggle = (id: string) => {
-    setExpanded((previous) => ({ ...previous, [id]: !previous[id] }));
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setExpanded((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.headerWrapper}>
-        <LinearGradient
-          colors={["#00B14F", "#008F40"]}
-          style={styles.headerGradient}
-        />
-        <SafeAreaView edges={["top"]} style={styles.headerContent}>
-          <View style={styles.header}>
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
+      {/* Collapsible Header */}
+      <Animated.View
+        onLayout={(e) => {
+          const h = e.nativeEvent.layout.height;
+          if (h > headerMaxHeight) setHeaderMaxHeight(h);
+        }}
+        style={[styles.headerWrapper, { backgroundColor: theme.background, borderBottomColor: theme.border }]}
+      >
+        <SafeAreaView edges={["top"]} style={{ paddingHorizontal: 16 }}>
+          <View style={styles.headerRow}>
             <TouchableOpacity
               onPress={() => router.back()}
-              style={styles.backButton}
-              activeOpacity={0.8}
+              style={[styles.backButton, { backgroundColor: theme.card, borderColor: theme.border }]}
+              activeOpacity={0.85}
             >
-              <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
+              <Ionicons name="arrow-back" size={22} color={theme.text} />
             </TouchableOpacity>
-            <Text style={styles.headerTitle}>Full FAQ</Text>
-            <View style={styles.headerSpacer} />
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.headerTitle, { color: theme.text }]}>Full FAQ</Text>
+              <Animated.View style={{ opacity: subtitleOpacity, maxHeight: subtitleMaxHeight, marginTop: subtitleMargin, overflow: "hidden" }}>
+                <Text style={[styles.headerSubtitle, { color: theme.muted }]}>
+                  Browse all {TOTAL_TOPICS} topics across {SECTIONS.length} categories.
+                </Text>
+              </Animated.View>
+            </View>
+            <View style={{ width: 42 }} />
           </View>
         </SafeAreaView>
-      </View>
+      </Animated.View>
 
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
+      <Animated.ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={[styles.content, { paddingTop: headerMaxHeight + 16 }]}
         showsVerticalScrollIndicator={false}
+        onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: false })}
+        scrollEventThrottle={16}
       >
+        {/* Glow */}
         <LinearGradient
-          colors={["#F7FFF9", "#FFFFFF"]}
-          style={styles.summaryCard}
-        >
-          <View style={styles.summaryTopRow}>
-            <View style={styles.summaryBadge}>
-              <Ionicons name="book-outline" size={16} color="#00B14F" />
-              <Text style={styles.summaryBadgeText}>Knowledge Base</Text>
+          colors={isDark ? ["rgba(0,177,79,0.10)", "rgba(7,17,26,0)"] : ["rgba(0,177,79,0.08)", "rgba(245,247,251,0)"]}
+          style={styles.glow}
+          pointerEvents="none"
+        />
+
+        {/* Hero card */}
+        <View style={[styles.heroCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+          <View style={styles.heroTopRow}>
+            <View style={[styles.heroBadge, { backgroundColor: theme.accentSoft, borderColor: theme.accentBorder }]}>
+              <Ionicons name="book-outline" size={13} color={theme.accent} />
+              <Text style={[styles.heroBadgeText, { color: theme.accent }]}>Knowledge Base</Text>
             </View>
-            <View style={styles.countPill}>
-              <Text style={styles.countPillText}>
-                {SECTIONS.reduce((total, section) => total + section.items.length, 0)} topics
-              </Text>
+            <View style={[styles.countPill, { backgroundColor: isDark ? "#111C2B" : "#F1F5F9", borderColor: theme.border }]}>
+              <Text style={[styles.countPillText, { color: theme.muted }]}>{TOTAL_TOPICS} topics</Text>
             </View>
           </View>
-          <Text style={styles.summaryTitle}>Answers for the most important questions</Text>
-          <Text style={styles.summaryText}>
+
+          <Text style={[styles.heroTitle, { color: theme.text }]}>Answers to the most important questions</Text>
+          <Text style={[styles.heroSubtitle, { color: theme.muted }]}>
             Explore account setup, token usage, agent transactions, security, fees, and dispute guidance in one place.
           </Text>
 
-          <View style={styles.highlightRow}>
-            <View style={styles.highlightPill}>
-              <Ionicons name="shield-checkmark-outline" size={16} color="#059669" />
-              <Text style={styles.highlightText}>Safety tips included</Text>
-            </View>
-            <View style={styles.highlightPill}>
-              <Ionicons name="flash-outline" size={16} color="#0EA5E9" />
-              <Text style={styles.highlightText}>Quick scan format</Text>
-            </View>
+          <View style={styles.featurePillRow}>
+            {[
+              { icon: "shield-checkmark-outline", label: "Safety tips included", color: "#059669" },
+              { icon: "flash-outline", label: "Quick scan format", color: "#3B82F6" },
+            ].map((pill) => (
+              <View key={pill.label} style={[styles.featurePill, { backgroundColor: isDark ? "#111C2B" : "#FFFFFF", borderColor: theme.border }]}>
+                <Ionicons name={pill.icon as any} size={14} color={pill.color} />
+                <Text style={[styles.featurePillText, { color: theme.muted }]}>{pill.label}</Text>
+              </View>
+            ))}
           </View>
-        </LinearGradient>
+        </View>
 
+        {/* FAQ Sections */}
         {SECTIONS.map((section) => (
           <View key={section.title} style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>{section.title}</Text>
-              <Text style={styles.sectionCount}>{section.items.length} items</Text>
+            {/* Section header */}
+            <View style={styles.sectionHeaderRow}>
+              <View style={[styles.sectionIconBox, { backgroundColor: section.color + (isDark ? "22" : "18") }]}>
+                <Ionicons name={section.icon as any} size={16} color={section.color} />
+              </View>
+              <Text style={[styles.sectionTitle, { color: theme.text }]}>{section.title}</Text>
+              <View style={[styles.sectionCountPill, { backgroundColor: isDark ? "#111C2B" : "#F1F5F9" }]}>
+                <Text style={[styles.sectionCountText, { color: theme.muted }]}>{section.items.length}</Text>
+              </View>
             </View>
 
-            <View style={styles.sectionCard}>
-              {section.items.map((item, index) => {
+            <View style={[styles.sectionCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+              {section.items.map((item, idx) => {
                 const isOpen = expanded[item.id];
-                const isLast = index === section.items.length - 1;
+                const isLast = idx === section.items.length - 1;
 
                 return (
-                  <View
-                    key={item.id}
-                    style={[styles.faqCard, isLast && styles.faqCardLast]}
-                  >
+                  <View key={item.id}>
                     <TouchableOpacity
                       style={styles.faqRow}
                       onPress={() => toggle(item.id)}
                       activeOpacity={0.75}
                     >
-                      <View style={styles.faqQuestionBlock}>
-                        <View style={styles.faqIcon}>
-                          <Ionicons
-                            name={isOpen ? "remove" : "add"}
-                            size={16}
-                            color="#00B14F"
-                          />
-                        </View>
-                        <Text style={styles.faqQuestion}>{item.q}</Text>
+                      <View style={[styles.faqToggleBox, { backgroundColor: isOpen ? section.color + "22" : (isDark ? "#111C2B" : "#F1F5F9") }]}>
+                        <Ionicons name={isOpen ? "remove" : "add"} size={14} color={isOpen ? section.color : theme.muted} />
                       </View>
-                      <Ionicons
-                        name={isOpen ? "chevron-up" : "chevron-down"}
-                        size={18}
-                        color="#6B7280"
-                      />
+                      <Text style={[styles.faqQuestion, { color: theme.text }]}>{item.q}</Text>
+                      <Ionicons name={isOpen ? "chevron-up" : "chevron-down"} size={16} color={theme.muted} />
                     </TouchableOpacity>
 
-                    {isOpen ? (
-                      <View style={styles.answerWrap}>
-                        <Text style={styles.faqAnswer}>{item.a}</Text>
+                    {isOpen && (
+                      <View style={[styles.faqAnswerWrap, { borderTopColor: theme.divider }]}>
+                        <Text style={[styles.faqAnswer, { color: theme.muted }]}>{item.a}</Text>
                       </View>
-                    ) : null}
+                    )}
+
+                    {!isLast && <View style={[styles.itemDivider, { backgroundColor: theme.divider }]} />}
                   </View>
                 );
               })}
@@ -228,246 +282,119 @@ export default function FullFaqScreen() {
           </View>
         ))}
 
-        <View style={styles.supportCard}>
-          <Text style={styles.supportEyebrow}>Still Need Help?</Text>
-          <Text style={styles.supportTitle}>Contact the support team directly</Text>
-          <Text style={styles.supportText}>
-            If your answer is not here, go back to Help & Support and use the Email Support option so we can assist with account or transaction issues.
+        {/* Still need help card */}
+        <View style={[styles.ctaCard, { backgroundColor: isDark ? "#0E1726" : "#0F172A", borderColor: isDark ? "#1E2A3A" : "#1E293B" }]}>
+          <Text style={styles.ctaEyebrow}>STILL NEED HELP?</Text>
+          <Text style={styles.ctaTitle}>Contact the support team directly</Text>
+          <Text style={styles.ctaSubtitle}>
+            If your answer isn&apos;t here, go back to Help &amp; Support and use the Email Support option so we can assist with account or transaction issues.
           </Text>
+          <TouchableOpacity
+            style={styles.ctaBtn}
+            onPress={() => router.back()}
+            activeOpacity={0.85}
+          >
+            <Ionicons name="arrow-back" size={16} color="#0F172A" />
+            <Text style={styles.ctaBtnText}>Back to Help & Support</Text>
+          </TouchableOpacity>
         </View>
 
-        <View style={styles.bottomSpacer} />
-      </ScrollView>
+        <View style={{ height: 40 }} />
+      </Animated.ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#F6F8FB",
-  },
+  container: { flex: 1 },
   headerWrapper: {
-    zIndex: 2,
-    elevation: 2,
-    backgroundColor: "#00B14F",
+    position: "absolute",
+    top: 0, left: 0, right: 0,
+    zIndex: 10, borderBottomWidth: 1,
   },
-  headerGradient: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  headerContent: {
-    paddingHorizontal: 20,
-    paddingBottom: 18,
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    minHeight: 48,
+  headerRow: {
+    flexDirection: "row", alignItems: "center",
+    paddingTop: 10, paddingBottom: 16,
   },
   backButton: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "rgba(255,255,255,0.18)",
+    width: 42, height: 42, borderRadius: 21, borderWidth: 1,
+    alignItems: "center", justifyContent: "center", marginRight: 12,
   },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#FFFFFF",
+  headerTitle: { fontSize: 22, fontWeight: "900", letterSpacing: -0.5 },
+  headerSubtitle: { fontSize: 13, fontWeight: "500", lineHeight: 18 },
+  content: { paddingHorizontal: 16, paddingBottom: 24 },
+  glow: { position: "absolute", top: 0, left: 0, right: 0, height: 200 },
+
+  heroCard: {
+    borderRadius: 24, padding: 20, marginBottom: 20, borderWidth: 1,
   },
-  headerSpacer: {
-    width: 42,
+  heroTopRow: {
+    flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 14,
   },
-  scrollContent: {
-    paddingHorizontal: 20,
-    paddingTop: 18,
-    paddingBottom: 40,
+  heroBadge: {
+    flexDirection: "row", alignItems: "center", gap: 6,
+    paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999, borderWidth: 1,
   },
-  summaryCard: {
-    marginTop: -18,
-    borderRadius: 24,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: "#D9FBE8",
-    shadowColor: "#0F172A",
-    shadowOpacity: 0.08,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 10 },
-    elevation: 4,
-  },
-  summaryTopRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 14,
-    gap: 10,
-  },
-  summaryBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 999,
-    backgroundColor: "#ECFDF5",
-  },
-  summaryBadgeText: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: "#047857",
-  },
+  heroBadgeText: { fontSize: 12, fontWeight: "800" },
   countPill: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 999,
-    backgroundColor: "#F3F4F6",
+    paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999, borderWidth: 1,
   },
-  countPillText: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: "#475467",
+  countPillText: { fontSize: 12, fontWeight: "700" },
+  heroTitle: { fontSize: 22, fontWeight: "900", lineHeight: 28, letterSpacing: -0.4, marginBottom: 8 },
+  heroSubtitle: { fontSize: 14, lineHeight: 21, fontWeight: "500", marginBottom: 14 },
+  featurePillRow: { flexDirection: "row", gap: 8, flexWrap: "wrap" },
+  featurePill: {
+    flexDirection: "row", alignItems: "center", gap: 6,
+    paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999, borderWidth: 1,
   },
-  summaryTitle: {
-    fontSize: 24,
-    lineHeight: 30,
-    fontWeight: "800",
-    color: "#0F172A",
-    marginBottom: 10,
+  featurePillText: { fontSize: 12, fontWeight: "600" },
+
+  section: { marginBottom: 16 },
+  sectionHeaderRow: {
+    flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 10,
   },
-  summaryText: {
-    fontSize: 14,
-    lineHeight: 22,
-    color: "#475467",
+  sectionIconBox: {
+    width: 32, height: 32, borderRadius: 10,
+    alignItems: "center", justifyContent: "center",
   },
-  highlightRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 10,
-    marginTop: 16,
+  sectionTitle: { flex: 1, fontSize: 16, fontWeight: "800", letterSpacing: -0.2 },
+  sectionCountPill: {
+    paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999,
   },
-  highlightPill: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 999,
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-  },
-  highlightText: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#344054",
-  },
-  section: {
-    marginTop: 22,
-  },
-  sectionHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 12,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: "800",
-    color: "#111827",
-  },
-  sectionCount: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: "#667085",
-  },
+  sectionCountText: { fontSize: 11, fontWeight: "800" },
+
   sectionCard: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 22,
-    borderWidth: 1,
-    borderColor: "#E4E7EC",
-    overflow: "hidden",
-    shadowColor: "#0F172A",
-    shadowOpacity: 0.04,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 2,
-  },
-  faqCard: {
-    borderBottomWidth: 1,
-    borderBottomColor: "#EEF2F6",
-  },
-  faqCardLast: {
-    borderBottomWidth: 0,
+    borderRadius: 22, borderWidth: 1, overflow: "hidden",
   },
   faqRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 16,
+    flexDirection: "row", alignItems: "center", gap: 12,
+    paddingHorizontal: 16, paddingVertical: 14,
   },
-  faqQuestionBlock: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
+  faqToggleBox: {
+    width: 26, height: 26, borderRadius: 8,
+    alignItems: "center", justifyContent: "center", flexShrink: 0,
   },
-  faqIcon: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#ECFDF5",
+  faqQuestion: { flex: 1, fontSize: 14, fontWeight: "700", lineHeight: 20 },
+  faqAnswerWrap: {
+    paddingHorizontal: 16, paddingBottom: 14, paddingTop: 12,
+    paddingLeft: 54, borderTopWidth: 1,
   },
-  faqQuestion: {
-    flex: 1,
-    fontSize: 15,
-    lineHeight: 22,
-    fontWeight: "700",
-    color: "#101828",
+  faqAnswer: { fontSize: 13, lineHeight: 20, fontWeight: "500" },
+  itemDivider: { height: 1, marginHorizontal: 16 },
+
+  ctaCard: {
+    borderRadius: 24, padding: 22, marginBottom: 16, borderWidth: 1,
   },
-  answerWrap: {
-    paddingHorizontal: 16,
-    paddingBottom: 16,
-    paddingLeft: 56,
+  ctaEyebrow: {
+    fontSize: 10, fontWeight: "800", color: "#86EFAC",
+    textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 8,
   },
-  faqAnswer: {
-    fontSize: 14,
-    lineHeight: 22,
-    color: "#475467",
+  ctaTitle: { fontSize: 20, fontWeight: "900", color: "#FFFFFF", marginBottom: 8, letterSpacing: -0.4 },
+  ctaSubtitle: { fontSize: 13, lineHeight: 20, color: "#94A3B8", fontWeight: "500", marginBottom: 18 },
+  ctaBtn: {
+    flexDirection: "row", alignItems: "center", gap: 8,
+    height: 50, borderRadius: 16, paddingHorizontal: 18,
+    backgroundColor: "#86EFAC", alignSelf: "flex-start",
   },
-  supportCard: {
-    marginTop: 24,
-    borderRadius: 22,
-    padding: 20,
-    backgroundColor: "#0F172A",
-  },
-  supportEyebrow: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: "#86EFAC",
-    textTransform: "uppercase",
-    letterSpacing: 0.6,
-    marginBottom: 8,
-  },
-  supportTitle: {
-    fontSize: 20,
-    lineHeight: 26,
-    fontWeight: "800",
-    color: "#FFFFFF",
-    marginBottom: 8,
-  },
-  supportText: {
-    fontSize: 14,
-    lineHeight: 22,
-    color: "#D0D5DD",
-  },
-  bottomSpacer: {
-    height: 24,
-  },
+  ctaBtnText: { fontSize: 14, fontWeight: "800", color: "#0F172A" },
 });

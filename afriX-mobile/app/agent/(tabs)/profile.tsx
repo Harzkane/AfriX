@@ -1,7 +1,15 @@
-import React, { useCallback, useEffect } from "react";
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl } from "react-native";
-import { Surface } from "react-native-paper";
-import { SafeAreaView } from "react-native-safe-area-context";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  RefreshControl,
+  useColorScheme,
+  Animated,
+} from "react-native";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
@@ -11,976 +19,799 @@ import { useAgentStore } from "@/stores/slices/agentSlice";
 import { getCountryByCode, stripLeadingZero } from "@/constants/countries";
 
 const normalizeLocalPhoneInput = (value: string) =>
-    stripLeadingZero(value).replace(/\D/g, "").slice(0, 15);
+  stripLeadingZero(value).replace(/\D/g, "").slice(0, 15);
 
 const formatPhoneForDisplay = (value: string) => {
-    const digits = normalizeLocalPhoneInput(value);
-
-    if (!digits) return "";
-    if (digits.length <= 3) return digits;
-    if (digits.length <= 6) return `${digits.slice(0, 3)} ${digits.slice(3)}`;
-    if (digits.length <= 10) return `${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6)}`;
-
-    return `${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6, 10)} ${digits.slice(10)}`;
+  const digits = normalizeLocalPhoneInput(value);
+  if (!digits) return "";
+  if (digits.length <= 3) return digits;
+  if (digits.length <= 6) return `${digits.slice(0, 3)} ${digits.slice(3)}`;
+  if (digits.length <= 10) return `${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6)}`;
+  return `${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6, 10)} ${digits.slice(10)}`;
 };
 
 export default function AgentProfile() {
-    const router = useRouter();
-    const { user } = useAuthStore();
-    const {
-        stats,
-        dashboardData,
-        withdrawalRequests,
-        fetchAgentStats,
-        fetchDashboard,
-        fetchWithdrawalRequests,
-        loading,
-    } = useAgentStore();
-    const countryCode = (user as any)?.country_code || (user as any)?.country || "";
-    const countryInfo = countryCode ? getCountryByCode(countryCode) : null;
+  const router = useRouter();
+  const { user } = useAuthStore();
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === "dark";
+  const { stats, dashboardData, withdrawalRequests, fetchAgentStats, fetchDashboard, fetchWithdrawalRequests, loading } = useAgentStore();
 
-    const loadData = useCallback(async () => {
-        await Promise.all([
-            fetchAgentStats(),
-            fetchDashboard(),
-            fetchWithdrawalRequests(),
-        ]);
-    }, [fetchAgentStats, fetchDashboard, fetchWithdrawalRequests]);
+  const insets = useSafeAreaInsets();
+  const [headerMaxHeight, setHeaderMaxHeight] = useState(insets.top + 70);
+  const scrollY = useRef(new Animated.Value(0)).current;
 
-    useEffect(() => {
-        loadData();
-    }, [loadData]);
+  const countryCode = (user as any)?.country_code || (user as any)?.country || "";
+  const countryInfo = countryCode ? getCountryByCode(countryCode) : null;
 
-    useFocusEffect(
-        useCallback(() => {
-            loadData();
-        }, [loadData])
-    );
+  const theme = {
+    bg: isDark ? "#090B14" : "#F5F4FC",
+    card: isDark ? "rgba(18, 14, 36, 0.92)" : "#FFFFFF",
+    cardAlt: isDark ? "rgba(255, 255, 255, 0.05)" : "#F9F8FF",
+    text: isDark ? "#F8FAFC" : "#0F172A",
+    muted: isDark ? "#94A3B8" : "#64748B",
+    border: isDark ? "#1E1638" : "#EDE9FE",
+    accent: "#7C3AED",
+    accentLight: isDark ? "rgba(124, 58, 237, 0.15)" : "rgba(124, 58, 237, 0.08)",
+    green: "#00B14F",
+    greenLight: isDark ? "rgba(0, 177, 79, 0.12)" : "rgba(0, 177, 79, 0.06)",
+    danger: "#EF4444",
+    dangerSoft: isDark ? "rgba(239, 68, 68, 0.12)" : "#FEF2F2",
+  };
 
-    const getTierColor = (tier: string) => {
-        switch (tier?.toLowerCase()) {
-            case 'platinum': return '#E5E4E2';
-            case 'gold': return '#FFD700';
-            case 'silver': return '#C0C0C0';
-            case 'bronze': return '#CD7F32';
-            default: return '#9CA3AF';
-        }
-    };
+  const handleHeaderLayout = (e: any) => {
+    const { height } = e.nativeEvent.layout;
+    if (height > headerMaxHeight) {
+      setHeaderMaxHeight(height);
+    }
+  };
 
-    const getStatusColor = (status: string) => {
-        switch (status?.toLowerCase()) {
-            case 'active': return '#00B14F';
-            case 'pending': return '#F59E0B';
-            case 'suspended': return '#EF4444';
-            default: return '#6B7280';
-        }
-    };
+  const subtitleOpacity = scrollY.interpolate({
+    inputRange: [0, 50],
+    outputRange: [1, 0],
+    extrapolate: "clamp",
+  });
 
-    // Derive withdrawal status summary from agent's requests
-    const baseMaxWithdrawable = dashboardData?.financials?.max_withdrawable ?? 0;
-    const pendingReserved = (withdrawalRequests || []).reduce((sum, req) => {
-        if (req.status !== "pending") return sum;
-        const value = parseFloat(req.amount_usd || "0");
-        return sum + (isNaN(value) ? 0 : value);
-    }, 0);
-    const effectiveMaxWithdrawable = Math.max(0, baseMaxWithdrawable - pendingReserved);
+  const subtitleMaxHeight = scrollY.interpolate({
+    inputRange: [0, 50],
+    outputRange: [80, 0],
+    extrapolate: "clamp",
+  });
 
-    const pendingWithdrawals = (withdrawalRequests || []).filter(
-        (req) => req.status === "pending"
-    );
-    const approvedUnpaidWithdrawals = (withdrawalRequests || []).filter(
-        (req) => req.status === "approved" && !req.paid_at
-    );
+  const subtitleMargin = scrollY.interpolate({
+    inputRange: [0, 50],
+    outputRange: [4, 0],
+    extrapolate: "clamp",
+  });
 
-    const totalPendingAmount = pendingWithdrawals.reduce((sum, req) => {
-        const value = parseFloat(req.amount_usd || "0");
-        return sum + (isNaN(value) ? 0 : value);
-    }, 0);
+  const loadData = useCallback(async () => {
+    await Promise.all([fetchAgentStats(), fetchDashboard(), fetchWithdrawalRequests()]);
+  }, [fetchAgentStats, fetchDashboard, fetchWithdrawalRequests]);
 
-    const totalApprovedUnpaidAmount = approvedUnpaidWithdrawals.reduce((sum, req) => {
-        const value = parseFloat(req.amount_usd || "0");
-        return sum + (isNaN(value) ? 0 : value);
-    }, 0);
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
-    const renderStars = (rating: number) => {
-        const stars = [];
-        for (let i = 1; i <= 5; i++) {
-            stars.push(
-                <Ionicons
-                    key={i}
-                    name={i <= rating ? "star" : "star-outline"}
-                    size={16}
-                    color="#F59E0B"
-                />
-            );
-        }
-        return stars;
-    };
+  useFocusEffect(
+    useCallback(() => {
+      loadData();
+    }, [loadData])
+  );
 
-    const formatContactNumber = (value?: string | null) => {
-        if (!value?.trim()) return "N/A";
+  const getTierColor = (tier: string) => {
+    switch (tier?.toLowerCase()) {
+      case "platinum": return "#A855F7";
+      case "gold": return "#F59E0B";
+      case "silver": return "#94A3B8";
+      case "bronze": return "#B45309";
+      default: return "#9CA3AF";
+    }
+  };
 
-        const formatted = formatPhoneForDisplay(value);
-        if (!formatted) return "N/A";
+  const getStatusColor = (status: string) => {
+    switch (status?.toLowerCase()) {
+      case "active": return "#00B14F";
+      case "pending": return "#F59E0B";
+      case "suspended": return "#EF4444";
+      default: return "#6B7280";
+    }
+  };
 
-        return countryInfo ? `${countryInfo.dialCode} ${formatted}` : formatted;
-    };
+  const baseMaxWithdrawable = dashboardData?.financials?.total_deposit ?? 0;
+  const pendingReserved = (withdrawalRequests || []).reduce((sum, req) => {
+    if (req.status !== "pending") return sum;
+    const value = parseFloat(req.amount_usd || "0");
+    return sum + (isNaN(value) ? 0 : value);
+  }, 0);
+  const effectiveMaxWithdrawable = Math.max(0, baseMaxWithdrawable - pendingReserved);
+  const pendingWithdrawals = (withdrawalRequests || []).filter((r) => r.status === "pending");
+  const approvedUnpaidWithdrawals = (withdrawalRequests || []).filter((r) => r.status === "approved" && !r.paid_at);
+  const totalPendingAmount = pendingWithdrawals.reduce((sum, r) => sum + (parseFloat(r.amount_usd || "0") || 0), 0);
+  const totalApprovedUnpaidAmount = approvedUnpaidWithdrawals.reduce((sum, r) => sum + (parseFloat(r.amount_usd || "0") || 0), 0);
 
-    return (
-        <View style={styles.container}>
-            <View style={styles.headerWrapper}>
-                <LinearGradient
-                    colors={["#00B14F", "#008F40"]}
-                    style={styles.headerGradient}
-                />
-                <SafeAreaView edges={["top"]} style={styles.headerContent}>
-                    <View style={styles.header}>
-                        <View style={styles.headerTop}>
-                            <Text style={styles.title}>Agent Profile</Text>
-                            <TouchableOpacity
-                                style={styles.switchButton}
-                                onPress={() => router.replace("/(tabs)")}
-                            >
-                                <Ionicons name="swap-horizontal" size={18} color="#FFFFFF" />
-                                <Text style={styles.switchText}>Switch to User</Text>
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-                </SafeAreaView>
+  const formatContactNumber = (value?: string | null) => {
+    if (!value?.trim()) return "N/A";
+    const formatted = formatPhoneForDisplay(value);
+    if (!formatted) return "N/A";
+    return countryInfo ? `${countryInfo.dialCode} ${formatted}` : formatted;
+  };
+
+  const getInitials = (name?: string) => {
+    if (!name) return "A";
+    return name
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2);
+  };
+
+  const agentTier = dashboardData?.agent?.tier || "Bronze";
+  const agentStatus = dashboardData?.agent?.status || "Pending";
+  const agentRating = parseFloat(dashboardData?.agent?.rating || "5");
+
+  const infoRows = [
+    { icon: "person-outline", iconBg: theme.accentLight, iconColor: theme.accent, label: "Full Name", value: user?.full_name || "N/A" },
+    { icon: "mail-outline", iconBg: isDark ? "rgba(59,130,246,0.12)" : "#EFF6FF", iconColor: "#3B82F6", label: "Email", value: user?.email || "N/A" },
+    { icon: "call-outline", iconBg: theme.greenLight, iconColor: theme.green, label: "Phone", value: formatContactNumber(user?.phone_number) },
+    { icon: "logo-whatsapp", iconBg: theme.greenLight, iconColor: "#25D366", label: "WhatsApp", value: formatContactNumber((user as any)?.whatsapp_number || user?.phone_number) },
+    { icon: "location-outline", iconBg: isDark ? "rgba(245,158,11,0.12)" : "#FFFBEB", iconColor: "#D97706", label: "Country", value: countryInfo ? `${countryInfo.name} (${countryInfo.code})` : "N/A" },
+  ];
+
+  const businessRows = [
+    { icon: "business-outline", iconBg: isDark ? "rgba(219,39,119,0.12)" : "#FDF2F8", iconColor: "#DB2777", label: "Bank Name", value: (user as any)?.bank_name || "Not set" },
+    { icon: "card-outline", iconBg: theme.accentLight, iconColor: theme.accent, label: "Account Number", value: (user as any)?.account_number || "Not set" },
+    { icon: "person-circle-outline", iconBg: theme.accentLight, iconColor: theme.accent, label: "Account Name", value: (user as any)?.account_name || "Not set" },
+    { icon: "wallet-outline", iconBg: theme.accentLight, iconColor: theme.accent, label: "Withdrawal Address", value: (user as any)?.withdrawal_address || "Not set", truncate: true },
+    ...((user as any)?.mobile_money_provider || (user as any)?.mobile_money_number ? [
+      { icon: "phone-portrait-outline", iconBg: isDark ? "rgba(234,88,12,0.12)" : "#FFF7ED", iconColor: "#EA580C", label: "Mobile Money Provider", value: (user as any)?.mobile_money_provider || "—" },
+      { icon: "call-outline", iconBg: isDark ? "rgba(234,88,12,0.12)" : "#FFF7ED", iconColor: "#EA580C", label: "Mobile Money Number", value: formatContactNumber((user as any)?.mobile_money_number) === "N/A" ? "—" : formatContactNumber((user as any)?.mobile_money_number) },
+    ] : []),
+    { icon: "shield-checkmark-outline", iconBg: theme.greenLight, iconColor: theme.green, label: "Verification", value: (user as any)?.is_verified ? "Verified ✓" : "Not Verified" },
+  ] as Array<{ icon: string; iconBg: string; iconColor: string; label: string; value: string; truncate?: boolean }>;
+
+  const settingsRows = [
+    { icon: "create-outline", iconBg: theme.accentLight, iconColor: theme.accent, label: "Edit Profile", path: "/modals/agent/edit-profile?from=agent-profile" },
+    { icon: "card-outline", iconBg: isDark ? "rgba(219,39,119,0.12)" : "#FDF2F8", iconColor: "#DB2777", label: "Update Bank Details", path: "/modals/agent/edit-bank-details?from=agent-profile" },
+    { icon: "cash-outline", iconBg: theme.greenLight, iconColor: theme.green, label: "Request Withdrawal", path: "/modals/agent/withdrawal-request?from=agent-profile" },
+    { icon: "shield-checkmark-outline", iconBg: isDark ? "rgba(59,130,246,0.12)" : "#EFF6FF", iconColor: "#3B82F6", label: "View KYC Status", path: "/modals/agent-kyc/status?from=agent-profile" },
+    { icon: "star", iconBg: isDark ? "rgba(245,158,11,0.12)" : "#FFFBEB", iconColor: "#F59E0B", label: `View Reviews (${stats?.total_reviews || 0})`, path: "/agent/reviews" },
+  ];
+
+  type InfoRow = { icon: string; iconBg: string; iconColor: string; label: string; value: string; truncate?: boolean };
+  const renderInfoCard = (rows: InfoRow[]) => (
+    <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
+      {rows.map((row, idx) => (
+        <View key={row.label}>
+          <View style={styles.infoRow}>
+            <View style={[styles.infoIconBox, { backgroundColor: row.iconBg }]}>
+              <Ionicons name={row.icon as any} size={18} color={row.iconColor} />
             </View>
-            <ScrollView
-                contentContainerStyle={styles.content}
-                refreshControl={
-                    <RefreshControl refreshing={loading} onRefresh={loadData} tintColor="#FFFFFF" />
-                }
-            >
-
-                {/* Profile Header Card */}
-                <LinearGradient
-                    colors={["#FFFFFF", "#F7FFF9"]}
-                    style={styles.profileCard}
-                >
-                    <View style={styles.profileEyebrowRow}>
-                        <View style={styles.profileEyebrow}>
-                            <Ionicons name="sparkles" size={14} color="#00B14F" />
-                            <Text style={styles.profileEyebrowText}>Agent Identity</Text>
-                        </View>
-                    </View>
-                    <View style={styles.avatarContainer}>
-                        <View style={[styles.avatar, { backgroundColor: "#F5F3FF" }]}>
-                            <Ionicons name="person" size={40} color="#7C3AED" />
-                        </View>
-                        <View style={styles.profileInfo}>
-                            <Text style={styles.profileName}>{user?.full_name || "Agent"}</Text>
-                            <Text style={styles.profileSubtitle}>{user?.email || "Agent account"}</Text>
-                            <View style={styles.ratingContainer}>
-                                <View style={styles.stars}>
-                                    {renderStars(Math.round(parseFloat(dashboardData?.agent?.rating || "5")))}
-                                </View>
-                                <Text style={styles.ratingText}>
-                                    {dashboardData?.agent?.rating || "5.0"}
-                                </Text>
-                            </View>
-                        </View>
-                    </View>
-                    <View style={styles.badges}>
-                        <View style={[styles.badge, { backgroundColor: getTierColor(dashboardData?.agent?.tier) + '15' }]}>
-                            <Ionicons name="trophy" size={14} color={getTierColor(dashboardData?.agent?.tier)} />
-                            <Text style={[styles.badgeText, { color: getTierColor(dashboardData?.agent?.tier) }]}>
-                                {dashboardData?.agent?.tier || "Bronze"}
-                            </Text>
-                        </View>
-                        <View style={[styles.badge, { backgroundColor: getStatusColor(dashboardData?.agent?.status) + '15' }]}>
-                            <View style={[styles.statusDot, { backgroundColor: getStatusColor(dashboardData?.agent?.status) }]} />
-                            <Text style={[styles.badgeText, { color: getStatusColor(dashboardData?.agent?.status) }]}>
-                                {dashboardData?.agent?.status || "Pending"}
-                            </Text>
-                        </View>
-                    </View>
-                    <View style={styles.profileSnapshotRow}>
-                        <View style={styles.profileSnapshotItem}>
-                            <Text style={styles.profileSnapshotLabel}>Total Reviews</Text>
-                            <Text style={styles.profileSnapshotValue}>{stats?.total_reviews || 0}</Text>
-                        </View>
-                        <View style={styles.profileSnapshotDivider} />
-                        <View style={styles.profileSnapshotItem}>
-                            <Text style={styles.profileSnapshotLabel}>Success Rate</Text>
-                            <Text style={styles.profileSnapshotValue}>{dashboardData?.performance?.success_rate || "100%"}</Text>
-                        </View>
-                        <View style={styles.profileSnapshotDivider} />
-                        <View style={styles.profileSnapshotItem}>
-                            <Text style={styles.profileSnapshotLabel}>Avg Response</Text>
-                            <Text style={styles.profileSnapshotValue}>{dashboardData?.performance?.response_time || "5"} min</Text>
-                        </View>
-                    </View>
-                </LinearGradient>
-
-                {/* Personal Information */}
-                <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Personal Information</Text>
-                    <Surface style={styles.card}>
-                        <View style={styles.infoRow}>
-                            <View style={[styles.infoIcon, { backgroundColor: "#F3F4F6" }]}>
-                                <Ionicons name="person-outline" size={20} color="#6B7280" />
-                            </View>
-                            <View style={styles.infoContent}>
-                                <Text style={styles.infoLabel}>Full Name</Text>
-                                <Text style={styles.infoValue}>{user?.full_name || "N/A"}</Text>
-                            </View>
-                        </View>
-                        <View style={styles.divider} />
-                        <View style={styles.infoRow}>
-                            <View style={[styles.infoIcon, { backgroundColor: "#F3F4F6" }]}>
-                                <Ionicons name="mail-outline" size={20} color="#6B7280" />
-                            </View>
-                            <View style={styles.infoContent}>
-                                <Text style={styles.infoLabel}>Email</Text>
-                                <Text style={styles.infoValue}>{user?.email || "N/A"}</Text>
-                            </View>
-                        </View>
-                        <View style={styles.divider} />
-                        <View style={styles.infoRow}>
-                            <View style={[styles.infoIcon, { backgroundColor: "#F3F4F6" }]}>
-                                <Ionicons name="call-outline" size={20} color="#6B7280" />
-                            </View>
-                            <View style={styles.infoContent}>
-                                <Text style={styles.infoLabel}>Phone Number</Text>
-                                <Text style={styles.infoValue}>{formatContactNumber(user?.phone_number)}</Text>
-                            </View>
-                        </View>
-                        <View style={styles.divider} />
-                        <View style={styles.infoRow}>
-                            <View style={[styles.infoIcon, { backgroundColor: "#F3F4F6" }]}>
-                                <Ionicons name="logo-whatsapp" size={20} color="#6B7280" />
-                            </View>
-                            <View style={styles.infoContent}>
-                                <Text style={styles.infoLabel}>WhatsApp</Text>
-                                <Text style={styles.infoValue}>
-                                    {formatContactNumber((user as any)?.whatsapp_number || user?.phone_number)}
-                                </Text>
-                            </View>
-                        </View>
-                        <View style={styles.divider} />
-                        <View style={styles.infoRow}>
-                            <View style={[styles.infoIcon, { backgroundColor: "#F3F4F6" }]}>
-                                <Ionicons name="location-outline" size={20} color="#6B7280" />
-                            </View>
-                            <View style={styles.infoContent}>
-                                <Text style={styles.infoLabel}>Country</Text>
-                                <Text style={styles.infoValue}>
-                                    {countryInfo ? `${countryInfo.name} (${countryInfo.code})` : "N/A"}
-                                </Text>
-                            </View>
-                        </View>
-                    </Surface>
-                </View>
-
-                {/* Business Details */}
-                <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Business Details</Text>
-                    <Surface style={styles.card}>
-                        <View style={styles.infoRow}>
-                            <View style={[styles.infoIcon, { backgroundColor: "#FDF2F8" }]}>
-                                <Ionicons name="business-outline" size={20} color="#DB2777" />
-                            </View>
-                            <View style={styles.infoContent}>
-                                <Text style={styles.infoLabel}>Bank Name</Text>
-                                <Text style={styles.infoValue}>{(user as any)?.bank_name || "Not set"}</Text>
-                            </View>
-                        </View>
-                        <View style={styles.divider} />
-                        <View style={styles.infoRow}>
-                            <View style={[styles.infoIcon, { backgroundColor: "#F3F4F6" }]}>
-                                <Ionicons name="card-outline" size={20} color="#6B7280" />
-                            </View>
-                            <View style={styles.infoContent}>
-                                <Text style={styles.infoLabel}>Account Number</Text>
-                                <Text style={styles.infoValue}>{(user as any)?.account_number || "Not set"}</Text>
-                            </View>
-                        </View>
-                        <View style={styles.divider} />
-                        <View style={styles.infoRow}>
-                            <View style={[styles.infoIcon, { backgroundColor: "#F3F4F6" }]}>
-                                <Ionicons name="person-circle-outline" size={20} color="#6B7280" />
-                            </View>
-                            <View style={styles.infoContent}>
-                                <Text style={styles.infoLabel}>Account Name</Text>
-                                <Text style={styles.infoValue}>{(user as any)?.account_name || "Not set"}</Text>
-                            </View>
-                        </View>
-                        <View style={styles.divider} />
-                        <View style={styles.infoRow}>
-                            <View style={[styles.infoIcon, { backgroundColor: "#F5F3FF" }]}>
-                                <Ionicons name="wallet-outline" size={20} color="#7C3AED" />
-                            </View>
-                            <View style={styles.infoContent}>
-                                <Text style={styles.infoLabel}>Withdrawal Address</Text>
-                                <Text style={[styles.infoValue, styles.addressText]} numberOfLines={1}>
-                                    {(user as any)?.withdrawal_address || "Not set"}
-                                </Text>
-                            </View>
-                        </View>
-                        {((user as any)?.mobile_money_provider || (user as any)?.mobile_money_number) ? (
-                            <>
-                                <View style={styles.divider} />
-                                <View style={styles.infoRow}>
-                                    <View style={[styles.infoIcon, { backgroundColor: "#FFF7ED" }]}>
-                                        <Ionicons name="phone-portrait-outline" size={20} color="#EA580C" />
-                                    </View>
-                                    <View style={styles.infoContent}>
-                                        <Text style={styles.infoLabel}>Mobile Money Provider</Text>
-                                        <Text style={styles.infoValue}>{(user as any)?.mobile_money_provider || "—"}</Text>
-                                    </View>
-                                </View>
-                                <View style={styles.divider} />
-                                <View style={styles.infoRow}>
-                                    <View style={[styles.infoIcon, { backgroundColor: "#FFF7ED" }]}>
-                                        <Ionicons name="call-outline" size={20} color="#EA580C" />
-                                    </View>
-                                    <View style={styles.infoContent}>
-                                        <Text style={styles.infoLabel}>Mobile Money Number</Text>
-                                        <Text style={styles.infoValue}>
-                                            {formatContactNumber((user as any)?.mobile_money_number) === "N/A"
-                                                ? "—"
-                                                : formatContactNumber((user as any)?.mobile_money_number)}
-                                        </Text>
-                                    </View>
-                                </View>
-                            </>
-                        ) : null}
-                        <View style={styles.divider} />
-                        <View style={styles.infoRow}>
-                            <View style={[styles.infoIcon, { backgroundColor: "#F0FDF4" }]}>
-                                <Ionicons name="shield-checkmark-outline" size={20} color="#00B14F" />
-                            </View>
-                            <View style={styles.infoContent}>
-                                <Text style={styles.infoLabel}>Verification Status</Text>
-                                <View style={styles.verificationBadge}>
-                                    <Text style={styles.verificationText}>
-                                        {(user as any)?.is_verified ? "Verified" : "Not Verified"}
-                                    </Text>
-                                </View>
-                            </View>
-                        </View>
-                    </Surface>
-                </View>
-
-                {/* Financial Summary */}
-                <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Financial Summary</Text>
-                    <Surface style={styles.card}>
-                        <View style={styles.financialIntro}>
-                            <Text style={styles.financialIntroTitle}>Live account position</Text>
-                            <Text style={styles.financialIntroText}>A quick view of your current deposit exposure, earnings, and withdrawal readiness.</Text>
-                        </View>
-                        <View style={styles.financialGrid}>
-                            <View style={styles.financialItem}>
-                                <Text style={styles.financialLabel}>Total Deposit</Text>
-                                <Text style={styles.financialValue}>
-                                    {(dashboardData?.financials?.total_deposit ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDT
-                                </Text>
-                            </View>
-                            <View style={styles.financialItem}>
-                                <Text style={styles.financialLabel}>Available Capacity</Text>
-                                <Text style={[styles.financialValue, { color: "#7C3AED" }]}>
-                                    {(dashboardData?.financials?.available_capacity ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDT
-                                </Text>
-                            </View>
-                        </View>
-                        <View style={styles.divider} />
-                        <View style={styles.financialGrid}>
-                            <View style={styles.financialItem}>
-                                <Text style={styles.financialLabel}>Total Earnings</Text>
-                                <Text style={[styles.financialValue, { color: "#00B14F" }]}>
-                                    {(dashboardData?.financials?.total_earnings ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDT
-                                </Text>
-                            </View>
-                            <View style={styles.financialItem}>
-                                <Text style={styles.financialLabel}>Outstanding (USDT)</Text>
-                                <Text style={styles.financialValue}>
-                                    {(dashboardData?.financials?.outstanding_tokens ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDT
-                                </Text>
-                            </View>
-                        </View>
-                        <View style={styles.divider} />
-                        <View style={styles.financialGrid}>
-                            <View style={styles.financialItem}>
-                                <Text style={styles.financialLabel}>Max Withdrawable</Text>
-                                <Text style={styles.financialValue}>
-                                    {effectiveMaxWithdrawable.toLocaleString(undefined, {
-                                        minimumFractionDigits: 2,
-                                        maximumFractionDigits: 2,
-                                    })} USDT
-                                </Text>
-                            </View>
-                            <View style={styles.financialItem}>
-                                <Text style={styles.financialLabel}>Utilization Rate</Text>
-                                <Text style={styles.financialValue}>
-                                    {dashboardData?.financials?.utilization_rate || "0%"}
-                                </Text>
-                            </View>
-                        </View>
-                        <View style={styles.divider} />
-                        <View style={styles.withdrawalStatusSection}>
-                            <Text style={styles.withdrawalStatusTitle}>Withdrawal Status</Text>
-                            <View style={styles.withdrawalStatusRow}>
-                                <View style={styles.withdrawalStatusPill}>
-                                    <View style={[styles.statusDot, { backgroundColor: "#F59E0B" }]} />
-                                    <Text style={styles.withdrawalStatusLabel}>Pending</Text>
-                                </View>
-                                <Text style={styles.withdrawalStatusValue}>
-                                    {pendingWithdrawals.length} • {totalPendingAmount.toLocaleString(undefined, {
-                                        minimumFractionDigits: 2,
-                                        maximumFractionDigits: 2,
-                                    })} USDT
-                                </Text>
-                            </View>
-                            <View style={styles.withdrawalStatusRow}>
-                                <View style={styles.withdrawalStatusPill}>
-                                    <View style={[styles.statusDot, { backgroundColor: "#3B82F6" }]} />
-                                    <Text style={styles.withdrawalStatusLabel}>Approved (Unpaid)</Text>
-                                </View>
-                                <Text style={styles.withdrawalStatusValue}>
-                                    {approvedUnpaidWithdrawals.length} • {totalApprovedUnpaidAmount.toLocaleString(undefined, {
-                                        minimumFractionDigits: 2,
-                                        maximumFractionDigits: 2,
-                                    })} USDT
-                                </Text>
-                            </View>
-                        </View>
-                    </Surface>
-                </View>
-
-                {/* Performance Metrics */}
-                <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Performance Metrics</Text>
-                    <Surface style={styles.card}>
-                        <View style={styles.financialIntro}>
-                            <Text style={styles.financialIntroTitle}>Service quality</Text>
-                            <Text style={styles.financialIntroText}>Metrics that summarize your consistency, responsiveness, and customer trust.</Text>
-                        </View>
-                        <View style={styles.performanceGrid}>
-                            <View style={styles.performanceItem}>
-                                <View style={[styles.performanceIcon, { backgroundColor: "#F5F3FF" }]}>
-                                    <Ionicons name="swap-horizontal" size={24} color="#7C3AED" />
-                                </View>
-                                <Text style={styles.performanceLabel}>Total Transactions</Text>
-                                <Text style={styles.performanceValue}>
-                                    {dashboardData?.performance?.total_transactions || "0"}
-                                </Text>
-                            </View>
-                            <View style={styles.performanceItem}>
-                                <View style={[styles.performanceIcon, { backgroundColor: "#FFFBEB" }]}>
-                                    <Ionicons name="chatbubbles" size={24} color="#F59E0B" />
-                                </View>
-                                <Text style={styles.performanceLabel}>Total Reviews</Text>
-                                <Text style={styles.performanceValue}>
-                                    {dashboardData?.performance?.total_reviews || "0"}
-                                </Text>
-                            </View>
-                        </View>
-                        <View style={styles.performanceGrid}>
-                            <View style={styles.performanceItem}>
-                                <View style={[styles.performanceIcon, { backgroundColor: "#F0FDF4" }]}>
-                                    <Ionicons name="checkmark-circle" size={24} color="#00B14F" />
-                                </View>
-                                <Text style={styles.performanceLabel}>Success Rate</Text>
-                                <Text style={styles.performanceValue}>
-                                    {dashboardData?.performance?.success_rate || "100%"}
-                                </Text>
-                            </View>
-                            <View style={styles.performanceItem}>
-                                <View style={[styles.performanceIcon, { backgroundColor: "#EFF6FF" }]}>
-                                    <Ionicons name="time" size={24} color="#3B82F6" />
-                                </View>
-                                <Text style={styles.performanceLabel}>Avg Response</Text>
-                                <Text style={styles.performanceValue}>
-                                    {dashboardData?.performance?.response_time || "5"} min
-                                </Text>
-                            </View>
-                        </View>
-                    </Surface>
-                </View>
-
-                {/* Reviews Section */}
-                <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Reviews</Text>
-                    <Surface style={styles.card}>
-                        <TouchableOpacity
-                            style={styles.settingRow}
-                            onPress={() => router.push("/agent/reviews")}
-                            activeOpacity={0.7}
-                        >
-                            <View style={styles.settingLeft}>
-                                <View style={[styles.settingIcon, { backgroundColor: "#FFFBEB" }]}>
-                                    <Ionicons name="star" size={20} color="#F59E0B" />
-                                </View>
-                                <Text style={styles.settingText}>
-                                    View Reviews ({stats?.total_reviews || 0})
-                                </Text>
-                            </View>
-                            <Ionicons name="chevron-forward" size={18} color="#9CA3AF" />
-                        </TouchableOpacity>
-                    </Surface>
-                </View>
-
-                {/* Account Settings */}
-                <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Account Settings</Text>
-                    <Surface style={styles.card}>
-                        <TouchableOpacity
-                            style={styles.settingRow}
-                            onPress={() => router.push("/modals/agent/edit-profile?from=agent-profile")}
-                            activeOpacity={0.7}
-                        >
-                            <View style={styles.settingLeft}>
-                                <View style={[styles.settingIcon, { backgroundColor: "#F5F3FF" }]}>
-                                    <Ionicons name="create-outline" size={20} color="#7C3AED" />
-                                </View>
-                                <Text style={styles.settingText}>Edit Profile</Text>
-                            </View>
-                            <Ionicons name="chevron-forward" size={18} color="#9CA3AF" />
-                        </TouchableOpacity>
-                        <View style={styles.divider} />
-                        <TouchableOpacity
-                            style={styles.settingRow}
-                            onPress={() => router.push("/modals/agent/edit-bank-details?from=agent-profile")}
-                            activeOpacity={0.7}
-                        >
-                            <View style={styles.settingLeft}>
-                                <View style={[styles.settingIcon, { backgroundColor: "#FDF2F8" }]}>
-                                    <Ionicons name="card-outline" size={20} color="#DB2777" />
-                                </View>
-                                <Text style={styles.settingText}>Update Bank Details</Text>
-                            </View>
-                            <Ionicons name="chevron-forward" size={18} color="#9CA3AF" />
-                        </TouchableOpacity>
-                        <View style={styles.divider} />
-                        <TouchableOpacity
-                            style={styles.settingRow}
-                            onPress={() => router.push("/modals/agent/withdrawal-request?from=agent-profile")}
-                            activeOpacity={0.7}
-                        >
-                            <View style={styles.settingLeft}>
-                                <View style={[styles.settingIcon, { backgroundColor: "#F0FDF4" }]}>
-                                    <Ionicons name="cash-outline" size={20} color="#00B14F" />
-                                </View>
-                                <Text style={styles.settingText}>Request Withdrawal</Text>
-                            </View>
-                            <Ionicons name="chevron-forward" size={18} color="#9CA3AF" />
-                        </TouchableOpacity>
-                        <View style={styles.divider} />
-                        <TouchableOpacity
-                            style={styles.settingRow}
-                            onPress={() => router.push("/modals/agent-kyc/status?from=agent-profile")}
-                            activeOpacity={0.7}
-                        >
-                            <View style={styles.settingLeft}>
-                                <View style={[styles.settingIcon, { backgroundColor: "#EFF6FF" }]}>
-                                    <Ionicons name="shield-checkmark-outline" size={20} color="#3B82F6" />
-                                </View>
-                                <Text style={styles.settingText}>View KYC Status</Text>
-                            </View>
-                            <Ionicons name="chevron-forward" size={18} color="#9CA3AF" />
-                        </TouchableOpacity>
-                        <View style={styles.divider} />
-                        <TouchableOpacity
-                            style={styles.settingRow}
-                            onPress={() => {
-                                useAuthStore.getState().logout();
-                                router.replace("/(auth)/login");
-                            }}
-                            activeOpacity={0.7}
-                        >
-                            <View style={styles.settingLeft}>
-                                <View style={[styles.settingIcon, { backgroundColor: "#FEF2F2" }]}>
-                                    <Ionicons name="log-out-outline" size={20} color="#EF4444" />
-                                </View>
-                                <Text style={[styles.settingText, { color: "#EF4444" }]}>Logout</Text>
-                            </View>
-                            <Ionicons name="chevron-forward" size={18} color="#9CA3AF" />
-                        </TouchableOpacity>
-                    </Surface>
-                </View>
-            </ScrollView>
+            <View style={styles.infoContent}>
+              <Text style={[styles.infoLabel, { color: theme.muted }]}>{row.label}</Text>
+              <Text
+                style={[styles.infoValue, { color: theme.text }]}
+                numberOfLines={row.truncate ? 1 : undefined}
+                ellipsizeMode={row.truncate ? "middle" : undefined}
+              >
+                {row.value}
+              </Text>
+            </View>
+          </View>
+          {idx < rows.length - 1 && <View style={[styles.divider, { backgroundColor: theme.border }]} />}
         </View>
-    );
+      ))}
+    </View>
+  );
+
+  return (
+    <View style={[styles.container, { backgroundColor: theme.bg }]}>
+      {/* Background Glow */}
+      <LinearGradient
+        colors={isDark ? ["rgba(124, 58, 237, 0.22)", "rgba(9, 11, 20, 0)"] : ["rgba(124, 58, 237, 0.18)", "rgba(255, 255, 255, 0)"]}
+        style={styles.backgroundGlow}
+        pointerEvents="none"
+      />
+
+      {/* Collapsing Header */}
+      <Animated.View
+        onLayout={handleHeaderLayout}
+        style={[
+          styles.headerWrapper,
+          {
+            backgroundColor: theme.bg,
+            borderBottomColor: theme.border,
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            zIndex: 10,
+          },
+        ]}
+      >
+        <SafeAreaView edges={["top"]} style={styles.headerContent}>
+          <View style={styles.headerTop}>
+            <View style={styles.headerCopy}>
+              <Text style={[styles.headerTitle, { color: theme.text }]}>Agent Profile</Text>
+              <Animated.View style={{
+                opacity: subtitleOpacity,
+                maxHeight: subtitleMaxHeight,
+                marginTop: subtitleMargin,
+                overflow: "hidden"
+              }}>
+                <Text style={[styles.headerSubtitle, { color: theme.muted }]}>
+                  Manage bank details, check review scores, and request withdrawals.
+                </Text>
+              </Animated.View>
+            </View>
+
+            <TouchableOpacity
+              style={[styles.switchBtn, { backgroundColor: theme.accentLight, borderColor: theme.border }]}
+              onPress={() => router.replace("/(tabs)")}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="swap-horizontal" size={13} color={theme.accent} style={{ marginRight: 4 }} />
+              <Text style={[styles.switchBtnText, { color: theme.accent }]}>User Mode</Text>
+            </TouchableOpacity>
+          </View>
+        </SafeAreaView>
+      </Animated.View>
+
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={<RefreshControl refreshing={loading} onRefresh={loadData} tintColor={theme.accent} />}
+        showsVerticalScrollIndicator={false}
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+          { useNativeDriver: false }
+        )}
+        scrollEventThrottle={16}
+      >
+        {/* Spacer matching the header height */}
+        <View style={{ height: headerMaxHeight }} />
+
+        {/* Brand New Modern Hero Profile Section */}
+        <View style={styles.heroSection}>
+          <View style={styles.avatarWrapper}>
+            <LinearGradient
+              colors={[theme.accent, "#3B82F6"]}
+              style={styles.avatarGradientRing}
+            >
+              <View style={[styles.avatarInner, { backgroundColor: theme.card }]}>
+                <Text style={[styles.avatarText, { color: theme.text }]}>
+                  {getInitials(user?.full_name)}
+                </Text>
+              </View>
+            </LinearGradient>
+            <View style={[styles.verifiedBadge, { backgroundColor: theme.card, shadowColor: isDark ? "#000" : theme.accent }]}>
+              <Ionicons name="checkmark-circle" size={24} color={theme.green} />
+            </View>
+          </View>
+
+          <Text style={[styles.userName, { color: theme.text }]}>{user?.full_name || "Agent"}</Text>
+          <Text style={[styles.userEmail, { color: theme.muted }]}>{user?.email}</Text>
+
+          <View style={styles.badgeRow}>
+            <View style={[styles.tierBadge, { backgroundColor: getTierColor(agentTier) + "18", borderColor: getTierColor(agentTier) + "30" }]}>
+              <Ionicons name="trophy" size={12} color={getTierColor(agentTier)} />
+              <Text style={[styles.tierBadgeText, { color: getTierColor(agentTier) }]}>{agentTier.toUpperCase()}</Text>
+            </View>
+            <View style={[styles.statusBadge, { backgroundColor: getStatusColor(agentStatus) + "12", borderColor: getStatusColor(agentStatus) + "30" }]}>
+              <View style={[styles.statusDot, { backgroundColor: getStatusColor(agentStatus) }]} />
+              <Text style={[styles.statusBadgeText, { color: getStatusColor(agentStatus) }]}>{agentStatus.toUpperCase()}</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Snapshot stats segmented row */}
+        <View style={[styles.statsRow, { backgroundColor: theme.card, borderColor: theme.border }]}>
+          <View style={styles.statTile}>
+            <Text style={[styles.statValue, { color: theme.text }]}>{agentRating.toFixed(1)}</Text>
+            <View style={styles.ratingStars}>
+              <Ionicons name="star" size={12} color="#F59E0B" style={{ marginRight: 2 }} />
+              <Text style={[styles.ratingSubLabel, { color: theme.muted }]}>({stats?.total_reviews || 0})</Text>
+            </View>
+            <Text style={[styles.statLabel, { color: theme.muted }]}>Rating</Text>
+          </View>
+          <View style={[styles.statDivider, { backgroundColor: theme.border }]} />
+          <View style={styles.statTile}>
+            <Text style={[styles.statValue, { color: theme.text }]}>{dashboardData?.performance?.success_rate || "100%"}</Text>
+            <View style={styles.placeholderMargin} />
+            <Text style={[styles.statLabel, { color: theme.muted }]}>Success Rate</Text>
+          </View>
+          <View style={[styles.statDivider, { backgroundColor: theme.border }]} />
+          <View style={styles.statTile}>
+            <Text style={[styles.statValue, { color: theme.text }]}>{`${dashboardData?.performance?.response_time || "5"}m`}</Text>
+            <View style={styles.placeholderMargin} />
+            <Text style={[styles.statLabel, { color: theme.muted }]}>Avg Response</Text>
+          </View>
+        </View>
+
+        {/* Personal Information */}
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: theme.muted }]}>PERSONAL INFORMATION</Text>
+          {renderInfoCard(infoRows)}
+        </View>
+
+        {/* Business Details */}
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: theme.muted }]}>BUSINESS DETAILS</Text>
+          {renderInfoCard(businessRows)}
+        </View>
+
+        {/* Financial Summary */}
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: theme.muted }]}>FINANCIAL SUMMARY</Text>
+          <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
+            <View style={styles.finGrid}>
+              {[
+                { label: "Total Deposit", value: `${(dashboardData?.financials?.total_deposit ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDT`, color: theme.text },
+                { label: "Available Capacity", value: `${(dashboardData?.financials?.available_capacity ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDT`, color: theme.accent },
+                { label: "Total Earnings", value: `${(dashboardData?.financials?.total_earnings ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDT`, color: theme.green },
+                { label: "Outstanding", value: `${(dashboardData?.financials?.outstanding_tokens ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDT`, color: theme.text },
+                { label: "Max Withdrawable", value: `${effectiveMaxWithdrawable.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDT`, color: theme.text },
+                { label: "Utilization Rate", value: dashboardData?.financials?.utilization_rate || "0%", color: theme.text },
+              ].map((item) => (
+                <View key={item.label} style={styles.finItem}>
+                  <Text style={[styles.finLabel, { color: theme.muted }]}>{item.label}</Text>
+                  <Text style={[styles.finValue, { color: item.color }]} numberOfLines={1} ellipsizeMode="tail">{item.value}</Text>
+                </View>
+              ))}
+            </View>
+
+            <View style={[styles.divider, { backgroundColor: theme.border }]} />
+
+            {/* Withdrawal status */}
+            <View style={styles.wdStatus}>
+              <Text style={[styles.wdStatusTitle, { color: theme.text }]}>Withdrawal Status</Text>
+              <View style={styles.wdRow}>
+                <View style={styles.wdPill}>
+                  <View style={[styles.wdDot, { backgroundColor: "#F59E0B" }]} />
+                  <Text style={[styles.wdPillLabel, { color: theme.muted }]}>Pending</Text>
+                </View>
+                <Text style={[styles.wdPillValue, { color: theme.text }]}>
+                  {pendingWithdrawals.length} • {totalPendingAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDT
+                </Text>
+              </View>
+              <View style={styles.wdRow}>
+                <View style={styles.wdPill}>
+                  <View style={[styles.wdDot, { backgroundColor: "#3B82F6" }]} />
+                  <Text style={[styles.wdPillLabel, { color: theme.muted }]}>Approved (Unpaid)</Text>
+                </View>
+                <Text style={[styles.wdPillValue, { color: theme.text }]}>
+                  {approvedUnpaidWithdrawals.length} • {totalApprovedUnpaidAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDT
+                </Text>
+              </View>
+            </View>
+          </View>
+        </View>
+
+        {/* Performance Metrics */}
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: theme.muted }]}>PERFORMANCE METRICS</Text>
+          <View style={[styles.perfCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+            {[
+              { icon: "swap-horizontal", iconBg: theme.accentLight, iconColor: theme.accent, label: "Total Transactions", value: dashboardData?.performance?.total_transactions || "0" },
+              { icon: "checkmark-done-circle", iconBg: theme.greenLight, iconColor: theme.green, label: "Success Rate", value: dashboardData?.performance?.success_rate || "100%" },
+              { icon: "time-outline", iconBg: isDark ? "rgba(245,158,11,0.12)" : "#FFFBEB", iconColor: "#D97706", label: "Response Time", value: `${dashboardData?.performance?.response_time || "5"} mins` },
+            ].map((item) => (
+              <View key={item.label} style={styles.perfItem}>
+                <View style={[styles.perfIconBox, { backgroundColor: item.iconBg }]}>
+                  <Ionicons name={item.icon as any} size={20} color={item.iconColor} />
+                </View>
+                <Text style={[styles.perfLabel, { color: theme.muted }]}>{item.label}</Text>
+                <Text style={[styles.perfValue, { color: theme.text }]}>{item.value}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+
+        {/* Account Settings */}
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: theme.muted }]}>ACCOUNT SETTINGS</Text>
+          <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
+            {settingsRows.map((row, idx) => (
+              <View key={row.label}>
+                <TouchableOpacity
+                  style={styles.settingRow}
+                  onPress={() => router.push(row.path as any)}
+                  activeOpacity={0.7}
+                >
+                  <View style={[styles.infoIconBox, { backgroundColor: row.iconBg }]}>
+                    <Ionicons name={row.icon as any} size={18} color={row.iconColor} />
+                  </View>
+                  <Text style={[styles.settingLabel, { color: theme.text }]}>{row.label}</Text>
+                  <Ionicons name="chevron-forward" size={16} color={theme.muted} />
+                </TouchableOpacity>
+                {idx < settingsRows.length - 1 && <View style={[styles.divider, { backgroundColor: theme.border }]} />}
+              </View>
+            ))}
+          </View>
+        </View>
+
+        {/* Logout */}
+        <TouchableOpacity
+          style={[styles.logoutBtn, { borderColor: theme.danger + "20", backgroundColor: theme.dangerSoft }]}
+          onPress={() => {
+            useAuthStore.getState().logout();
+            router.replace("/(auth)/login");
+          }}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="log-out" size={18} color={theme.danger} />
+          <Text style={[styles.logoutText, { color: theme.danger }]}>Logout Account</Text>
+        </TouchableOpacity>
+
+        <View style={{ height: 40 }} />
+      </ScrollView>
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: "#F9FAFB",
-    },
-    headerWrapper: {
-        zIndex: 10,
-        elevation: 8,
-        backgroundColor: "#00B14F",
-    },
-    headerGradient: {
-        position: "absolute",
-        top: 0,
-        left: 0,
-        right: 0,
-        height: 140,
-    },
-    headerContent: {
-        paddingHorizontal: 16,
-    },
-    header: {
-        paddingBottom: 20,
-        marginTop: 10,
-    },
-    headerTop: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        alignItems: "center",
-    },
-    title: {
-        fontSize: 24,
-        fontWeight: "700",
-        color: "#FFFFFF",
-        letterSpacing: -0.5,
-    },
-    switchButton: {
-        flexDirection: "row",
-        alignItems: "center",
-        backgroundColor: "rgba(255,255,255,0.2)",
-        paddingHorizontal: 12,
-        paddingVertical: 8,
-        borderRadius: 20,
-        gap: 6,
-    },
-    switchText: {
-        fontSize: 13,
-        fontWeight: "600",
-        color: "#FFFFFF",
-    },
-    content: {
-        padding: 16,
-        paddingBottom: 24,
-        paddingTop: 28,
-    },
-    profileCard: {
-        borderRadius: 24,
-        padding: 20,
-        marginBottom: 24,
-        marginTop: 10,
-        borderWidth: 1,
-        borderColor: "#EAF0F5",
-    },
-    profileEyebrowRow: {
-        marginBottom: 14,
-    },
-    profileEyebrow: {
-        alignSelf: "flex-start",
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 6,
-        backgroundColor: "#ECFDF3",
-        paddingHorizontal: 10,
-        paddingVertical: 6,
-        borderRadius: 999,
-    },
-    profileEyebrowText: {
-        fontSize: 12,
-        fontWeight: "700",
-        color: "#059669",
-    },
-    avatarContainer: {
-        flexDirection: "row",
-        alignItems: "center",
-        marginBottom: 20,
-    },
-    avatar: {
-        width: 72,
-        height: 72,
-        borderRadius: 36,
-        alignItems: "center",
-        justifyContent: "center",
-        marginRight: 16,
-    },
-    profileInfo: {
-        flex: 1,
-    },
-    profileName: {
-        fontSize: 22,
-        fontWeight: "800",
-        color: "#111827",
-        marginBottom: 4,
-    },
-    profileSubtitle: {
-        fontSize: 13,
-        color: "#6B7280",
-        fontWeight: "500",
-        marginBottom: 8,
-    },
-    ratingContainer: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 8,
-    },
-    stars: {
-        flexDirection: "row",
-        gap: 2,
-    },
-    ratingText: {
-        fontSize: 14,
-        fontWeight: "700",
-        color: "#F59E0B",
-    },
-    badges: {
-        flexDirection: "row",
-        gap: 12,
-        paddingTop: 16,
-        borderTopWidth: 1,
-        borderTopColor: "#EEF2F7",
-    },
-    badge: {
-        flexDirection: "row",
-        alignItems: "center",
-        paddingHorizontal: 12,
-        paddingVertical: 8,
-        borderRadius: 12,
-        gap: 6,
-    },
-    badgeText: {
-        fontSize: 12,
-        fontWeight: "700",
-        textTransform: "uppercase",
-        letterSpacing: 0.5,
-    },
-    statusDot: {
-        width: 8,
-        height: 8,
-        borderRadius: 4,
-    },
-    profileSnapshotRow: {
-        marginTop: 16,
-        flexDirection: "row",
-        alignItems: "center",
-        backgroundColor: "#FFFFFF",
-        borderRadius: 18,
-        borderWidth: 1,
-        borderColor: "#EEF2F7",
-        paddingHorizontal: 14,
-        paddingVertical: 14,
-    },
-    profileSnapshotItem: {
-        flex: 1,
-        alignItems: "center",
-    },
-    profileSnapshotDivider: {
-        width: 1,
-        alignSelf: "stretch",
-        backgroundColor: "#EEF2F7",
-    },
-    profileSnapshotLabel: {
-        fontSize: 11,
-        fontWeight: "700",
-        color: "#6B7280",
-        textTransform: "uppercase",
-        letterSpacing: 0.4,
-        marginBottom: 4,
-    },
-    profileSnapshotValue: {
-        fontSize: 14,
-        fontWeight: "800",
-        color: "#111827",
-        textAlign: "center",
-    },
-    section: {
-        marginBottom: 24,
-    },
-    sectionTitle: {
-        fontSize: 15,
-        fontWeight: "700",
-        color: "#6B7280",
-        marginBottom: 12,
-        marginLeft: 4,
-        textTransform: "uppercase",
-        letterSpacing: 1,
-    },
-    card: {
-        backgroundColor: "#FFFFFF",
-        borderRadius: 22,
-        padding: 14,
-        borderWidth: 1,
-        borderColor: "#EAF0F5",
-    },
-    infoRow: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 12,
-        paddingVertical: 10,
-    },
-    infoIcon: {
-        width: 40,
-        height: 40,
-        borderRadius: 12,
-        alignItems: "center",
-        justifyContent: "center",
-    },
-    infoContent: {
-        flex: 1,
-    },
-    infoLabel: {
-        fontSize: 12,
-        color: "#9CA3AF",
-        marginBottom: 2,
-        fontWeight: "500",
-    },
-    infoValue: {
-        fontSize: 15,
-        fontWeight: "600",
-        color: "#111827",
-    },
-    addressText: {
-        fontSize: 13,
-        color: "#6B7280",
-    },
-    verificationBadge: {
-        alignSelf: "flex-start",
-        backgroundColor: "#F0FDF4",
-        paddingHorizontal: 8,
-        paddingVertical: 2,
-        borderRadius: 6,
-        marginTop: 4,
-    },
-    verificationText: {
-        fontSize: 11,
-        fontWeight: "700",
-        color: "#00B14F",
-    },
-    divider: {
-        height: 1,
-        backgroundColor: "#F1F5F9",
-        marginLeft: 52,
-    },
-    financialIntro: {
-        paddingHorizontal: 4,
-        paddingBottom: 14,
-    },
-    financialIntroTitle: {
-        fontSize: 14,
-        fontWeight: "700",
-        color: "#111827",
-    },
-    financialIntroText: {
-        fontSize: 12,
-        lineHeight: 18,
-        color: "#6B7280",
-        fontWeight: "500",
-        marginTop: 4,
-    },
-    financialGrid: {
-        flexDirection: "row",
-        gap: 16,
-        paddingVertical: 12,
-    },
-    financialItem: {
-        flex: 1,
-    },
-    financialLabel: {
-        fontSize: 13,
-        color: "#6B7280",
-        marginBottom: 6,
-        fontWeight: "500",
-    },
-    financialValue: {
-        fontSize: 18,
-        fontWeight: "800",
-        color: "#111827",
-    },
-    withdrawalStatusSection: {
-        paddingTop: 8,
-        paddingBottom: 4,
-    },
-    withdrawalStatusTitle: {
-        fontSize: 12,
-        fontWeight: "600",
-        color: "#9CA3AF",
-        textTransform: "uppercase",
-        letterSpacing: 0.8,
-        marginBottom: 6,
-    },
-    withdrawalStatusRow: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        alignItems: "center",
-        paddingVertical: 4,
-    },
-    withdrawalStatusPill: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 6,
-    },
-    withdrawalStatusLabel: {
-        fontSize: 13,
-        fontWeight: "500",
-        color: "#4B5563",
-    },
-    withdrawalStatusValue: {
-        fontSize: 13,
-        fontWeight: "600",
-        color: "#111827",
-    },
-    performanceGrid: {
-        flexDirection: "row",
-        gap: 12,
-        marginBottom: 12,
-    },
-    performanceItem: {
-        flex: 1,
-        alignItems: "center",
-        backgroundColor: "#F9FAFB",
-        paddingVertical: 16,
-        borderRadius: 16,
-        borderWidth: 1,
-        borderColor: "#F3F4F6",
-    },
-    performanceIcon: {
-        width: 48,
-        height: 48,
-        borderRadius: 24,
-        alignItems: "center",
-        justifyContent: "center",
-        marginBottom: 10,
-    },
-    performanceLabel: {
-        fontSize: 11,
-        color: "#6B7280",
-        textAlign: "center",
-        marginBottom: 4,
-        fontWeight: "600",
-        paddingHorizontal: 8,
-    },
-    performanceValue: {
-        fontSize: 16,
-        fontWeight: "800",
-        color: "#111827",
-    },
-    settingRow: {
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "space-between",
-        paddingVertical: 10,
-    },
-    settingLeft: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 12,
-    },
-    settingIcon: {
-        width: 40,
-        height: 40,
-        borderRadius: 12,
-        alignItems: "center",
-        justifyContent: "center",
-    },
-    settingText: {
-        fontSize: 15,
-        fontWeight: "600",
-        color: "#111827",
-    },
+  container: {
+    flex: 1,
+  },
+  headerWrapper: {
+    borderBottomWidth: 1,
+    zIndex: 10,
+  },
+  headerContent: {
+    paddingHorizontal: 16,
+  },
+  headerTop: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    paddingBottom: 16,
+    paddingTop: 12,
+  },
+  headerCopy: {
+    flex: 1,
+    marginRight: 12,
+  },
+  headerTitle: {
+    fontSize: 22,
+    fontWeight: "900",
+    letterSpacing: -0.4,
+  },
+  headerSubtitle: {
+    fontSize: 12,
+    lineHeight: 18,
+    fontWeight: "500",
+  },
+  switchBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginTop: 2,
+  },
+  switchBtnText: {
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  backgroundGlow: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 180,
+  },
+  scrollContent: {
+    paddingHorizontal: 16,
+    paddingTop: 10,
+  },
+  heroSection: {
+    alignItems: "center",
+    paddingVertical: 20,
+    paddingHorizontal: 20,
+  },
+  avatarWrapper: {
+    position: "relative",
+    marginBottom: 16,
+  },
+  avatarGradientRing: {
+    width: 108,
+    height: 108,
+    borderRadius: 54,
+    padding: 3,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  avatarInner: {
+    width: 102,
+    height: 102,
+    borderRadius: 51,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  avatarText: {
+    fontSize: 38,
+    fontWeight: "900",
+    letterSpacing: -0.5,
+  },
+  verifiedBadge: {
+    position: "absolute",
+    bottom: 2,
+    right: 2,
+    borderRadius: 999,
+    padding: 1,
+    elevation: 3,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.16,
+    shadowRadius: 4,
+  },
+  userName: {
+    fontSize: 22,
+    fontWeight: "900",
+    letterSpacing: -0.4,
+    textAlign: "center",
+    marginBottom: 4,
+  },
+  userEmail: {
+    fontSize: 13,
+    fontWeight: "500",
+    textAlign: "center",
+    marginBottom: 14,
+  },
+  badgeRow: {
+    flexDirection: "row",
+    gap: 8,
+    alignItems: "center",
+  },
+  tierBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  tierBadgeText: {
+    fontSize: 11,
+    fontWeight: "800",
+  },
+  statusBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  statusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  statusBadgeText: {
+    fontSize: 11,
+    fontWeight: "800",
+  },
+  statsRow: {
+    flexDirection: "row",
+    borderRadius: 24,
+    borderWidth: 1,
+    paddingVertical: 16,
+    marginBottom: 24,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.03,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  statTile: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  statValue: {
+    fontSize: 17,
+    fontWeight: "900",
+    marginBottom: 4,
+  },
+  ratingStars: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 4,
+  },
+  ratingSubLabel: {
+    fontSize: 11,
+    fontWeight: "600",
+    marginLeft: 2,
+  },
+  placeholderMargin: {
+    marginBottom: 4,
+    height: 14,
+  },
+  statLabel: {
+    fontSize: 11,
+    fontWeight: "600",
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
+  },
+  statDivider: {
+    width: 1,
+    height: 28,
+    alignSelf: "center",
+  },
+  section: {
+    marginBottom: 20,
+  },
+  sectionTitle: {
+    fontSize: 11,
+    fontWeight: "800",
+    letterSpacing: 0.8,
+    marginBottom: 8,
+    marginLeft: 4,
+  },
+  card: {
+    borderRadius: 24,
+    borderWidth: 1,
+    shadowColor: "#000",
+    shadowOpacity: 0.03,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
+  },
+  infoRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  infoIconBox: {
+    width: 38,
+    height: 38,
+    borderRadius: 13,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  infoContent: {
+    flex: 1,
+  },
+  infoLabel: {
+    fontSize: 11,
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
+    marginBottom: 3,
+  },
+  infoValue: {
+    fontSize: 14,
+    fontWeight: "700",
+    flexShrink: 1,
+  },
+  divider: {
+    height: 1,
+  },
+  finGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    padding: 16,
+  },
+  finItem: {
+    width: "50%",
+    paddingVertical: 10,
+    paddingHorizontal: 6,
+  },
+  finLabel: {
+    fontSize: 11,
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
+    marginBottom: 4,
+  },
+  finValue: {
+    fontSize: 15,
+    fontWeight: "800",
+  },
+  wdStatus: {
+    padding: 16,
+    paddingTop: 12,
+  },
+  wdStatusTitle: {
+    fontSize: 13,
+    fontWeight: "800",
+    marginBottom: 10,
+  },
+  wdRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  wdPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  wdDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+  },
+  wdPillLabel: {
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  wdPillValue: {
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  perfCard: {
+    flexDirection: "row",
+    borderRadius: 24,
+    borderWidth: 1,
+    padding: 16,
+    shadowColor: "#000",
+    shadowOpacity: 0.03,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
+  },
+  perfItem: {
+    flex: 1,
+    alignItems: "center",
+    paddingHorizontal: 4,
+  },
+  perfIconBox: {
+    width: 42,
+    height: 42,
+    borderRadius: 13,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 8,
+  },
+  perfLabel: {
+    fontSize: 10,
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
+    textAlign: "center",
+    marginBottom: 4,
+  },
+  perfValue: {
+    fontSize: 15,
+    fontWeight: "800",
+    textAlign: "center",
+  },
+  settingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  settingLabel: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: "700",
+  },
+  logoutBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    borderRadius: 18,
+    borderWidth: 1.5,
+    paddingVertical: 15,
+    marginTop: 10,
+    shadowColor: "#EF4444",
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 1,
+  },
+  logoutText: {
+    fontSize: 15,
+    fontWeight: "800",
+  },
 });

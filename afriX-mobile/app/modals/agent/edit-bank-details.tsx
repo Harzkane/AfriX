@@ -1,5 +1,16 @@
-import { useState, useEffect } from "react";
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, Alert, KeyboardAvoidingView, Platform, ScrollView } from "react-native";
+import React, { useState, useEffect } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  TextInput,
+  TouchableOpacity,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  useColorScheme,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -10,512 +21,544 @@ import { isXOFCountry, XOF_MOBILE_MONEY_PROVIDERS } from "@/constants/payment";
 import { getCountryByCode } from "@/constants/countries";
 
 export default function EditBankDetails() {
-    const router = useRouter();
-    const params = useLocalSearchParams();
-    const fromAgentProfile = params?.from === "agent-profile";
-    const { user } = useAuthStore();
-    const { updateProfile, loading } = useAgentStore();
-    const countryCode = (user as any)?.country_code || (user as any)?.country || "";
-    const countryInfo = countryCode ? getCountryByCode(countryCode) : null;
-    const showMobileMoney = countryCode ? isXOFCountry(countryCode) : false;
+  const router = useRouter();
+  const params = useLocalSearchParams();
+  const fromAgentProfile = params?.from === "agent-profile";
+  const { user } = useAuthStore();
+  const { updateProfile, loading } = useAgentStore();
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === "dark";
 
-    const [bankName, setBankName] = useState("");
-    const [accountNumber, setAccountNumber] = useState("");
-    const [accountName, setAccountName] = useState("");
-    const [withdrawalAddress, setWithdrawalAddress] = useState("");
-    const [mobileMoneyProvider, setMobileMoneyProvider] = useState("");
-    const [mobileMoneyNumber, setMobileMoneyNumber] = useState("");
-    const [errors, setErrors] = useState<{
-        bankName?: string;
-        accountNumber?: string;
-        accountName?: string;
-        withdrawalAddress?: string;
-    }>({});
+  const theme = {
+    bg: isDark ? "#090B14" : "#F5F4FC",
+    card: isDark ? "rgba(18, 14, 36, 0.92)" : "#FFFFFF",
+    text: isDark ? "#F8FAFC" : "#0F172A",
+    muted: isDark ? "#94A3B8" : "#64748B",
+    border: isDark ? "#1E1638" : "#EDE9FE",
+    accent: "#7C3AED",
+    accentLight: isDark ? "rgba(124, 58, 237, 0.15)" : "rgba(124, 58, 237, 0.08)",
+    inputBg: isDark ? "rgba(255,255,255,0.05)" : "#F9F8FF",
+    cardAlt: isDark ? "rgba(255, 255, 255, 0.05)" : "#F9F8FF",
+    amber: "#D97706",
+    amberLight: isDark ? "rgba(217, 119, 6, 0.15)" : "rgba(217, 119, 6, 0.08)",
+  };
 
-    const handleGoBack = () => {
-        if (fromAgentProfile) {
-            router.push("/agent/(tabs)/profile");
-        } else {
-            router.back();
-        }
-    };
+  const countryCode = (user as any)?.country_code || (user as any)?.country || "";
+  const countryInfo = countryCode ? getCountryByCode(countryCode) : null;
+  const showMobileMoney = countryCode ? isXOFCountry(countryCode) : false;
 
-    useEffect(() => {
-        if (user) {
-            setBankName((user as any).bank_name || "");
-            setAccountNumber((user as any).account_number || "");
-            setAccountName((user as any).account_name || "");
-            setWithdrawalAddress((user as any).withdrawal_address || "");
-            setMobileMoneyProvider((user as any).mobile_money_provider || XOF_MOBILE_MONEY_PROVIDERS[0]);
-            setMobileMoneyNumber((user as any).mobile_money_number || "");
-        }
-    }, [user]);
+  const [bankName, setBankName] = useState("");
+  const [accountNumber, setAccountNumber] = useState("");
+  const [accountName, setAccountName] = useState("");
+  const [withdrawalAddress, setWithdrawalAddress] = useState("");
+  const [mobileMoneyProvider, setMobileMoneyProvider] = useState("");
+  const [mobileMoneyNumber, setMobileMoneyNumber] = useState("");
+  const [errors, setErrors] = useState<{
+    bankName?: string;
+    accountNumber?: string;
+    accountName?: string;
+    withdrawalAddress?: string;
+  }>({});
 
-    const validateAddress = (address: string): boolean => {
-        // Basic Ethereum address validation
-        return address.startsWith("0x") && address.length === 42;
-    };
+  const handleGoBack = () => {
+    if (fromAgentProfile) {
+      router.push("/agent/(tabs)/profile");
+    } else {
+      router.back();
+    }
+  };
 
-    const handleSave = async () => {
-        // Validate inputs
-        const newErrors: any = {};
+  useEffect(() => {
+    if (user) {
+      setBankName((user as any).bank_name || "");
+      setAccountNumber((user as any).account_number || "");
+      setAccountName((user as any).account_name || "");
+      setWithdrawalAddress((user as any).withdrawal_address || "");
+      setMobileMoneyProvider((user as any).mobile_money_provider || XOF_MOBILE_MONEY_PROVIDERS[0]);
+      setMobileMoneyNumber((user as any).mobile_money_number || "");
+    }
+  }, [user]);
 
-        if (!bankName.trim()) {
-            newErrors.bankName = "Bank name is required";
-        }
+  const validateAddress = (address: string): boolean => {
+    return address.startsWith("0x") && address.length === 42;
+  };
 
-        if (!accountNumber.trim()) {
-            newErrors.accountNumber = "Account number is required";
-        }
+  const handleSave = async () => {
+    const newErrors: any = {};
 
-        if (!accountName.trim()) {
-            newErrors.accountName = "Account name is required";
-        }
+    if (!bankName.trim()) {
+      newErrors.bankName = "Bank name is required";
+    }
 
-        if (!withdrawalAddress.trim()) {
-            newErrors.withdrawalAddress = "Withdrawal address is required";
-        } else if (!validateAddress(withdrawalAddress)) {
-            newErrors.withdrawalAddress = "Invalid address format (must start with 0x)";
-        }
+    if (!accountNumber.trim()) {
+      newErrors.accountNumber = "Account number is required";
+    }
 
-        if (Object.keys(newErrors).length > 0) {
-            setErrors(newErrors);
-            return;
-        }
+    if (!accountName.trim()) {
+      newErrors.accountName = "Account name is required";
+    }
 
-        try {
-            const payload: any = {
-                bank_name: bankName.trim(),
-                account_number: accountNumber.trim(),
-                account_name: accountName.trim(),
-                withdrawal_address: withdrawalAddress.trim(),
-            };
-            if (showMobileMoney) {
-                payload.mobile_money_provider = mobileMoneyProvider.trim() || null;
-                payload.mobile_money_number = mobileMoneyNumber.trim() || null;
-            }
-            await updateProfile(payload);
+    if (!withdrawalAddress.trim()) {
+      newErrors.withdrawalAddress = "Withdrawal address is required";
+    } else if (!validateAddress(withdrawalAddress)) {
+      newErrors.withdrawalAddress = "Invalid address format (must start with 0x)";
+    }
 
-            Alert.alert(
-                "Success",
-                "Bank details updated successfully",
-                [{ text: "OK", onPress: () => handleGoBack() }]
-            );
-        } catch (error: any) {
-            Alert.alert("Error", error.message || "Failed to update bank details");
-        }
-    };
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      return;
+    }
 
-    const isFormValid =
-        bankName.trim().length > 0 &&
-        accountNumber.trim().length > 0 &&
-        accountName.trim().length > 0 &&
-        withdrawalAddress.trim().length > 0 &&
-        Object.keys(errors).length === 0;
+    try {
+      const payload: any = {
+        bank_name: bankName.trim(),
+        account_number: accountNumber.trim(),
+        account_name: accountName.trim(),
+        withdrawal_address: withdrawalAddress.trim(),
+      };
+      if (showMobileMoney) {
+        payload.mobile_money_provider = mobileMoneyProvider.trim() || null;
+        payload.mobile_money_number = mobileMoneyNumber.trim() || null;
+      }
+      await updateProfile(payload);
 
-    return (
-        <View style={styles.container}>
-            <View style={styles.headerWrapper}>
-                <LinearGradient
-                    colors={["#00B14F", "#008F40"]}
-                    style={styles.headerGradient}
-                />
-                <SafeAreaView edges={["top"]} style={styles.headerContent}>
-                    <View style={styles.header}>
-                        <TouchableOpacity onPress={handleGoBack} style={styles.backButton}>
-                            <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
-                        </TouchableOpacity>
-                        <Text style={styles.headerTitle}>Update Bank Details</Text>
-                        <View style={{ width: 24 }} />
-                    </View>
-                </SafeAreaView>
-            </View>
-            <KeyboardAvoidingView
-                behavior={Platform.OS === "ios" ? "padding" : "height"}
-                style={styles.keyboardView}
-                keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
-            >
+      Alert.alert(
+        "Success",
+        "Bank details updated successfully",
+        [{ text: "OK", onPress: () => handleGoBack() }]
+      );
+    } catch (error: any) {
+      Alert.alert("Error", error.message || "Failed to update bank details");
+    }
+  };
 
-                <ScrollView
-                    contentContainerStyle={styles.content}
-                    keyboardShouldPersistTaps="handled"
-                    showsVerticalScrollIndicator={false}
-                >
-                    <LinearGradient
-                        colors={["#F7FFF9", "#FFFFFF"]}
-                        style={styles.summaryCard}
-                    >
-                        <Text style={styles.summaryEyebrow}>Settlement Details</Text>
-                        <Text style={styles.summaryTitle}>Update Bank & Payout Details</Text>
-                        <Text style={styles.summaryText}>
-                            Keep your payout details accurate so deposits, withdrawals, and user settlements flow smoothly.
-                        </Text>
-                    </LinearGradient>
+  const isFormValid =
+    bankName.trim().length > 0 &&
+    accountNumber.trim().length > 0 &&
+    accountName.trim().length > 0 &&
+    withdrawalAddress.trim().length > 0 &&
+    Object.keys(errors).length === 0;
 
-                    {countryInfo ? (
-                        <View style={styles.countryRow}>
-                            <Ionicons name="globe-outline" size={20} color="#6B7280" style={styles.countryIcon} />
-                            <Text style={styles.countryLabel}>Country</Text>
-                            <Text style={styles.countryValue}>{countryInfo.name}</Text>
-                        </View>
-                    ) : null}
-
-                    {/* Bank Name */}
-                    <View style={styles.inputGroup}>
-                        <Text style={styles.label}>Bank Name *</Text>
-                        <View style={[styles.inputContainer, errors.bankName && styles.inputError]}>
-                            <Ionicons name="business-outline" size={20} color="#6B7280" style={styles.inputIcon} />
-                            <TextInput
-                                style={styles.input}
-                                value={bankName}
-                                onChangeText={(text) => {
-                                    setBankName(text);
-                                    if (errors.bankName) setErrors({ ...errors, bankName: undefined });
-                                }}
-                                placeholder="Enter bank name"
-                                editable={!loading}
-                            />
-                        </View>
-                        {errors.bankName && <Text style={styles.errorText}>{errors.bankName}</Text>}
-                    </View>
-
-                    {/* Account Number */}
-                    <View style={styles.inputGroup}>
-                        <Text style={styles.label}>Account Number *</Text>
-                        <View style={[styles.inputContainer, errors.accountNumber && styles.inputError]}>
-                            <Ionicons name="card-outline" size={20} color="#6B7280" style={styles.inputIcon} />
-                            <TextInput
-                                style={styles.input}
-                                value={accountNumber}
-                                onChangeText={(text) => {
-                                    setAccountNumber(text);
-                                    if (errors.accountNumber) setErrors({ ...errors, accountNumber: undefined });
-                                }}
-                                placeholder="Enter account number"
-                                keyboardType="numeric"
-                                editable={!loading}
-                            />
-                        </View>
-                        {errors.accountNumber && <Text style={styles.errorText}>{errors.accountNumber}</Text>}
-                    </View>
-
-                    {/* Account Name */}
-                    <View style={styles.inputGroup}>
-                        <Text style={styles.label}>Account Name *</Text>
-                        <View style={[styles.inputContainer, errors.accountName && styles.inputError]}>
-                            <Ionicons name="person-circle-outline" size={20} color="#6B7280" style={styles.inputIcon} />
-                            <TextInput
-                                style={styles.input}
-                                value={accountName}
-                                onChangeText={(text) => {
-                                    setAccountName(text);
-                                    if (errors.accountName) setErrors({ ...errors, accountName: undefined });
-                                }}
-                                placeholder="Enter account holder name"
-                                editable={!loading}
-                            />
-                        </View>
-                        {errors.accountName && <Text style={styles.errorText}>{errors.accountName}</Text>}
-                    </View>
-
-                    {/* Mobile Money (XOF agents) */}
-                    {showMobileMoney && (
-                        <>
-                            <Text style={[styles.label, { marginTop: 8 }]}>Mobile Money (optional)</Text>
-                            <Text style={styles.helperText}>
-                                In XOF countries many users pay via Orange Money, Wave, Kiren. Add your details so users can pay you.
-                            </Text>
-                            <View style={styles.inputGroup}>
-                                <Text style={styles.label}>Provider</Text>
-                                <View style={styles.inputContainer}>
-                                    <Ionicons name="phone-portrait-outline" size={20} color="#6B7280" style={styles.inputIcon} />
-                                    <View style={styles.pickerRow}>
-                                        {XOF_MOBILE_MONEY_PROVIDERS.map((p) => (
-                                            <TouchableOpacity
-                                                key={p}
-                                                style={[styles.chip, mobileMoneyProvider === p && styles.chipActive]}
-                                                onPress={() => setMobileMoneyProvider(p)}
-                                            >
-                                                <Text style={[styles.chipText, mobileMoneyProvider === p && styles.chipTextActive]}>{p}</Text>
-                                            </TouchableOpacity>
-                                        ))}
-                                    </View>
-                                </View>
-                            </View>
-                            <View style={styles.inputGroup}>
-                                <Text style={styles.label}>Mobile Money Number</Text>
-                                <View style={styles.inputContainer}>
-                                    <Ionicons name="call-outline" size={20} color="#6B7280" style={styles.inputIcon} />
-                                    <TextInput
-                                        style={styles.input}
-                                        value={mobileMoneyNumber}
-                                        onChangeText={setMobileMoneyNumber}
-                                        placeholder="e.g. +221 77 123 45 67"
-                                        keyboardType="phone-pad"
-                                        editable={!loading}
-                                    />
-                                </View>
-                            </View>
-                        </>
-                    )}
-
-                    {/* Withdrawal Address */}
-                    <View style={styles.inputGroup}>
-                        <Text style={styles.label}>USDT Withdrawal Address *</Text>
-                        <View style={[styles.inputContainer, errors.withdrawalAddress && styles.inputError]}>
-                            <Ionicons name="wallet-outline" size={20} color="#6B7280" style={styles.inputIcon} />
-                            <TextInput
-                                style={[styles.input, styles.addressInput]}
-                                value={withdrawalAddress}
-                                onChangeText={(text) => {
-                                    setWithdrawalAddress(text);
-                                    if (errors.withdrawalAddress) setErrors({ ...errors, withdrawalAddress: undefined });
-                                }}
-                                placeholder="0x..."
-                                autoCapitalize="none"
-                                autoCorrect={false}
-                                editable={!loading}
-                            />
-                        </View>
-                        {errors.withdrawalAddress && <Text style={styles.errorText}>{errors.withdrawalAddress}</Text>}
-                        <Text style={styles.helperText}>
-                            Polygon network USDT address for withdrawals
-                        </Text>
-                    </View>
-
-                    {/* Warning Box */}
-                    <View style={styles.warningBox}>
-                        <Ionicons name="warning" size={20} color="#F59E0B" />
-                        <Text style={styles.warningText}>
-                            Please ensure all details are correct. Incorrect banking information may delay payments.
-                        </Text>
-                    </View>
-                </ScrollView>
-
-                {/* Save Button */}
-                <View style={styles.footer}>
-                    <TouchableOpacity
-                        style={[styles.saveButton, (!isFormValid || loading) && styles.saveButtonDisabled]}
-                        onPress={handleSave}
-                        disabled={!isFormValid || loading}
-                    >
-                        {loading ? (
-                            <Text style={styles.saveButtonText}>Saving...</Text>
-                        ) : (
-                            <Text style={styles.saveButtonText}>Save Changes</Text>
-                        )}
-                    </TouchableOpacity>
-                </View>
-            </KeyboardAvoidingView>
+  return (
+    <View style={[styles.container, { backgroundColor: theme.bg }]}>
+      {/* Flat Header */}
+      <SafeAreaView edges={["top"]} style={[styles.headerContainer, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
+        <View style={styles.headerRow}>
+          <TouchableOpacity onPress={handleGoBack} style={[styles.backButton, { backgroundColor: theme.accentLight }]}>
+            <Ionicons name="arrow-back" size={20} color={theme.accent} />
+          </TouchableOpacity>
+          <Text style={[styles.headerTitle, { color: theme.text }]}>Update Bank Details</Text>
+          <View style={{ width: 36 }} />
         </View>
-    );
+      </SafeAreaView>
+
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={styles.keyboardView}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
+      >
+        <ScrollView
+          contentContainerStyle={styles.content}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Purple themed summary card */}
+          <LinearGradient
+            colors={isDark ? ["rgba(124, 58, 237, 0.15)", "rgba(18, 14, 36, 0.8)"] : ["rgba(124, 58, 237, 0.05)", "#FFFFFF"]}
+            style={[styles.summaryCard, { borderColor: theme.border }]}
+          >
+            <Text style={[styles.summaryEyebrow, { color: theme.accent }]}>Settlement Details</Text>
+            <Text style={[styles.summaryTitle, { color: theme.text }]}>Update Bank & Payout Details</Text>
+            <Text style={[styles.summaryText, { color: theme.muted }]}>
+              Keep your payout details accurate so deposits, withdrawals, and user settlements flow smoothly.
+            </Text>
+          </LinearGradient>
+
+          {countryInfo ? (
+            <View style={[styles.countryRow, { backgroundColor: theme.cardAlt, borderColor: theme.border }]}>
+              <Ionicons name="globe-outline" size={20} color={theme.accent} style={styles.countryIcon} />
+              <Text style={[styles.countryLabel, { color: theme.muted }]}>Country</Text>
+              <Text style={[styles.countryValue, { color: theme.text }]}>{countryInfo.name}</Text>
+            </View>
+          ) : null}
+
+          {/* Card 1: Bank Account Details */}
+          <Text style={[styles.sectionLabel, { color: theme.muted }]}>BANK ACCOUNT DETAILS</Text>
+          <View style={[styles.formCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+            {/* Bank Name */}
+            <View style={styles.inputGroup}>
+              <Text style={[styles.label, { color: theme.muted }]}>Bank Name *</Text>
+              <View style={[styles.inputContainer, { backgroundColor: theme.inputBg, borderColor: errors.bankName ? "#EF4444" : theme.border }]}>
+                <Ionicons name="business-outline" size={20} color={theme.muted} style={styles.inputIcon} />
+                <TextInput
+                  style={[styles.input, { color: theme.text }]}
+                  value={bankName}
+                  onChangeText={(text) => {
+                    setBankName(text);
+                    if (errors.bankName) setErrors({ ...errors, bankName: undefined });
+                  }}
+                  placeholder="Enter bank name"
+                  placeholderTextColor={theme.muted}
+                  editable={!loading}
+                />
+              </View>
+              {errors.bankName && <Text style={styles.errorText}>{errors.bankName}</Text>}
+            </View>
+
+            <View style={[styles.divider, { backgroundColor: theme.border, marginVertical: 16 }]} />
+
+            {/* Account Number */}
+            <View style={styles.inputGroup}>
+              <Text style={[styles.label, { color: theme.muted }]}>Account Number *</Text>
+              <View style={[styles.inputContainer, { backgroundColor: theme.inputBg, borderColor: errors.accountNumber ? "#EF4444" : theme.border }]}>
+                <Ionicons name="card-outline" size={20} color={theme.muted} style={styles.inputIcon} />
+                <TextInput
+                  style={[styles.input, { color: theme.text }]}
+                  value={accountNumber}
+                  onChangeText={(text) => {
+                    setAccountNumber(text);
+                    if (errors.accountNumber) setErrors({ ...errors, accountNumber: undefined });
+                  }}
+                  placeholder="Enter account number"
+                  placeholderTextColor={theme.muted}
+                  keyboardType="numeric"
+                  editable={!loading}
+                />
+              </View>
+              {errors.accountNumber && <Text style={styles.errorText}>{errors.accountNumber}</Text>}
+            </View>
+
+            <View style={[styles.divider, { backgroundColor: theme.border, marginVertical: 16 }]} />
+
+            {/* Account Name */}
+            <View style={styles.inputGroup}>
+              <Text style={[styles.label, { color: theme.muted }]}>Account Name *</Text>
+              <View style={[styles.inputContainer, { backgroundColor: theme.inputBg, borderColor: errors.accountName ? "#EF4444" : theme.border }]}>
+                <Ionicons name="person-circle-outline" size={20} color={theme.muted} style={styles.inputIcon} />
+                <TextInput
+                  style={[styles.input, { color: theme.text }]}
+                  value={accountName}
+                  onChangeText={(text) => {
+                    setAccountName(text);
+                    if (errors.accountName) setErrors({ ...errors, accountName: undefined });
+                  }}
+                  placeholder="Enter account holder name"
+                  placeholderTextColor={theme.muted}
+                  editable={!loading}
+                />
+              </View>
+              {errors.accountName && <Text style={styles.errorText}>{errors.accountName}</Text>}
+            </View>
+          </View>
+
+          {/* Card 2: Mobile Money Integration */}
+          {showMobileMoney && (
+            <>
+              <Text style={[styles.sectionLabel, { color: theme.muted, marginTop: 16 }]}>MOBILE MONEY INTEGRATION</Text>
+              <View style={[styles.formCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                <Text style={[styles.sectionHelperText, { color: theme.muted }]}>
+                  In XOF countries, mobile money (Orange Money, Wave, Kirène) is highly popular. Provide your details to facilitate easy user settlements.
+                </Text>
+
+                <View style={styles.inputGroup}>
+                  <Text style={[styles.label, { color: theme.muted }]}>Select Provider</Text>
+                  <View style={styles.pickerRow}>
+                    {XOF_MOBILE_MONEY_PROVIDERS.map((p) => (
+                      <TouchableOpacity
+                        key={p}
+                        style={[
+                          styles.chip,
+                          { backgroundColor: theme.cardAlt, borderColor: theme.border },
+                          mobileMoneyProvider === p && [styles.chipActive, { borderColor: theme.accent, backgroundColor: theme.accentLight }]
+                        ]}
+                        onPress={() => setMobileMoneyProvider(p)}
+                      >
+                        <Text style={[styles.chipText, { color: theme.muted }, mobileMoneyProvider === p && { color: theme.accent }]}>{p}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+
+                <View style={[styles.divider, { backgroundColor: theme.border, marginVertical: 16 }]} />
+
+                <View style={styles.inputGroup}>
+                  <Text style={[styles.label, { color: theme.muted }]}>Mobile Money Number</Text>
+                  <View style={[styles.inputContainer, { backgroundColor: theme.inputBg, borderColor: theme.border }]}>
+                    <Ionicons name="call-outline" size={20} color={theme.muted} style={styles.inputIcon} />
+                    <TextInput
+                      style={[styles.input, { color: theme.text }]}
+                      value={mobileMoneyNumber}
+                      onChangeText={setMobileMoneyNumber}
+                      placeholder="e.g. +221 77 123 45 67"
+                      placeholderTextColor={theme.muted}
+                      keyboardType="phone-pad"
+                      editable={!loading}
+                    />
+                  </View>
+                </View>
+              </View>
+            </>
+          )}
+
+          {/* Card 3: Payout Destination */}
+          <Text style={[styles.sectionLabel, { color: theme.muted, marginTop: 16 }]}>PAYOUT DESTINATION</Text>
+          <View style={[styles.formCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+            <View style={styles.inputGroup}>
+              <Text style={[styles.label, { color: theme.muted }]}>USDT Withdrawal Address *</Text>
+              <View style={[styles.inputContainer, { backgroundColor: theme.inputBg, borderColor: errors.withdrawalAddress ? "#EF4444" : theme.border }]}>
+                <Ionicons name="wallet-outline" size={20} color={theme.muted} style={styles.inputIcon} />
+                <TextInput
+                  style={[styles.input, styles.addressInput, { color: theme.text }]}
+                  value={withdrawalAddress}
+                  onChangeText={(text) => {
+                    setWithdrawalAddress(text);
+                    if (errors.withdrawalAddress) setErrors({ ...errors, withdrawalAddress: undefined });
+                  }}
+                  placeholder="0x..."
+                  placeholderTextColor={theme.muted}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  editable={!loading}
+                />
+              </View>
+              {errors.withdrawalAddress && <Text style={styles.errorText}>{errors.withdrawalAddress}</Text>}
+              <Text style={[styles.helperText, { color: theme.muted }]}>
+                Only provide Polygon network USDT address for withdrawals.
+              </Text>
+            </View>
+          </View>
+
+          {/* Warning Box */}
+          <View style={[styles.warningBox, { backgroundColor: theme.amberLight, borderColor: theme.amber + "20" }]}>
+            <Ionicons name="warning" size={20} color={theme.amber} style={{ marginRight: 4 }} />
+            <Text style={[styles.warningText, { color: theme.amber }]}>
+              Please verify all details. Incorrect banking or payout address info may cause permanent loss of funds during withdrawal processing.
+            </Text>
+          </View>
+
+          <View style={{ height: 120 }} />
+        </ScrollView>
+
+        {/* Save Button */}
+        <View style={[styles.footer, { backgroundColor: theme.card, borderTopColor: theme.border }]}>
+          <TouchableOpacity
+            style={[styles.saveButton, { backgroundColor: theme.accent }, (!isFormValid || loading) && styles.saveButtonDisabled]}
+            onPress={handleSave}
+            disabled={!isFormValid || loading}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.saveButtonText}>
+              {loading ? "Saving..." : "Save Changes"}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </KeyboardAvoidingView>
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: "#F3F4F6",
-    },
-    headerWrapper: {
-        // marginBottom: 20,
-    },
-    headerGradient: {
-        position: "absolute",
-        top: 0,
-        left: 0,
-        right: 0,
-        height: 120,
-    },
-    headerContent: {
-        paddingHorizontal: 16,
-    },
-    header: {
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "space-between",
-        paddingBottom: 20,
-        marginTop: 20,
-    },
-    backButton: {
-        width: 32,
-        height: 32,
-        borderRadius: 16,
-        backgroundColor: "rgba(255,255,255,0.2)",
-        alignItems: "center",
-        justifyContent: "center",
-    },
-    headerTitle: {
-        fontSize: 20,
-        fontWeight: "700",
-        color: "#FFFFFF",
-    },
-    keyboardView: {
-        flex: 1,
-    },
-    content: {
-        padding: 16,
-        paddingBottom: 100,
-    },
-    summaryCard: {
-        borderRadius: 22,
-        padding: 18,
-        marginBottom: 20,
-        borderWidth: 1,
-        borderColor: "#E6F4EA",
-    },
-    summaryEyebrow: {
-        fontSize: 11,
-        fontWeight: "800",
-        color: "#00B14F",
-        textTransform: "uppercase",
-        letterSpacing: 0.5,
-        marginBottom: 6,
-    },
-    summaryTitle: {
-        fontSize: 22,
-        fontWeight: "800",
-        color: "#111827",
-        letterSpacing: -0.5,
-    },
-    summaryText: {
-        fontSize: 13,
-        lineHeight: 20,
-        color: "#6B7280",
-        fontWeight: "500",
-        marginTop: 6,
-    },
-    countryRow: {
-        flexDirection: "row",
-        alignItems: "center",
-        backgroundColor: "#FBFCFD",
-        paddingVertical: 12,
-        paddingHorizontal: 14,
-        borderRadius: 16,
-        marginBottom: 20,
-        borderWidth: 1,
-        borderColor: "#EAF0F5",
-    },
-    countryIcon: {
-        marginRight: 10,
-    },
-    countryLabel: {
-        fontSize: 14,
-        color: "#6B7280",
-        fontWeight: "500",
-    },
-    countryValue: {
-        marginLeft: "auto",
-        fontSize: 15,
-        fontWeight: "600",
-        color: "#111827",
-    },
-    inputGroup: {
-        marginBottom: 24,
-    },
-    label: {
-        fontSize: 12,
-        fontWeight: "800",
-        color: "#4B5563",
-        marginBottom: 8,
-        textTransform: "uppercase",
-        letterSpacing: 0.5,
-    },
-    inputContainer: {
-        flexDirection: "row",
-        alignItems: "center",
-        backgroundColor: "white",
-        borderRadius: 16,
-        borderWidth: 1,
-        borderColor: "#EAF0F5",
-        paddingHorizontal: 12,
-        paddingVertical: 12,
-    },
-    inputError: {
-        borderColor: "#EF4444",
-    },
-    inputIcon: {
-        marginRight: 8,
-    },
-    input: {
-        flex: 1,
-        paddingVertical: 14,
-        fontSize: 16,
-        color: "#111827",
-    },
-    addressInput: {
-        fontFamily: Platform.OS === "ios" ? "Courier" : "monospace",
-        fontSize: 14,
-    },
-    errorText: {
-        fontSize: 12,
-        color: "#EF4444",
-        marginTop: 4,
-    },
-    helperText: {
-        fontSize: 12,
-        color: "#6B7280",
-        marginTop: 4,
-        lineHeight: 18,
-    },
-    pickerRow: {
-        flexDirection: "row",
-        flexWrap: "wrap",
-        gap: 8,
-        flex: 1,
-    },
-    chip: {
-        paddingHorizontal: 12,
-        paddingVertical: 8,
-        borderRadius: 999,
-        backgroundColor: "#F3F4F6",
-        borderWidth: 1,
-        borderColor: "#E5E7EB",
-    },
-    chipActive: {
-        backgroundColor: "#EDE9FE",
-        borderColor: "#7C3AED",
-    },
-    chipText: {
-        fontSize: 12,
-        fontWeight: "600",
-        color: "#6B7280",
-    },
-    chipTextActive: { color: "#7C3AED" },
-    warningBox: {
-        flexDirection: "row",
-        backgroundColor: "#FFF8E7",
-        padding: 14,
-        borderRadius: 16,
-        gap: 8,
-        marginTop: 8,
-        borderWidth: 1,
-        borderColor: "#FDE7C2",
-    },
-    warningText: {
-        flex: 1,
-        fontSize: 13,
-        color: "#F59E0B",
-        lineHeight: 18,
-        fontWeight: "500",
-    },
-    footer: {
-        padding: 16,
-        backgroundColor: "white",
-        borderTopWidth: 1,
-        borderTopColor: "#EAF0F5",
-    },
-    saveButton: {
-        backgroundColor: "#00B14F",
-        paddingVertical: 16,
-        borderRadius: 16,
-        alignItems: "center",
-    },
-    saveButtonDisabled: {
-        backgroundColor: "#9CA3AF",
-    },
-    saveButtonText: {
-        fontSize: 16,
-        fontWeight: "600",
-        color: "white",
-    },
+  container: {
+    flex: 1,
+  },
+  headerContainer: {
+    borderBottomWidth: 1,
+  },
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    gap: 12,
+  },
+  backButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  headerTitle: {
+    flex: 1,
+    fontSize: 18,
+    fontWeight: "800",
+    letterSpacing: -0.3,
+  },
+  keyboardView: {
+    flex: 1,
+  },
+  content: {
+    padding: 16,
+    paddingBottom: 100,
+  },
+  summaryCard: {
+    borderRadius: 22,
+    padding: 18,
+    marginBottom: 20,
+    borderWidth: 1,
+  },
+  summaryEyebrow: {
+    fontSize: 11,
+    fontWeight: "800",
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
+    marginBottom: 6,
+  },
+  summaryTitle: {
+    fontSize: 20,
+    fontWeight: "800",
+    letterSpacing: -0.4,
+  },
+  summaryText: {
+    fontSize: 13,
+    lineHeight: 20,
+    fontWeight: "500",
+    marginTop: 6,
+  },
+  countryRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 18,
+    marginBottom: 20,
+    borderWidth: 1,
+  },
+  countryIcon: {
+    marginRight: 10,
+  },
+  countryLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  countryValue: {
+    marginLeft: "auto",
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  sectionLabel: {
+    fontSize: 11,
+    fontWeight: "800",
+    letterSpacing: 0.6,
+    textTransform: "uppercase",
+    marginBottom: 10,
+    marginLeft: 4,
+  },
+  formCard: {
+    borderRadius: 24,
+    borderWidth: 1,
+    padding: 16,
+    marginBottom: 14,
+  },
+  divider: {
+    height: 1,
+  },
+  inputGroup: {
+    gap: 8,
+  },
+  label: {
+    fontSize: 11,
+    fontWeight: "800",
+    marginBottom: 2,
+    marginLeft: 4,
+    textTransform: "uppercase",
+    letterSpacing: 0.6,
+  },
+  inputContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderRadius: 18,
+    borderWidth: 1.5,
+    paddingHorizontal: 14,
+  },
+  inputIcon: {
+    marginRight: 8,
+  },
+  input: {
+    flex: 1,
+    paddingVertical: 14,
+    fontSize: 15,
+    fontWeight: "600",
+  },
+  addressInput: {
+    fontFamily: Platform.OS === "ios" ? "Courier" : "monospace",
+    fontSize: 13,
+  },
+  errorText: {
+    fontSize: 12,
+    color: "#EF4444",
+    marginTop: 2,
+    marginLeft: 4,
+  },
+  sectionHelperText: {
+    fontSize: 12,
+    lineHeight: 18,
+    fontWeight: "500",
+    marginBottom: 12,
+    marginLeft: 4,
+  },
+  helperText: {
+    fontSize: 12,
+    marginTop: 2,
+    marginLeft: 4,
+    fontWeight: "500",
+  },
+  pickerRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginTop: 4,
+  },
+  chip: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 14,
+    borderWidth: 1.5,
+  },
+  chipActive: {
+    borderWidth: 1.5,
+  },
+  chipText: {
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  warningBox: {
+    flexDirection: "row",
+    padding: 14,
+    borderRadius: 18,
+    gap: 8,
+    marginTop: 8,
+    borderWidth: 1,
+  },
+  warningText: {
+    flex: 1,
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: "600",
+  },
+  footer: {
+    padding: 16,
+    borderTopWidth: 1,
+  },
+  saveButton: {
+    paddingVertical: 16,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#7C3AED",
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
+  },
+  saveButtonDisabled: {
+    backgroundColor: "#9CA3AF",
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+  saveButtonText: {
+    fontSize: 15,
+    fontWeight: "800",
+    color: "white",
+  },
 });

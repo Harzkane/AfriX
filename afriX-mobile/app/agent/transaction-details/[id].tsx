@@ -1,558 +1,216 @@
 import React from "react";
 import {
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    ScrollView, StyleSheet, Text,
+    TouchableOpacity, View, useColorScheme,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
-import { Surface } from "react-native-paper";
 import { useAgentStore } from "@/stores/slices/agentSlice";
 import { formatAmount, formatDate } from "@/utils/format";
 
-export default function TransactionDetailsScreen() {
-  const { id } = useLocalSearchParams();
-  const router = useRouter();
-  const { dashboardData } = useAgentStore();
-
-  const tx = dashboardData?.recent_transactions?.find((t: any) => t.id === id);
-
-  if (!tx) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.errorContainer}>
-          <View style={styles.errorIconWrap}>
-            <Ionicons name="alert-circle-outline" size={28} color="#EF4444" />
-          </View>
-          <Text style={styles.errorTitle}>Transaction unavailable</Text>
-          <Text style={styles.errorText}>Transaction not found</Text>
-          <TouchableOpacity
-            onPress={() => router.back()}
-            style={styles.primaryButton}
-            activeOpacity={0.85}
-          >
-            <Text style={styles.primaryButtonText}>Go back</Text>
-          </TouchableOpacity>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
-  const normalizedType = String(tx.type || "").toLowerCase();
-  const isMint = normalizedType === "mint";
-  const isBurn = normalizedType === "burn";
-  const counterparty = isMint ? tx.toUser?.full_name : tx.fromUser?.full_name;
-  const tokenType = tx.token_type || "NT";
-  const commissionSource = tx.agent_commission ?? tx.fee_amount ?? tx.fee;
-  const commissionAmount =
-    commissionSource != null && commissionSource !== ""
-      ? String(commissionSource)
-      : tx.status === "completed"
-        ? (parseFloat(String(tx.amount || 0)) * 0.01).toString()
-        : "0";
-  const commissionLabel =
-    tx.fee_kind === "agent_commission"
-      ? tx.fee_label || "Agent Commission"
-      : "Commission earned";
-  const commission = formatAmount(commissionAmount, tokenType);
-  const amountDisplay = formatAmount(tx.amount, tokenType);
-  const statusColor = getStatusColor(tx.status);
-  const typeConfig = getTypeConfig(normalizedType);
-
-  return (
-    <View style={styles.container}>
-      <View style={styles.headerWrapper}>
-        <LinearGradient
-          colors={["#00B14F", "#008F40"]}
-          style={styles.headerGradient}
-        />
-        <SafeAreaView edges={["top"]} style={styles.headerContent}>
-          <View style={styles.header}>
-            <TouchableOpacity
-              onPress={() => router.back()}
-              style={styles.headerButton}
-              activeOpacity={0.8}
-            >
-              <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
-            </TouchableOpacity>
-            <Text style={styles.headerTitle}>Transaction Details</Text>
-            <View style={styles.headerSpacer} />
-          </View>
-        </SafeAreaView>
-      </View>
-
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        <LinearGradient
-          colors={["#F7FFF9", "#FFFFFF"]}
-          style={styles.summaryCard}
-        >
-          <Text style={styles.summaryEyebrow}>Agent Activity</Text>
-          <Text style={styles.summaryTitle}>{typeConfig.label} Transaction</Text>
-          <Text style={styles.summaryText}>
-            Review the customer, settlement amount, earned commission, and
-            status for this agent-side transaction.
-          </Text>
-
-          <View style={styles.summaryTopRow}>
-            <View
-              style={[
-                styles.typePill,
-                {
-                  backgroundColor: typeConfig.bg,
-                  borderColor: typeConfig.border,
-                },
-              ]}
-            >
-              <Ionicons
-                name={typeConfig.icon}
-                size={18}
-                color={typeConfig.color}
-              />
-              <Text
-                style={[styles.typePillText, { color: typeConfig.color }]}
-              >
-                {typeConfig.label}
-              </Text>
-            </View>
-
-            <View
-              style={[
-                styles.statusPill,
-                { backgroundColor: `${statusColor}16` },
-              ]}
-            >
-              <Text style={[styles.statusText, { color: statusColor }]}>
-                {String(tx.status || "completed")
-                  .replace(/_/g, " ")
-                  .toUpperCase()}
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.amountContainer}>
-            <View>
-              <Text style={styles.amountLabel}>Transaction Amount</Text>
-              <Text style={styles.amountValue}>
-                {amountDisplay} {tokenType}
-              </Text>
-            </View>
-            <View style={styles.amountMeta}>
-              <Text style={styles.amountMetaLabel}>Created</Text>
-              <Text style={styles.amountMetaValue}>
-                {formatDate(tx.created_at, true)}
-              </Text>
-            </View>
-          </View>
-        </LinearGradient>
-
-        <Surface style={styles.card}>
-          <View style={styles.cardAccent} />
-          <Text style={styles.cardTitle}>Transaction Summary</Text>
-
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Flow</Text>
-            <Text style={styles.infoValue}>
-              {isMint ? "Mint to customer" : isBurn ? "Burn from customer" : tx.type}
-            </Text>
-          </View>
-
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Counterparty</Text>
-            <Text style={styles.infoValue}>{counterparty || "User"}</Text>
-          </View>
-
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Token</Text>
-            <Text style={styles.infoValue}>{tokenType}</Text>
-          </View>
-
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Reference</Text>
-            <Text style={styles.infoValue} numberOfLines={1}>
-              {tx.reference || "—"}
-            </Text>
-          </View>
-        </Surface>
-
-        <Surface style={styles.card}>
-          <View style={styles.cardAccent} />
-          <Text style={styles.cardTitle}>Settlement Details</Text>
-
-          <View style={styles.infoStrip}>
-            <Text style={styles.infoStripLabel}>{commissionLabel}</Text>
-            <Text style={[styles.infoStripValue, styles.successValue]}>
-              +{commission} {tokenType}
-            </Text>
-          </View>
-
-          <View style={styles.infoStrip}>
-            <Text style={styles.infoStripLabel}>Status</Text>
-            <Text style={styles.infoStripValue}>
-              {String(tx.status || "completed")
-                .replace(/_/g, " ")
-                .toUpperCase()}
-            </Text>
-          </View>
-
-          <View style={styles.infoStrip}>
-            <Text style={styles.infoStripLabel}>Recorded On</Text>
-            <Text style={styles.infoStripValue}>
-              {formatDate(tx.created_at, true)}
-            </Text>
-          </View>
-        </Surface>
-
-        {tx.metadata ? (
-          <Surface style={styles.card}>
-            <View style={styles.cardAccent} />
-            <Text style={styles.cardTitle}>Additional Data</Text>
-            <View style={styles.noteBlock}>
-              <Text style={styles.noteLabel}>Metadata</Text>
-              <Text style={styles.metadataText}>
-                {JSON.stringify(tx.metadata, null, 2)}
-              </Text>
-            </View>
-          </Surface>
-        ) : null}
-      </ScrollView>
-    </View>
-  );
-}
-
 const getTypeConfig = (type: string) => {
-  if (type === "mint") {
-    return {
-      label: "Mint",
-      icon: "arrow-up-circle" as const,
-      bg: "#F0FDF4",
-      color: "#00B14F",
-      border: "#DDF7E5",
-    };
-  }
-
-  if (type === "burn") {
-    return {
-      label: "Burn",
-      icon: "arrow-down-circle" as const,
-      bg: "#FFF8ED",
-      color: "#D97706",
-      border: "#FDE7C2",
-    };
-  }
-
-  return {
-    label: type || "Transaction",
-    icon: "cash" as const,
-    bg: "#F3F4F6",
-    color: "#6B7280",
-    border: "#E5E7EB",
-  };
+    if (type === "mint") return { label: "Mint", icon: "arrow-up-circle" as const, bg: "#ECFDF5", color: "#059669", border: "#A7F3D0" };
+    if (type === "burn") return { label: "Burn", icon: "arrow-down-circle" as const, bg: "#FFFBEB", color: "#D97706", border: "#FDE68A" };
+    return { label: type || "Transaction", icon: "cash" as const, bg: "#F3F4F6", color: "#6B7280", border: "#E5E7EB" };
 };
 
 const getStatusColor = (status: string) => {
-  switch (String(status || "").toLowerCase()) {
-    case "completed":
-      return "#00B14F";
-    case "pending":
-      return "#F59E0B";
-    case "failed":
-      return "#EF4444";
-    default:
-      return "#6B7280";
-  }
+    switch (String(status || "").toLowerCase()) {
+        case "completed": return "#059669";
+        case "pending": return "#D97706";
+        case "failed": return "#EF4444";
+        default: return "#6B7280";
+    }
 };
 
+export default function TransactionDetailsScreen() {
+    const { id } = useLocalSearchParams();
+    const router = useRouter();
+    const { dashboardData } = useAgentStore();
+    const colorScheme = useColorScheme();
+    const isDark = colorScheme === "dark";
+
+    const theme = {
+        bg: isDark ? "#090B14" : "#F5F4FC",
+        card: isDark ? "rgba(18, 14, 36, 0.92)" : "#FFFFFF",
+        text: isDark ? "#F8FAFC" : "#0F172A",
+        muted: isDark ? "#94A3B8" : "#64748B",
+        border: isDark ? "#1E1638" : "#EDE9FE",
+        accent: "#7C3AED",
+        accentLight: isDark ? "rgba(124, 58, 237, 0.15)" : "rgba(124, 58, 237, 0.08)",
+        green: "#00B14F",
+        inputBg: isDark ? "rgba(255,255,255,0.04)" : "#F8F7FF",
+    };
+
+    const tx = dashboardData?.recent_transactions?.find((t: any) => t.id === id);
+
+    if (!tx) {
+        return (
+            <View style={[styles.container, { backgroundColor: theme.bg }]}>
+                <SafeAreaView style={styles.errorWrap}>
+                    <LinearGradient colors={["#EDE9FE", "#DDD6FE"]} style={styles.errorIconCircle}>
+                        <Ionicons name="alert-circle-outline" size={28} color="#7C3AED" />
+                    </LinearGradient>
+                    <Text style={[styles.errorTitle, { color: theme.text }]}>Transaction unavailable</Text>
+                    <Text style={[styles.errorSub, { color: theme.muted }]}>This transaction could not be found.</Text>
+                    <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} activeOpacity={0.85}>
+                        <Text style={styles.backBtnText}>Go back</Text>
+                    </TouchableOpacity>
+                </SafeAreaView>
+            </View>
+        );
+    }
+
+    const normalizedType = String(tx.type || "").toLowerCase();
+    const isMint = normalizedType === "mint";
+    const isBurn = normalizedType === "burn";
+    const counterparty = isMint ? tx.toUser?.full_name : tx.fromUser?.full_name;
+    const tokenType = tx.token_type || "NT";
+    const commissionSource = tx.agent_commission ?? tx.fee_amount ?? tx.fee;
+    const commissionAmount = commissionSource != null && commissionSource !== ""
+        ? String(commissionSource)
+        : tx.status === "completed"
+            ? (parseFloat(String(tx.amount || 0)) * 0.01).toString()
+            : "0";
+    const commissionLabel = tx.fee_kind === "agent_commission" ? (tx.fee_label || "Agent Commission") : "Commission earned";
+    const commission = formatAmount(commissionAmount, tokenType);
+    const amountDisplay = formatAmount(tx.amount, tokenType);
+    const typeConfig = getTypeConfig(normalizedType);
+    const statusColor = getStatusColor(tx.status);
+
+    const infoRows = [
+        { label: "Flow", value: isMint ? "Mint to customer" : isBurn ? "Burn from customer" : tx.type },
+        { label: "Counterparty", value: counterparty || "User" },
+        { label: "Token", value: tokenType },
+        { label: "Reference", value: tx.reference || "—" },
+    ];
+
+    return (
+        <View style={[styles.container, { backgroundColor: theme.bg }]}>
+            {/* Flat Header — matches user/agent dashboard header style */}
+            <SafeAreaView edges={["top"]} style={[styles.headerContainer, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
+                <View style={styles.headerRow}>
+                    <TouchableOpacity onPress={() => router.back()} style={[styles.headerBackBtn, { backgroundColor: theme.accentLight }]} activeOpacity={0.8}>
+                        <Ionicons name="arrow-back" size={20} color={theme.accent} />
+                    </TouchableOpacity>
+                    <Text style={[styles.headerTitle, { color: theme.text }]}>Transaction Details</Text>
+                    <View style={styles.headerSpacer} />
+                </View>
+            </SafeAreaView>
+
+            <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+                {/* Hero amount card */}
+                <LinearGradient
+                    colors={isMint ? ["#064E3B", "#065F46", "#047857"] : ["#78350F", "#92400E", "#B45309"]}
+                    style={styles.heroCard}
+                >
+                    <View style={styles.heroRow}>
+                        <View style={[styles.heroTypePill, { backgroundColor: "rgba(255,255,255,0.15)" }]}>
+                            <Ionicons name={typeConfig.icon} size={16} color="#FFFFFF" />
+                            <Text style={styles.heroTypePillText}>{typeConfig.label}</Text>
+                        </View>
+                        <View style={[styles.heroStatusPill, { backgroundColor: `${statusColor}25` }]}>
+                            <Text style={[styles.heroStatusText, { color: "#FFFFFF" }]}>
+                                {String(tx.status || "completed").replace(/_/g, " ").toUpperCase()}
+                            </Text>
+                        </View>
+                    </View>
+                    <Text style={styles.heroAmountLabel}>Transaction Amount</Text>
+                    <Text style={styles.heroAmount}>{amountDisplay} {tokenType}</Text>
+                    <Text style={styles.heroDate}>{formatDate(tx.created_at, true)}</Text>
+                </LinearGradient>
+
+                {/* Transaction Summary */}
+                <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                    <View style={[styles.cardAccentBar, { backgroundColor: typeConfig.color }]} />
+                    <Text style={[styles.cardTitle, { color: theme.text }]}>Transaction Summary</Text>
+                    {infoRows.map((row, idx) => (
+                        <View key={row.label} style={[styles.infoRow, { borderBottomColor: theme.border }, idx === infoRows.length - 1 && { borderBottomWidth: 0 }]}>
+                            <Text style={[styles.infoLabel, { color: theme.muted }]}>{row.label}</Text>
+                            <Text style={[styles.infoValue, { color: theme.text }]} numberOfLines={1}>{row.value}</Text>
+                        </View>
+                    ))}
+                </View>
+
+                {/* Commission card */}
+                <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                    <View style={[styles.cardAccentBar, { backgroundColor: theme.green }]} />
+                    <Text style={[styles.cardTitle, { color: theme.text }]}>Settlement Details</Text>
+                    <View style={[styles.commissionBanner, { backgroundColor: isDark ? "rgba(0,177,79,0.1)" : "#ECFDF5", borderColor: isDark ? "rgba(0,177,79,0.2)" : "#A7F3D0" }]}>
+                        <View>
+                            <Text style={[styles.commissionLabel, { color: "#059669" }]}>{commissionLabel}</Text>
+                        </View>
+                        <Text style={[styles.commissionValue, { color: theme.green }]}>+{commission} {tokenType}</Text>
+                    </View>
+                    {[
+                        { label: "Status", value: String(tx.status || "completed").replace(/_/g, " ").toUpperCase() },
+                        { label: "Recorded On", value: formatDate(tx.created_at, true) },
+                    ].map((row, idx) => (
+                        <View key={row.label} style={[styles.stripRow, { backgroundColor: theme.inputBg, borderColor: theme.border }]}>
+                            <Text style={[styles.stripLabel, { color: theme.muted }]}>{row.label}</Text>
+                            <Text style={[styles.stripValue, { color: theme.text }]}>{row.value}</Text>
+                        </View>
+                    ))}
+                </View>
+
+                {/* Metadata */}
+                {tx.metadata ? (
+                    <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                        <View style={[styles.cardAccentBar, { backgroundColor: theme.accent }]} />
+                        <Text style={[styles.cardTitle, { color: theme.text }]}>Additional Data</Text>
+                        <View style={[styles.metaBox, { backgroundColor: theme.inputBg, borderColor: theme.border }]}>
+                            <Text style={[styles.metaLabel, { color: theme.muted }]}>Metadata</Text>
+                            <Text style={[styles.metaText, { color: theme.muted }]}>
+                                {JSON.stringify(tx.metadata, null, 2)}
+                            </Text>
+                        </View>
+                    </View>
+                ) : null}
+
+                <View style={{ height: 40 }} />
+            </ScrollView>
+        </View>
+    );
+}
+
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#F9FAFB",
-  },
-  headerWrapper: {
-    zIndex: 10,
-    elevation: 8,
-    backgroundColor: "#00B14F",
-  },
-  headerGradient: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 120,
-  },
-  headerContent: {
-    paddingHorizontal: 16,
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingBottom: 20,
-    marginTop: 10,
-  },
-  headerButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "rgba(255,255,255,0.2)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  headerTitle: {
-    fontSize: 22,
-    fontWeight: "700",
-    color: "#FFFFFF",
-    letterSpacing: -0.4,
-  },
-  headerSpacer: {
-    width: 40,
-  },
-  scrollContent: {
-    padding: 16,
-    paddingTop: 50,
-    paddingBottom: 40,
-  },
-  summaryCard: {
-    borderRadius: 22,
-    padding: 18,
-    marginTop: -34,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: "#E6F4EA",
-  },
-  summaryEyebrow: {
-    fontSize: 11,
-    fontWeight: "800",
-    color: "#00B14F",
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-    marginBottom: 6,
-  },
-  summaryTitle: {
-    fontSize: 22,
-    fontWeight: "800",
-    color: "#111827",
-    letterSpacing: -0.5,
-  },
-  summaryText: {
-    fontSize: 13,
-    lineHeight: 20,
-    color: "#6B7280",
-    fontWeight: "500",
-    marginTop: 6,
-    marginBottom: 16,
-  },
-  summaryTopRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 14,
-    gap: 12,
-  },
-  typePill: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 999,
-    gap: 6,
-    borderWidth: 1,
-  },
-  typePillText: {
-    fontSize: 12,
-    fontWeight: "800",
-    letterSpacing: 0.4,
-    textTransform: "uppercase",
-  },
-  statusPill: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 999,
-  },
-  statusText: {
-    fontSize: 11,
-    fontWeight: "800",
-    letterSpacing: 0.4,
-  },
-  amountContainer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    backgroundColor: "#FBFCFD",
-    padding: 14,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "#F1F5F9",
-    gap: 12,
-  },
-  amountLabel: {
-    fontSize: 12,
-    color: "#6B7280",
-    fontWeight: "700",
-    textTransform: "uppercase",
-    letterSpacing: 0.4,
-    marginBottom: 5,
-  },
-  amountValue: {
-    fontSize: 20,
-    fontWeight: "800",
-    color: "#111827",
-  },
-  amountMeta: {
-    alignItems: "flex-end",
-    flexShrink: 1,
-  },
-  amountMetaLabel: {
-    fontSize: 11,
-    color: "#6B7280",
-    fontWeight: "700",
-    textTransform: "uppercase",
-    letterSpacing: 0.4,
-    marginBottom: 5,
-  },
-  amountMetaValue: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: "#111827",
-    textAlign: "right",
-  },
-  card: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 24,
-    padding: 18,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: "#EAF0F5",
-    overflow: "hidden",
-  },
-  cardAccent: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 4,
-    backgroundColor: "#00B14F",
-  },
-  cardTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#111827",
-    marginBottom: 16,
-    marginTop: 6,
-  },
-  infoRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#F3F4F6",
-    gap: 12,
-  },
-  infoLabel: {
-    fontSize: 14,
-    color: "#6B7280",
-    fontWeight: "500",
-  },
-  infoValue: {
-    flex: 1,
-    fontSize: 15,
-    fontWeight: "700",
-    color: "#111827",
-    textAlign: "right",
-  },
-  infoStrip: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 12,
-    backgroundColor: "#F8FAFC",
-    padding: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#EEF2F7",
-    gap: 12,
-  },
-  infoStripLabel: {
-    fontSize: 14,
-    color: "#6B7280",
-    fontWeight: "600",
-  },
-  infoStripValue: {
-    flex: 1,
-    fontSize: 15,
-    color: "#111827",
-    fontWeight: "700",
-    textAlign: "right",
-  },
-  successValue: {
-    color: "#00B14F",
-  },
-  noteBlock: {
-    backgroundColor: "#FBFCFD",
-    borderRadius: 14,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: "#F1F5F9",
-  },
-  noteLabel: {
-    fontSize: 12,
-    color: "#6B7280",
-    fontWeight: "700",
-    textTransform: "uppercase",
-    letterSpacing: 0.4,
-    marginBottom: 6,
-  },
-  metadataText: {
-    fontFamily: "monospace",
-    fontSize: 12,
-    lineHeight: 18,
-    color: "#4B5563",
-  },
-  errorContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 24,
-    backgroundColor: "#F9FAFB",
-  },
-  errorIconWrap: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: "#FEF2F2",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 16,
-  },
-  errorTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#111827",
-    marginBottom: 8,
-  },
-  errorText: {
-    fontSize: 14,
-    color: "#6B7280",
-    textAlign: "center",
-    lineHeight: 20,
-    marginBottom: 20,
-  },
-  primaryButton: {
-    backgroundColor: "#00B14F",
-    paddingVertical: 14,
-    paddingHorizontal: 24,
-    borderRadius: 14,
-  },
-  primaryButtonText: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#FFFFFF",
-  },
+    container: { flex: 1 },
+    errorWrap: { flex: 1, justifyContent: "center", alignItems: "center", padding: 32 },
+    errorIconCircle: { width: 64, height: 64, borderRadius: 22, alignItems: "center", justifyContent: "center", marginBottom: 16 },
+    errorTitle: { fontSize: 18, fontWeight: "800", marginBottom: 8 },
+    errorSub: { fontSize: 14, fontWeight: "500", textAlign: "center", marginBottom: 24 },
+    backBtn: { backgroundColor: "#7C3AED", paddingVertical: 14, paddingHorizontal: 32, borderRadius: 16 },
+    backBtnText: { fontSize: 15, fontWeight: "800", color: "#FFFFFF" },
+    headerContainer: { borderBottomWidth: 1 },
+    headerRow: { flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingVertical: 14, gap: 12 },
+    headerBackBtn: { width: 36, height: 36, borderRadius: 12, alignItems: "center", justifyContent: "center" },
+    headerTitle: { flex: 1, fontSize: 18, fontWeight: "800", letterSpacing: -0.3 },
+    headerSpacer: { width: 36 },
+    scrollContent: { padding: 16, paddingBottom: 40 },
+    heroCard: { borderRadius: 26, padding: 22, marginBottom: 16, shadowColor: "#000", shadowOpacity: 0.15, shadowRadius: 14, shadowOffset: { width: 0, height: 6 }, elevation: 6 },
+    heroRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 20 },
+    heroTypePill: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 },
+    heroTypePillText: { fontSize: 12, fontWeight: "800", color: "#FFFFFF" },
+    heroStatusPill: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10 },
+    heroStatusText: { fontSize: 11, fontWeight: "800" },
+    heroAmountLabel: { fontSize: 13, fontWeight: "600", color: "rgba(255,255,255,0.75)", marginBottom: 6 },
+    heroAmount: { fontSize: 30, fontWeight: "900", color: "#FFFFFF", letterSpacing: -0.8 },
+    heroDate: { fontSize: 13, fontWeight: "500", color: "rgba(255,255,255,0.7)", marginTop: 6 },
+    card: { borderRadius: 22, borderWidth: 1, marginBottom: 14, overflow: "hidden", shadowColor: "#000", shadowOpacity: 0.04, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 2 },
+    cardAccentBar: { height: 4 },
+    cardTitle: { fontSize: 16, fontWeight: "800", paddingHorizontal: 16, paddingTop: 14, paddingBottom: 4 },
+    infoRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 16, paddingVertical: 13, borderBottomWidth: 1 },
+    infoLabel: { fontSize: 14, fontWeight: "600" },
+    infoValue: { fontSize: 14, fontWeight: "800", maxWidth: "60%", textAlign: "right" },
+    commissionBanner: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginHorizontal: 16, marginVertical: 12, borderRadius: 14, borderWidth: 1, padding: 14 },
+    commissionLabel: { fontSize: 13, fontWeight: "700" },
+    commissionValue: { fontSize: 18, fontWeight: "900" },
+    stripRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginHorizontal: 16, marginBottom: 8, borderRadius: 12, borderWidth: 1, padding: 12 },
+    stripLabel: { fontSize: 13, fontWeight: "600" },
+    stripValue: { fontSize: 13, fontWeight: "800" },
+    metaBox: { marginHorizontal: 16, marginBottom: 14, borderRadius: 12, borderWidth: 1, padding: 12 },
+    metaLabel: { fontSize: 11, fontWeight: "800", textTransform: "uppercase", letterSpacing: 0.4, marginBottom: 8 },
+    metaText: { fontFamily: "monospace", fontSize: 11, lineHeight: 18 },
 });

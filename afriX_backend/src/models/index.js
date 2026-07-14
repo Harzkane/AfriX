@@ -18,6 +18,7 @@ const MerchantKyc = require("./MerchantKyc");
 const Education = require("./Education");
 const Notification = require("./Notification");
 const UserNotificationSettings = require("./UserNotificationSettings");
+const PortfolioSnapshot = require("./PortfolioSnapshot");
 
 // ========== Associations ==========
 
@@ -214,6 +215,10 @@ Notification.belongsTo(User, { foreignKey: "user_id", as: "user" });
 User.hasOne(UserNotificationSettings, { foreignKey: "user_id", as: "notificationSettings", onDelete: "CASCADE" });
 UserNotificationSettings.belongsTo(User, { foreignKey: "user_id", as: "user" });
 
+// User <-> PortfolioSnapshot (one-to-many)
+User.hasMany(PortfolioSnapshot, { foreignKey: "user_id", as: "portfolioSnapshots", onDelete: "CASCADE" });
+PortfolioSnapshot.belongsTo(User, { foreignKey: "user_id", as: "user" });
+
 // ========== Export ==========
 module.exports = {
   sequelize,
@@ -233,4 +238,5 @@ module.exports = {
   Education,
   Notification,
   UserNotificationSettings,
+  PortfolioSnapshot,
 };

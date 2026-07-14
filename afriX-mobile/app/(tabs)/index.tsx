@@ -22,7 +22,16 @@ import Svg, { Path } from "react-native-svg";
 
 export default function DashboardScreen() {
   const { user, isAuthenticated } = useAuthStore();
-  const { wallets, fetchWallets, loading, exchangeRates, fetchExchangeRates } = useWalletStore();
+  const {
+    wallets,
+    fetchWallets,
+    loading,
+    exchangeRates,
+    fetchExchangeRates,
+    portfolioHistory,
+    portfolioTrend,
+    fetchPortfolioHistory,
+  } = useWalletStore();
   const { currentRequest, checkStatus, fetchCurrentRequest } = useMintRequestStore();
   const { currentRequest: currentBurnRequest, fetchCurrentBurnRequestForUser } = useBurnStore();
   const { fetchAgentStats, agentStatus } = useAgentStore();
@@ -134,9 +143,10 @@ export default function DashboardScreen() {
       fetchCurrentRequest();
       fetchCurrentBurnRequestForUser();
       fetchExchangeRates();
+      fetchPortfolioHistory();
       fetchUnreadCount();
     }
-  }, [isAuthenticated, user, fetchExchangeRates]);
+  }, [isAuthenticated, user, fetchExchangeRates, fetchPortfolioHistory]);
 
   // Refresh when user navigates back to this tab
   useFocusEffect(
@@ -148,6 +158,7 @@ export default function DashboardScreen() {
       fetchCurrentRequest();
       fetchCurrentBurnRequestForUser();
       fetchExchangeRates();
+      fetchPortfolioHistory();
       fetchUnreadCount();
       const req = useMintRequestStore.getState().currentRequest;
       if (req) checkStatus(req.id);
@@ -174,6 +185,7 @@ export default function DashboardScreen() {
       fetchCurrentRequest();
       fetchCurrentBurnRequestForUser();
       fetchExchangeRates();
+      fetchPortfolioHistory();
       if (currentRequest) {
         checkStatus(currentRequest.id);
       }
@@ -266,6 +278,38 @@ export default function DashboardScreen() {
         : styles.verificationIconWarning;
 
   const shouldPromptProfile = verificationLevel < 3;
+
+  // Dynamic Sparkline Generator
+  const generateSparklineData = (history: any[]) => {
+    if (!history || history.length < 2) {
+      // Default upward placeholder trend if not enough history points
+      return "M 5,30 C 20,30 30,10 45,22 C 60,34 70,5 95,10";
+    }
+
+    const values = history.map((item) => parseFloat(item.total_value_nt || 0));
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+    const range = max - min === 0 ? 1 : max - min;
+
+    const width = 90; // viewBox goes 5 to 95
+    const height = 30; // viewBox goes 5 to 35
+
+    const points = values.map((val, index) => {
+      const x = 5 + (index / (values.length - 1)) * width;
+      const y = 35 - ((val - min) / range) * height;
+      return { x, y };
+    });
+
+    let path = `M ${points[0].x},${points[0].y}`;
+    for (let i = 1; i < points.length; i++) {
+      path += ` L ${points[i].x},${points[i].y}`;
+    }
+    return path;
+  };
+
+  const isPositiveTrend = (portfolioTrend?.percentage ?? 0) >= 0;
+  const trendColor = isPositiveTrend ? "#00B14F" : "#EF4444";
+  const trendIcon = isPositiveTrend ? "trending-up" : "trending-down";
 
   // Total Portfolio Calculations
   const ntBalance = parseFloat(ntWallet?.balance || "0");
@@ -433,17 +477,19 @@ export default function DashboardScreen() {
                 {/* Beautiful Sparkline Trend SVG */}
                 <Svg width={90} height={35} viewBox="0 0 100 40">
                   <Path
-                    d="M 5,30 C 20,30 30,10 45,22 C 60,34 70,5 95,10"
+                    d={generateSparklineData(portfolioHistory)}
                     fill="none"
-                    stroke="#00B14F"
+                    stroke={trendColor}
                     strokeWidth={2.5}
                     strokeLinecap="round"
                     strokeLinejoin="round"
                   />
                 </Svg>
                 <View style={styles.trendRow}>
-                  <Ionicons name="trending-up" size={12} color="#00B14F" style={{ marginRight: 2 }} />
-                  <Text style={styles.trendText}>+3.41%</Text>
+                  <Ionicons name={trendIcon as any} size={12} color={trendColor} style={{ marginRight: 2 }} />
+                  <Text style={[styles.trendText, { color: trendColor }]}>
+                    {portfolioTrend?.trend || "0.00%"}
+                  </Text>
                 </View>
               </View>
             </View>

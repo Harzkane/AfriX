@@ -11,3 +11,14 @@ cron.schedule("*/5 * * * *", async () => {
     console.error("expireRequests failed:", error);
   }
 });
+
+// Run daily at midnight to capture portfolio snapshots
+const { runPortfolioSnapshotJob } = require("./portfolioSnapshotJob");
+cron.schedule("0 0 * * *", async () => {
+  console.log("Running daily runPortfolioSnapshotJob...");
+  try {
+    await runPortfolioSnapshotJob();
+  } catch (error) {
+    console.error("runPortfolioSnapshotJob failed:", error);
+  }
+});

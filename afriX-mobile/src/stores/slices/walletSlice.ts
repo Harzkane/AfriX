@@ -14,6 +14,11 @@ export const useWalletStore = create<WalletState>()(
         USDT_TO_NT: 1500, // Default fallback
         USDT_TO_CT: 565,  // Default fallback
       },
+      portfolioHistory: [],
+      portfolioTrend: {
+        trend: "0.00%",
+        percentage: 0,
+      },
       loading: false,
       error: null,
 
@@ -62,6 +67,25 @@ export const useWalletStore = create<WalletState>()(
         } catch (error) {
           console.error("Failed to fetch exchange rates:", error);
           // Keep default/previous rates on error
+        }
+      },
+
+      fetchPortfolioHistory: async (days = 7) => {
+        try {
+          const { data } = await apiClient.get("/portfolio/history", {
+            params: { days },
+          });
+          if (data.success) {
+            set({
+              portfolioHistory: data.data.history,
+              portfolioTrend: {
+                trend: data.data.trend,
+                percentage: data.data.percentage,
+              },
+            });
+          }
+        } catch (error) {
+          console.error("Failed to fetch portfolio history:", error);
         }
       },
 

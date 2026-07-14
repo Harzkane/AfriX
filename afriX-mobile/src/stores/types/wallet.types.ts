@@ -16,16 +16,30 @@ export interface Wallet {
   updated_at: string;
 }
 
+export interface PortfolioSnapshot {
+  id: string;
+  user_id: string;
+  total_value_nt: string | number;
+  total_value_usd: string | number;
+  created_at: string;
+}
+
 export interface WalletState {
   wallets: Wallet[];
   exchangeRates: {
     USDT_TO_NT: number;
     USDT_TO_CT: number;
   };
+  portfolioHistory: PortfolioSnapshot[];
+  portfolioTrend: {
+    trend: string;
+    percentage: number;
+  };
   loading: boolean;
   error: string | null;
   fetchWallets: () => Promise<void>;
   fetchExchangeRates: () => Promise<void>;
+  fetchPortfolioHistory: (days?: number) => Promise<void>;
   getWalletByType: (tokenType: string) => Wallet | undefined;
   clearError: () => void;
 }

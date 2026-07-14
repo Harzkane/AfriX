@@ -239,6 +239,10 @@ const register = async (req, res) => {
         await walletService.getOrCreateWallet(user.id, tokenType, t);
       }
 
+      // Capture initial portfolio snapshot (baseline of 0)
+      const { captureSnapshot } = require("../services/portfolioService");
+      await captureSnapshot(user.id, t);
+
       return user;
     });
 

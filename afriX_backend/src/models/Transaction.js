@@ -168,6 +168,33 @@ const Transaction = sequelize.define(
     timestamps: true,
     createdAt: "created_at",
     updatedAt: "updated_at",
+    hooks: {
+      afterCreate: async (transaction, options) => {
+        if (transaction.status === "completed") {
+          try {
+            const { captureSnapshot } = require("../services/portfolioService");
+            if (transaction.from_user_id) await captureSnapshot(transaction.from_user_id, options.transaction);
+            if (transaction.to_user_id) await captureSnapshot(transaction.to_user_id, options.transaction);
+          } catch (err) {
+            console.error("[Transaction Hook] afterCreate failed:", err.message);
+          }
+        }
+      },
+      afterUpdate: async (transaction, options) => {
+        if (
+          transaction.changed("status") &&
+          ["completed", "refunded"].includes(transaction.status)
+        ) {
+          try {
+            const { captureSnapshot } = require("../services/portfolioService");
+            if (transaction.from_user_id) await captureSnapshot(transaction.from_user_id, options.transaction);
+            if (transaction.to_user_id) await captureSnapshot(transaction.to_user_id, options.transaction);
+          } catch (err) {
+            console.error("[Transaction Hook] afterUpdate failed:", err.message);
+          }
+        }
+      },
+    },
     indexes: [
       { fields: ["reference"] },
       { fields: ["type"] },

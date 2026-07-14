@@ -474,11 +474,11 @@ export default function MerchantCollectionDetailPage() {
               <div>
                 <p className="text-sm font-medium text-destructive">Refund Reason</p>
                 <p className="mt-0.5 text-sm text-muted-foreground">
-                  {transaction.metadata.refund_reason as string}
+                  {String(transaction.metadata.refund_reason)}
                 </p>
                 {transaction.metadata?.refunded_at && (
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Refunded on {formatTimestamp(transaction.metadata.refunded_at as string)}
+                    Refunded on {formatTimestamp(String(transaction.metadata.refunded_at))}
                   </p>
                 )}
               </div>

@@ -9,6 +9,8 @@ const {
   MERCHANT_STATUS,
 } = require("../config/constants");
 const merchantService = require("../services/merchantService");
+const transactionService = require("../services/transactionService");
+const { sequelize } = require("../config/database");
 const { ValidationError } = require("../utils/errors");
 const { generateQR } = require("../utils/qrcode");
 const { uploadToR2 } = require("../services/r2Service");
@@ -871,6 +873,163 @@ const merchantController = {
       }
       const log = Array.isArray(merchant.webhook_delivery_log) ? merchant.webhook_delivery_log : [];
       return res.json({ success: true, data: { log, total: log.length } });
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  /**
+   * Refund a collection back to the buyer
+   * POST /api/v1/merchants/collections/:id/refund
+   * Body: { reason: string }
+   *
+   * Rules:
+   *  - Only the merchant who owns the collection can refund it.
+   *  - Only COMPLETED collections can be refunded.
+   *  - Tokens move back from merchant settlement wallet → buyer wallet atomically.
+   *  - A collection.reversed webhook is fired to the Kaalis callback URL so
+   *    the Kaalis-store backend updates its own payment record automatically.
+   */
+  refundCollection: async (req, res, next) => {
+    try {
+      const userId = req.user?.id;
+      const { id } = req.params;
+      const { reason } = req.body;
+
+      if (!id) {
+        return res.status(400).json({ success: false, error: { message: "Collection ID is required" } });
+      }
+
+      if (!reason || String(reason).trim().length < 3) {
+        return res.status(400).json({
+          success: false,
+          error: { message: "A refund reason of at least 3 characters is required" },
+        });
+      }
+
+      // Resolve the authenticated merchant
+      const merchant = await Merchant.findOne({ where: { user_id: userId } });
+      if (!merchant) {
+        return res.status(404).json({ success: false, error: { message: "Merchant profile not found" } });
+      }
+
+      // Find the transaction and verify it belongs to this merchant
+      const tx = await Transaction.findOne({
+        where: {
+          id,
+          merchant_id: merchant.id,
+          type: TRANSACTION_TYPES.COLLECTION,
+        },
+        include: [
+          { model: Wallet, as: "fromWallet", attributes: ["id", "user_id", "token_type", "balance"] },
+          { model: Wallet, as: "toWallet",   attributes: ["id", "user_id", "token_type", "balance"] },
+          { model: User,   as: "fromUser",   attributes: ["id", "full_name", "email"] },
+        ],
+      });
+
+      if (!tx) {
+        return res.status(404).json({
+          success: false,
+          error: { message: "Collection not found or does not belong to your merchant account" },
+        });
+      }
+
+      if (tx.status !== TRANSACTION_STATUS.COMPLETED) {
+        return res.status(400).json({
+          success: false,
+          error: {
+            message: `Only completed collections can be refunded. This collection is '${tx.status}'.`,
+          },
+        });
+      }
+
+      const fromWallet = tx.fromWallet; // buyer's wallet  (tokens were debited from here)
+      const toWallet   = tx.toWallet;   // merchant wallet (tokens were credited here)
+
+      if (!fromWallet || !toWallet) {
+        return res.status(422).json({
+          success: false,
+          error: { message: "Wallet records for this collection could not be resolved" },
+        });
+      }
+
+      // Check the merchant wallet still has enough balance to cover the refund
+      if (parseFloat(toWallet.balance) < parseFloat(tx.amount)) {
+        return res.status(422).json({
+          success: false,
+          error: {
+            message:
+              `Insufficient merchant wallet balance to process this refund. ` +
+              `Available: ${toWallet.balance} ${tx.token_type}, Required: ${tx.amount} ${tx.token_type}.`,
+          },
+        });
+      }
+
+      // Atomically reverse the token movement and mark the transaction REFUNDED
+      const refundedTx = await sequelize.transaction(async (dbTx) => {
+        // Debit from merchant wallet
+        await toWallet.decrement("balance",       { by: tx.amount, transaction: dbTx });
+        await toWallet.increment("total_sent",    { by: tx.amount, transaction: dbTx });
+        await toWallet.increment("transaction_count", { by: 1,    transaction: dbTx });
+
+        // Credit back to buyer wallet
+        await fromWallet.increment("balance",        { by: tx.amount, transaction: dbTx });
+        await fromWallet.increment("total_received", { by: tx.amount, transaction: dbTx });
+        await fromWallet.increment("transaction_count", { by: 1,     transaction: dbTx });
+
+        tx.status = TRANSACTION_STATUS.REFUNDED;
+        tx.metadata = {
+          ...(tx.metadata || {}),
+          refund_reason:    String(reason).trim(),
+          refunded_by:      userId,
+          refunded_by_role: "merchant",
+          refunded_at:      new Date().toISOString(),
+        };
+        await tx.save({ transaction: dbTx });
+
+        return tx;
+      });
+
+      // Fire a collection.reversed webhook to the Kaalis callback URL so the
+      // Kaalis-store backend can automatically update its own payment record.
+      try {
+        const { emitKaalisCollectionWebhook } = require("../services/kaalisWebhookService");
+        await emitKaalisCollectionWebhook({
+          event: "collection.reversed",
+          data: {
+            reference:    refundedTx.reference,
+            collectionId: refundedTx.id,
+            kaalisOrderId: refundedTx.metadata?.kaalisOrderId || refundedTx.metadata?.orderId || null,
+            amount:       refundedTx.amount,
+            tokenType:    refundedTx.token_type,
+            status:       "refunded",
+            refundReason: String(reason).trim(),
+            refundedAt:   refundedTx.metadata?.refunded_at,
+          },
+        });
+      } catch (webhookErr) {
+        // Non-fatal — the refund completed successfully; the webhook is best-effort.
+        console.error("[refundCollection] Failed to emit collection.reversed webhook:", webhookErr.message);
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: "Collection refunded successfully. Tokens have been returned to the buyer.",
+        data: {
+          id:            refundedTx.id,
+          reference:     refundedTx.reference,
+          status:        refundedTx.status,
+          amount:        refundedTx.amount,
+          token_type:    refundedTx.token_type,
+          refund_reason: reason,
+          refunded_at:   refundedTx.metadata?.refunded_at,
+          buyer: {
+            id:        tx.fromUser?.id,
+            name:      tx.fromUser?.full_name,
+            email:     tx.fromUser?.email,
+          },
+        },
+      });
     } catch (error) {
       next(error);
     }

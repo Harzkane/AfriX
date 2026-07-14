@@ -9,6 +9,7 @@ export function middleware(request: NextRequest) {
         pathname === '/login' ||
         pathname === '/merchant/login' ||
         pathname === '/merchant/register' ||
+        pathname === '/verify-email' ||
         pathname.startsWith('/pay/')
     ) {
         return NextResponse.next()

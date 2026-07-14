@@ -102,8 +102,8 @@ const registerAdmin = async (req, res) => {
       });
     }
 
-    // Generate email verification token
-    const verificationToken = crypto.randomBytes(32).toString("hex");
+    // Generate email verification token (6-digit OTP code)
+    const verificationToken = Math.floor(100000 + Math.random() * 900000).toString();
     const verificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
     // Generate referral code
@@ -214,8 +214,8 @@ const register = async (req, res) => {
       });
     }
 
-    // Generate email verification token
-    const verificationToken = crypto.randomBytes(32).toString("hex");
+    // Generate email verification token (6-digit OTP code)
+    const verificationToken = Math.floor(100000 + Math.random() * 900000).toString();
     const verificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
 
     // Generate referral code
@@ -492,8 +492,8 @@ const resendVerification = async (req, res) => {
       });
     }
 
-    // Generate new verification token
-    const verificationToken = crypto.randomBytes(32).toString("hex");
+    // Generate new verification token (6-digit OTP code)
+    const verificationToken = Math.floor(100000 + Math.random() * 900000).toString();
     const verificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
     user.email_verification_token = verificationToken;
@@ -616,6 +616,10 @@ const resetPassword = async (req, res) => {
     user.password_hash = new_password; // Will be hashed by beforeUpdate hook
     user.password_reset_token = null;
     user.password_reset_expires = null;
+    
+    // Automatically verify email upon successful password reset (since they accessed the link in their email)
+    user.email_verified = true;
+    user.updateVerificationLevel();
     await user.save();
 
     // Clear cache

@@ -139,4 +139,13 @@ router.get("/webhook-delivery-log", readLimiter, authenticateMerchantAccess, mer
 // Sandbox: fire a test webhook delivery — write: 20 req / min
 router.post("/sandbox/ping-webhook", writeLimiter, authenticateMerchantAccess, merchantController.sandboxPingWebhook);
 
+// Refund a collection back to the buyer — sensitive: 5 req / 15 min
+// Only COMPLETED collections owned by the authenticated merchant can be refunded.
+router.post(
+  "/collections/:id/refund",
+  sensitiveLimiter,
+  authenticateMerchantAccess,
+  merchantController.refundCollection
+);
+
 module.exports = router;

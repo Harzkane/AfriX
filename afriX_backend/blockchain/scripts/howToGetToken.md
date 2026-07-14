@@ -9,3 +9,10 @@ TARGET_ADDRESS=0xYourMetaMaskAddressHere AMOUNT=5000000 npx hardhat run scripts/
 
 Or:
 TARGET_ADDRESS=[YOUR_METAMASK_ADDRESS] AMOUNT=[AMOUNT] npx hardhat run scripts/mintCustom.js --network amoy
+
+e.g:
+
+TARGET_ADDRESS=0x7c26C161F7b3b1b975489DA1a1672a9D9178a16e AMOUNT=5000000 npx hardhat run scripts/mintCustom.js --network amoy
+
+
+TARGET_ADDRESS=0x5d0d0e728e6656A279707262e403Ca2f2C2AA746 AMOUNT=5000000 npx hardhat run scripts/mintCustom.js --network amoy

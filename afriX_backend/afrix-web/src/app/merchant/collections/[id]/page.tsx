@@ -467,23 +467,28 @@ export default function MerchantCollectionDetailPage() {
         </section>
 
         {/* Refund reason banner (shown after refund) */}
-        {transaction.status?.toLowerCase() === "refunded" &&
-          transaction.metadata?.refund_reason && (
+        {(() => {
+          if (transaction.status?.toLowerCase() !== "refunded") return null;
+          const refundReason = transaction.metadata?.refund_reason;
+          const refundedAt = transaction.metadata?.refunded_at;
+          if (!refundReason) return null;
+          return (
             <div className="flex gap-3 rounded-xl border border-destructive/20 bg-destructive/5 px-5 py-4">
               <RotateCcw className="h-4 w-4 mt-0.5 shrink-0 text-destructive" />
               <div>
                 <p className="text-sm font-medium text-destructive">Refund Reason</p>
                 <p className="mt-0.5 text-sm text-muted-foreground">
-                  {String(transaction.metadata.refund_reason)}
+                  {String(refundReason)}
                 </p>
-                {transaction.metadata?.refunded_at && (
+                {refundedAt != null && (
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Refunded on {formatTimestamp(String(transaction.metadata.refunded_at))}
+                    Refunded on {formatTimestamp(String(refundedAt))}
                   </p>
                 )}
               </div>
             </div>
-          )}
+          );
+        })()}
 
         <div className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
           <Card>

@@ -59,6 +59,16 @@ const formatCountdown = (totalSeconds: number) => {
   return `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
 };
 
+const getOrdersUrl = (returnUrl?: string) => {
+  if (!returnUrl) return null;
+  try {
+    const url = new URL(returnUrl);
+    return `${url.origin}/orders`;
+  } catch (_) {
+    return null;
+  }
+};
+
 // ─── App store URLs (configurable via env) ───────────────────────────────────
 const PLAY_STORE_URL =
   process.env.NEXT_PUBLIC_PLAY_STORE_URL || "#";
@@ -276,15 +286,27 @@ export default function HostedPaymentPage() {
     if (timeLeft === null || payment?.status === "completed") return null;
 
     if (isExpired) {
+      const ordersUrl = getOrdersUrl(returnUrl);
       return (
         <Alert variant="destructive" className="mb-4">
           <Clock className="h-4 w-4" />
           <AlertTitle>Payment Link Expired</AlertTitle>
-          <AlertDescription>
-            This payment link has expired. Go back to your order on{" "}
-            <strong>PlugNG</strong> and click{" "}
-            <strong>&quot;Continue Payment&quot;</strong> — your order is saved
-            and a fresh payment link will be generated instantly.
+          <AlertDescription className="space-y-3">
+            <p>
+              This payment link has expired. Go back to your order page and click{" "}
+              <strong>&quot;Continue Payment&quot;</strong> — your order is saved
+              and a fresh payment link will be generated instantly.
+            </p>
+            {ordersUrl && (
+              <div className="pt-2">
+                <a
+                  href={ordersUrl}
+                  className="inline-flex items-center gap-2 rounded-md bg-destructive/20 hover:bg-destructive/30 px-3 py-1.5 text-xs font-semibold border border-destructive/30 transition-colors text-white"
+                >
+                  Go to Orders Page
+                </a>
+              </div>
+            )}
           </AlertDescription>
         </Alert>
       );

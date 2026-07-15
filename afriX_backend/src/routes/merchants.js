@@ -99,6 +99,15 @@ router.post(
   merchantController.regenerateApiKey
 );
 
+// Regenerate webhook secret — sensitive: 5 req / 15 min
+router.post(
+  "/regenerate-webhook-secret",
+  sensitiveLimiter,
+  authenticate,
+  merchantController.regenerateWebhookSecret
+);
+
+
 // Dashboard summary — read: 60 req / min
 router.get("/dashboard", readLimiter, authenticateMerchantAccess, merchantController.getDashboardSummary);
 

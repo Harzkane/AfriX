@@ -529,6 +529,42 @@ const merchantController = {
     }
   },
 
+  /**
+   * Regenerate / Rotate Webhook Secret
+   * POST /api/merchants/regenerate-webhook-secret
+   */
+  regenerateWebhookSecret: async (req, res, next) => {
+    try {
+      const userId = req.user.id;
+
+      const merchant = await Merchant.findOne({ where: { user_id: userId } });
+
+      if (!merchant) {
+        return res.status(404).json({
+          success: false,
+          error: {
+            message: "Merchant profile not found",
+          },
+        });
+      }
+
+      const crypto = require("crypto");
+      const secret = crypto.randomBytes(32).toString("hex");
+      merchant.webhook_secret = secret;
+      await merchant.save();
+
+      res.json({
+        success: true,
+        data: {
+          webhook_secret: secret,
+        },
+        message: "Webhook secret regenerated successfully",
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+
   uploadKyc: async (req, res) => {
     try {
       const userId = req.user.id;

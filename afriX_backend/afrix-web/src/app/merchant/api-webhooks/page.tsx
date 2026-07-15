@@ -56,6 +56,7 @@ type MerchantProfile = {
     last_webhook_http_status?: number | null;
     last_webhook_error?: string | null;
   } | null;
+  webhook_secret?: string;
 };
 
 type DeliveryLogEntry = {
@@ -84,11 +85,14 @@ export default function MerchantApiWebhooksPage() {
     payment_fee_percent: "",
     updated_at: "",
     created_at: "",
+    webhook_secret: "",
   });
   const [apiKey, setApiKey] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [isRegenerating, setIsRegenerating] = useState(false);
   const [showRegenerateDialog, setShowRegenerateDialog] = useState(false);
+  const [showRotateSecretDialog, setShowRotateSecretDialog] = useState(false);
+  const [isRotatingSecret, setIsRotatingSecret] = useState(false);
   const [deliveryLog, setDeliveryLog] = useState<DeliveryLogEntry[]>([]);
   const [selectedLogEntry, setSelectedLogEntry] = useState<DeliveryLogEntry | null>(null);
 
@@ -192,6 +196,22 @@ export default function MerchantApiWebhooksPage() {
       toast.error("Failed to regenerate merchant API key");
     } finally {
       setIsRegenerating(false);
+    }
+  };
+
+  const rotateWebhookSecret = async () => {
+    setIsRotatingSecret(true);
+    try {
+      const response = await merchantApi.post("/merchants/regenerate-webhook-secret");
+      const newSecret = response.data.data?.webhook_secret || "";
+      setProfile((current) => ({ ...current, webhook_secret: newSecret }));
+      setShowRotateSecretDialog(false);
+      toast.success("Webhook secret rotated successfully");
+    } catch (error) {
+      console.error("Failed to rotate webhook secret:", error);
+      toast.error("Failed to rotate webhook secret");
+    } finally {
+      setIsRotatingSecret(false);
     }
   };
 
@@ -368,7 +388,7 @@ export default function MerchantApiWebhooksPage() {
                 <Label htmlFor="webhook_url">Webhook URL</Label>
                 <Input
                   id="webhook_url"
-                  placeholder="https://your-domain.com/webhooks/afrix"
+                  placeholder="https://your-backend-domain.com/api/v1/webhooks/afriexchange"
                   value={profile.webhook_url || ""}
                   onChange={(e) =>
                     setProfile((current) => ({ ...current, webhook_url: e.target.value }))
@@ -463,6 +483,51 @@ export default function MerchantApiWebhooksPage() {
               ) : (
                 <p className="text-sm text-muted-foreground">
                   No key is shown by default. Regenerate to reveal a fresh merchant API key.
+                </p>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0">
+              <div>
+                <CardTitle>Webhook Secret</CardTitle>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Used to verify signature headers and ensure requests originate from AfriExchange.
+                </p>
+              </div>
+              <ShieldCheck className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <Button
+                variant="outline"
+                className="gap-2"
+                onClick={() => setShowRotateSecretDialog(true)}
+              >
+                <RefreshCcw className="h-4 w-4" />
+                Rotate Webhook Secret
+              </Button>
+
+              {profile.webhook_secret ? (
+                <div className="space-y-3 rounded-lg border bg-muted/30 p-4">
+                  <p className="text-sm text-muted-foreground">
+                    Copy and store this secret. Keep it protected.
+                  </p>
+                  <div className="break-all rounded-md border bg-background p-3 font-mono text-sm">
+                    {profile.webhook_secret}
+                  </div>
+                  <Button
+                    variant="secondary"
+                    className="gap-2"
+                    onClick={() => copyValue(profile.webhook_secret || "", "Webhook secret")}
+                  >
+                    <Copy className="h-4 w-4" />
+                    Copy Webhook Secret
+                  </Button>
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  No webhook secret generated yet. Rotate to generate a fresh secret.
                 </p>
               )}
             </CardContent>
@@ -629,6 +694,30 @@ export default function MerchantApiWebhooksPage() {
         </AlertDialogContent>
       </AlertDialog>
 
+      <AlertDialog open={showRotateSecretDialog} onOpenChange={setShowRotateSecretDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Rotate webhook secret?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This replaces the current webhook secret. Webhooks sent after rotation will be signed with the new secret. Ensure you update your receiver backend immediately.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isRotatingSecret}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={isRotatingSecret}
+              onClick={(e) => {
+                e.preventDefault();
+                rotateWebhookSecret();
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isRotatingSecret ? "Rotating..." : "Rotate Secret"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <Dialog open={!!selectedLogEntry} onOpenChange={(open) => !open && setSelectedLogEntry(null)}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
@@ -637,7 +726,7 @@ export default function MerchantApiWebhooksPage() {
               Attempted on {selectedLogEntry?.attempted_at ? format(new Date(selectedLogEntry.attempted_at), "PPPP 'at' p") : "Unknown time"}
             </DialogDescription>
           </DialogHeader>
-          
+
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div className="space-y-1">
@@ -655,7 +744,7 @@ export default function MerchantApiWebhooksPage() {
             <div className="space-y-1">
               <p className="text-sm font-medium text-muted-foreground">Payload Sent</p>
               <pre className="max-h-[300px] overflow-auto rounded-lg border bg-muted/30 p-4 font-mono text-xs">
-                {selectedLogEntry?.payload 
+                {selectedLogEntry?.payload
                   ? JSON.stringify(selectedLogEntry.payload, null, 2)
                   : "No payload recorded for this attempt."}
               </pre>

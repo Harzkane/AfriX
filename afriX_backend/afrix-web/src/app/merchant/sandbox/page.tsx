@@ -144,7 +144,7 @@ export default function SandboxPage() {
                 <Label htmlFor="webhook-url">Webhook URL (optional override)</Label>
                 <Input
                   id="webhook-url"
-                  placeholder="https://yoursite.com/webhooks/afriexchange"
+                  placeholder="https://your-backend-domain.com/api/v1/webhooks/afriexchange"
                   value={webhookUrl}
                   onChange={(e) => setWebhookUrl(e.target.value)}
                 />

@@ -50,6 +50,7 @@ export type HostedPaymentDetails = {
   description?: string;
   status: string;
   created_at?: string;
+  expires_at?: string | null;
   metadata?: {
     return_url?: string | null;
     [key: string]: unknown;
@@ -119,17 +120,20 @@ export const hostedPaymentApi = {
     amount,
     tokenType,
     reference,
+    password,
   }: {
     transactionId: string;
     amount: number;
     tokenType: string;
     reference?: string;
+    password: string;
   }) => {
     const response = await customerApi.post("/payments/process", {
       transaction_id: transactionId,
       amount,
       token_type: tokenType,
       reference,
+      password,
     });
 
     return response.data.data;

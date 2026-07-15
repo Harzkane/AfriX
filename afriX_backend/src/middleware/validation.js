@@ -425,6 +425,7 @@ const validatePaymentRequest = (req, res, next) => {
     reference: Joi.string().max(100).optional(),
     return_url: returnUrlSchema.optional(),
     metadata: Joi.object().optional(),
+    password: Joi.string().optional(),
   });
 
   const { error } = schema.validate(req.body);

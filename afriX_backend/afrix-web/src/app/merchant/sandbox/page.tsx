@@ -149,8 +149,12 @@ export default function SandboxPage() {
                   onChange={(e) => setWebhookUrl(e.target.value)}
                 />
                 <p className="text-xs text-muted-foreground">
-                  Leave blank to use the URL saved in your API &amp; Webhooks settings.
+                  Leave blank to use the URL saved in your API &amp; Webhooks settings. Format examples:
                 </p>
+                <div className="space-y-1 rounded border bg-muted/30 p-2.5 text-[11px] text-muted-foreground">
+                  <div><strong>Path A (e.g. PlugNG):</strong> <code className="bg-muted px-1 rounded">/api/v1/webhooks/afriexchange</code></div>
+                  <div><strong>Path B (e.g. Kaalis Store):</strong> <code className="bg-muted px-1 rounded">/api/afriexchange/webhooks</code></div>
+                </div>
               </div>
 
               <Button

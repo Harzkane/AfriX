@@ -33,8 +33,8 @@ node src/scripts/create_admin_production.js
 🔑 Password: password123
 
 
-
-
+check your current tUSDT token and MATIC gas balances on the Polygon Amoy testnet.
+npx hardhat run scripts/checkBalances.js --network amoy
 
 
 

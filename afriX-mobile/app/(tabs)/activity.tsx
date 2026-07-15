@@ -717,15 +717,15 @@ export default function TransactionHistoryScreen() {
                     ? "No mint transactions"
                     : filter === "burn"
                       ? "No burn transactions"
-                  : filter === "swap"
-                    ? "No swap transactions"
-                    : filter === "collection"
-                      ? "No collection transactions"
-                    : filter === "transfer"
-                      ? "No transfer transactions"
-                      : filter === "credit"
-                        ? "No credit transactions"
-                            : "No debit transactions"}
+                      : filter === "swap"
+                        ? "No swap transactions"
+                        : filter === "collection"
+                          ? "No collection transactions"
+                          : filter === "transfer"
+                            ? "No transfer transactions"
+                            : filter === "credit"
+                              ? "No credit transactions"
+                              : "No debit transactions"}
               </Text>
 
               <Text style={[styles.emptyStateDescription, { color: theme.muted }]}>
@@ -735,15 +735,15 @@ export default function TransactionHistoryScreen() {
                     ? "You haven't purchased any tokens yet. Start by buying your first tokens from a trusted agent."
                     : filter === "burn"
                       ? "You haven't sold any tokens yet. Start by selling tokens to convert them to fiat currency."
-                        : filter === "swap"
-                          ? "You haven't swapped any tokens yet. Use Swap to convert between different token types."
-                          : filter === "collection"
-                            ? "You haven't received any collection activity yet. Collection entries will appear here when available."
+                      : filter === "swap"
+                        ? "You haven't swapped any tokens yet. Use Swap to convert between different token types."
+                        : filter === "collection"
+                          ? "You haven't received any collection activity yet. Collection entries will appear here when available."
                           : filter === "transfer"
                             ? "You haven't sent or received any tokens yet. Start by using Send or Receive to move tokens."
-                          : filter === "credit"
-                            ? "You don't have any incoming credits yet. Credits appear when you receive tokens from another user."
-                            : "You don't have any debits yet. Debits appear when you send tokens to another user."}
+                            : filter === "credit"
+                              ? "You don't have any incoming credits yet. Credits appear when you receive tokens from another user."
+                              : "You don't have any debits yet. Debits appear when you send tokens to another user."}
               </Text>
 
               <View style={styles.emptyStateActions}>
@@ -950,8 +950,8 @@ export default function TransactionHistoryScreen() {
                     </View>
 
                     {tx.type === "swap" &&
-                    tx.metadata?.received_amount != null &&
-                    tx.metadata?.to_token ? (
+                      tx.metadata?.received_amount != null &&
+                      tx.metadata?.to_token ? (
                       <View
                         style={[
                           styles.infoStrip,
@@ -1220,24 +1220,27 @@ const styles = StyleSheet.create({
     marginTop: 16,
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 10,
+    gap: 3,
   },
   heroStatCard: {
-    width: "48%",
+    // width: "48%",
+    flex: 1,
     paddingVertical: 14,
-    paddingHorizontal: 14,
+    paddingHorizontal: 10,
     borderRadius: 18,
     borderWidth: 1,
   },
   heroStatValue: {
     fontSize: 20,
-    fontWeight: "800",
+    fontWeight: "700",
     letterSpacing: -0.5,
+    textAlign: "center",
   },
   heroStatLabel: {
     marginTop: 3,
     fontSize: 12,
     fontWeight: "600",
+    textAlign: "center",
   },
   sectionHeaderRow: {
     flexDirection: "row",

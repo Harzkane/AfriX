@@ -396,9 +396,21 @@ export default function MerchantApiWebhooksPage() {
                 />
               </div>
 
-              <div className="rounded-lg border bg-muted/30 p-4 text-sm text-muted-foreground">
-                Keep your webhook endpoint stable, verify incoming requests before applying business
-                logic, and rotate API credentials deliberately.
+              <div className="rounded-lg border bg-muted/30 p-4 text-sm text-muted-foreground space-y-2">
+                <p className="font-medium text-foreground">Ensure webhook URL matches your integration path:</p>
+                <div className="space-y-1.5 text-xs">
+                  <div>
+                    <strong>Path A (e.g. PlugNG):</strong>{" "}
+                    <code className="bg-muted px-1.5 py-0.5 rounded text-foreground">https://your-backend.com/api/v1/webhooks/afriexchange</code>
+                  </div>
+                  <div>
+                    <strong>Path B (e.g. Kaalis Store):</strong>{" "}
+                    <code className="bg-muted px-1.5 py-0.5 rounded text-foreground">https://your-backend.com/api/afriexchange/webhooks</code>
+                  </div>
+                </div>
+                <p className="pt-1 text-xs">
+                  Verify signature headers before applying business logic, and rotate secrets deliberately.
+                </p>
               </div>
 
               <Button onClick={saveIntegrationSettings} disabled={isSaving}>

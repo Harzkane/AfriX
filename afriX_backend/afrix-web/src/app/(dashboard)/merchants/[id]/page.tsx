@@ -250,13 +250,13 @@ export default function MerchantDetailPage() {
                 </TabsContent>
 
                 <TabsContent value="financials" className="space-y-6">
-                    <Card className="border-cyan-200 bg-cyan-50/60">
-                        <CardContent className="p-4 text-sm text-cyan-950">
+                    <Card className="border-cyan-200 bg-cyan-50/60 dark:border-cyan-900/30 dark:bg-cyan-950/20">
+                        <CardContent className="p-4 text-sm text-cyan-950 dark:text-cyan-200">
                             <div className="flex items-start gap-3">
-                                <ShieldCheck className="mt-0.5 h-4 w-4 flex-shrink-0 text-cyan-700" />
+                                <ShieldCheck className="mt-0.5 h-4 w-4 flex-shrink-0 text-cyan-700 dark:text-cyan-400" />
                                 <div>
                                     <p className="font-medium">Fee scope note</p>
-                                    <p className="mt-1 text-cyan-900/80">
+                                    <p className="mt-1 text-cyan-900/80 dark:text-cyan-300/80">
                                         {currentMerchantFinancials?.notes?.fee_scope || "AfriExchange merchant fees shown here are separate from any external marketplace platform fees."}
                                     </p>
                                 </div>
@@ -420,7 +420,7 @@ export default function MerchantDetailPage() {
                                             <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">Status</th>
                                         </tr>
                                     </thead>
-                                    <tbody className="divide-y divide-border bg-white">
+                                    <tbody className="divide-y divide-border bg-transparent">
                                         {currentMerchantFinancials?.recent_collections?.length ? currentMerchantFinancials.recent_collections.map((collection) => (
                                             <tr key={collection.id}>
                                                 <td className="px-4 py-3 text-xs font-mono text-foreground">{collection.reference}</td>

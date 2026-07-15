@@ -37,9 +37,25 @@ const paymentController = {
         token_type,
         description,
         metadata,
+        password,
       } = req.body;
       const user_id = req.user.id;
       const tokenType = token_type || currency;
+
+      // ── Security: require password re-confirmation before executing payment ──
+      if (!password) {
+        throw new ApiError("Authorization password is required to complete this payment", 400);
+      }
+
+      const authorizedUser = await User.findByPk(user_id);
+      if (!authorizedUser) {
+        throw new ApiError("User not found", 404);
+      }
+      const passwordValid = await authorizedUser.comparePassword(password);
+      if (!passwordValid) {
+        throw new ApiError("Invalid authorization password", 401);
+      }
+      // ─────────────────────────────────────────────────────────────────────────
 
       const validCurrencies = Object.values(TOKEN_TYPES);
       if (!validCurrencies.includes(tokenType)) {
@@ -288,6 +304,11 @@ const paymentController = {
         throw new ApiError("Unauthorized to view this payment", 403);
       }
 
+      // Derive expires_at from created_at + 30 min (matches createPaymentRequest behaviour)
+      const expiresAt = transaction.created_at
+        ? new Date(new Date(transaction.created_at).getTime() + 30 * 60 * 1000).toISOString()
+        : null;
+
       res.status(200).json({
         success: true,
         data: {
@@ -301,6 +322,7 @@ const paymentController = {
           metadata: transaction.metadata || {},
           status: transaction.status,
           created_at: transaction.created_at,
+          expires_at: expiresAt,
           customer: transaction.fromUser
             ? {
                 id: transaction.fromUser.id,

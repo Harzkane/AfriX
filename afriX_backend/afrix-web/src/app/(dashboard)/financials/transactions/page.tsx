@@ -31,6 +31,7 @@ import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { Pagination } from "@/components/ui/pagination";
 
 import { toast } from "sonner";
 import {
@@ -67,15 +68,43 @@ function TransactionsPageContent() {
 
     const userIdFromUrl = searchParams.get("user_id") || "";
 
+    // Pagination State
+    const [currentPage, setCurrentPage] = useState(1);
+    const [totalCount, setTotalCount] = useState(0);
+    const limit = 20;
+
+    const handleStatusChange = (val: string) => {
+        setStatusFilter(val);
+        setCurrentPage(1);
+    };
+
+    const handleTypeChange = (val: string) => {
+        setTypeFilter(val);
+        setCurrentPage(1);
+    };
+
+    const handleSearchChange = (val: string) => {
+        setSearchTerm(val);
+        setCurrentPage(1);
+    };
+
     useEffect(() => {
-        const params: TransactionFilters = {};
+        const params: TransactionFilters = {
+            limit: String(limit),
+            offset: String((currentPage - 1) * limit)
+        };
         if (statusFilter !== "all") params.status = statusFilter;
         if (typeFilter !== "all") params.type = typeFilter;
         if (flaggedFilter !== "all") params.flagged = flaggedFilter;
         if (searchTerm) params.search = searchTerm;
         if (userIdFromUrl) params.user_id = userIdFromUrl;
-        fetchTransactions(params);
-    }, [statusFilter, typeFilter, flaggedFilter, searchTerm, userIdFromUrl, fetchTransactions]);
+        
+        fetchTransactions(params).then((res) => {
+            if (res?.pagination) {
+                setTotalCount(res.pagination.total);
+            }
+        });
+    }, [statusFilter, typeFilter, flaggedFilter, searchTerm, userIdFromUrl, currentPage, fetchTransactions]);
 
     const handleRefund = async () => {
         if (!refundDialog || !refundReason.trim()) {
@@ -90,10 +119,17 @@ function TransactionsPageContent() {
             setRefundDialog(null);
             setRefundReason("");
             // Re-fetch to update UI
-            const params: TransactionFilters = {};
+            const params: TransactionFilters = {
+                limit: String(limit),
+                offset: String((currentPage - 1) * limit)
+            };
             if (statusFilter !== "all") params.status = statusFilter;
             if (typeFilter !== "all") params.type = typeFilter;
-            fetchTransactions(params);
+            fetchTransactions(params).then((res) => {
+                if (res?.pagination) {
+                    setTotalCount(res.pagination.total);
+                }
+            });
         } catch (err: unknown) {
             const error = err as ApiErrorLike;
             toast.error(error.response?.data?.error || "Failed to refund transaction");
@@ -154,11 +190,11 @@ function TransactionsPageContent() {
                                 placeholder="Search by Reference or User ID..."
                                 className="pl-8"
                                 value={searchTerm}
-                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
+                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleSearchChange(e.target.value)}
                             />
                         </div>
                         <div className="flex items-center gap-2">
-                            <Select value={typeFilter} onValueChange={setTypeFilter}>
+                            <Select value={typeFilter} onValueChange={handleTypeChange}>
                                 <SelectTrigger className="w-[140px]">
                                     <SelectValue placeholder="Type" />
                                 </SelectTrigger>
@@ -169,7 +205,7 @@ function TransactionsPageContent() {
                                     <SelectItem value="transfer">Transfer</SelectItem>
                                 </SelectContent>
                             </Select>
-                            <Select value={statusFilter} onValueChange={setStatusFilter}>
+                            <Select value={statusFilter} onValueChange={handleStatusChange}>
                                 <SelectTrigger className="w-[140px]">
                                     <SelectValue placeholder="Status" />
                                 </SelectTrigger>
@@ -277,6 +313,14 @@ function TransactionsPageContent() {
                             )}
                         </TableBody>
                     </Table>
+                    <Pagination
+                        currentPage={currentPage}
+                        totalCount={totalCount}
+                        limit={limit}
+                        onPageChange={setCurrentPage}
+                        isLoading={isLoading}
+                        entityName="transactions"
+                    />
                 </CardContent>
             </Card>
 

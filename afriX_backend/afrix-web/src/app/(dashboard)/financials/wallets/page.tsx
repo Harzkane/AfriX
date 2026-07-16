@@ -3,6 +3,7 @@
 import { useFinancials, Wallet } from "@/hooks/useFinancials";
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { Pagination } from "@/components/ui/pagination";
 import {
     Table,
     TableBody,
@@ -41,13 +42,40 @@ export default function WalletsPage() {
     const [searchTerm, setSearchTerm] = useState("");
     const [isActionLoading, setIsActionLoading] = useState<string | null>(null);
 
+    // Pagination State
+    const [currentPage, setCurrentPage] = useState(1);
+    const [totalCount, setTotalCount] = useState(0);
+    const limit = 20;
+
+    const handleTokenChange = (val: string) => {
+        setTokenFilter(val);
+        setCurrentPage(1);
+    };
+
+    const handleStatusChange = (val: string) => {
+        setStatusFilter(val);
+        setCurrentPage(1);
+    };
+
+    const handleSearchChange = (val: string) => {
+        setSearchTerm(val);
+        setCurrentPage(1);
+    };
+
     useEffect(() => {
-        const params: any = {};
+        const params: any = {
+            limit,
+            offset: (currentPage - 1) * limit
+        };
         if (tokenFilter !== "all") params.token_type = tokenFilter;
         if (statusFilter !== "all") params.is_frozen = statusFilter === "frozen";
         if (searchTerm) params.user_id = searchTerm; // Should ideally be a search param, but listWallets takes user_id
-        fetchWallets(params);
-    }, [tokenFilter, statusFilter, searchTerm, fetchWallets]);
+        fetchWallets(params).then((res) => {
+            if (res?.pagination) {
+                setTotalCount(res.pagination.total);
+            }
+        });
+    }, [tokenFilter, statusFilter, searchTerm, currentPage, fetchWallets]);
 
     const handleToggleFreeze = async (wallet: Wallet) => {
         setIsActionLoading(wallet.id);
@@ -63,7 +91,19 @@ export default function WalletsPage() {
             await api.post(endpoint, payload);
 
             toast.success(`Wallet ${wallet.is_frozen ? 'unfrozen' : 'frozen'} successfully`);
-            fetchWallets(); // Refresh list
+            
+            // Refresh list with current pagination params
+            fetchWallets({
+                limit,
+                offset: (currentPage - 1) * limit,
+                token_type: tokenFilter !== "all" ? tokenFilter : undefined,
+                is_frozen: statusFilter !== "all" ? statusFilter === "frozen" : undefined,
+                user_id: searchTerm || undefined
+            }).then((res) => {
+                if (res?.pagination) {
+                    setTotalCount(res.pagination.total);
+                }
+            });
             fetchStats(); // Refresh header stats
         } catch (err: any) {
             toast.error(err.response?.data?.error || "Action failed");
@@ -128,11 +168,11 @@ export default function WalletsPage() {
                                 placeholder="Search by User ID..."
                                 className="pl-8"
                                 value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
+                                onChange={(e) => handleSearchChange(e.target.value)}
                             />
                         </div>
                         <div className="flex items-center gap-2">
-                            <Select value={tokenFilter} onValueChange={setTokenFilter}>
+                            <Select value={tokenFilter} onValueChange={handleTokenChange}>
                                 <SelectTrigger className="w-[140px]">
                                     <SelectValue placeholder="Token" />
                                 </SelectTrigger>
@@ -143,7 +183,7 @@ export default function WalletsPage() {
                                     <SelectItem value="USDT">USDT (Tether)</SelectItem>
                                 </SelectContent>
                             </Select>
-                            <Select value={statusFilter} onValueChange={setStatusFilter}>
+                            <Select value={statusFilter} onValueChange={handleStatusChange}>
                                 <SelectTrigger className="w-[140px]">
                                     <SelectValue placeholder="Status" />
                                 </SelectTrigger>
@@ -237,6 +277,14 @@ export default function WalletsPage() {
                             )}
                         </TableBody>
                     </Table>
+                    <Pagination
+                        currentPage={currentPage}
+                        totalCount={totalCount}
+                        limit={limit}
+                        onPageChange={setCurrentPage}
+                        isLoading={isLoading}
+                        entityName="wallets"
+                    />
                 </CardContent>
             </Card>
         </div>

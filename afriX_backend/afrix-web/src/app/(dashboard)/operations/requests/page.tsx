@@ -26,6 +26,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import api from "@/lib/api";
 import { format } from "date-fns";
+import { Pagination } from "@/components/ui/pagination";
 import {
     Dialog,
     DialogContent,
@@ -43,12 +44,44 @@ export default function RequestsPage() {
     const [cancelDialog, setCancelDialog] = useState<{ open: boolean; type: 'mint' | 'burn'; id: string } | null>(null);
     const [cancelReason, setCancelReason] = useState("");
 
+    // Pagination States
+    const [mintPage, setMintPage] = useState(1);
+    const [mintTotal, setMintTotal] = useState(0);
+    const [burnPage, setBurnPage] = useState(1);
+    const [burnTotal, setBurnTotal] = useState(0);
+    const limit = 20;
+
+    const handleStatusFilterChange = (val: string) => {
+        setStatusFilter(val);
+        setMintPage(1);
+        setBurnPage(1);
+    };
+
     useEffect(() => {
-        const params: any = {};
+        const params: any = {
+            limit,
+            offset: (mintPage - 1) * limit
+        };
         if (statusFilter !== "all") params.status = statusFilter;
-        fetchMintRequests(params);
-        fetchBurnRequests(params);
-    }, [statusFilter, fetchMintRequests, fetchBurnRequests]);
+        fetchMintRequests(params).then((res) => {
+            if (res?.pagination) {
+                setMintTotal(res.pagination.total);
+            }
+        });
+    }, [statusFilter, mintPage, fetchMintRequests]);
+
+    useEffect(() => {
+        const params: any = {
+            limit,
+            offset: (burnPage - 1) * limit
+        };
+        if (statusFilter !== "all") params.status = statusFilter;
+        fetchBurnRequests(params).then((res) => {
+            if (res?.pagination) {
+                setBurnTotal(res.pagination.total);
+            }
+        });
+    }, [statusFilter, burnPage, fetchBurnRequests]);
 
     const handleCancelRequest = async () => {
         if (!cancelDialog || !cancelReason.trim()) {
@@ -106,7 +139,7 @@ export default function RequestsPage() {
             <Card>
                 <CardContent className="pt-6">
                     <div className="flex items-center gap-2">
-                        <Select value={statusFilter} onValueChange={setStatusFilter}>
+                        <Select value={statusFilter} onValueChange={handleStatusFilterChange}>
                             <SelectTrigger className="w-[180px]">
                                 <SelectValue placeholder="Status" />
                             </SelectTrigger>
@@ -211,6 +244,14 @@ export default function RequestsPage() {
                                     )}
                                 </TableBody>
                             </Table>
+                            <Pagination
+                                currentPage={mintPage}
+                                totalCount={mintTotal}
+                                limit={limit}
+                                onPageChange={setMintPage}
+                                isLoading={isLoading}
+                                entityName="mint requests"
+                            />
                         </CardContent>
                     </Card>
                 </TabsContent>
@@ -293,6 +334,14 @@ export default function RequestsPage() {
                                     )}
                                 </TableBody>
                             </Table>
+                            <Pagination
+                                currentPage={burnPage}
+                                totalCount={burnTotal}
+                                limit={limit}
+                                onPageChange={setBurnPage}
+                                isLoading={isLoading}
+                                entityName="burn requests"
+                            />
                         </CardContent>
                     </Card>
                 </TabsContent>

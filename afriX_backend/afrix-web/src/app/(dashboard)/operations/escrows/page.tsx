@@ -24,6 +24,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Loader2, AlertTriangle } from "lucide-react";
 import { format, isPast } from "date-fns";
 import { useSearchParams } from "next/navigation";
+import { Pagination } from "@/components/ui/pagination";
 
 function EscrowsPageContent() {
     const searchParams = useSearchParams();
@@ -31,12 +32,34 @@ function EscrowsPageContent() {
     const [statusFilter, setStatusFilter] = useState(searchParams.get("status") || "all");
     const [expiredFilter, setExpiredFilter] = useState(searchParams.get("expired") || "all");
 
+    // Pagination State
+    const [currentPage, setCurrentPage] = useState(1);
+    const [totalCount, setTotalCount] = useState(0);
+    const limit = 20;
+
+    const handleStatusChange = (val: string) => {
+        setStatusFilter(val);
+        setCurrentPage(1);
+    };
+
+    const handleExpiredChange = (val: string) => {
+        setExpiredFilter(val);
+        setCurrentPage(1);
+    };
+
     useEffect(() => {
-        const params: any = {};
+        const params: any = {
+            limit,
+            offset: (currentPage - 1) * limit
+        };
         if (statusFilter !== "all") params.status = statusFilter;
         if (expiredFilter === "expired" || expiredFilter === "true") params.expired = "true";
-        fetchEscrows(params);
-    }, [statusFilter, expiredFilter, fetchEscrows]);
+        fetchEscrows(params).then((res) => {
+            if (res?.pagination) {
+                setTotalCount(res.pagination.total);
+            }
+        });
+    }, [statusFilter, expiredFilter, currentPage, fetchEscrows]);
 
     const getStatusBadge = (status: string) => {
         const variants: Record<string, { variant: any; className: string }> = {
@@ -71,7 +94,7 @@ function EscrowsPageContent() {
             <Card>
                 <CardContent className="pt-6">
                     <div className="flex items-center gap-2">
-                        <Select value={statusFilter} onValueChange={setStatusFilter}>
+                        <Select value={statusFilter} onValueChange={handleStatusChange}>
                             <SelectTrigger className="w-[180px]">
                                 <SelectValue placeholder="Status" />
                             </SelectTrigger>
@@ -84,7 +107,7 @@ function EscrowsPageContent() {
                             </SelectContent>
                         </Select>
 
-                        <Select value={expiredFilter} onValueChange={setExpiredFilter}>
+                        <Select value={expiredFilter} onValueChange={handleExpiredChange}>
                             <SelectTrigger className="w-[180px]">
                                 <SelectValue placeholder="Expiry" />
                             </SelectTrigger>
@@ -164,6 +187,14 @@ function EscrowsPageContent() {
                             )}
                         </TableBody>
                     </Table>
+                    <Pagination
+                        currentPage={currentPage}
+                        totalCount={totalCount}
+                        limit={limit}
+                        onPageChange={setCurrentPage}
+                        isLoading={isLoading}
+                        entityName="escrows"
+                    />
                 </CardContent>
             </Card>
         </div>

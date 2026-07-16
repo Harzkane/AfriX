@@ -3,6 +3,7 @@
 import { useWithdrawals, WithdrawalRequest } from "@/hooks/useWithdrawals";
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { Pagination } from "@/components/ui/pagination";
 import {
     Table,
     TableBody,
@@ -63,12 +64,26 @@ export default function WithdrawalsPage() {
     const [txHash, setTxHash] = useState("");
     const [isActionLoading, setIsActionLoading] = useState(false);
 
+    // Pagination State
+    const [currentPage, setCurrentPage] = useState(1);
+    const limit = 15;
+
+    const handleTabChange = (val: string) => {
+        setActiveTab(val);
+        setCurrentPage(1);
+    };
+
     useEffect(() => {
         const params: any = {};
         if (activeTab !== "all") params.status = activeTab;
         fetchWithdrawals(params);
         fetchStats();
     }, [activeTab, fetchWithdrawals, fetchStats]);
+
+    const paginatedWithdrawals = withdrawals.slice(
+        (currentPage - 1) * limit,
+        currentPage * limit
+    );
 
     const handleAction = async () => {
         if (!actionDialog) return;
@@ -166,7 +181,7 @@ export default function WithdrawalsPage() {
             </div>
 
             {/* Main Content */}
-            <Tabs defaultValue="pending" className="space-y-4" onValueChange={setActiveTab}>
+            <Tabs defaultValue="pending" className="space-y-4" onValueChange={handleTabChange}>
                 <TabsList>
                     <TabsTrigger value="pending">Pending</TabsTrigger>
                     <TabsTrigger value="approved">Approved</TabsTrigger>
@@ -203,7 +218,7 @@ export default function WithdrawalsPage() {
                                         </TableCell>
                                     </TableRow>
                                 ) : (
-                                    withdrawals.map((req) => (
+                                    paginatedWithdrawals.map((req: WithdrawalRequest) => (
                                         <TableRow key={req.id}>
                                             <TableCell className="text-xs">
                                                 {format(new Date(req.created_at), "MMM d, yyyy")}
@@ -282,6 +297,14 @@ export default function WithdrawalsPage() {
                                 )}
                             </TableBody>
                         </Table>
+                        <Pagination
+                            currentPage={currentPage}
+                            totalCount={withdrawals.length}
+                            limit={limit}
+                            onPageChange={setCurrentPage}
+                            isLoading={isLoading}
+                            entityName="withdrawals"
+                        />
                     </CardContent>
                 </Card>
             </Tabs>

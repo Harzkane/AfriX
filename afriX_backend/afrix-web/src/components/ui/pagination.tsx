@@ -7,6 +7,7 @@ interface PaginationProps {
     limit: number;
     onPageChange: (page: number) => void;
     isLoading?: boolean;
+    entityName?: string;
 }
 
 export function Pagination({
@@ -14,7 +15,8 @@ export function Pagination({
     totalCount,
     limit,
     onPageChange,
-    isLoading
+    isLoading,
+    entityName
 }: PaginationProps) {
     const totalPages = Math.ceil(totalCount / limit);
 
@@ -23,7 +25,7 @@ export function Pagination({
     return (
         <div className="flex items-center justify-between px-4 py-4 border-t">
             <div className="text-sm text-muted-foreground">
-                Showing {Math.min((currentPage - 1) * limit + 1, totalCount)} to {Math.min(currentPage * limit, totalCount)} of {totalCount} users
+                Showing {Math.min((currentPage - 1) * limit + 1, totalCount)} to {Math.min(currentPage * limit, totalCount)} of {totalCount} {entityName || "users"}
             </div>
             <div className="flex items-center space-x-2">
                 <Button

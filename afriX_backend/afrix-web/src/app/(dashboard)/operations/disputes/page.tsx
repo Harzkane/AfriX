@@ -24,18 +24,41 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import type { ComponentProps } from "react";
+import { Pagination } from "@/components/ui/pagination";
 
 export default function DisputesPage() {
     const { disputes, isLoading, fetchDisputes } = useOperations();
     const [statusFilter, setStatusFilter] = useState("all");
     const [escalationFilter, setEscalationFilter] = useState("all");
 
+    // Pagination State
+    const [currentPage, setCurrentPage] = useState(1);
+    const [totalCount, setTotalCount] = useState(0);
+    const limit = 20;
+
+    const handleStatusChange = (val: string) => {
+        setStatusFilter(val);
+        setCurrentPage(1);
+    };
+
+    const handleEscalationChange = (val: string) => {
+        setEscalationFilter(val);
+        setCurrentPage(1);
+    };
+
     useEffect(() => {
-        const params: Record<string, string> = {};
+        const params: Record<string, string> = {
+            limit: String(limit),
+            offset: String((currentPage - 1) * limit)
+        };
         if (statusFilter !== "all") params.status = statusFilter;
         if (escalationFilter !== "all") params.escalation_level = escalationFilter;
-        fetchDisputes(params);
-    }, [statusFilter, escalationFilter, fetchDisputes]);
+        fetchDisputes(params).then((res) => {
+            if (res?.pagination) {
+                setTotalCount(res.pagination.total);
+            }
+        });
+    }, [statusFilter, escalationFilter, currentPage, fetchDisputes]);
 
     const getStatusBadge = (status: string) => {
         const variants: Record<string, { variant: ComponentProps<typeof Badge>["variant"]; className: string }> = {
@@ -65,7 +88,7 @@ export default function DisputesPage() {
             <Card>
                 <CardContent className="pt-6">
                     <div className="flex items-center gap-2">
-                        <Select value={statusFilter} onValueChange={setStatusFilter}>
+                        <Select value={statusFilter} onValueChange={handleStatusChange}>
                             <SelectTrigger className="w-[180px]">
                                 <SelectValue placeholder="Status" />
                             </SelectTrigger>
@@ -76,7 +99,7 @@ export default function DisputesPage() {
                             </SelectContent>
                         </Select>
 
-                        <Select value={escalationFilter} onValueChange={setEscalationFilter}>
+                        <Select value={escalationFilter} onValueChange={handleEscalationChange}>
                             <SelectTrigger className="w-[180px]">
                                 <SelectValue placeholder="Escalation" />
                             </SelectTrigger>
@@ -149,6 +172,14 @@ export default function DisputesPage() {
                             )}
                         </TableBody>
                     </Table>
+                    <Pagination
+                        currentPage={currentPage}
+                        totalCount={totalCount}
+                        limit={limit}
+                        onPageChange={setCurrentPage}
+                        isLoading={isLoading}
+                        entityName="disputes"
+                    />
                 </CardContent>
             </Card>
         </div>

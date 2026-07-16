@@ -244,6 +244,7 @@ export function useOperations() {
         try {
             const res = await api.get("/admin/operations/disputes", { params });
             setDisputes(res.data.data);
+            return res.data;
         } catch (err: unknown) {
             setError(getErrorMessage(err, "Failed to load disputes"));
         } finally {
@@ -258,6 +259,7 @@ export function useOperations() {
         try {
             const res = await api.get("/admin/operations/escrows", { params });
             setEscrows(res.data.data);
+            return res.data;
         } catch (err: unknown) {
             setError(getErrorMessage(err, "Failed to load escrows"));
         } finally {
@@ -272,6 +274,7 @@ export function useOperations() {
         try {
             const res = await api.get("/admin/operations/requests/mint", { params });
             setMintRequests(res.data.data);
+            return res.data;
         } catch (err: unknown) {
             setError(getErrorMessage(err, "Failed to load mint requests"));
         } finally {
@@ -286,6 +289,7 @@ export function useOperations() {
         try {
             const res = await api.get("/admin/operations/requests/burn", { params });
             setBurnRequests(res.data.data);
+            return res.data;
         } catch (err: unknown) {
             setError(getErrorMessage(err, "Failed to load burn requests"));
         } finally {

@@ -16,14 +16,20 @@ import {
 import { LinearGradient } from "expo-linear-gradient";
 import { Link } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { useAuthStore } from "@/stores";
+import { useAuthStore, useSettingsStore } from "@/stores";
 import { useNavigation } from "@react-navigation/native";
 import * as Haptics from "expo-haptics";
+import { useTranslation } from "react-i18next";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function RegisterScreen() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
   const navigation = useNavigation<any>();
+  const { t } = useTranslation();
+  const { language, setLanguage } = useSettingsStore();
+  const insets = useSafeAreaInsets();
+  const currentLang = language || "en";
 
   const [form, setForm] = useState({
     email: "",
@@ -69,6 +75,20 @@ export default function RegisterScreen() {
       />
       <View style={[styles.glowOrb1, { backgroundColor: isDark ? "rgba(0, 177, 79, 0.12)" : "rgba(0, 177, 79, 0.06)" }]} />
 
+      {/* Floating Language Switcher */}
+      <View style={[styles.floatingLangContainer, { top: insets.top + 8 }]}>
+        <TouchableOpacity
+          onPress={() => setLanguage(currentLang === "en" ? "fr" : "en")}
+          style={[styles.floatingLangBtn, { backgroundColor: theme.card, borderColor: theme.border }]}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="language-outline" size={16} color={theme.accent} />
+          <Text style={[styles.floatingLangText, { color: theme.text }]}>
+            {currentLang === "en" ? "FR" : "EN"}
+          </Text>
+        </TouchableOpacity>
+      </View>
+
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -86,15 +106,15 @@ export default function RegisterScreen() {
             >
               <Ionicons name="person-add-outline" size={32} color="#FFFFFF" />
             </LinearGradient>
-            <Text style={[styles.welcomeText, { color: theme.text }]}>Create Account</Text>
-            <Text style={[styles.subtitle, { color: theme.muted }]}>Create your account to start exchanging</Text>
+            <Text style={[styles.welcomeText, { color: theme.text }]}>{t("auth.register.title")}</Text>
+            <Text style={[styles.subtitle, { color: theme.muted }]}>{t("auth.register.subtitle")}</Text>
           </View>
 
           {/* Form Card */}
           <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
             {/* Full Name */}
             <View style={styles.inputGroup}>
-              <Text style={[styles.inputLabel, { color: theme.muted }]}>Full Name</Text>
+              <Text style={[styles.inputLabel, { color: theme.muted }]}>{t("auth.register.fullname_label")}</Text>
               <View style={[styles.inputRow, { backgroundColor: theme.inputBg, borderColor: theme.border }]}>
                 <View style={styles.inputIconBox}>
                   <Ionicons name="person-outline" size={18} color={theme.muted} />
@@ -103,7 +123,7 @@ export default function RegisterScreen() {
                   style={[styles.textInput, { color: theme.text }]}
                   value={form.full_name}
                   onChangeText={(v) => setForm({ ...form, full_name: v })}
-                  placeholder="John Doe"
+                  placeholder={t("auth.register.fullname_placeholder")}
                   placeholderTextColor={theme.placeholder}
                   autoCorrect={false}
                 />
@@ -112,7 +132,7 @@ export default function RegisterScreen() {
 
             {/* Email Address */}
             <View style={styles.inputGroup}>
-              <Text style={[styles.inputLabel, { color: theme.muted }]}>Email Address</Text>
+              <Text style={[styles.inputLabel, { color: theme.muted }]}>{t("auth.register.email_label")}</Text>
               <View style={[styles.inputRow, { backgroundColor: theme.inputBg, borderColor: theme.border }]}>
                 <View style={styles.inputIconBox}>
                   <Ionicons name="mail-outline" size={18} color={theme.muted} />
@@ -121,7 +141,7 @@ export default function RegisterScreen() {
                   style={[styles.textInput, { color: theme.text }]}
                   value={form.email}
                   onChangeText={(v) => setForm({ ...form, email: v })}
-                  placeholder="name@example.com"
+                  placeholder={t("auth.register.email_placeholder")}
                   placeholderTextColor={theme.placeholder}
                   keyboardType="email-address"
                   autoCapitalize="none"
@@ -132,7 +152,7 @@ export default function RegisterScreen() {
 
             {/* Password */}
             <View style={styles.inputGroup}>
-              <Text style={[styles.inputLabel, { color: theme.muted }]}>Password</Text>
+              <Text style={[styles.inputLabel, { color: theme.muted }]}>{t("auth.register.password_label")}</Text>
               <View style={[styles.inputRow, { backgroundColor: theme.inputBg, borderColor: theme.border }]}>
                 <View style={styles.inputIconBox}>
                   <Ionicons name="lock-closed-outline" size={18} color={theme.muted} />
@@ -141,7 +161,7 @@ export default function RegisterScreen() {
                   style={[styles.textInput, { color: theme.text }]}
                   value={form.password}
                   onChangeText={(v) => setForm({ ...form, password: v })}
-                  placeholder="••••••••"
+                  placeholder={t("auth.register.password_placeholder")}
                   placeholderTextColor={theme.placeholder}
                   secureTextEntry={!showPassword}
                   autoCapitalize="none"
@@ -184,7 +204,7 @@ export default function RegisterScreen() {
                   <ActivityIndicator color="#FFFFFF" size="small" />
                 ) : (
                   <>
-                    <Text style={styles.registerBtnText}>Create Account</Text>
+                    <Text style={styles.registerBtnText}>{t("auth.register.create_btn")}</Text>
                     <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />
                   </>
                 )}
@@ -195,10 +215,10 @@ export default function RegisterScreen() {
           {/* Bottom link */}
           <View style={styles.bottomSection}>
             <View style={styles.loginRow}>
-              <Text style={[styles.loginText, { color: theme.muted }]}>Already have an account? </Text>
+              <Text style={[styles.loginText, { color: theme.muted }]}>{t("auth.register.has_account")}</Text>
               <Link href="/(auth)/login" asChild>
                 <TouchableOpacity>
-                  <Text style={[styles.loginLink, { color: theme.accent }]}>Login</Text>
+                  <Text style={[styles.loginLink, { color: theme.accent }]}>{t("auth.register.login_link")}</Text>
                 </TouchableOpacity>
               </Link>
             </View>
@@ -347,5 +367,29 @@ const styles = StyleSheet.create({
   loginLink: {
     fontSize: 14,
     fontWeight: "800",
+  },
+  floatingLangContainer: {
+    position: "absolute",
+    right: 20,
+    zIndex: 100,
+  },
+  floatingLangBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  floatingLangText: {
+    fontSize: 12,
+    fontWeight: "800",
+    letterSpacing: 0.5,
   },
 });

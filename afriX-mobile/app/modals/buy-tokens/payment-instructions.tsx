@@ -19,6 +19,7 @@ import apiClient from "@/services/apiClient";
 import { formatAmountOrCompact } from "@/utils/format";
 import { LinearGradient } from "expo-linear-gradient";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { useTranslation } from "react-i18next";
 
 export default function PaymentInstructionsScreen() {
   const { tokenType, amount, agentId } = useLocalSearchParams<{
@@ -28,6 +29,7 @@ export default function PaymentInstructionsScreen() {
   }>();
 
   const router = useRouter();
+  const { t } = useTranslation();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
   const { selectedAgent, selectAgent } = useAgentStore();
@@ -88,7 +90,10 @@ export default function PaymentInstructionsScreen() {
           selectAgent(data.data);
         } catch (error) {
           console.error("Failed to fetch agent details:", error);
-          Alert.alert("Error", "Failed to load agent details");
+          Alert.alert(
+            t("buy_tokens.payment_instructions.err_loading_agent", "Error"),
+            t("buy_tokens.payment_instructions.err_loading_agent", "Failed to load agent details")
+          );
         } finally {
           setFetchingAgent(false);
         }
@@ -101,7 +106,10 @@ export default function PaymentInstructionsScreen() {
   const handleCopyText = async (text: string, label: string) => {
     if (text) {
       await Clipboard.setStringAsync(text);
-      Alert.alert("Copied!", `${label} copied to clipboard`);
+      Alert.alert(
+        t("buy_tokens.payment_instructions.alert_copied", "Copied!"),
+        t("buy_tokens.payment_instructions.alert_copied_desc", "{{label}} copied to clipboard", { label })
+      );
     }
   };
 
@@ -121,21 +129,24 @@ export default function PaymentInstructionsScreen() {
       const errorMessage = error.message || "";
       if (errorMessage.includes("cannot create mint requests to themselves")) {
         Alert.alert(
-          "⚠️ Cannot Select Yourself",
-          "As an agent, you cannot buy tokens from yourself. Please select a different agent to complete this transaction.",
-          [{ text: "OK", onPress: () => router.back() }]
+          t("buy_tokens.payment_instructions.alert_self_select_title", "⚠️ Cannot Select Yourself"),
+          t("buy_tokens.payment_instructions.alert_self_select_desc", "As an agent, you cannot buy tokens from yourself. Please select a different agent to complete this transaction."),
+          [{ text: t("common.ok", "OK"), onPress: () => router.back() }]
         );
       } else {
-        Alert.alert("Error", "Failed to create request. Please try again.");
+        Alert.alert(
+          t("common.error", "Error"),
+          t("buy_tokens.payment_instructions.alert_create_err", "Failed to create request. Please try again.")
+        );
       }
     }
   };
 
   const timelineSteps = [
-    { num: "1", label: "Transfer Funds", desc: "Send local currency to the agent's account details below." },
-    { num: "2", label: "Take Screenshot", desc: "Capture transaction receipt as official payment proof." },
-    { num: "3", label: "Upload Proof", desc: "Confirm transfer and upload image to lock escrow." },
-    { num: "4", label: "Confirmation", desc: "Wait for agent release (~5-15 minutes)." },
+    { num: "1", label: t("buy_tokens.payment_instructions.timeline_step_1_label", "Transfer Funds"), desc: t("buy_tokens.payment_instructions.timeline_step_1_desc", "Send local currency to the agent's account details below.") },
+    { num: "2", label: t("buy_tokens.payment_instructions.timeline_step_2_label", "Take Screenshot"), desc: t("buy_tokens.payment_instructions.timeline_step_2_desc", "Capture transaction receipt as official payment proof.") },
+    { num: "3", label: t("buy_tokens.payment_instructions.timeline_step_3_label", "Upload Proof"), desc: t("buy_tokens.payment_instructions.timeline_step_3_desc", "Confirm transfer and upload image to lock escrow.") },
+    { num: "4", label: t("buy_tokens.payment_instructions.timeline_step_4_label", "Confirmation"), desc: t("buy_tokens.payment_instructions.timeline_step_4_desc", "Wait for agent release (~5-15 minutes).") },
   ];
 
   return (
@@ -168,7 +179,7 @@ export default function PaymentInstructionsScreen() {
             </TouchableOpacity>
 
             <View style={styles.headerCopy}>
-              <Text style={[styles.title, { color: theme.text }]}>Payment Instructions</Text>
+              <Text style={[styles.title, { color: theme.text }]}>{t("buy_tokens.payment_instructions.header_title", "Payment Instructions")}</Text>
               <Animated.View style={{
                 opacity: subtitleOpacity,
                 maxHeight: subtitleMaxHeight,
@@ -176,7 +187,7 @@ export default function PaymentInstructionsScreen() {
                 overflow: "hidden"
               }}>
                 <Text style={[styles.headerSubtitle, { color: theme.muted }]}>
-                  Send payment to the selected agent and keep your payment receipt.
+                  {t("buy_tokens.payment_instructions.header_subtitle", "Send payment to the selected agent and keep your payment receipt.")}
                 </Text>
               </Animated.View>
             </View>
@@ -195,23 +206,25 @@ export default function PaymentInstructionsScreen() {
         {fetchingAgent ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="small" color={theme.accent} />
-            <Text style={[styles.loadingText, { color: theme.muted }]}>Loading agent details...</Text>
+            <Text style={[styles.loadingText, { color: theme.muted }]}>{t("buy_tokens.payment_instructions.loading_agent", "Loading agent details...")}</Text>
           </View>
         ) : !selectedAgent ? (
           <View style={styles.errorContainer}>
-            <Text style={[styles.errorText, { color: theme.danger }]}>Agent information not available</Text>
+            <Text style={[styles.errorText, { color: theme.danger }]}>{t("buy_tokens.payment_instructions.err_agent_not_found", "Agent information not available")}</Text>
           </View>
         ) : (
           <>
             {/* Amount Banner Section */}
             <View style={[styles.amountBanner, { backgroundColor: theme.card, borderColor: theme.border }]}>
-              <Text style={[styles.amountLabel, { color: theme.muted }]}>SEND EXACTLY</Text>
+              <Text style={[styles.amountLabel, { color: theme.muted }]}>{t("buy_tokens.payment_instructions.amount_label", "SEND EXACTLY")}</Text>
               <Text style={[styles.amountText, { color: theme.accent }]}>
                 {tokenType === "NT" ? "₦" : "XOF "}
                 {parseFloat(amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}
               </Text>
               <View style={[styles.tokenTag, { backgroundColor: theme.accentSoft }]}>
-                <Text style={[styles.tokenTagText, { color: theme.accent }]}>To Buy: {amount} {tokenType}</Text>
+                <Text style={[styles.tokenTagText, { color: theme.accent }]}>
+                  {t("buy_tokens.payment_instructions.to_buy_label", "To Buy: {{amount}} {{tokenType}}", { amount, tokenType })}
+                </Text>
               </View>
             </View>
 
@@ -224,7 +237,7 @@ export default function PaymentInstructionsScreen() {
                 <View style={styles.agentIdentity}>
                   <Text style={[styles.agentName, { color: theme.text }]}>{selectedAgent.name || "Agent"}</Text>
                   <Text style={[styles.agentTier, { color: theme.muted }]}>
-                    {(selectedAgent?.tier || "Bronze").toUpperCase()} TIER
+                    {t("buy_tokens.payment_instructions.tier_label", "{{tier}} TIER", { tier: selectedAgent?.tier || "Bronze" }).toUpperCase()}
                   </Text>
                 </View>
                 <View style={[styles.ratingBadge, { backgroundColor: theme.background }]}>
@@ -235,34 +248,34 @@ export default function PaymentInstructionsScreen() {
             </View>
 
             {/* Payment Details Section */}
-            <Text style={[styles.sectionHeading, { color: theme.muted }]}>TRANSFER ACCOUNT DETAILS</Text>
+            <Text style={[styles.sectionHeading, { color: theme.muted }]}>{t("buy_tokens.payment_instructions.section_account", "TRANSFER ACCOUNT DETAILS")}</Text>
 
             {(selectedAgent as any)?.bank_name && (
               <View style={[styles.paymentCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
                 <View style={styles.cardInfoRow}>
                   <View style={styles.cardCol}>
-                    <Text style={[styles.cardLabel, { color: theme.muted }]}>BANK NAME</Text>
+                    <Text style={[styles.cardLabel, { color: theme.muted }]}>{t("buy_tokens.payment_instructions.bank_name", "BANK NAME")}</Text>
                     <Text style={[styles.cardVal, { color: theme.text }]}>{(selectedAgent as any).bank_name}</Text>
                   </View>
                 </View>
                 <View style={[styles.cardDivider, { backgroundColor: theme.border }]} />
                 <View style={styles.cardInfoRow}>
                   <View style={styles.cardCol}>
-                    <Text style={[styles.cardLabel, { color: theme.muted }]}>ACCOUNT NAME</Text>
+                    <Text style={[styles.cardLabel, { color: theme.muted }]}>{t("buy_tokens.payment_instructions.account_name", "ACCOUNT NAME")}</Text>
                     <Text style={[styles.cardVal, { color: theme.text }]}>{(selectedAgent as any).account_name || "N/A"}</Text>
                   </View>
                 </View>
                 <View style={[styles.cardDivider, { backgroundColor: theme.border }]} />
                 <View style={styles.cardInfoRow}>
                   <View style={styles.cardCol}>
-                    <Text style={[styles.cardLabel, { color: theme.muted }]}>ACCOUNT NUMBER</Text>
+                    <Text style={[styles.cardLabel, { color: theme.muted }]}>{t("buy_tokens.payment_instructions.account_number", "ACCOUNT NUMBER")}</Text>
                     <Text style={[styles.cardVal, { color: theme.text, fontFamily: "monospace" }]}>
                       {(selectedAgent as any).account_number || "N/A"}
                     </Text>
                   </View>
                   <TouchableOpacity
                     style={[styles.copyIconBox, { backgroundColor: theme.accentSoft }]}
-                    onPress={() => handleCopyText((selectedAgent as any).account_number, "Account number")}
+                    onPress={() => handleCopyText((selectedAgent as any).account_number, t("buy_tokens.payment_instructions.account_number", "Account number"))}
                     activeOpacity={0.7}
                   >
                     <Ionicons name="copy-outline" size={16} color={theme.accent} />
@@ -275,21 +288,21 @@ export default function PaymentInstructionsScreen() {
               <View style={[styles.paymentCard, { backgroundColor: theme.card, borderColor: theme.border, marginTop: 12 }]}>
                 <View style={styles.cardInfoRow}>
                   <View style={styles.cardCol}>
-                    <Text style={[styles.cardLabel, { color: theme.muted }]}>MOBILE MONEY PROVIDER</Text>
+                    <Text style={[styles.cardLabel, { color: theme.muted }]}>{t("buy_tokens.payment_instructions.momo_provider", "MOBILE MONEY PROVIDER")}</Text>
                     <Text style={[styles.cardVal, { color: theme.text }]}>{(selectedAgent as any).mobile_money_provider}</Text>
                   </View>
                 </View>
                 <View style={[styles.cardDivider, { backgroundColor: theme.border }]} />
                 <View style={styles.cardInfoRow}>
                   <View style={styles.cardCol}>
-                    <Text style={[styles.cardLabel, { color: theme.muted }]}>MOBILE NUMBER</Text>
+                    <Text style={[styles.cardLabel, { color: theme.muted }]}>{t("buy_tokens.payment_instructions.momo_number", "MOBILE NUMBER")}</Text>
                     <Text style={[styles.cardVal, { color: theme.text, fontFamily: "monospace" }]}>
                       {(selectedAgent as any).mobile_money_number || "N/A"}
                     </Text>
                   </View>
                   <TouchableOpacity
                     style={[styles.copyIconBox, { backgroundColor: theme.accentSoft }]}
-                    onPress={() => handleCopyText((selectedAgent as any).mobile_money_number, "Mobile number")}
+                    onPress={() => handleCopyText((selectedAgent as any).mobile_money_number, t("buy_tokens.payment_instructions.momo_number", "Mobile number"))}
                     activeOpacity={0.7}
                   >
                     <Ionicons name="copy-outline" size={16} color={theme.accent} />
@@ -299,7 +312,7 @@ export default function PaymentInstructionsScreen() {
             )}
 
             {/* How to Pay Timeline */}
-            <Text style={[styles.sectionHeading, { color: theme.muted }]}>HOW TO COMPLETE TRANSFER</Text>
+            <Text style={[styles.sectionHeading, { color: theme.muted }]}>{t("buy_tokens.payment_instructions.section_timeline", "HOW TO COMPLETE TRANSFER")}</Text>
             <View style={[styles.timelineContainer, { backgroundColor: theme.card, borderColor: theme.border }]}>
               {timelineSteps.map((step, idx) => (
                 <View key={step.num} style={styles.timelineRow}>
@@ -323,7 +336,7 @@ export default function PaymentInstructionsScreen() {
             <View style={[styles.warningBox, { backgroundColor: theme.warningSoft, borderColor: theme.warning + "30" }]}>
               <Ionicons name="warning-outline" size={20} color={theme.warning} />
               <Text style={[styles.warningText, { color: isDark ? "#FFF" : "#92400E" }]}>
-                Only click proceed after making the payment. Submission of fake payment receipts will lead to immediate ban.
+                {t("buy_tokens.payment_instructions.warning_desc", "Only click proceed after making the payment. Submission of fake payment receipts will lead to immediate ban.")}
               </Text>
             </View>
 
@@ -331,11 +344,11 @@ export default function PaymentInstructionsScreen() {
             {selectedAgent?.phone_number && (
               <TouchableOpacity
                 style={[styles.copyContactBtn, { backgroundColor: theme.card, borderColor: theme.border }]}
-                onPress={() => handleCopyText(selectedAgent.phone_number, "Agent phone")}
+                onPress={() => handleCopyText(selectedAgent.phone_number, t("buy_tokens.payment_instructions.btn_copy_contact", "Agent phone"))}
                 activeOpacity={0.7}
               >
                 <Ionicons name="chatbubble-ellipses-outline" size={18} color={theme.accent} />
-                <Text style={[styles.copyContactText, { color: theme.text }]}>Copy Agent Contact Info</Text>
+                <Text style={[styles.copyContactText, { color: theme.text }]}>{t("buy_tokens.payment_instructions.btn_copy_contact", "Copy Agent Contact Info")}</Text>
               </TouchableOpacity>
             )}
 
@@ -347,7 +360,9 @@ export default function PaymentInstructionsScreen() {
               activeOpacity={0.8}
             >
               <Text style={styles.proceedBtnText}>
-                {loading ? "Creating request..." : "I've Made Payment - Upload Proof"}
+                {loading
+                  ? t("buy_tokens.payment_instructions.btn_creating", "Creating request...")
+                  : t("buy_tokens.payment_instructions.btn_proceed", "I've Made Payment - Upload Proof")}
               </Text>
               {!loading && (
                 <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />

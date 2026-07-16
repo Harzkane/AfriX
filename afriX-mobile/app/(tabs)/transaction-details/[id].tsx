@@ -15,6 +15,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import apiClient from "@/services/apiClient";
 import { useAuthStore } from "@/stores";
 import { formatDate } from "@/utils/format";
+import { useTranslation } from "react-i18next";
 
 const FROM_ACTIVITY = "activity";
 
@@ -22,6 +23,7 @@ export default function UserTransactionDetailScreen() {
     const { id, from } = useLocalSearchParams<{ id: string; from?: string }>();
     const router = useRouter();
     const { user } = useAuthStore();
+    const { t } = useTranslation();
     const colorScheme = useColorScheme();
     const isDark = colorScheme === "dark";
     const [tx, setTx] = useState<any>(null);
@@ -31,7 +33,7 @@ export default function UserTransactionDetailScreen() {
     useEffect(() => {
         if (!id) {
             setLoading(false);
-            setError("Missing transaction id");
+            setError(t("transactions.error_missing_id", "Missing transaction id"));
             return;
         }
 
@@ -45,11 +47,11 @@ export default function UserTransactionDetailScreen() {
                 if (!cancelled && data?.data) {
                     setTx(data.data);
                 } else if (!cancelled) {
-                    setError("Transaction not found");
+                    setError(t("transactions.error_not_found", "Transaction not found"));
                 }
             } catch (e: any) {
                 if (!cancelled) {
-                    setError(e.response?.data?.message || "Failed to load transaction");
+                    setError(e.response?.data?.message || t("transactions.error_load_failed", "Failed to load transaction"));
                     setTx(null);
                 }
             } finally {
@@ -66,25 +68,25 @@ export default function UserTransactionDetailScreen() {
         const normalizedType = (type || "").toLowerCase();
 
         if (normalizedType === "mint") {
-            return { label: "Mint", icon: "add-circle" as const, bg: "#F0FDF4", color: "#00B14F", border: "#DDF7E5" };
+            return { label: t("transactions.type_mint", "Mint"), icon: "add-circle" as const, bg: "#F0FDF4", color: "#00B14F", border: "#DDF7E5" };
         }
         if (normalizedType === "burn") {
-            return { label: "Burn", icon: "remove-circle" as const, bg: "#FFF8ED", color: "#D97706", border: "#FDE7C2" };
+            return { label: t("transactions.type_burn", "Burn"), icon: "remove-circle" as const, bg: "#FFF8ED", color: "#D97706", border: "#FDE7C2" };
         }
         if (normalizedType === "swap") {
-            return { label: "Swap", icon: "swap-horizontal" as const, bg: "#F5F3FF", color: "#7C3AED", border: "#E9D5FF" };
+            return { label: t("transactions.type_swap", "Swap"), icon: "swap-horizontal" as const, bg: "#F5F3FF", color: "#7C3AED", border: "#E9D5FF" };
         }
         if (normalizedType === "transfer") {
-            return { label: "Transfer", icon: "swap-horizontal" as const, bg: "#EFF6FF", color: "#2563EB", border: "#DBEAFE" };
+            return { label: t("transactions.type_transfer", "Transfer"), icon: "swap-horizontal" as const, bg: "#EFF6FF", color: "#2563EB", border: "#DBEAFE" };
         }
         if (normalizedType === "credit") {
-            return { label: "Credit", icon: "arrow-down-circle" as const, bg: "#EFF6FF", color: "#2563EB", border: "#DBEAFE" };
+            return { label: t("transactions.type_credit", "Credit"), icon: "arrow-down-circle" as const, bg: "#EFF6FF", color: "#2563EB", border: "#DBEAFE" };
         }
         if (normalizedType === "debit") {
-            return { label: "Debit", icon: "arrow-up-circle" as const, bg: "#FEF2F2", color: "#DC2626", border: "#FECACA" };
+            return { label: t("transactions.type_debit", "Debit"), icon: "arrow-up-circle" as const, bg: "#FEF2F2", color: "#DC2626", border: "#FECACA" };
         }
 
-        return { label: type || "Transaction", icon: "cash" as const, bg: "#F3F4F6", color: "#6B7280", border: "#E5E7EB" };
+        return { label: type || t("transactions.type_default", "Transaction"), icon: "cash" as const, bg: "#F3F4F6", color: "#6B7280", border: "#E5E7EB" };
     };
 
     const getStatusColor = (status: string) => {
@@ -123,7 +125,7 @@ export default function UserTransactionDetailScreen() {
                         { color: isDark ? "#94A3B8" : "#6B7280" },
                     ]}
                 >
-                    Loading transaction...
+                    {t("transactions.loading", "Loading transaction...")}
                 </Text>
             </View>
         );
@@ -137,13 +139,13 @@ export default function UserTransactionDetailScreen() {
                         <Ionicons name="alert-circle-outline" size={28} color="#EF4444" />
                     </View>
                     <Text style={[styles.errorTitle, { color: isDark ? "#F8FAFC" : "#111827" }]}>
-                        Transaction unavailable
+                        {t("transactions.unavailable_title", "Transaction unavailable")}
                     </Text>
                     <Text style={[styles.errorText, { color: isDark ? "#94A3B8" : "#6B7280" }]}>
-                        {error || "Transaction not found"}
+                        {error || t("transactions.error_not_found", "Transaction not found")}
                     </Text>
                     <TouchableOpacity onPress={goBack} style={styles.primaryButton} activeOpacity={0.85}>
-                        <Text style={styles.primaryButtonText}>Go back</Text>
+                        <Text style={styles.primaryButtonText}>{t("transactions.go_back_btn", "Go back")}</Text>
                     </TouchableOpacity>
                 </View>
             </SafeAreaView>
@@ -153,7 +155,7 @@ export default function UserTransactionDetailScreen() {
     const typeConfig = getTypeConfig(tx.type);
     const isOut = tx.from_user_id === user?.id;
     const normalizedType = (tx.type || "").toLowerCase();
-    const feeLabel = tx.fee_label || "Fee";
+    const feeLabel = tx.fee_label || t("transactions.fee_label", "Fee");
     const feeAmount = parseFloat(String(tx.fee_amount ?? tx.fee ?? 0)) || 0;
     const amountValue = parseFloat(String(tx.amount || 0)) || 0;
     const showNetAfterFee =
@@ -161,11 +163,11 @@ export default function UserTransactionDetailScreen() {
         ["platform_fee", "transaction_fee", "none"].includes(tx.fee_kind || "transaction_fee");
     const isCreditOrDebitType = ["transfer", "swap", "credit", "debit"].includes(normalizedType);
     const creditOrDebitLabel = isCreditOrDebitType
-        ? (isOut ? "Debit" : "Credit")
+        ? (isOut ? t("transactions.type_debit", "Debit") : t("transactions.type_credit", "Credit"))
         : normalizedType === "mint"
-            ? "Credit"
+            ? t("transactions.type_credit", "Credit")
             : normalizedType === "burn"
-                ? "Debit"
+                ? t("transactions.type_debit", "Debit")
                 : null;
     const showAmountAsOut = isCreditOrDebitType ? isOut : normalizedType === "burn";
     const counterparty = isOut
@@ -218,10 +220,10 @@ export default function UserTransactionDetailScreen() {
 
                     <View style={styles.headerCopy}>
                         <Text style={[styles.headerTitle, { color: theme.text }]}>
-                            Transaction details
+                            {t("transactions.details_title", "Transaction details")}
                         </Text>
                         <Text style={[styles.headerSubtitle, { color: theme.muted }]}>
-                            Review the amount, status, counterpart, and fee breakdown.
+                            {t("transactions.details_subtitle", "Review the amount, status, counterpart, and fee breakdown.")}
                         </Text>
                     </View>
 
@@ -258,13 +260,13 @@ export default function UserTransactionDetailScreen() {
                     <View style={styles.heroTopRow}>
                         <View style={styles.heroCopy}>
                             <Text style={[styles.heroEyebrow, { color: theme.accent }]}>
-                                Activity Record
+                                {t("transactions.activity_record", "Activity Record")}
                             </Text>
                             <Text style={[styles.heroTitle, { color: theme.text }]}>
-                                {typeConfig.label} Transaction
+                                {t("transactions.type_tx", "{{type}} Transaction", { type: typeConfig.label })}
                             </Text>
                             <Text style={[styles.heroText, { color: theme.muted }]}>
-                                Review the amount, status, counterpart, and any fee details linked to this activity entry.
+                                {t("transactions.activity_entry_desc", "Review the amount, status, counterpart, and any fee details linked to this activity entry.")}
                             </Text>
                         </View>
 
@@ -284,7 +286,7 @@ export default function UserTransactionDetailScreen() {
                     <View style={styles.heroAmountRow}>
                         <View>
                             <Text style={[styles.amountLabel, { color: theme.muted }]}>
-                                {creditOrDebitLabel ? `${creditOrDebitLabel} amount` : "Amount"}
+                                {creditOrDebitLabel ? (creditOrDebitLabel === t("transactions.type_debit", "Debit") ? t("transactions.debit_amount", "Debit amount") : t("transactions.credit_amount", "Credit amount")) : t("transactions.amount_label", "Amount")}
                             </Text>
                             <Text style={[styles.amountValue, { color: theme.text }]}>
                                 {showAmountAsOut ? "-" : "+"}
@@ -292,7 +294,7 @@ export default function UserTransactionDetailScreen() {
                             </Text>
                         </View>
                         <View style={[styles.heroDateChip, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-                            <Text style={[styles.heroDateLabel, { color: theme.muted }]}>Date</Text>
+                            <Text style={[styles.heroDateLabel, { color: theme.muted }]}>{t("transactions.date_label", "Date")}</Text>
                             <Text style={[styles.heroDateValue, { color: theme.text }]}>
                                 {formatDate(tx.created_at, true)}
                             </Text>
@@ -301,13 +303,13 @@ export default function UserTransactionDetailScreen() {
 
                     <View style={styles.heroMetaRow}>
                         <View style={[styles.heroMetaChip, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-                            <Text style={[styles.heroMetaLabel, { color: theme.muted }]}>Direction</Text>
+                            <Text style={[styles.heroMetaLabel, { color: theme.muted }]}>{t("transactions.direction_label", "Direction")}</Text>
                             <Text style={[styles.heroMetaValue, { color: theme.text }]}>
-                                {showAmountAsOut ? "Outgoing" : "Incoming"}
+                                {showAmountAsOut ? t("transactions.outgoing", "Outgoing") : t("transactions.incoming", "Incoming")}
                             </Text>
                         </View>
                         <View style={[styles.heroMetaChip, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-                            <Text style={[styles.heroMetaLabel, { color: theme.muted }]}>Counterparty</Text>
+                            <Text style={[styles.heroMetaLabel, { color: theme.muted }]}>{t("transactions.counterparty_label", "Counterparty")}</Text>
                             <Text style={[styles.heroMetaValue, { color: theme.text }]}>
                                 {counterparty}
                             </Text>
@@ -317,7 +319,7 @@ export default function UserTransactionDetailScreen() {
 
                 <View style={styles.sectionHeaderRow}>
                     <Text style={[styles.sectionTitle, { color: theme.text }]}>
-                        Transaction summary
+                        {t("transactions.summary_title", "Transaction summary")}
                     </Text>
                 </View>
 
@@ -334,17 +336,17 @@ export default function UserTransactionDetailScreen() {
                     <View style={[styles.cardAccent, { backgroundColor: typeConfig.color }]} />
 
                     <View style={[styles.detailRow, { borderBottomColor: theme.divider }]}>
-                        <Text style={[styles.detailLabel, { color: theme.muted }]}>From / To</Text>
+                        <Text style={[styles.detailLabel, { color: theme.muted }]}>{t("transactions.from_to_label", "From / To")}</Text>
                         <Text style={[styles.detailValue, { color: theme.text }]}>{counterparty}</Text>
                     </View>
 
                     <View style={[styles.detailRow, { borderBottomColor: theme.divider }]}>
-                        <Text style={[styles.detailLabel, { color: theme.muted }]}>Token</Text>
+                        <Text style={[styles.detailLabel, { color: theme.muted }]}>{t("transactions.token_label", "Token")}</Text>
                         <Text style={[styles.detailValue, { color: theme.text }]}>{tx.token_type || "—"}</Text>
                     </View>
 
                     <View style={[styles.detailRow, { borderBottomColor: theme.divider }]}>
-                        <Text style={[styles.detailLabel, { color: theme.muted }]}>Reference</Text>
+                        <Text style={[styles.detailLabel, { color: theme.muted }]}>{t("transactions.reference_label", "Reference")}</Text>
                         <Text style={[styles.detailValue, { color: theme.text }]} numberOfLines={1}>
                             {tx.reference || "—"}
                         </Text>
@@ -352,7 +354,7 @@ export default function UserTransactionDetailScreen() {
 
                     {tx.description ? (
                         <View style={[styles.noteBlock, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-                            <Text style={[styles.noteLabel, { color: theme.muted }]}>Description</Text>
+                            <Text style={[styles.noteLabel, { color: theme.muted }]}>{t("transactions.description_label", "Description")}</Text>
                             <Text style={[styles.noteText, { color: theme.text }]}>{tx.description}</Text>
                         </View>
                     ) : null}
@@ -364,7 +366,7 @@ export default function UserTransactionDetailScreen() {
                     <>
                         <View style={styles.sectionHeaderRow}>
                             <Text style={[styles.sectionTitle, { color: theme.text }]}>
-                                Settlement details
+                                {t("transactions.settlement_title", "Settlement details")}
                             </Text>
                         </View>
 
@@ -409,7 +411,7 @@ export default function UserTransactionDetailScreen() {
                                         ]}
                                     >
                                         <Text style={[styles.infoStripLabel, { color: theme.muted }]}>
-                                            Recipient received
+                                            {t("transactions.recipient_received", "Recipient received")}
                                         </Text>
                                         <Text style={[styles.infoStripValue, { color: theme.text }]}>
                                             {amountValue.toLocaleString(undefined, {
@@ -426,7 +428,7 @@ export default function UserTransactionDetailScreen() {
                                         ]}
                                     >
                                         <Text style={[styles.infoStripLabel, { color: theme.muted }]}>
-                                            Total debited
+                                            {t("transactions.total_debited", "Total debited")}
                                         </Text>
                                         <Text style={[styles.infoStripValue, { color: theme.text }]}>
                                             {(amountValue + feeAmount).toLocaleString(undefined, {
@@ -447,7 +449,7 @@ export default function UserTransactionDetailScreen() {
                                             ]}
                                         >
                                             <Text style={[styles.infoStripLabel, { color: theme.muted }]}>
-                                                Net swapped
+                                                {t("transactions.net_swapped", "Net swapped")}
                                             </Text>
                                             <Text style={[styles.infoStripValue, { color: theme.text }]}>
                                                 {(amountValue - feeAmount).toLocaleString(undefined, {
@@ -466,7 +468,7 @@ export default function UserTransactionDetailScreen() {
                                             ]}
                                         >
                                             <Text style={[styles.infoStripLabel, { color: theme.muted }]}>
-                                                You received
+                                                {t("transactions.you_received", "You received")}
                                             </Text>
                                             <Text style={[styles.infoStripValue, { color: theme.accent }]}>
                                                 +{receivedAmount.toLocaleString(undefined, {
@@ -488,7 +490,7 @@ export default function UserTransactionDetailScreen() {
                                             ]}
                                         >
                                             <Text style={[styles.infoStripLabel, { color: theme.muted }]}>
-                                                Net after fee
+                                                {t("transactions.net_after_fee", "Net after fee")}
                                             </Text>
                                             <Text style={[styles.infoStripValue, { color: theme.text }]}>
                                                 {showAmountAsOut
@@ -513,7 +515,7 @@ export default function UserTransactionDetailScreen() {
                     <>
                         <View style={styles.sectionHeaderRow}>
                             <Text style={[styles.sectionTitle, { color: theme.text }]}>
-                                Agent context
+                                {t("transactions.agent_context", "Agent context")}
                             </Text>
                         </View>
 
@@ -533,7 +535,7 @@ export default function UserTransactionDetailScreen() {
                                     <Ionicons name="person-circle-outline" size={18} color={theme.muted} />
                                     <View>
                                         <Text style={[styles.detailLabel, { color: theme.muted }]}>
-                                            Agent
+                                            {t("transactions.agent_label", "Agent")}
                                         </Text>
                                         <Text style={[styles.detailValue, { color: theme.text }]}>
                                             {tx.agent.user?.full_name || "Agent"}

@@ -26,12 +26,15 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useAuthStore } from "@/stores";
 import apiClient from "@/services/apiClient";
+import { useTranslation } from "react-i18next";
+
 
 const BIOMETRIC_LOGIN_KEY = "biometric_login_enabled";
 
 export default function SecurityScreen() {
   const router = useRouter();
   const { user, setUser } = useAuthStore();
+  const { t } = useTranslation();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
   const insets = useSafeAreaInsets();
@@ -94,21 +97,21 @@ export default function SecurityScreen() {
       setBiometricLoading(true);
       try {
         if (Constants.appOwnership === "expo") {
-          Alert.alert("Use a development build", "Biometric login doesn't work in Expo Go. Build the app with: npx expo run:ios");
+          Alert.alert(t("settings.security.bio_expo_title", "Use a development build"), t("settings.security.bio_expo_desc", "Biometric login doesn't work in Expo Go. Build the app with: npx expo run:ios"));
           setBiometricLoading(false);
           return;
         }
         const hasHardware = await LocalAuthentication.hasHardwareAsync();
         const isEnrolled = await LocalAuthentication.isEnrolledAsync();
         if (!hasHardware || !isEnrolled) {
-          Alert.alert("Not available", "Biometric login is not available on this device. Set up Face ID or Touch ID in your device settings first.");
+          Alert.alert(t("settings.security.bio_not_avail_title", "Not available"), t("settings.security.bio_not_avail_desc", "Biometric login is not available on this device. Set up Face ID or Touch ID in your device settings first."));
           setBiometricLoading(false);
           return;
         }
         const result = await LocalAuthentication.authenticateAsync({
-          promptMessage: "Verify identity to enable biometric login",
-          cancelLabel: "Cancel",
-          fallbackLabel: "Use password",
+          promptMessage: t("settings.security.bio_prompt", "Verify identity to enable biometric login"),
+          cancelLabel: t("common.cancel", "Cancel"),
+          fallbackLabel: t("settings.security.bio_fallback", "Use password"),
           disableDeviceFallback: true,
         });
         if (result.success) {
@@ -119,16 +122,16 @@ export default function SecurityScreen() {
           setBiometricsEnabled(false);
           const err = (result as { error?: string }).error;
           if (err === "user_cancel" || err === "system_cancel") {
-            Alert.alert("Cancelled", "Authentication was cancelled.");
+            Alert.alert(t("settings.security.bio_cancel_title", "Cancelled"), t("settings.security.bio_cancel_desc", "Authentication was cancelled."));
           } else if (err === "lockout") {
-            Alert.alert("Try again later", "Too many failed attempts. Use your device passcode to unlock, then try again.");
+            Alert.alert(t("settings.security.bio_lockout_title", "Try again later"), t("settings.security.bio_lockout_desc", "Too many failed attempts. Use your device passcode to unlock, then try again."));
           } else {
-            Alert.alert("Couldn't enable", "Biometric authentication failed. Try again when your device biometrics are available.");
+            Alert.alert(t("settings.security.bio_err_title", "Couldn't enable"), t("settings.security.bio_err_desc", "Biometric authentication failed. Try again when your device biometrics are available."));
           }
         }
       } catch {
         setBiometricsEnabled(false);
-        Alert.alert("Couldn't enable", "Biometric login could not be enabled on this device.");
+        Alert.alert(t("settings.security.bio_err_title", "Couldn't enable"), t("settings.security.bio_err_general", "Biometric login could not be enabled on this device."));
       } finally {
         setBiometricLoading(false);
       }
@@ -150,7 +153,7 @@ export default function SecurityScreen() {
           setShow2FAModal(true);
         }
       } catch {
-        Alert.alert("Error", "Failed to initiate 2FA setup");
+        Alert.alert(t("settings.security.err_title", "Error"), t("settings.security.err_init_2fa", "Failed to initiate 2FA setup"));
       } finally {
         setLoading(false);
       }
@@ -163,7 +166,7 @@ export default function SecurityScreen() {
 
   const handleDisable2FASubmit = async () => {
     if (!disablePassword.trim()) {
-      Alert.alert("Error", "Enter your account password.");
+      Alert.alert(t("settings.security.err_title", "Error"), t("settings.security.err_password_required", "Enter your account password."));
       return;
     }
     try {
@@ -177,9 +180,9 @@ export default function SecurityScreen() {
       setDisablePassword("");
       setDisableOtp("");
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Alert.alert("Success", "2FA disabled successfully");
+      Alert.alert(t("settings.security.success_title", "Success"), t("settings.security.success_disable_2fa", "2FA disabled successfully"));
     } catch {
-      Alert.alert("Couldn't disable 2FA", "Check your password and 6-digit code, then try again.");
+      Alert.alert(t("settings.security.err_disable_failed_title", "Couldn't disable 2FA"), t("settings.security.err_disable_failed_desc", "Check your password and 6-digit code, then try again."));
     } finally {
       setLoading(false);
     }
@@ -187,7 +190,7 @@ export default function SecurityScreen() {
 
   const verifyAndEnable2FA = async () => {
     if (!otp || otp.length !== 6) {
-      Alert.alert("Error", "Please enter a valid 6-digit OTP");
+      Alert.alert(t("settings.security.err_title", "Error"), t("settings.security.err_otp_invalid", "Please enter a valid 6-digit OTP"));
       return;
     }
     try {
@@ -198,9 +201,9 @@ export default function SecurityScreen() {
       setShow2FAModal(false);
       setOtp("");
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Alert.alert("Success", "Two-Factor Authentication enabled!");
+      Alert.alert(t("settings.security.success_title", "Success"), t("settings.security.success_enable_2fa", "Two-Factor Authentication enabled!"));
     } catch {
-      Alert.alert("Error", "Invalid OTP. Please try again.");
+      Alert.alert(t("settings.security.err_title", "Error"), t("settings.security.err_otp_incorrect", "Invalid OTP. Please try again."));
     } finally {
       setLoading(false);
     }
@@ -279,10 +282,10 @@ export default function SecurityScreen() {
               <Ionicons name="arrow-back" size={22} color={theme.text} />
             </TouchableOpacity>
             <View style={{ flex: 1 }}>
-              <Text style={[styles.headerTitle, { color: theme.text }]}>Security</Text>
+              <Text style={[styles.headerTitle, { color: theme.text }]}>{t("settings.security.header_title", "Security")}</Text>
               <Animated.View style={{ opacity: subtitleOpacity, maxHeight: subtitleMaxHeight, marginTop: subtitleMargin, overflow: "hidden" }}>
                 <Text style={[styles.headerSubtitle, { color: theme.muted }]}>
-                  Manage authentication and account protection.
+                  {t("settings.security.header_subtitle", "Manage authentication and account protection.")}
                 </Text>
               </Animated.View>
             </View>
@@ -307,22 +310,22 @@ export default function SecurityScreen() {
 
         {/* Intro card */}
         <View style={[styles.introCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
-          <Text style={[styles.introEyebrow, { color: theme.accent }]}>ACCOUNT PROTECTION</Text>
-          <Text style={[styles.introTitle, { color: theme.text }]}>Keep your account secure</Text>
+          <Text style={[styles.introEyebrow, { color: theme.accent }]}>{t("settings.security.intro_eyebrow", "ACCOUNT PROTECTION")}</Text>
+          <Text style={[styles.introTitle, { color: theme.text }]}>{t("settings.security.intro_title", "Keep your account secure")}</Text>
           <Text style={[styles.introSubtitle, { color: theme.muted }]}>
-            Manage biometric login, two-factor authentication, and password controls — all from one protected place.
+            {t("settings.security.intro_subtitle", "Manage biometric login, two-factor authentication, and password controls — all from one protected place.")}
           </Text>
         </View>
 
         {/* ── Authentication ── */}
-        <Text style={[styles.sectionLabel, { color: theme.muted }]}>Authentication</Text>
+        <Text style={[styles.sectionLabel, { color: theme.muted }]}>{t("settings.security.section_auth", "Authentication")}</Text>
         <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
           <SwitchRow
             icon="finger-print-outline"
             iconColor={theme.accent}
             iconBg={theme.accentSoft}
-            title="Biometric Login"
-            subtitle="Use Face ID or Touch ID to unlock the app"
+            title={t("settings.security.biometric_title", "Biometric Login")}
+            subtitle={t("settings.security.biometric_subtitle", "Use Face ID or Touch ID to unlock the app")}
             value={biometricsEnabled}
             onValueChange={handleBiometricToggle}
             disabled={biometricLoading}
@@ -332,8 +335,8 @@ export default function SecurityScreen() {
             icon="shield-checkmark-outline"
             iconColor={theme.blue}
             iconBg={theme.blueSoft}
-            title="Two-Factor Auth (2FA)"
-            subtitle="Add an extra layer of login security"
+            title={t("settings.security.two_factor_title", "Two-Factor Auth (2FA)")}
+            subtitle={t("settings.security.two_factor_subtitle", "Add an extra layer of login security")}
             value={twoFactorEnabled}
             onValueChange={handle2FAToggle}
           />
@@ -346,34 +349,34 @@ export default function SecurityScreen() {
               <Ionicons name="shield-checkmark" size={16} color={theme.accent} />
             </View>
             <Text style={[styles.infoBannerText, { color: isDark ? "#6EE7B7" : "#065F46" }]}>
-              Two-factor authentication is active. Your account has an extra layer of protection.
+              {t("settings.security.two_factor_banner", "Two-factor authentication is active. Your account has an extra layer of protection.")}
             </Text>
           </View>
         )}
 
         {/* ── Password ── */}
-        <Text style={[styles.sectionLabel, { color: theme.muted }]}>Password</Text>
+        <Text style={[styles.sectionLabel, { color: theme.muted }]}>{t("settings.security.section_password", "Password")}</Text>
         <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
           <LinkRow
             icon="key-outline"
             iconColor={theme.purple}
             iconBg={theme.purpleSoft}
-            title="Change Password"
-            subtitle="Update your account password securely"
+            title={t("settings.security.change_password_title", "Change Password")}
+            subtitle={t("settings.security.change_password_subtitle", "Update your account password securely")}
             onPress={() => router.push("/settings/change-password")}
           />
         </View>
 
         {/* ── Devices ── */}
-        <Text style={[styles.sectionLabel, { color: theme.muted }]}>Devices</Text>
+        <Text style={[styles.sectionLabel, { color: theme.muted }]}>{t("settings.security.section_devices", "Devices")}</Text>
         <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
           <LinkRow
             icon="phone-portrait-outline"
             iconColor={theme.amber}
             iconBg={theme.amberSoft}
-            title="Manage Devices"
-            subtitle="See all devices logged into your account"
-            onPress={() => Alert.alert("Coming Soon", "Device management is coming soon.")}
+            title={t("settings.security.manage_devices_title", "Manage Devices")}
+            subtitle={t("settings.security.manage_devices_subtitle", "See all devices logged into your account")}
+            onPress={() => Alert.alert(t("common.coming_soon", "Coming Soon"), t("settings.security.manage_devices_coming_soon", "Device management is coming soon."))}
           />
         </View>
 
@@ -383,12 +386,12 @@ export default function SecurityScreen() {
             <View style={[styles.tipsIconBox, { backgroundColor: theme.blue + "22" }]}>
               <Ionicons name="bulb-outline" size={16} color={theme.blue} />
             </View>
-            <Text style={[styles.tipsTitle, { color: isDark ? "#93C5FD" : "#1E40AF" }]}>Security tips</Text>
+            <Text style={[styles.tipsTitle, { color: isDark ? "#93C5FD" : "#1E40AF" }]}>{t("settings.security.tips_title", "Security tips")}</Text>
           </View>
           {[
-            "Enable biometrics for fast, secure access without typing your password.",
-            "2FA significantly reduces the risk of unauthorized account access.",
-            "Never share your OTP or password with anyone, including support staff.",
+            t("settings.security.tip_1", "Enable biometrics for fast, secure access without typing your password."),
+            t("settings.security.tip_2", "2FA significantly reduces the risk of unauthorized account access."),
+            t("settings.security.tip_3", "Never share your OTP or password with anyone, including support staff."),
           ].map((tip, i) => (
             <View key={i} style={styles.tipRow}>
               <View style={[styles.tipDot, { backgroundColor: theme.blue }]} />
@@ -406,9 +409,9 @@ export default function SecurityScreen() {
           <SafeAreaView edges={["top"]} style={{ paddingHorizontal: 16 }}>
             <View style={styles.modalHeaderRow}>
               <View>
-                <Text style={[styles.modalTitle, { color: theme.text }]}>Setup 2FA</Text>
+                <Text style={[styles.modalTitle, { color: theme.text }]}>{t("settings.security.setup_2fa_title", "Setup 2FA")}</Text>
                 <Text style={[styles.modalSubtitle, { color: theme.muted }]}>
-                  Scan the QR code or enter the key manually
+                  {t("settings.security.setup_2fa_subtitle", "Scan the QR code or enter the key manually")}
                 </Text>
               </View>
               <TouchableOpacity
@@ -426,7 +429,7 @@ export default function SecurityScreen() {
                 <Text style={[styles.modalStepNum, { color: theme.accent }]}>01</Text>
               </View>
               <Text style={[styles.modalStepText, { color: theme.text }]}>
-                Scan this QR code with your authenticator app (Google Authenticator, Authy, etc.)
+                {t("settings.security.step_1_text", "Scan this QR code with your authenticator app (Google Authenticator, Authy, etc.)")}
               </Text>
             </View>
 
@@ -445,7 +448,7 @@ export default function SecurityScreen() {
                 <Text style={[styles.modalStepNum, { color: theme.accent }]}>02</Text>
               </View>
               <Text style={[styles.modalStepText, { color: theme.text }]}>
-                Or enter this setup key manually in your authenticator app
+                {t("settings.security.step_2_text", "Or enter this setup key manually in your authenticator app")}
               </Text>
             </View>
 
@@ -455,14 +458,14 @@ export default function SecurityScreen() {
                 if (!secret) return;
                 await Clipboard.setStringAsync(secret);
                 Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                Alert.alert("Copied", "2FA setup key copied to clipboard");
+                Alert.alert(t("settings.security.copied_title", "Copied"), t("settings.security.copied_desc", "2FA setup key copied to clipboard"));
               }}
               activeOpacity={0.75}
             >
               <Text style={[styles.secretCode, { color: theme.text }]} selectable>{secret}</Text>
               <View style={styles.copyHintRow}>
                 <Ionicons name="copy-outline" size={14} color={theme.accent} />
-                <Text style={[styles.copyHintText, { color: theme.accent }]}>Tap to copy</Text>
+                <Text style={[styles.copyHintText, { color: theme.accent }]}>{t("common.tap_copy", "Tap to copy")}</Text>
               </View>
             </TouchableOpacity>
 
@@ -472,7 +475,7 @@ export default function SecurityScreen() {
                 <Text style={[styles.modalStepNum, { color: theme.accent }]}>03</Text>
               </View>
               <Text style={[styles.modalStepText, { color: theme.text }]}>
-                Enter the 6-digit code shown in your authenticator app
+                {t("settings.security.step_3_text", "Enter the 6-digit code shown in your authenticator app")}
               </Text>
             </View>
 
@@ -494,7 +497,7 @@ export default function SecurityScreen() {
             >
               {loading
                 ? <ActivityIndicator color="#FFF" size="small" />
-                : <Text style={styles.primaryBtnText}>Verify &amp; Enable</Text>
+                : <Text style={styles.primaryBtnText}>{t("settings.security.btn_verify_enable", "Verify & Enable")}</Text>
               }
             </TouchableOpacity>
           </ScrollView>
@@ -507,9 +510,9 @@ export default function SecurityScreen() {
           <SafeAreaView edges={["top"]} style={{ paddingHorizontal: 16 }}>
             <View style={styles.modalHeaderRow}>
               <View>
-                <Text style={[styles.modalTitle, { color: theme.text }]}>Disable 2FA</Text>
+                <Text style={[styles.modalTitle, { color: theme.text }]}>{t("settings.security.disable_2fa_title", "Disable 2FA")}</Text>
                 <Text style={[styles.modalSubtitle, { color: theme.muted }]}>
-                  Confirm your identity to remove 2FA
+                  {t("settings.security.disable_2fa_subtitle", "Confirm your identity to remove 2FA")}
                 </Text>
               </View>
               <TouchableOpacity
@@ -526,23 +529,23 @@ export default function SecurityScreen() {
             <View style={[styles.warnBanner, { backgroundColor: theme.redSoft, borderColor: theme.redBorder }]}>
               <Ionicons name="warning-outline" size={18} color={theme.red} />
               <Text style={[styles.warnBannerText, { color: theme.red }]}>
-                Disabling 2FA reduces your account security. Only proceed if you intend to remove this protection.
+                {t("settings.security.disable_warning", "Disabling 2FA reduces your account security. Only proceed if you intend to remove this protection.")}
               </Text>
             </View>
 
-            <Text style={[styles.inputLabel, { color: theme.muted }]}>Account password</Text>
+            <Text style={[styles.inputLabel, { color: theme.muted }]}>{t("settings.security.label_password", "Account password")}</Text>
             <TextInput
               style={[styles.formInput, { backgroundColor: theme.inputBg, borderColor: theme.border, color: theme.text }]}
               value={disablePassword}
               onChangeText={setDisablePassword}
-              placeholder="Enter your password"
+              placeholder={t("settings.security.placeholder_password", "Enter your password")}
               placeholderTextColor={theme.placeholder}
               secureTextEntry
               autoCapitalize="none"
               autoCorrect={false}
             />
 
-            <Text style={[styles.inputLabel, { color: theme.muted }]}>6-digit code (optional)</Text>
+            <Text style={[styles.inputLabel, { color: theme.muted }]}>{t("settings.security.label_otp", "6-digit code (optional)")}</Text>
             <TextInput
               style={[styles.otpInput, { backgroundColor: theme.inputBg, borderColor: theme.border, color: theme.text }]}
               value={disableOtp}
@@ -561,7 +564,7 @@ export default function SecurityScreen() {
             >
               {loading
                 ? <ActivityIndicator color="#FFF" size="small" />
-                : <Text style={styles.primaryBtnText}>Disable 2FA</Text>
+                : <Text style={styles.primaryBtnText}>{t("settings.security.btn_disable_2fa", "Disable 2FA")}</Text>
               }
             </TouchableOpacity>
           </ScrollView>

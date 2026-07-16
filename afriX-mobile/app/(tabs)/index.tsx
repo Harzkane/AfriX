@@ -19,8 +19,10 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { formatDate } from "@/utils/format";
 import Svg, { Path } from "react-native-svg";
+import { useTranslation } from "react-i18next";
 
 export default function DashboardScreen() {
+  const { t } = useTranslation();
   const { user, isAuthenticated } = useAuthStore();
   const {
     wallets,
@@ -196,7 +198,7 @@ export default function DashboardScreen() {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#00B14F" />
-        <Text style={styles.loadingText}>Loading your account...</Text>
+        <Text style={styles.loadingText}>{t("home.loading_account", "Loading your account...")}</Text>
       </View>
     );
   }
@@ -205,7 +207,7 @@ export default function DashboardScreen() {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#00B14F" />
-        <Text style={styles.loadingText}>Loading your wallets...</Text>
+        <Text style={styles.loadingText}>{t("home.loading_wallets", "Loading your wallets...")}</Text>
       </View>
     );
   }
@@ -328,28 +330,32 @@ export default function DashboardScreen() {
     let subtitle = formatDate(tx.created_at);
 
     if (tx.type === "mint") {
-      title = "Received";
+      title = t("home.activity_received", "Received");
       const agentName = tx.agent?.user?.full_name || tx.metadata?.agent_name;
-      subtitle = agentName ? `From ${agentName} • ${formatDate(tx.created_at)}` : `Bought • ${formatDate(tx.created_at)}`;
+      subtitle = agentName
+        ? `${t("home.activity_from_agent", "From {{agent}}", { agent: agentName })} • ${formatDate(tx.created_at)}`
+        : `${t("home.activity_bought", "Bought")} • ${formatDate(tx.created_at)}`;
     } else if (tx.type === "burn") {
-      title = "Sent";
+      title = t("home.activity_sent", "Sent");
       const agentName = tx.agent?.user?.full_name || tx.metadata?.agent_name;
-      subtitle = agentName ? `To ${agentName} • ${formatDate(tx.created_at)}` : `Sold • ${formatDate(tx.created_at)}`;
+      subtitle = agentName
+        ? `${t("home.activity_to_agent", "To {{agent}}", { agent: agentName })} • ${formatDate(tx.created_at)}`
+        : `${t("home.activity_sold", "Sold")} • ${formatDate(tx.created_at)}`;
     } else if (tx.type === "transfer") {
       if (isDebit) {
-        title = "Sent";
+        title = t("home.activity_sent", "Sent");
         const recipient = tx.metadata?.recipient_name || tx.metadata?.to_user_email || "Transfer";
-        subtitle = `To ${recipient} • ${formatDate(tx.created_at)}`;
+        subtitle = `${t("home.activity_to_agent", "To {{agent}}", { agent: recipient })} • ${formatDate(tx.created_at)}`;
       } else {
-        title = "Received";
+        title = t("home.activity_received", "Received");
         const sender = tx.metadata?.sender_name || tx.metadata?.from_user_email || "Transfer";
-        subtitle = `From ${sender} • ${formatDate(tx.created_at)}`;
+        subtitle = `${t("home.activity_from_agent", "From {{agent}}", { agent: sender })} • ${formatDate(tx.created_at)}`;
       }
     } else if (tx.type === "swap") {
-      title = "Swapped";
+      title = t("home.activity_swapped", "Swapped");
       const fromToken = tx.metadata?.from_token || tx.token_type;
       const toToken = tx.metadata?.to_token || (tx.token_type === "NT" ? "USDT" : "NT");
-      subtitle = `${fromToken} to ${toToken} • ${formatDate(tx.created_at)}`;
+      subtitle = `${t("home.activity_swap_summary", "{{from}} to {{to}}", { from: fromToken, to: toToken })} • ${formatDate(tx.created_at)}`;
     }
 
     return { title, subtitle, isDebit };
@@ -373,7 +379,7 @@ export default function DashboardScreen() {
                 activeOpacity={0.8}
               >
                 <Ionicons name="swap-horizontal" size={13} color="#7C3AED" style={{ marginRight: 4 }} />
-                <Text style={[styles.switchBtnText, { color: "#7C3AED" }]}>Agent</Text>
+                <Text style={[styles.switchBtnText, { color: "#7C3AED" }]}>{t("home.switch_agent", "Agent")}</Text>
               </TouchableOpacity>
             )}
             <TouchableOpacity
@@ -418,14 +424,14 @@ export default function DashboardScreen() {
                   <Ionicons name="notifications-outline" size={18} color="#FFFFFF" />
                 </View>
                 <View style={styles.notificationBannerText}>
-                  <Text style={styles.notificationBannerTitle}>New notifications</Text>
+                  <Text style={styles.notificationBannerTitle}>{t("home.notifications_title", "New notifications")}</Text>
                   <Text style={styles.notificationBannerSubtitle}>
                     {unreadCount === 1
-                      ? "You have 1 new notification"
-                      : `You have ${unreadCount} new notifications`}
+                      ? t("home.notification_banner_single", "You have 1 new notification")
+                      : t("home.notification_banner_plural", `You have ${unreadCount} new notifications`, { count: unreadCount })}
                   </Text>
                 </View>
-                <Text style={styles.notificationBannerAction}>View</Text>
+                <Text style={styles.notificationBannerAction}>{t("home.notifications_view", "View")}</Text>
               </View>
             </TouchableOpacity>
           )}
@@ -433,7 +439,7 @@ export default function DashboardScreen() {
           {/* Welcome Greeting */}
           <View style={styles.greetingSection}>
             <Text style={[styles.greetingText, { color: colors.textMuted }]}>
-              Welcome back,
+              {t("home.welcome_back_user", "Welcome back,")}
             </Text>
             <Text style={[styles.userNameText, { color: colors.text }]}>
               {user?.full_name || user?.email?.split("@")[0] || "User"} 👋
@@ -449,7 +455,7 @@ export default function DashboardScreen() {
                   activeOpacity={0.7}
                   onPress={() => setShowBalance(!showBalance)}
                 >
-                  <Text style={[styles.portfolioLabel, { color: colors.textMuted }]}>Total Portfolio Value</Text>
+                  <Text style={[styles.portfolioLabel, { color: colors.textMuted }]}>{t("home.portfolio_label", "Total Portfolio Value")}</Text>
                   <Ionicons
                     name={showBalance ? "eye-outline" : "eye-off-outline"}
                     size={15}
@@ -508,7 +514,7 @@ export default function DashboardScreen() {
                   <View style={[styles.actionIconCircle, { backgroundColor: "#00B14F" }]}>
                     <Ionicons name="add" size={24} color="#FFFFFF" />
                   </View>
-                  <Text style={[styles.actionLabel, { color: colors.text }]}>Buy</Text>
+                  <Text style={[styles.actionLabel, { color: colors.text }]}>{t("home.action_buy", "Buy")}</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -519,7 +525,7 @@ export default function DashboardScreen() {
                   <View style={[styles.actionIconCircle, { backgroundColor: "#F59E0B" }]}>
                     <Ionicons name="arrow-down" size={24} color="#FFFFFF" />
                   </View>
-                  <Text style={[styles.actionLabel, { color: colors.text }]}>Sell</Text>
+                  <Text style={[styles.actionLabel, { color: colors.text }]}>{t("home.action_sell", "Sell")}</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -530,7 +536,7 @@ export default function DashboardScreen() {
                   <View style={[styles.actionIconCircle, { backgroundColor: "#00B14F" }]}>
                     <Ionicons name="send" size={20} color="#FFFFFF" style={{ transform: [{ rotate: "-45deg" }], marginLeft: 2, marginTop: -2 }} />
                   </View>
-                  <Text style={[styles.actionLabel, { color: colors.text }]}>Send</Text>
+                  <Text style={[styles.actionLabel, { color: colors.text }]}>{t("home.action_send", "Send")}</Text>
                 </TouchableOpacity>
               </View>
 
@@ -544,7 +550,7 @@ export default function DashboardScreen() {
                   <View style={[styles.actionIconCircle, { backgroundColor: "#10B981" }]}>
                     <Ionicons name="download" size={22} color="#FFFFFF" />
                   </View>
-                  <Text style={[styles.actionLabel, { color: colors.text }]}>Receive</Text>
+                  <Text style={[styles.actionLabel, { color: colors.text }]}>{t("home.action_receive", "Receive")}</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -555,7 +561,7 @@ export default function DashboardScreen() {
                   <View style={[styles.actionIconCircle, { backgroundColor: "#8B5CF6" }]}>
                     <Ionicons name="swap-horizontal" size={22} color="#FFFFFF" />
                   </View>
-                  <Text style={[styles.actionLabel, { color: colors.text }]}>Swap</Text>
+                  <Text style={[styles.actionLabel, { color: colors.text }]}>{t("home.action_swap", "Swap")}</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -566,7 +572,7 @@ export default function DashboardScreen() {
                   <View style={[styles.actionIconCircle, { backgroundColor: "#EC4899" }]}>
                     <Ionicons name="hand-left" size={20} color="#FFFFFF" />
                   </View>
-                  <Text style={[styles.actionLabel, { color: colors.text }]}>Request</Text>
+                  <Text style={[styles.actionLabel, { color: colors.text }]}>{t("home.action_request", "Request")}</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -575,9 +581,9 @@ export default function DashboardScreen() {
           {/* My Wallets Unified List */}
           <View style={styles.sectionContainer}>
             <View style={styles.sectionHeaderRow}>
-              <Text style={[styles.sectionTitleText, { color: colors.text }]}>My Wallets</Text>
+              <Text style={[styles.sectionTitleText, { color: colors.text }]}>{t("home.my_wallets", "My Wallets")}</Text>
               <TouchableOpacity onPress={() => router.push("/(tabs)/activity")}>
-                <Text style={styles.seeAllText}>See all</Text>
+                <Text style={styles.seeAllText}>{t("home.see_all", "See all")}</Text>
               </TouchableOpacity>
             </View>
 
@@ -590,7 +596,7 @@ export default function DashboardScreen() {
                       <Ionicons name="cash-outline" size={18} color="#00B14F" />
                     </View>
                     <View>
-                      <Text style={[styles.walletTokenName, { color: colors.text }]}>Naira Token</Text>
+                      <Text style={[styles.walletTokenName, { color: colors.text }]}>{t("home.token_naira", "Naira Token")}</Text>
                       <Text style={[styles.walletTokenSymbol, { color: colors.textMuted }]}>NT</Text>
                     </View>
                   </View>
@@ -622,7 +628,7 @@ export default function DashboardScreen() {
                       <Ionicons name="leaf-outline" size={18} color="#10B981" />
                     </View>
                     <View>
-                      <Text style={[styles.walletTokenName, { color: colors.text }]}>XOF Token</Text>
+                      <Text style={[styles.walletTokenName, { color: colors.text }]}>{t("home.token_xof", "XOF Token")}</Text>
                       <Text style={[styles.walletTokenSymbol, { color: colors.textMuted }]}>CT</Text>
                     </View>
                   </View>
@@ -654,7 +660,7 @@ export default function DashboardScreen() {
                       <Ionicons name="logo-usd" size={18} color="#3B82F6" />
                     </View>
                     <View>
-                      <Text style={[styles.walletTokenName, { color: colors.text }]}>Tether USD</Text>
+                      <Text style={[styles.walletTokenName, { color: colors.text }]}>{t("home.token_usdt", "Tether USD")}</Text>
                       <Text style={[styles.walletTokenSymbol, { color: colors.textMuted }]}>USDT</Text>
                     </View>
                   </View>
@@ -689,8 +695,8 @@ export default function DashboardScreen() {
                   <Ionicons name="shield-checkmark" size={20} color="#00B14F" />
                 </View>
                 <View style={styles.securityBannerTextWrap}>
-                  <Text style={[styles.securityBannerTitle, { color: colors.text }]}>Secure. Fast. Built for Africa.</Text>
-                  <Text style={[styles.securityBannerSub, { color: colors.textMuted }]}>Your funds are protected with bank-level security.</Text>
+                  <Text style={[styles.securityBannerTitle, { color: colors.text }]}>{t("home.security_banner_title", "Secure. Fast. Built for Africa.")}</Text>
+                  <Text style={[styles.securityBannerSub, { color: colors.textMuted }]}>{t("home.security_banner_sub", "Your funds are protected with bank-level security.")}</Text>
                 </View>
               </View>
               <Ionicons name="chevron-forward" size={18} color="#00B14F" />
@@ -706,7 +712,7 @@ export default function DashboardScreen() {
                 <Ionicons name={currentVerification.icon} size={18} color="#111827" />
               </View>
               <View style={styles.verificationHeaderText}>
-                <Text style={styles.verificationEyebrow}>Verification & Limits</Text>
+                <Text style={styles.verificationEyebrow}>{t("home.verification_limits", "Verification & Limits")}</Text>
                 <Text style={[styles.verificationTitle, { color: colors.text }]}>{currentVerification.label}</Text>
               </View>
               <View style={[styles.verificationAccentPill, verificationAccentStyle]}>
@@ -716,14 +722,14 @@ export default function DashboardScreen() {
 
             <View style={[styles.verificationBody, { backgroundColor: isDark ? "#1E293B" : "#F9FAFB" }]}>
               <View style={styles.verificationMetric}>
-                <Text style={[styles.verificationMetricLabel, { color: colors.textMuted }]}>Daily limit</Text>
+                <Text style={[styles.verificationMetricLabel, { color: colors.textMuted }]}>{t("home.daily_limit", "Daily limit")}</Text>
                 <Text style={[styles.verificationMetricValue, { color: colors.text }]}>{currentVerification.dailyLimit}</Text>
               </View>
               <View style={[styles.verificationDivider, { backgroundColor: colors.border }]} />
               <View style={styles.verificationMetric}>
-                <Text style={[styles.verificationMetricLabel, { color: colors.textMuted }]}>Status</Text>
+                <Text style={[styles.verificationMetricLabel, { color: colors.textMuted }]}>{t("home.status", "Status")}</Text>
                 <Text style={[styles.verificationMetricValue, { color: colors.text }]}>
-                  {user?.email_verified ? "Email confirmed" : "Action needed"}
+                  {user?.email_verified ? t("home.email_confirmed", "Email confirmed") : t("home.action_needed", "Action needed")}
                 </Text>
               </View>
             </View>
@@ -736,7 +742,7 @@ export default function DashboardScreen() {
                 activeOpacity={0.8}
                 onPress={() => router.push("/(tabs)/profile")}
               >
-                <Text style={styles.verificationActionText}>Open profile</Text>
+                <Text style={styles.verificationActionText}>{t("home.open_profile", "Open profile")}</Text>
                 <Ionicons name="chevron-forward" size={16} color="#00B14F" />
               </TouchableOpacity>
             )}
@@ -762,9 +768,9 @@ export default function DashboardScreen() {
                       <Ionicons name="hourglass-outline" size={20} color="#FFB800" />
                     </View>
                     <View style={styles.alertText}>
-                      <Text style={[styles.alertTitle, { color: isDark ? "#FFD25C" : "#92400E" }]}>Mint in Progress</Text>
+                      <Text style={[styles.alertTitle, { color: isDark ? "#FFD25C" : "#92400E" }]}>{t("home.mint_in_progress", "Mint in Progress")}</Text>
                       <Text style={[styles.alertSubtitle, { color: isDark ? "#FFB800" : "#B45309" }]}>
-                        Tap to view status or pull down to refresh
+                        {t("home.tap_to_view_status", "Tap to view status or pull down to refresh")}
                       </Text>
                     </View>
                     <Ionicons name="chevron-forward" size={20} color="#94A3B8" />
@@ -793,9 +799,9 @@ export default function DashboardScreen() {
                       <Ionicons name="hourglass-outline" size={20} color="#F59E0B" />
                     </View>
                     <View style={styles.alertText}>
-                      <Text style={[styles.alertTitle, { color: isDark ? "#FFD25C" : "#92400E" }]}>Burn (Sell) in Progress</Text>
+                      <Text style={[styles.alertTitle, { color: isDark ? "#FFD25C" : "#92400E" }]}>{t("home.burn_in_progress", "Burn (Sell) in Progress")}</Text>
                       <Text style={[styles.alertSubtitle, { color: isDark ? "#FFB800" : "#B45309" }]}>
-                        Tap to view status or pull down to refresh
+                        {t("home.tap_to_view_status", "Tap to view status or pull down to refresh")}
                       </Text>
                     </View>
                     <Ionicons name="chevron-forward" size={20} color="#94A3B8" />
@@ -817,9 +823,9 @@ export default function DashboardScreen() {
                       <Ionicons name="rocket-outline" size={32} color="#3B82F6" />
                     </View>
                     <View style={styles.gettingStartedText}>
-                      <Text style={[styles.gettingStartedTitle, { color: colors.text }]}>Get Started</Text>
+                      <Text style={[styles.gettingStartedTitle, { color: colors.text }]}>{t("home.get_started_guide", "Get Started")}</Text>
                       <Text style={[styles.gettingStartedSubtitle, { color: colors.textMuted }]}>
-                        Welcome to AfriX! Here&apos;s how to begin
+                        {t("home.getting_started_sub", "Welcome to AfriX! Here's how to begin")}
                       </Text>
                     </View>
                   </View>
@@ -834,9 +840,9 @@ export default function DashboardScreen() {
                         <Text style={styles.stepNumberText}>1</Text>
                       </View>
                       <View style={styles.stepContent}>
-                        <Text style={[styles.stepTitle, { color: colors.text }]}>Buy Your First Tokens</Text>
+                        <Text style={[styles.stepTitle, { color: colors.text }]}>{t("home.step1_title", "Buy Your First Tokens")}</Text>
                         <Text style={[styles.stepDescription, { color: colors.textMuted }]}>
-                          Select an agent and purchase NT or CT tokens
+                          {t("home.step1_desc", "Select an agent and purchase NT or CT tokens")}
                         </Text>
                       </View>
                       <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
@@ -851,9 +857,9 @@ export default function DashboardScreen() {
                         <Ionicons name="checkmark" size={16} color="#FFFFFF" />
                       </View>
                       <View style={styles.stepContent}>
-                        <Text style={[styles.stepTitle, { color: colors.text }]}>Learn the Basics</Text>
+                        <Text style={[styles.stepTitle, { color: colors.text }]}>{t("home.step2_title", "Learn the Basics")}</Text>
                         <Text style={[styles.stepDescription, { color: colors.textMuted }]}>
-                          Complete education modules to understand tokens
+                          {t("home.step2_desc", "Complete education modules to understand tokens")}
                         </Text>
                       </View>
                       <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
@@ -865,10 +871,10 @@ export default function DashboardScreen() {
                       </View>
                       <View style={styles.stepContent}>
                         <Text style={[styles.stepTitle, styles.stepTitleInactive, { color: colors.textMuted }]}>
-                          Explore Features
+                          {t("home.step3_title", "Explore Features")}
                         </Text>
                         <Text style={[styles.stepDescription, { color: colors.textMuted }]}>
-                          Send, receive, swap, and manage your tokens
+                          {t("home.step3_desc", "Send, receive, swap, and manage your tokens")}
                         </Text>
                       </View>
                     </View>
@@ -882,17 +888,17 @@ export default function DashboardScreen() {
           {recentTransactions.length === 0 && (
             <View style={styles.tipsSection}>
               <View style={styles.sectionHeaderCompact}>
-                <Text style={[styles.sectionTitleText, { color: colors.text }]}>Quick Tips</Text>
-                <Text style={styles.sectionHint}>Helpful reminders</Text>
+                <Text style={[styles.sectionTitleText, { color: colors.text }]}>{t("home.quick_tips", "Quick Tips")}</Text>
+                <Text style={styles.sectionHint}>{t("home.helpful_reminders", "Helpful reminders")}</Text>
               </View>
               <View style={styles.tipsGrid}>
                 <View style={[styles.tipCard, { backgroundColor: colors.cardBg, borderColor: colors.border }]}>
                   <View style={[styles.tipIcon, { backgroundColor: isDark ? "rgba(0,177,79,0.15)" : "#F0FDF4" }]}>
                     <Ionicons name="shield-checkmark" size={20} color="#00B14F" />
                   </View>
-                  <Text style={[styles.tipTitle, { color: colors.text }]}>Secure</Text>
+                  <Text style={[styles.tipTitle, { color: colors.text }]}>{t("home.tip_secure_title", "Secure")}</Text>
                   <Text style={[styles.tipDescription, { color: colors.textMuted }]}>
-                    All transactions are protected with escrow
+                    {t("home.tip_secure_desc", "All transactions are protected with escrow")}
                   </Text>
                 </View>
 
@@ -900,9 +906,9 @@ export default function DashboardScreen() {
                   <View style={[styles.tipIcon, { backgroundColor: isDark ? "rgba(59,130,246,0.15)" : "#EFF6FF" }]}>
                     <Ionicons name="people" size={20} color="#3B82F6" />
                   </View>
-                  <Text style={[styles.tipTitle, { color: colors.text }]}>Trusted Agents</Text>
+                  <Text style={[styles.tipTitle, { color: colors.text }]}>{t("home.tip_agents_title", "Trusted Agents")}</Text>
                   <Text style={[styles.tipDescription, { color: colors.textMuted }]}>
-                    Verified agents ready to help you
+                    {t("home.tip_agents_desc", "Verified agents ready to help you")}
                   </Text>
                 </View>
 
@@ -910,9 +916,9 @@ export default function DashboardScreen() {
                   <View style={[styles.tipIcon, { backgroundColor: isDark ? "rgba(139,92,246,0.15)" : "#FAF5FF" }]}>
                     <Ionicons name="flash" size={20} color="#8B5CF6" />
                   </View>
-                  <Text style={[styles.tipTitle, { color: colors.text }]}>Fast</Text>
+                  <Text style={[styles.tipTitle, { color: colors.text }]}>{t("home.tip_fast_title", "Fast")}</Text>
                   <Text style={[styles.tipDescription, { color: colors.textMuted }]}>
-                    Quick transactions, instant confirmations
+                    {t("home.tip_fast_desc", "Quick transactions, instant confirmations")}
                   </Text>
                 </View>
               </View>
@@ -922,9 +928,9 @@ export default function DashboardScreen() {
           {/* Recent Activity Section */}
           <View style={styles.sectionContainer}>
             <View style={styles.sectionHeaderRow}>
-              <Text style={[styles.sectionTitleText, { color: colors.text }]}>Recent Activity</Text>
+              <Text style={[styles.sectionTitleText, { color: colors.text }]}>{t("home.recent_activity", "Recent Activity")}</Text>
               <TouchableOpacity onPress={() => router.push("/activity")}>
-                <Text style={styles.seeAllText}>See all</Text>
+                <Text style={styles.seeAllText}>{t("home.see_all", "See all")}</Text>
               </TouchableOpacity>
             </View>
 
@@ -980,7 +986,7 @@ export default function DashboardScreen() {
                                 },
                               ]}
                             >
-                              {tx.status}
+                              {t(`home.status_${(tx.status || "").toLowerCase()}` as any, tx.status) as any}
                             </Text>
                           </View>
                         </View>
@@ -996,16 +1002,16 @@ export default function DashboardScreen() {
                 <View style={[styles.emptyIconCircle, { backgroundColor: isDark ? "#1E293B" : "#F9FAFB" }]}>
                   <Ionicons name="receipt-outline" size={40} color={colors.textMuted} />
                 </View>
-                <Text style={[styles.emptyStateTitle, { color: colors.text }]}>No transactions yet</Text>
+                <Text style={[styles.emptyStateTitle, { color: colors.text }]}>{t("home.no_transactions", "No transactions yet")}</Text>
                 <Text style={[styles.emptyStateText, { color: colors.textMuted }]}>
-                  Start by buying or selling tokens to see your activity here
+                  {t("home.no_transactions_desc", "Start by buying or selling tokens to see your activity here")}
                 </Text>
                 <TouchableOpacity
                   style={styles.emptyStateBtn}
                   onPress={() => router.push("/modals/buy-tokens")}
                   activeOpacity={0.7}
                 >
-                  <Text style={styles.emptyStateBtnText}>Get Started</Text>
+                  <Text style={styles.emptyStateBtnText}>{t("home.get_started_guide", "Get Started")}</Text>
                 </TouchableOpacity>
               </View>
             )}

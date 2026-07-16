@@ -4,6 +4,15 @@ AfriExchange (AfriX) is a non-custodial multi-token payment and settlement platf
 
 ---
 
+## Verified Production Integrations
+
+The platform features two primary integration patterns, both fully implemented, tested, and working in production:
+
+- **Path A (Standard Merchant Integration):** Single-merchant hosted checkout, payment request API, and signed webhook reconciliation. Live reference: **PlugNG Shop** ([plugng.shop](https://plugng.shop)).
+- **Path B (Marketplace / Partner Integration):** Server-to-server partner integration APIs, customer wallet linking, payouts, and HMAC-signed webhook delivery. Live reference: **Kaalis Store** ([bruthol.com](https://bruthol.com)).
+
+---
+
 ## Repository structure
 
 | Folder          | Description                    |

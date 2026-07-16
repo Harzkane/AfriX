@@ -20,6 +20,7 @@ import apiClient from "@/services/apiClient";
 import { API_ENDPOINTS } from "@/constants/api";
 import { useAuthStore } from "@/stores";
 import { formatDate } from "@/utils/format";
+import { useTranslation } from "react-i18next";
 
 interface Transaction {
   id: string;
@@ -94,6 +95,7 @@ export default function TransactionHistoryScreen() {
   const { user } = useAuthStore();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
+  const { t } = useTranslation();
 
   const insets = useSafeAreaInsets();
   const [headerMaxHeight, setHeaderMaxHeight] = useState(insets.top + 70);
@@ -329,12 +331,12 @@ export default function TransactionHistoryScreen() {
   ).length;
   const currentFilterLabel =
     filter === "all"
-      ? "Activity Overview"
-      : `${String(filter).charAt(0).toUpperCase() + String(filter).slice(1)} Activity`;
+      ? t("activity.overview_label", "Activity Overview")
+      : t(`activity.filter_${filter}_label` as any, `${t(`activity.filter_${filter}` as any)} Activity`, { filter: t(`activity.filter_${filter}` as any) });
   const currentFilterSummary =
     filter === "all"
-      ? "Review every request and transaction outcome across mint, burn, swap, transfer, credit, and debit in one timeline."
-      : `Review your ${filter} activity and track the current status of each entry.`;
+      ? t("activity.overview_summary", "Review every request and transaction outcome across mint, burn, swap, transfer, credit, and debit in one timeline.")
+      : t(`activity.filter_${filter}_summary` as any, "Review your {{filter}} activity and track the current status of each entry.", { filter: t(`activity.filter_${filter}` as any).toLowerCase() });
 
   const completedCount = transactions.filter((tx) =>
     ["confirmed", "completed"].includes((tx.status || "").toLowerCase()),
@@ -362,10 +364,10 @@ export default function TransactionHistoryScreen() {
   };
 
   const activityStats = [
-    { label: "Total", value: transactions.length },
-    { label: "Active", value: activeCount },
-    { label: "Completed", value: completedCount },
-    { label: "Issues", value: failedCount },
+    { label: t("activity.stat_total", "Total"), value: transactions.length },
+    { label: t("activity.stat_active", "Active"), value: activeCount },
+    { label: t("activity.stat_completed", "Completed"), value: completedCount },
+    { label: t("activity.stat_issues", "Issues"), value: failedCount },
   ];
 
   const getStatusColor = (status: string) => {
@@ -446,7 +448,7 @@ export default function TransactionHistoryScreen() {
 
   const getCreditDebitLabel = (tx: Transaction) => {
     if (!isCreditOrDebitType(tx.type)) return null;
-    return isDebitForUser(tx) ? "Debit" : "Credit";
+    return isDebitForUser(tx) ? t("activity.filter_debit", "Debit") : t("activity.filter_credit", "Credit");
   };
 
   const handleTransactionPress = (tx: Transaction) => {
@@ -521,7 +523,7 @@ export default function TransactionHistoryScreen() {
             </TouchableOpacity>
 
             <View style={styles.headerCopy}>
-              <Text style={[styles.title, { color: theme.text }]}>Activity</Text>
+              <Text style={[styles.title, { color: theme.text }]}>{t("activity.title")}</Text>
               <Animated.View style={{
                 opacity: subtitleOpacity,
                 maxHeight: subtitleMaxHeight,
@@ -529,14 +531,14 @@ export default function TransactionHistoryScreen() {
                 overflow: "hidden"
               }}>
                 <Text style={[styles.headerSubtitle, { color: theme.muted }]}>
-                  Track every request, transfer, swap, and admin outcome.
+                  {t("activity.subtitle")}
                 </Text>
               </Animated.View>
             </View>
 
             <View style={[styles.headerBadge, { backgroundColor: theme.card, borderColor: theme.border }]}>
               <View style={[styles.liveDot, { backgroundColor: theme.accent }]} />
-              <Text style={[styles.headerBadgeText, { color: theme.text }]}>Live</Text>
+              <Text style={[styles.headerBadgeText, { color: theme.text }]}>{t("agents.live")}</Text>
             </View>
           </View>
         </SafeAreaView>
@@ -572,7 +574,7 @@ export default function TransactionHistoryScreen() {
             <View style={styles.heroTopRow}>
               <View style={styles.heroCopy}>
                 <Text style={[styles.heroEyebrow, { color: theme.accent }]}>
-                  Activity timeline
+                  {t("activity.timeline_title")}
                 </Text>
                 <Text style={[styles.heroTitle, { color: theme.text }]}>
                   {currentFilterLabel}
@@ -584,7 +586,7 @@ export default function TransactionHistoryScreen() {
 
               <View style={[styles.heroPill, { backgroundColor: theme.surface, borderColor: theme.border }]}>
                 <Text style={[styles.heroPillLabel, { color: theme.text }]}>
-                  Updated now
+                  {t("activity.updated_now")}
                 </Text>
               </View>
             </View>
@@ -609,10 +611,10 @@ export default function TransactionHistoryScreen() {
           <View style={styles.sectionHeaderRow}>
             <View>
               <Text style={[styles.sectionTitleText, { color: theme.text }]}>
-                Filters
+                {t("activity.filters")}
               </Text>
               <Text style={[styles.sectionSubtitle, { color: theme.muted }]}>
-                Narrow the feed by transaction type.
+                {t("activity.filters_sub")}
               </Text>
             </View>
             <View style={[styles.sectionBadge, { backgroundColor: theme.card, borderColor: theme.border }]}>
@@ -620,7 +622,7 @@ export default function TransactionHistoryScreen() {
                 {filteredTransactions.length}
               </Text>
               <Text style={[styles.sectionBadgeLabel, { color: theme.muted }]}>
-                items
+                {t("activity.items")}
               </Text>
             </View>
           </View>
@@ -659,7 +661,7 @@ export default function TransactionHistoryScreen() {
                   ]}
                   numberOfLines={1}
                 >
-                  {String(f).charAt(0).toUpperCase() + String(f).slice(1)}
+                  {t(`activity.filter_${String(f).toLowerCase()}` as any)}
                 </Text>
               </TouchableOpacity>
             ))}
@@ -668,10 +670,10 @@ export default function TransactionHistoryScreen() {
           <View style={styles.sectionHeaderRow}>
             <View>
               <Text style={[styles.sectionTitleText, { color: theme.text }]}>
-                Recent activity
+                {t("activity.recent_activity")}
               </Text>
               <Text style={[styles.sectionSubtitle, { color: theme.muted }]}>
-                Latest entries appear first.
+                {t("activity.recent_activity_sub")}
               </Text>
             </View>
             <View style={[styles.sectionBadge, { backgroundColor: theme.card, borderColor: theme.border }]}>
@@ -679,7 +681,7 @@ export default function TransactionHistoryScreen() {
                 {transactions.length}
               </Text>
               <Text style={[styles.sectionBadgeLabel, { color: theme.muted }]}>
-                total
+                {t("activity.total")}
               </Text>
             </View>
           </View>
@@ -688,7 +690,7 @@ export default function TransactionHistoryScreen() {
             <View style={[styles.loadingContainer, { backgroundColor: theme.card, borderColor: theme.border }]}>
               <ActivityIndicator size="large" color={theme.accent} />
               <Text style={[styles.loadingText, { color: theme.muted }]}>
-                Loading activity...
+                {t("activity.loading_activity", "Loading activity...")}
               </Text>
             </View>
           ) : filteredTransactions.length === 0 ? (
@@ -711,39 +713,11 @@ export default function TransactionHistoryScreen() {
               </View>
 
               <Text style={[styles.emptyStateTitle, { color: theme.text }]}>
-                {filter === "all"
-                  ? "No activity yet"
-                  : filter === "mint"
-                    ? "No mint transactions"
-                    : filter === "burn"
-                      ? "No burn transactions"
-                      : filter === "swap"
-                        ? "No swap transactions"
-                        : filter === "collection"
-                          ? "No collection transactions"
-                          : filter === "transfer"
-                            ? "No transfer transactions"
-                            : filter === "credit"
-                              ? "No credit transactions"
-                              : "No debit transactions"}
+                {t(`activity.empty_title_${filter}` as any, "No transactions yet")}
               </Text>
 
               <Text style={[styles.emptyStateDescription, { color: theme.muted }]}>
-                {filter === "all"
-                  ? "Your requests and transaction history will appear here once you start buying, selling, swapping, or transferring tokens."
-                  : filter === "mint"
-                    ? "You haven't purchased any tokens yet. Start by buying your first tokens from a trusted agent."
-                    : filter === "burn"
-                      ? "You haven't sold any tokens yet. Start by selling tokens to convert them to fiat currency."
-                      : filter === "swap"
-                        ? "You haven't swapped any tokens yet. Use Swap to convert between different token types."
-                        : filter === "collection"
-                          ? "You haven't received any collection activity yet. Collection entries will appear here when available."
-                          : filter === "transfer"
-                            ? "You haven't sent or received any tokens yet. Start by using Send or Receive to move tokens."
-                            : filter === "credit"
-                              ? "You don't have any incoming credits yet. Credits appear when you receive tokens from another user."
-                              : "You don't have any debits yet. Debits appear when you send tokens to another user."}
+                {t(`activity.empty_desc_${filter}` as any, "Your requests and transaction history will appear here once you start.")}
               </Text>
 
               <View style={styles.emptyStateActions}>
@@ -759,7 +733,7 @@ export default function TransactionHistoryScreen() {
                     >
                       <Ionicons name="add-circle" size={20} color="#FFFFFF" />
                       <Text style={styles.emptyStateButtonText}>
-                        Buy Tokens
+                        {t("activity.btn_buy", "Buy Tokens")}
                       </Text>
                     </LinearGradient>
                   </TouchableOpacity>
@@ -781,7 +755,7 @@ export default function TransactionHistoryScreen() {
                         color="#F59E0B"
                       />
                       <Text style={styles.emptyStateButtonTextSecondary}>
-                        Sell Tokens
+                        {t("activity.btn_sell", "Sell Tokens")}
                       </Text>
                     </View>
                   </TouchableOpacity>
@@ -798,7 +772,7 @@ export default function TransactionHistoryScreen() {
                     />
                   </View>
                   <Text style={[styles.infoText, { color: theme.muted }]}>
-                    All transactions are secure and protected
+                    {t("activity.secure_hint", "All transactions are secure and protected")}
                   </Text>
                 </View>
                 <View style={styles.infoItem}>
@@ -806,7 +780,7 @@ export default function TransactionHistoryScreen() {
                     <Ionicons name="time-outline" size={16} color="#6B7280" />
                   </View>
                   <Text style={[styles.infoText, { color: theme.muted }]}>
-                    Track request progress, final outcomes, and completed transactions in one place
+                    {t("activity.track_hint", "Track request progress, final outcomes, and completed transactions in one place")}
                   </Text>
                 </View>
               </View>
@@ -858,8 +832,8 @@ export default function TransactionHistoryScreen() {
                           <View style={styles.transactionMetaRow}>
                             <Text style={[styles.eyebrow, { color: theme.muted }]}>
                               {isAdminResolvedActivity(tx)
-                                ? "Admin Resolution"
-                                : getCreditDebitLabel(tx) || "Transaction"}
+                                ? t("activity.admin_resolution", "Admin Resolution")
+                                : getCreditDebitLabel(tx) || t("activity.transaction", "Transaction")}
                             </Text>
                             {pendingReviews.has(tx.id) ? (
                               <View
@@ -879,15 +853,15 @@ export default function TransactionHistoryScreen() {
                                     { color: theme.accent },
                                   ]}
                                 >
-                                  Pending review
+                                  {t("activity.pending_review", "Pending review")}
                                 </Text>
                               </View>
                             ) : null}
                           </View>
                           <Text style={[styles.transactionType, { color: theme.text }]}>
                             {isAdminResolvedActivity(tx) && tx.type === "mint"
-                              ? "Mint Credit"
-                              : tx.type.charAt(0).toUpperCase() + tx.type.slice(1)}
+                              ? t("activity.mint_credit", "Mint Credit")
+                              : t(`activity.filter_${(tx.type || "").toLowerCase()}` as any, tx.type.charAt(0).toUpperCase() + tx.type.slice(1))}
                           </Text>
                           <Text style={[styles.transactionDate, { color: theme.muted }]}>
                             {formatDate(tx.created_at, true)}
@@ -911,7 +885,7 @@ export default function TransactionHistoryScreen() {
                               { color: getStatusColor(tx.status) },
                             ]}
                           >
-                            {tx.status}
+                            {t(`home.status_${(tx.status || "").toLowerCase()}` as any, tx.status)}
                           </Text>
                         </View>
                       </View>
@@ -926,7 +900,7 @@ export default function TransactionHistoryScreen() {
                       >
                         <View>
                           <Text style={[styles.amountLabel, { color: theme.muted }]}>
-                            Amount
+                            {t("activity.amount_label", "Amount")}
                           </Text>
                           <Text style={[styles.transactionAmount, { color: theme.text }]}>
                             {getAmountPrefix(tx)}
@@ -935,7 +909,7 @@ export default function TransactionHistoryScreen() {
                         </View>
                         <View style={styles.amountMeta}>
                           <Text style={[styles.amountMetaLabel, { color: theme.muted }]}>
-                            Status
+                            {t("home.status", "Status")}
                           </Text>
                           <Text
                             style={[
@@ -943,7 +917,7 @@ export default function TransactionHistoryScreen() {
                               { color: getStatusColor(tx.status) },
                             ]}
                           >
-                            {tx.status}
+                            {t(`home.status_${(tx.status || "").toLowerCase()}` as any, tx.status)}
                           </Text>
                         </View>
                       </View>
@@ -959,7 +933,7 @@ export default function TransactionHistoryScreen() {
                         ]}
                       >
                         <Text style={[styles.infoStripLabel, { color: theme.muted }]}>
-                          Received
+                          {t("home.activity_received", "Received")}
                         </Text>
                         <Text style={[styles.infoStripValue, { color: theme.text }]}>
                           {parseFloat(String(tx.metadata.received_amount)).toLocaleString()}{" "}
@@ -976,7 +950,7 @@ export default function TransactionHistoryScreen() {
                         ]}
                       >
                         <Text style={[styles.infoStripLabel, { color: theme.muted }]}>
-                          {tx.fee_label || "Fee"}
+                          {tx.fee_label || t("activity.fee", "Fee")}
                         </Text>
                         <Text style={[styles.infoStripValue, { color: theme.text }]}>
                           {String(tx.fee_amount ?? tx.fee ?? "0")} {tx.token_type}
@@ -992,12 +966,12 @@ export default function TransactionHistoryScreen() {
                         ]}
                       >
                         <Text style={[styles.infoStripLabel, { color: theme.muted }]}>
-                          Resolution
+                          {t("activity.resolution", "Resolution")}
                         </Text>
                         <Text style={[styles.infoStripValue, { color: theme.text }]}>
                           {tx.metadata?.resolution_action === "penalize_agent"
-                            ? "Admin resolved in your favor"
-                            : "Admin credited your wallet"}
+                            ? t("activity.admin_resolved_favor", "Admin resolved in your favor")
+                            : t("activity.admin_credited_wallet", "Admin credited your wallet")}
                         </Text>
                       </View>
                     ) : null}
@@ -1016,7 +990,7 @@ export default function TransactionHistoryScreen() {
                             color={theme.muted}
                           />
                           <Text style={[styles.agentName, { color: theme.muted }]}>
-                            {tx.agent.user?.full_name || "Agent"}
+                            {tx.agent.user?.full_name || t("home.switch_agent", "Agent")}
                           </Text>
                           <View style={styles.ratingContainer}>
                             <Ionicons name="star" size={12} color="#FFB800" />
@@ -1051,7 +1025,7 @@ export default function TransactionHistoryScreen() {
                               size={16}
                               color="#8B5CF6"
                             />
-                            <Text style={styles.rateButtonText}>Rate Agent</Text>
+                            <Text style={styles.rateButtonText}>{t("activity.rate_agent", "Rate Agent")}</Text>
                           </TouchableOpacity>
                         )}
                       </View>

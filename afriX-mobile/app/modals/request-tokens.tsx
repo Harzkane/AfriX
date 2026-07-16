@@ -13,65 +13,66 @@ import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
+import { useTranslation } from "react-i18next";
 
-const UPCOMING_FEATURES = [
-  {
-    icon: "people-outline" as const,
-    title: "Request from anyone",
-    description:
-      "Create token requests for friends, customers, or teammates in a few taps — no account needed on their side.",
-    color: "#00B14F",
-    softBg: "rgba(0,177,79,0.12)",
-  },
-  {
-    icon: "options-outline" as const,
-    title: "Choose exact amounts",
-    description:
-      "Set the token type, amount, and a clear reason so recipients know exactly what to pay and why.",
-    color: "#3B82F6",
-    softBg: "rgba(59,130,246,0.12)",
-  },
-  {
-    icon: "pulse-outline" as const,
-    title: "Track request status",
-    description:
-      "See when requests are pending, viewed, paid, or overdue — all from one clean live timeline.",
-    color: "#A855F7",
-    softBg: "rgba(168,85,247,0.12)",
-  },
-];
-
-const TIMELINE_STEPS = [
-  {
-    step: "01",
-    title: "Create request",
-    desc: "Select token, amount, and recipient details with a cleaner, guided form.",
-  },
-  {
-    step: "02",
-    title: "Share & notify",
-    desc: "Recipients get a clear prompt with full context — no guessing what the request is for.",
-  },
-  {
-    step: "03",
-    title: "Track completion",
-    desc: "Monitor pending and completed requests without chasing updates manually.",
-  },
-];
-
-const BENEFITS = [
-  "Faster collection flow without back-and-forth messages",
-  "Clear status visibility for every outstanding request",
-  "Instant confirmation when a request is fulfilled",
-];
+// Static mappings moved inside component body
 
 export default function RequestTokensModal() {
   const router = useRouter();
+  const { t } = useTranslation();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
   const insets = useSafeAreaInsets();
   const scrollY = useRef(new Animated.Value(0)).current;
   const [headerMaxHeight, setHeaderMaxHeight] = useState(insets.top + 70);
+
+  const UPCOMING_FEATURES = [
+    {
+      icon: "people-outline" as const,
+      title: t("request_tokens.feature_title_1", "Request from anyone"),
+      description: t("request_tokens.feature_desc_1", "Create token requests for friends, customers, or teammates in a few taps — no account needed on their side."),
+      color: "#00B14F",
+      softBg: "rgba(0,177,79,0.12)",
+    },
+    {
+      icon: "options-outline" as const,
+      title: t("request_tokens.feature_title_2", "Choose exact amounts"),
+      description: t("request_tokens.feature_desc_2", "Set the token type, amount, and a clear reason so recipients know exactly what to pay and why."),
+      color: "#3B82F6",
+      softBg: "rgba(59,130,246,0.12)",
+    },
+    {
+      icon: "pulse-outline" as const,
+      title: t("request_tokens.feature_title_3", "Track request status"),
+      description: t("request_tokens.feature_desc_3", "See when requests are pending, viewed, paid, or overdue — all from one clean live timeline."),
+      color: "#A855F7",
+      softBg: "rgba(168,85,247,0.12)",
+    },
+  ];
+
+  const TIMELINE_STEPS = [
+    {
+      step: "01",
+      title: t("request_tokens.step_title_1", "Create request"),
+      desc: t("request_tokens.step_desc_1", "Select token, amount, and recipient details with a cleaner, guided form."),
+    },
+    {
+      step: "02",
+      title: t("request_tokens.step_title_2", "Share & notify"),
+      desc: t("request_tokens.step_desc_2", "Recipients get a clear prompt with full context — no guessing what the request is for."),
+    },
+    {
+      step: "03",
+      title: t("request_tokens.step_title_3", "Track completion"),
+      desc: t("request_tokens.step_desc_3", "Monitor pending and completed requests without chasing updates manually."),
+    },
+  ];
+
+  const BENEFITS = [
+    t("request_tokens.benefit_item_1", "Faster collection flow without back-and-forth messages"),
+    t("request_tokens.benefit_item_2", "Clear status visibility for every outstanding request"),
+    t("request_tokens.benefit_item_3", "Instant confirmation when a request is fulfilled"),
+  ];
 
   const theme = {
     background: isDark ? "#07111A" : "#F5F7FB",
@@ -137,7 +138,7 @@ export default function RequestTokensModal() {
             </TouchableOpacity>
             <View style={{ flex: 1 }}>
               <Text style={[styles.headerTitle, { color: theme.text }]}>
-                Request Tokens
+                {t("request_tokens.header_title", "Request Tokens")}
               </Text>
               <Animated.View
                 style={{
@@ -148,7 +149,7 @@ export default function RequestTokensModal() {
                 }}
               >
                 <Text style={[styles.headerSubtitle, { color: theme.muted }]}>
-                  A smarter way to ask for tokens is on its way.
+                  {t("request_tokens.header_subtitle", "A smarter way to ask for tokens is on its way.")}
                 </Text>
               </Animated.View>
             </View>
@@ -197,7 +198,7 @@ export default function RequestTokensModal() {
           >
             <Ionicons name="sparkles-outline" size={13} color={theme.amber} />
             <Text style={[styles.heroBadgeText, { color: theme.amber }]}>
-              Premium update in progress
+              {t("request_tokens.badge_premium", "Premium update in progress")}
             </Text>
           </View>
 
@@ -229,17 +230,16 @@ export default function RequestTokensModal() {
                 color={theme.blue}
               />
               <Text style={[styles.heroFloatText, { color: theme.blue }]}>
-                Request alert
+                {t("request_tokens.alert_request", "Request alert")}
               </Text>
             </View>
           </View>
 
           <Text style={[styles.heroTitle, { color: theme.text }]}>
-            A better way to ask for tokens is coming
+            {t("request_tokens.hero_title", "A better way to ask for tokens is coming")}
           </Text>
           <Text style={[styles.heroSubtitle, { color: theme.muted }]}>
-            We are redesigning this flow to feel more polished, easier to track,
-            and more trustworthy for both sender and recipient.
+            {t("request_tokens.hero_subtitle", "We are redesigning this flow to feel more polished, easier to track, and more trustworthy for both sender and recipient.")}
           </Text>
         </View>
 
@@ -257,24 +257,23 @@ export default function RequestTokensModal() {
           </View>
           <View style={{ flex: 1 }}>
             <Text style={[styles.statusEyebrow, { color: theme.accent }]}>
-              NOW IN DEVELOPMENT
+              {t("request_tokens.status_eyebrow", "NOW IN DEVELOPMENT")}
             </Text>
             <Text style={[styles.statusTitle, { color: theme.text }]}>
-              Request flow premium refresh
+              {t("request_tokens.status_title", "Request flow premium refresh")}
             </Text>
             <Text style={[styles.statusDesc, { color: theme.muted }]}>
-              This screen is next in the upgrade queue and will follow the same
-              premium direction as Buy, Sell, Send, Receive, and Swap.
+              {t("request_tokens.status_desc", "This screen is next in the upgrade queue and will follow the same premium direction as Buy, Sell, Send, Receive, and Swap.")}
             </Text>
           </View>
         </View>
 
         {/* Upcoming features */}
         <Text style={[styles.sectionEyebrow, { color: theme.muted }]}>
-          What's Coming
+          {t("request_tokens.section_upcoming_eyebrow", "What's Coming")}
         </Text>
         <Text style={[styles.sectionTitle, { color: theme.text }]}>
-          Planned request experience
+          {t("request_tokens.section_upcoming_title", "Planned request experience")}
         </Text>
 
         {UPCOMING_FEATURES.map((f) => (
@@ -316,10 +315,10 @@ export default function RequestTokensModal() {
           ]}
         >
           <Text style={[styles.sectionEyebrow, { color: theme.muted }]}>
-            Flow Direction
+            {t("request_tokens.section_timeline_eyebrow", "Flow Direction")}
           </Text>
           <Text style={[styles.sectionTitle, { color: theme.text }]}>
-            The polished journey ahead
+            {t("request_tokens.section_timeline_title", "The polished journey ahead")}
           </Text>
 
           {TIMELINE_STEPS.map((step, i) => (
@@ -363,10 +362,10 @@ export default function RequestTokensModal() {
           ]}
         >
           <Text style={[styles.sectionEyebrow, { color: theme.accent }]}>
-            Why It Matters
+            {t("request_tokens.section_benefits_eyebrow", "Why It Matters")}
           </Text>
           <Text style={[styles.sectionTitle, { color: theme.text }]}>
-            Focused on clarity and confidence
+            {t("request_tokens.section_benefits_title", "Focused on clarity and confidence")}
           </Text>
 
           {BENEFITS.map((b) => (
@@ -390,7 +389,7 @@ export default function RequestTokensModal() {
           onPress={() => router.back()}
           activeOpacity={0.85}
         >
-          <Text style={styles.backBtnText}>Back for now</Text>
+          <Text style={styles.backBtnText}>{t("request_tokens.btn_back", "Back for now")}</Text>
         </TouchableOpacity>
 
         <View style={{ height: 40 }} />

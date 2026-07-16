@@ -20,6 +20,7 @@ import apiClient from "@/services/apiClient";
 import { SUPPORTED_COUNTRIES, stripLeadingZero } from "@/constants/countries";
 import { useWalletStore } from "@/stores";
 import { formatDate, formatAmountOrCompact } from "@/utils/format";
+import { useTranslation } from "react-i18next";
 
 interface AgentProfile {
     id: string;
@@ -123,6 +124,7 @@ export default function AgentProfileScreen() {
     const { exchangeRates } = useWalletStore();
     const colorScheme = useColorScheme();
     const isDark = colorScheme === "dark";
+    const { t } = useTranslation();
     const theme = {
         background: isDark ? "#07111A" : "#F5F7FB",
         card: isDark ? "#0E1726" : "#FFFFFF",
@@ -196,7 +198,7 @@ export default function AgentProfileScreen() {
         try {
             await Linking.openURL(`tel:${contactNumber}`);
         } catch {
-            Alert.alert("Unable to place call", "This phone number could not be opened on your device.");
+            Alert.alert(t("agents.alert_unable_call", "Unable to place call"), t("agents.alert_phone_not_opened", "This phone number could not be opened on your device."));
         }
     };
 
@@ -217,7 +219,7 @@ export default function AgentProfileScreen() {
 
             await Linking.openURL(whatsappUrl);
         } catch {
-            Alert.alert("Unable to open WhatsApp", "The WhatsApp link could not be opened on this device.");
+            Alert.alert(t("agents.alert_unable_whatsapp", "Unable to open WhatsApp"), t("agents.alert_whatsapp_not_opened", "The WhatsApp link could not be opened on this device."));
         }
     };
 
@@ -250,7 +252,7 @@ export default function AgentProfileScreen() {
         return (
             <View style={[styles.loadingContainer, { backgroundColor: theme.background }]}>
                 <ActivityIndicator size="large" color={theme.accent} />
-                <Text style={[styles.loadingText, { color: theme.muted }]}>Loading agent profile...</Text>
+                <Text style={[styles.loadingText, { color: theme.muted }]}>{t("agents.loading_profile_details", "Loading agent profile...")}</Text>
             </View>
         );
     }
@@ -261,12 +263,12 @@ export default function AgentProfileScreen() {
                 <View style={[styles.errorIconWrap, { backgroundColor: isDark ? "rgba(239,68,68,0.14)" : "#FEF2F2" }]}>
                     <Ionicons name="person-circle-outline" size={28} color="#EF4444" />
                 </View>
-                <Text style={[styles.errorTitle, { color: theme.text }]}>Agent not found</Text>
+                <Text style={[styles.errorTitle, { color: theme.text }]}>{t("agents.agent_not_found", "Agent not found")}</Text>
                 <Text style={[styles.errorText, { color: theme.muted }]}>
-                    We couldn&apos;t load this agent profile right now.
+                    {t("agents.unable_load_profile", "We couldn't load this agent profile right now.")}
                 </Text>
                 <TouchableOpacity style={styles.primaryButton} onPress={() => router.back()} activeOpacity={0.85}>
-                    <Text style={styles.primaryButtonText}>Go Back</Text>
+                    <Text style={styles.primaryButtonText}>{t("agents.go_back", "Go Back")}</Text>
                 </TouchableOpacity>
             </View>
         );
@@ -326,13 +328,13 @@ export default function AgentProfileScreen() {
                             <Ionicons name="arrow-back" size={22} color={theme.text} />
                         </TouchableOpacity>
                         <View style={styles.headerTitleWrap}>
-                            <Text style={[styles.headerKicker, { color: theme.text }]}>Agent Profile</Text>
+                            <Text style={[styles.headerKicker, { color: theme.text }]}>{t("agents.profile_kicker", "Agent Profile")}</Text>
                             <Animated.View style={{
                                 opacity: subtitleOpacity,
                                 maxHeight: subtitleMaxHeight,
                                 overflow: "hidden"
                             }}>
-                                <Text style={[styles.headerTitle, { color: theme.muted }]}>Review before you trade</Text>
+                                <Text style={[styles.headerTitle, { color: theme.muted }]}>{t("agents.review_before_trade", "Review before you trade")}</Text>
                             </Animated.View>
                         </View>
                         <View style={styles.placeholder} />
@@ -356,10 +358,10 @@ export default function AgentProfileScreen() {
                     colors={isDark ? ["#0E1726", "#111E2E"] : ["#F7FFF9", "#FFFFFF"]}
                     style={[styles.summaryCard, { borderColor: theme.border }]}
                 >
-                    <Text style={[styles.summaryEyebrow, { color: theme.accent }]}>Verified Agent</Text>
-                    <Text style={[styles.summaryTitle, { color: theme.text }]}>Choose an agent with confidence</Text>
+                    <Text style={[styles.summaryEyebrow, { color: theme.accent }]}>{t("agents.verified_agent", "Verified Agent")}</Text>
+                    <Text style={[styles.summaryTitle, { color: theme.text }]}>{t("agents.choose_confidence", "Choose an agent with confidence")}</Text>
                     <Text style={[styles.summaryText, { color: theme.muted }]}>
-                        Check capacity, response speed, payment channels, and recent feedback before you buy or sell tokens.
+                        {t("agents.check_details_desc", "Check capacity, response speed, payment channels, and recent feedback before you buy or sell tokens.")}
                     </Text>
                 </LinearGradient>
 
@@ -384,11 +386,11 @@ export default function AgentProfileScreen() {
                                         { backgroundColor: `${tierColor}15`, borderColor: `${tierColor}35` },
                                     ]}
                                 >
-                                    <Text style={[styles.tierText, { color: tierColor }]}>{agent.tier} agent</Text>
+                                    <Text style={[styles.tierText, { color: tierColor }]}>{t("agents.tier_agent", "{{tier}} agent", { tier: agent.tier })}</Text>
                                 </View>
                                 {isActive && (
                                     <View style={[styles.activePill, { backgroundColor: theme.accentSoft, borderColor: theme.accent + "40" }]}>
-                                        <Text style={[styles.activePillText, { color: theme.accent }]}>Active</Text>
+                                        <Text style={[styles.activePillText, { color: theme.accent }]}>{t("activity.stat_active", "Active")}</Text>
                                     </View>
                                 )}
                             </View>
@@ -412,7 +414,7 @@ export default function AgentProfileScreen() {
                                 />
                             ))}
                         </View>
-                        <Text style={[styles.ratingText, { color: theme.text }]}>{agent.rating.toFixed(1)} rating</Text>
+                        <Text style={[styles.ratingText, { color: theme.text }]}>{t("agents.rating_value", "{{rating}} rating", { rating: agent.rating.toFixed(1) })}</Text>
                     </View>
                 </View>
 
@@ -422,7 +424,7 @@ export default function AgentProfileScreen() {
                             <Ionicons name="wallet-outline" size={20} color={theme.accent} />
                         </View>
                         <Text style={[styles.statValue, { color: theme.text }]}>${formatAmountOrCompact(agent.available_capacity)}</Text>
-                        <Text style={[styles.statLabel, { color: theme.muted }]}>Capacity</Text>
+                        <Text style={[styles.statLabel, { color: theme.muted }]}>{t("agents.capacity_label", "Capacity")}</Text>
                     </View>
                     <View style={[styles.statDivider, { backgroundColor: theme.border }]} />
                     <View style={styles.statItem}>
@@ -430,7 +432,7 @@ export default function AgentProfileScreen() {
                             <Ionicons name="time-outline" size={20} color="#3B82F6" />
                         </View>
                         <Text style={[styles.statValue, { color: theme.text }]}>~{agent.response_time_minutes} min</Text>
-                        <Text style={[styles.statLabel, { color: theme.muted }]}>Response</Text>
+                        <Text style={[styles.statLabel, { color: theme.muted }]}>{t("agents.response_label", "Response")}</Text>
                     </View>
                     <View style={[styles.statDivider, { backgroundColor: theme.border }]} />
                     <View style={styles.statItem}>
@@ -438,7 +440,7 @@ export default function AgentProfileScreen() {
                             <Ionicons name="swap-horizontal" size={20} color="#8B5CF6" />
                         </View>
                         <Text style={[styles.statValue, { color: theme.text }]}>{totalTransactions.toLocaleString()}</Text>
-                        <Text style={[styles.statLabel, { color: theme.muted }]}>Transactions</Text>
+                        <Text style={[styles.statLabel, { color: theme.muted }]}>{t("activity.title", "Transactions")}</Text>
                     </View>
                 </View>
 
@@ -446,7 +448,7 @@ export default function AgentProfileScreen() {
                     {maxTradeDisplay != null && maxTradeDisplay > 0 ? (
                         <View style={[styles.highlightPill, { backgroundColor: theme.card, borderColor: theme.border }]}>
                             <Ionicons name="card-outline" size={16} color={theme.muted} />
-                            <Text style={[styles.highlightLabel, { color: theme.muted }]}>Max/trade</Text>
+                            <Text style={[styles.highlightLabel, { color: theme.muted }]}>{t("agents.max_trade_label", "Max/trade")}</Text>
                             <Text style={[styles.highlightValue, { color: theme.text }]}>
                                 {formatAmountOrCompact(maxTradeDisplay, maxTradeUnit)}
                             </Text>
@@ -455,7 +457,7 @@ export default function AgentProfileScreen() {
                     {feePercent != null ? (
                         <View style={[styles.highlightPill, { backgroundColor: theme.card, borderColor: theme.border }]}>
                             <Ionicons name="pricetag-outline" size={16} color={theme.muted} />
-                            <Text style={[styles.highlightLabel, { color: theme.muted }]}>Fee</Text>
+                            <Text style={[styles.highlightLabel, { color: theme.muted }]}>{t("activity.fee", "Fee")}</Text>
                             <Text style={[styles.highlightValue, { color: theme.text }]}>~{feePercent}%</Text>
                         </View>
                     ) : null}
@@ -471,7 +473,7 @@ export default function AgentProfileScreen() {
                             <View style={[styles.actionIconWrap, { backgroundColor: theme.accentSoft }]}>
                                 <Ionicons name="call-outline" size={18} color={theme.accent} />
                             </View>
-                            <Text style={[styles.actionTitle, { color: theme.text }]}>Call</Text>
+                            <Text style={[styles.actionTitle, { color: theme.text }]}>{t("agents.action_call", "Call")}</Text>
                             <Text style={[styles.actionSubtitle, { color: theme.muted }]}>{formattedPhoneNumber || agent.phone_number}</Text>
                         </TouchableOpacity>
                     ) : null}
@@ -485,7 +487,7 @@ export default function AgentProfileScreen() {
                             <View style={[styles.actionIconWrap, { backgroundColor: isDark ? "rgba(37,211,102,0.16)" : "#ECFDF5" }]}>
                                 <Ionicons name="logo-whatsapp" size={18} color="#25D366" />
                             </View>
-                            <Text style={[styles.actionTitle, { color: theme.text }]}>WhatsApp</Text>
+                            <Text style={[styles.actionTitle, { color: theme.text }]}>{t("agents.action_whatsapp", "WhatsApp")}</Text>
                             <Text style={[styles.actionSubtitle, { color: theme.muted }]}>{formattedWhatsAppNumber || agent.whatsapp_number}</Text>
                         </TouchableOpacity>
                     ) : null}
@@ -493,7 +495,7 @@ export default function AgentProfileScreen() {
 
                 {(agent.phone_number || agent.whatsapp_number) && (
                     <View style={[styles.sectionCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
-                        <Text style={[styles.sectionTitle, { color: theme.text }]}>Contact</Text>
+                        <Text style={[styles.sectionTitle, { color: theme.text }]}>{t("agents.contact_header", "Contact")}</Text>
                         {agent.phone_number ? (
                             <TouchableOpacity
                                 style={[styles.contactButton, { backgroundColor: theme.cardAlt, borderColor: theme.border }]}
@@ -505,7 +507,7 @@ export default function AgentProfileScreen() {
                                         <Ionicons name="call-outline" size={18} color={theme.accent} />
                                     </View>
                                     <View>
-                                        <Text style={[styles.contactLabel, { color: theme.muted }]}>Phone</Text>
+                                        <Text style={[styles.contactLabel, { color: theme.muted }]}>{t("profile.phone", "Phone Number")}</Text>
                                         <Text style={[styles.contactText, { color: theme.text }]}>{formattedPhoneNumber || agent.phone_number}</Text>
                                     </View>
                                 </View>
@@ -523,7 +525,7 @@ export default function AgentProfileScreen() {
                                         <Ionicons name="logo-whatsapp" size={18} color="#25D366" />
                                     </View>
                                     <View>
-                                        <Text style={[styles.contactLabel, { color: theme.muted }]}>WhatsApp</Text>
+                                        <Text style={[styles.contactLabel, { color: theme.muted }]}>{t("agents.action_whatsapp", "WhatsApp")}</Text>
                                         <Text style={[styles.contactText, { color: theme.text }]}>{formattedWhatsAppNumber || agent.whatsapp_number}</Text>
                                     </View>
                                 </View>
@@ -535,20 +537,20 @@ export default function AgentProfileScreen() {
 
                 {agent.bank_name ? (
                     <View style={[styles.sectionCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
-                        <Text style={[styles.sectionTitle, { color: theme.text }]}>Bank Details</Text>
+                        <Text style={[styles.sectionTitle, { color: theme.text }]}>{t("agents.bank_details_header", "Bank Details")}</Text>
                         <View style={[styles.infoRow, { borderBottomColor: theme.border }]}>
-                            <Text style={[styles.infoLabel, { color: theme.muted }]}>Bank Name</Text>
+                            <Text style={[styles.infoLabel, { color: theme.muted }]}>{t("agents.bank_name_label", "Bank Name")}</Text>
                             <Text style={[styles.infoValue, { color: theme.text }]}>{agent.bank_name}</Text>
                         </View>
                         {agent.account_number ? (
                             <View style={[styles.infoRow, { borderBottomColor: theme.border }]}>
-                                <Text style={[styles.infoLabel, { color: theme.muted }]}>Account Number</Text>
+                                <Text style={[styles.infoLabel, { color: theme.muted }]}>{t("agents.account_number_label", "Account Number")}</Text>
                                 <Text style={[styles.infoValue, { color: theme.text }]}>{agent.account_number}</Text>
                             </View>
                         ) : null}
                         {agent.account_name ? (
                             <View style={styles.infoRowLast}>
-                                <Text style={[styles.infoLabel, { color: theme.muted }]}>Account Name</Text>
+                                <Text style={[styles.infoLabel, { color: theme.muted }]}>{t("agents.account_name_label", "Account Name")}</Text>
                                 <Text style={[styles.infoValue, { color: theme.text }]}>{agent.account_name}</Text>
                             </View>
                         ) : null}
@@ -557,14 +559,14 @@ export default function AgentProfileScreen() {
 
                 {(agent.currency === "XOF" || agent.mobile_money_provider || agent.mobile_money_number) && (
                     <View style={[styles.sectionCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
-                        <Text style={[styles.sectionTitle, { color: theme.text }]}>Mobile Money</Text>
+                        <Text style={[styles.sectionTitle, { color: theme.text }]}>{t("agents.mobile_money_header", "Mobile Money")}</Text>
                         <View style={[styles.infoRow, { borderBottomColor: theme.border }]}>
-                            <Text style={[styles.infoLabel, { color: theme.muted }]}>Provider</Text>
+                            <Text style={[styles.infoLabel, { color: theme.muted }]}>{t("agents.provider_label", "Provider")}</Text>
                             <Text style={[styles.infoValue, { color: theme.text }]}>{agent.mobile_money_provider || "—"}</Text>
                         </View>
                         {agent.mobile_money_number ? (
                             <View style={styles.infoRowLast}>
-                                <Text style={[styles.infoLabel, { color: theme.muted }]}>Phone Number</Text>
+                                <Text style={[styles.infoLabel, { color: theme.muted }]}>{t("agents.phone_number_label", "Phone Number")}</Text>
                                 <Text style={[styles.infoValue, { color: theme.text }]}>{agent.mobile_money_number}</Text>
                             </View>
                         ) : null}
@@ -573,7 +575,7 @@ export default function AgentProfileScreen() {
 
                 {reviews.length > 0 && (
                     <View style={[styles.sectionCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
-                        <Text style={[styles.sectionTitle, { color: theme.text }]}>Recent Reviews</Text>
+                        <Text style={[styles.sectionTitle, { color: theme.text }]}>{t("agents.recent_reviews_header", "Recent Reviews")}</Text>
                         {reviews.map((review, index) => (
                             <View
                                 key={review.id}
@@ -611,7 +613,7 @@ export default function AgentProfileScreen() {
                         activeOpacity={0.85}
                     >
                         <Ionicons name="arrow-down-circle-outline" size={20} color="#F59E0B" />
-                        <Text style={[styles.sellButtonText, { color: "#F59E0B" }]}>Sell Tokens</Text>
+                        <Text style={[styles.sellButtonText, { color: "#F59E0B" }]}>{t("activity.btn_sell", "Sell Tokens")}</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                         style={[styles.actionButton, styles.buyButton, { backgroundColor: theme.accent, shadowColor: theme.accent }]}
@@ -619,7 +621,7 @@ export default function AgentProfileScreen() {
                         activeOpacity={0.85}
                     >
                         <Ionicons name="arrow-up-circle-outline" size={20} color="#FFFFFF" />
-                        <Text style={styles.buyButtonText}>Buy Tokens</Text>
+                        <Text style={styles.buyButtonText}>{t("activity.btn_buy", "Buy Tokens")}</Text>
                     </TouchableOpacity>
                 </View>
             </ScrollView>

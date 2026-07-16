@@ -18,6 +18,7 @@ import { useAuthStore } from "@/stores";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+import { useTranslation } from "react-i18next";
 
 const OTP_LENGTH = 6;
 
@@ -60,6 +61,7 @@ export default function VerifyScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const email = route.params?.email ?? "";
+  const { t } = useTranslation();
 
   const [digits, setDigits] = useState<string[]>(Array(OTP_LENGTH).fill(""));
   const [focusedIndex, setFocusedIndex] = useState(0);
@@ -114,12 +116,17 @@ export default function VerifyScreen() {
     try {
       await verifyEmail(token);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Alert.alert("Email Verified!", "Your email has been verified. Please login.", [
-        { text: "Login", onPress: () => navigation.navigate("login") },
-      ]);
+      Alert.alert(
+        t("auth.verify.success_title", "Email Verified!"),
+        t("auth.verify.success_desc", "Your email has been verified. Please login."),
+        [{ text: t("auth.register.login_link", "Login"), onPress: () => navigation.navigate("login") }]
+      );
     } catch {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert("Verification Failed", "Invalid or expired token. Please try again.");
+      Alert.alert(
+        t("auth.verify.error_title", "Verification Failed"),
+        t("auth.verify.error_desc", "Invalid or expired token. Please try again.")
+      );
       setDigits(Array(OTP_LENGTH).fill(""));
       setTimeout(() => inputRefs.current[0]?.focus(), 100);
       setFocusedIndex(0);
@@ -158,16 +165,15 @@ export default function VerifyScreen() {
               <LinearGradient colors={["#00B14F", "#10B981"]} style={styles.logoCircle}>
                 <Ionicons name="mail-open-outline" size={32} color="#FFFFFF" />
               </LinearGradient>
-              <Text style={[styles.welcomeText, { color: theme.text }]}>Verify Your Email</Text>
+              <Text style={[styles.welcomeText, { color: theme.text }]}>{t("auth.verify.title")}</Text>
               <Text style={[styles.subtitle, { color: theme.muted }]}>
-                We sent a 6-digit code to{"\n"}
-                <Text style={{ color: theme.accent, fontWeight: "800" }}>{email}</Text>
+                {t("auth.verify.subtitle", { email })}
               </Text>
             </View>
 
             {/* OTP Card */}
             <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
-              <Text style={[styles.otpLabel, { color: theme.muted }]}>Verification Code</Text>
+              <Text style={[styles.otpLabel, { color: theme.muted }]}>{t("auth.two_factor.code_label")}</Text>
 
               <View style={styles.otpRow}>
                 {digits.map((digit, index) => (
@@ -199,7 +205,7 @@ export default function VerifyScreen() {
                     <ActivityIndicator color="#FFFFFF" size="small" />
                   ) : (
                     <>
-                      <Text style={styles.verifyBtnText}>Verify Email</Text>
+                      <Text style={styles.verifyBtnText}>{t("auth.verify.btn_verify")}</Text>
                       <Ionicons name="checkmark-circle-outline" size={18} color="#FFFFFF" />
                     </>
                   )}
@@ -207,8 +213,8 @@ export default function VerifyScreen() {
               </TouchableOpacity>
 
               <TouchableOpacity style={styles.resendRow} onPress={() => navigation.goBack()}>
-                <Text style={[styles.resendText, { color: theme.muted }]}>Didn&apos;t get the code? </Text>
-                <Text style={[styles.resendLink, { color: theme.accent }]}>Resend</Text>
+                <Text style={[styles.resendText, { color: theme.muted }]}>{t("auth.verify.no_code")}</Text>
+                <Text style={[styles.resendLink, { color: theme.accent }]}>{t("auth.verify.resend")}</Text>
               </TouchableOpacity>
             </View>
           </View>

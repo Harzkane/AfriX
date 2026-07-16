@@ -16,11 +16,13 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
+import { useTranslation } from "react-i18next";
 import { useAuthStore } from "@/stores";
 import { useAgentStore } from "@/stores/slices/agentSlice";
 
 export default function WithdrawalRequest() {
   const router = useRouter();
+  const { t } = useTranslation();
   const params = useLocalSearchParams();
   const fromAgentProfile = params?.from === "agent-profile";
   const { user } = useAuthStore();
@@ -116,7 +118,10 @@ export default function WithdrawalRequest() {
   const copyAddress = () => {
     if (withdrawalAddress && withdrawalAddress !== "Not set") {
       Clipboard.setString(withdrawalAddress);
-      Alert.alert("Copied!", "Withdrawal address copied to clipboard");
+      Alert.alert(
+        t("agent.modals.withdrawal_request.copied_title", "Copied!"),
+        t("agent.modals.withdrawal_request.copied_desc", "Withdrawal address copied to clipboard")
+      );
     }
   };
 
@@ -124,17 +129,17 @@ export default function WithdrawalRequest() {
     const numValue = parseFloat(parseInput(value));
 
     if (isNaN(numValue) || numValue <= 0) {
-      setError("Please enter a valid amount");
+      setError(t("agent.modals.withdrawal_request.err_amount_invalid", "Please enter a valid amount"));
       return false;
     }
 
     if (numValue < 10) {
-      setError("Minimum withdrawal is $10 USDT");
+      setError(t("agent.modals.withdrawal_request.err_amount_min", "Minimum withdrawal is $10 USDT"));
       return false;
     }
 
     if (numValue > safeMaxWithdrawable) {
-      setError(`Cannot exceed Max Withdrawable ($${formatCurrency(safeMaxWithdrawable)})`);
+      setError(t("agent.modals.withdrawal_request.err_amount_exceed", "Cannot exceed Max Withdrawable (${{max}})", { max: formatCurrency(safeMaxWithdrawable) }));
       return false;
     }
 
@@ -175,17 +180,23 @@ export default function WithdrawalRequest() {
     }
 
     if (withdrawalAddress === "Not set") {
-      Alert.alert("Error", "Please set your withdrawal address in Bank Settings before requesting withdrawal");
+      Alert.alert(
+        t("agent.modals.withdrawal_request.err_title", "Error"),
+        t("agent.modals.withdrawal_request.err_no_address", "Please set your withdrawal address in Bank Settings before requesting withdrawal")
+      );
       return;
     }
 
     Alert.alert(
-      "Confirm Withdrawal",
-      `Are you sure you want to withdraw $${formatCurrency(parseFloat(amount))} USDT to your registered address:\n\n${withdrawalAddress}`,
+      t("agent.modals.withdrawal_request.confirm_title", "Confirm Withdrawal"),
+      t("agent.modals.withdrawal_request.confirm_desc", "Are you sure you want to withdraw ${{amount}} USDT to your registered address:\n\n{{address}}", {
+        amount: formatCurrency(parseFloat(amount)),
+        address: withdrawalAddress
+      }),
       [
-        { text: "Cancel", style: "cancel" },
+        { text: t("agent.modals.withdrawal_request.btn_cancel", "Cancel"), style: "cancel" },
         {
-          text: "Confirm",
+          text: t("agent.modals.withdrawal_request.btn_confirm", "Confirm"),
           onPress: async () => {
             try {
               const result = await createWithdrawalRequest(parseFloat(amount));
@@ -199,7 +210,10 @@ export default function WithdrawalRequest() {
                 },
               });
             } catch (err: any) {
-              Alert.alert("Error", err.message || "Failed to submit withdrawal request");
+              Alert.alert(
+                t("agent.modals.withdrawal_request.err_title", "Error"),
+                err.message || t("agent.modals.withdrawal_request.err_failed", "Failed to submit withdrawal request")
+              );
             }
           }
         }
@@ -217,7 +231,9 @@ export default function WithdrawalRequest() {
           <TouchableOpacity onPress={handleGoBack} style={[styles.backButton, { backgroundColor: theme.accentLight }]}>
             <Ionicons name="arrow-back" size={20} color={theme.accent} />
           </TouchableOpacity>
-          <Text style={[styles.headerTitle, { color: theme.text }]}>Request Withdrawal</Text>
+          <Text style={[styles.headerTitle, { color: theme.text }]}>
+            {t("agent.modals.withdrawal_request.header_title", "Request Withdrawal")}
+          </Text>
           <View style={{ width: 36 }} />
         </View>
       </SafeAreaView>
@@ -237,30 +253,42 @@ export default function WithdrawalRequest() {
             colors={isDark ? ["rgba(124, 58, 237, 0.15)", "rgba(18, 14, 36, 0.8)"] : ["rgba(124, 58, 237, 0.05)", "#FFFFFF"]}
             style={[styles.introCard, { borderColor: theme.border }]}
           >
-            <Text style={[styles.introEyebrow, { color: theme.accent }]}>Withdrawal Planning</Text>
-            <Text style={[styles.introTitle, { color: theme.text }]}>Move Available Funds Safely</Text>
+            <Text style={[styles.introEyebrow, { color: theme.accent }]}>
+              {t("agent.modals.withdrawal_request.summary_eyebrow", "Withdrawal Planning")}
+            </Text>
+            <Text style={[styles.introTitle, { color: theme.text }]}>
+              {t("agent.modals.withdrawal_request.summary_title", "Move Available Funds Safely")}
+            </Text>
             <Text style={[styles.introText, { color: theme.muted }]}>
-              Review your live withdrawal capacity, choose an amount, and submit a payout request to your saved wallet.
+              {t("agent.modals.withdrawal_request.summary_desc", "Review your live withdrawal capacity, choose an amount, and submit a payout request to your saved wallet.")}
             </Text>
           </LinearGradient>
 
           {/* Financial Summary card */}
-          <Text style={[styles.sectionLabel, { color: theme.muted }]}>FINANCIAL SUMMARY</Text>
+          <Text style={[styles.sectionLabel, { color: theme.muted }]}>
+            {t("agent.modals.withdrawal_request.section_financial", "FINANCIAL SUMMARY")}
+          </Text>
           <View style={[styles.summaryCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
             <View style={styles.summaryHeader}>
               <Ionicons name="wallet-outline" size={20} color={theme.accent} />
-              <Text style={[styles.summaryTitleText, { color: theme.text }]}>Withdrawable Assets</Text>
+              <Text style={[styles.summaryTitleText, { color: theme.text }]}>
+                {t("agent.modals.withdrawal_request.summary_title_text", "Withdrawable Assets")}
+              </Text>
             </View>
 
             <View style={styles.summaryRow}>
-              <Text style={[styles.summaryLabel, { color: theme.muted }]}>Total Collateral Deposit</Text>
+              <Text style={[styles.summaryLabel, { color: theme.muted }]}>
+                {t("agent.modals.withdrawal_request.label_total_collateral", "Total Collateral Deposit")}
+              </Text>
               <Text style={[styles.summaryValue, { color: theme.text }]}>${formatCurrency(totalDeposit)} USDT</Text>
             </View>
 
             <View style={[styles.divider, { backgroundColor: theme.border }]} />
 
             <View style={styles.summaryRow}>
-              <Text style={[styles.summaryLabel, { color: theme.muted }]}>Active Escrow Tokens</Text>
+              <Text style={[styles.summaryLabel, { color: theme.muted }]}>
+                {t("agent.modals.withdrawal_request.label_active_escrow", "Active Escrow Tokens")}
+              </Text>
               <Text style={[styles.summaryValue, { color: theme.text }]}>${formatCurrency(outstandingTokens)} USDT</Text>
             </View>
 
@@ -268,31 +296,39 @@ export default function WithdrawalRequest() {
               <>
                 <View style={[styles.divider, { backgroundColor: theme.border }]} />
                 <View style={styles.summaryRow}>
-                  <Text style={[styles.summaryLabel, { color: theme.muted }]}>Pending Withdrawals</Text>
+                  <Text style={[styles.summaryLabel, { color: theme.muted }]}>
+                    {t("agent.modals.withdrawal_request.label_pending_withdrawals", "Pending Withdrawals")}
+                  </Text>
                   <Text style={[styles.summaryValue, { color: theme.amber }]}>-${formatCurrency(pendingReserved)} USDT</Text>
                 </View>
               </>
             ) : null}
 
             <View style={[styles.summaryRow, styles.maxWithdrawableRow, { backgroundColor: theme.accentLight }]}>
-              <Text style={[styles.maxWithdrawableLabel, { color: theme.accent }]}>Net Max Withdrawable</Text>
+              <Text style={[styles.maxWithdrawableLabel, { color: theme.accent }]}>
+                {t("agent.modals.withdrawal_request.label_net_withdrawable", "Net Max Withdrawable")}
+              </Text>
               <Text style={[styles.maxWithdrawableValue, { color: theme.accent }]}>${formatCurrency(safeMaxWithdrawable)} USDT</Text>
             </View>
           </View>
 
           {/* Card 2: Withdrawal Configuration */}
-          <Text style={[styles.sectionLabel, { color: theme.muted, marginTop: 12 }]}>WITHDRAWAL AMOUNT</Text>
+          <Text style={[styles.sectionLabel, { color: theme.muted, marginTop: 12 }]}>
+            {t("agent.modals.withdrawal_request.section_amount", "WITHDRAWAL AMOUNT")}
+          </Text>
           <View style={[styles.formCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
             {/* Amount Input */}
             <View style={styles.inputGroup}>
-              <Text style={[styles.label, { color: theme.muted }]}>Enter Amount (USDT) *</Text>
+              <Text style={[styles.label, { color: theme.muted }]}>
+                {t("agent.modals.withdrawal_request.label_enter_amount", "Enter Amount (USDT) *")}
+              </Text>
               <View style={[styles.inputContainer, { backgroundColor: theme.inputBg, borderColor: error ? theme.danger : theme.border }]}>
                 <Text style={[styles.currencySymbol, { color: theme.text }]}>$</Text>
                 <TextInput
                   style={[styles.input, { color: theme.text }]}
                   value={displayAmount}
                   onChangeText={handleAmountChange}
-                  placeholder="0.00"
+                  placeholder={t("agent.modals.withdrawal_request.placeholder_amount", "0.00")}
                   placeholderTextColor={theme.muted}
                   keyboardType="decimal-pad"
                   editable={!loading}
@@ -302,7 +338,9 @@ export default function WithdrawalRequest() {
               {error ? (
                 <Text style={styles.errorText}>{error}</Text>
               ) : (
-                <Text style={[styles.helperText, { color: theme.muted }]}>Minimum withdrawal: $10 USDT</Text>
+                <Text style={[styles.helperText, { color: theme.muted }]}>
+                  {t("agent.modals.withdrawal_request.desc_min_withdrawal", "Minimum withdrawal: $10 USDT")}
+                </Text>
               )}
             </View>
 
@@ -310,7 +348,9 @@ export default function WithdrawalRequest() {
 
             {/* Quick Select Buttons */}
             <View style={styles.quickSelectGroup}>
-              <Text style={[styles.quickSelectLabel, { color: theme.muted }]}>Percent of Max</Text>
+              <Text style={[styles.quickSelectLabel, { color: theme.muted }]}>
+                {t("agent.modals.withdrawal_request.label_percent_max", "Percent of Max")}
+              </Text>
               <View style={styles.quickSelectButtons}>
                 {[25, 50, 75, 100].map((percentage) => {
                   const active = isSelected(percentage);
@@ -334,10 +374,14 @@ export default function WithdrawalRequest() {
           </View>
 
           {/* Card 3: Payout Destination */}
-          <Text style={[styles.sectionLabel, { color: theme.muted, marginTop: 12 }]}>PAYOUT DESTINATION</Text>
+          <Text style={[styles.sectionLabel, { color: theme.muted, marginTop: 12 }]}>
+            {t("agent.modals.withdrawal_request.section_payout", "PAYOUT DESTINATION")}
+          </Text>
           <View style={[styles.formCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
             <View style={styles.inputGroup}>
-              <Text style={[styles.label, { color: theme.muted }]}>Registered Wallet Address</Text>
+              <Text style={[styles.label, { color: theme.muted }]}>
+                {t("agent.modals.withdrawal_request.label_registered_wallet", "Registered Wallet Address")}
+              </Text>
               <TouchableOpacity
                 style={[styles.addressRow, { backgroundColor: theme.cardAlt, borderColor: theme.border }]}
                 onPress={copyAddress}
@@ -354,7 +398,7 @@ export default function WithdrawalRequest() {
                 )}
               </TouchableOpacity>
               <Text style={[styles.helperText, { color: theme.muted }]}>
-                To change this address, go to Bank details in account settings.
+                {t("agent.modals.withdrawal_request.desc_change_address", "To change this address, go to Bank details in account settings.")}
               </Text>
             </View>
           </View>
@@ -363,9 +407,15 @@ export default function WithdrawalRequest() {
           <View style={[styles.infoBox, { backgroundColor: theme.accentLight, borderColor: theme.border }]}>
             <Ionicons name="information-circle" size={20} color={theme.accent} style={{ marginRight: 6 }} />
             <View style={styles.infoContent}>
-              <Text style={[styles.infoTitle, { color: theme.accent }]}>Withdrawal Information</Text>
-              <Text style={[styles.infoText, { color: theme.accent }]}>• Processing time: 1–3 business days for network confirmation.</Text>
-              <Text style={[styles.infoText, { color: theme.accent }]}>• Active tokens in smart contracts are locked until escrow settles.</Text>
+              <Text style={[styles.infoTitle, { color: theme.accent }]}>
+                {t("agent.modals.withdrawal_request.info_title", "Withdrawal Information")}
+              </Text>
+              <Text style={[styles.infoText, { color: theme.accent }]}>
+                {t("agent.modals.withdrawal_request.info_bullet_1", "• Processing time: 1–3 business days for network confirmation.")}
+              </Text>
+              <Text style={[styles.infoText, { color: theme.accent }]}>
+                {t("agent.modals.withdrawal_request.info_bullet_2", "• Active tokens in smart contracts are locked until escrow settles.")}
+              </Text>
             </View>
           </View>
 
@@ -381,7 +431,7 @@ export default function WithdrawalRequest() {
             activeOpacity={0.8}
           >
             <Text style={styles.submitButtonText}>
-              {loading ? "Processing..." : "Request Withdrawal"}
+              {loading ? t("agent.modals.withdrawal_request.btn_processing", "Processing...") : t("agent.modals.withdrawal_request.btn_submit", "Request Withdrawal")}
             </Text>
           </TouchableOpacity>
         </View>

@@ -11,12 +11,14 @@ import {
   Animated,
 } from "react-native";
 import { useFocusEffect, useRouter } from "expo-router";
-import { useAuthStore, useNotificationStore } from "@/stores";
+import { useAuthStore, useNotificationStore, useSettingsStore } from "@/stores";
 import { useAgentStore } from "@/stores/slices/agentSlice";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { formatDate } from "@/utils/format";
+import { useTranslation } from "react-i18next";
+import { getCurrencyByCountryCode } from "@/constants/countries";
 
 export default function ProfileScreen() {
   const { user, logout } = useAuthStore();
@@ -25,6 +27,10 @@ export default function ProfileScreen() {
   const router = useRouter();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
+
+  const { t } = useTranslation();
+  const { language, setLanguage } = useSettingsStore();
+  const currentLang = language || (user && getCurrencyByCountryCode(user.country_code) === "XOF" ? "fr" : "en");
 
   const theme = {
     background: isDark ? "#07111A" : "#F5F7FB",
@@ -95,7 +101,7 @@ export default function ProfileScreen() {
     return (
       <View style={[styles.loadingContainer, { backgroundColor: theme.background }]}>
         <ActivityIndicator size="large" color={theme.accent} />
-        <Text style={[styles.loadingText, { color: theme.muted }]}>Loading profile...</Text>
+        <Text style={[styles.loadingText, { color: theme.muted }]}>{t("profile.loading", "Loading profile...")}</Text>
       </View>
     );
   }
@@ -147,7 +153,7 @@ export default function ProfileScreen() {
         <SafeAreaView edges={["top"]} style={styles.headerContent}>
           <View style={styles.headerTop}>
             <View style={styles.headerCopy}>
-              <Text style={[styles.title, { color: theme.text }]}>Profile</Text>
+              <Text style={[styles.title, { color: theme.text }]}>{t("profile.title")}</Text>
               <Animated.View style={{
                 opacity: subtitleOpacity,
                 maxHeight: subtitleMaxHeight,
@@ -155,7 +161,7 @@ export default function ProfileScreen() {
                 overflow: "hidden"
               }}>
                 <Text style={[styles.headerSubtitle, { color: theme.muted }]}>
-                  Manage your personal details, security settings, and notifications.
+                  {t("profile.subtitle")}
                 </Text>
               </Animated.View>
             </View>
@@ -213,7 +219,7 @@ export default function ProfileScreen() {
             </View>
             <View style={[styles.levelBadge, { backgroundColor: theme.blueSoft, borderColor: theme.blue + "30" }]}>
               <Ionicons name="shield-checkmark-outline" size={12} color={theme.blue} />
-              <Text style={[styles.badgeText, { color: theme.blue }]}>Level {user.verification_level || 0}</Text>
+              <Text style={[styles.badgeText, { color: theme.blue }]}>{t("profile.level_value", "Level {{level}}", { level: user.verification_level || 0 })}</Text>
             </View>
           </View>
         </View>
@@ -234,9 +240,9 @@ export default function ProfileScreen() {
               >
                 <View style={styles.bannerContent}>
                   <View style={styles.bannerTextWrap}>
-                    <Text style={styles.bannerLabel}>AGENT DASHBOARD</Text>
-                    <Text style={styles.bannerTitle}>Switch to Agent Mode</Text>
-                    <Text style={styles.bannerSubtitle}>Manage deposits, withdrawals, and commissions.</Text>
+                    <Text style={styles.bannerLabel}>{t("profile.agent_dashboard_label", "AGENT DASHBOARD")}</Text>
+                    <Text style={styles.bannerTitle}>{t("profile.switch_agent_mode", "Switch to Agent Mode")}</Text>
+                    <Text style={styles.bannerSubtitle}>{t("profile.manage_agent_desc", "Manage deposits, withdrawals, and commissions.")}</Text>
                   </View>
                   <View style={styles.bannerIconCircle}>
                     <Ionicons name="arrow-forward" size={20} color="#8B5CF6" />
@@ -258,9 +264,9 @@ export default function ProfileScreen() {
               >
                 <View style={styles.bannerContent}>
                   <View style={styles.bannerTextWrap}>
-                    <Text style={styles.bannerLabel}>APPLICATION PENDING</Text>
-                    <Text style={styles.bannerTitle}>Check Application Status</Text>
-                    <Text style={styles.bannerSubtitle}>Your KYC documents are currently under review.</Text>
+                    <Text style={styles.bannerLabel}>{t("profile.app_pending_label", "APPLICATION PENDING")}</Text>
+                    <Text style={styles.bannerTitle}>{t("profile.check_app_status", "Check Application Status")}</Text>
+                    <Text style={styles.bannerSubtitle}>{t("profile.kyc_review_desc", "Your KYC documents are currently under review.")}</Text>
                   </View>
                   <View style={styles.bannerIconCircle}>
                     <Ionicons name="time" size={20} color="#F59E0B" />
@@ -282,9 +288,9 @@ export default function ProfileScreen() {
               >
                 <View style={styles.bannerContent}>
                   <View style={styles.bannerTextWrap}>
-                    <Text style={styles.bannerLabel}>EARN WITH AFRIX</Text>
-                    <Text style={styles.bannerTitle}>Become an AfriX Agent</Text>
-                    <Text style={styles.bannerSubtitle}>Earn commissions by facilitating fiat transfers.</Text>
+                    <Text style={styles.bannerLabel}>{t("profile.earn_label", "EARN WITH AFRIX")}</Text>
+                    <Text style={styles.bannerTitle}>{t("profile.become_agent_title", "Become an AfriX Agent")}</Text>
+                    <Text style={styles.bannerSubtitle}>{t("profile.earn_commission_desc", "Earn commissions by facilitating fiat transfers.")}</Text>
                   </View>
                   <View style={styles.bannerIconCircle}>
                     <Ionicons name="arrow-up-circle" size={20} color="#00B14F" />
@@ -297,29 +303,29 @@ export default function ProfileScreen() {
           {/* Account Status Segmented Row */}
           <View style={[styles.statsRow, { backgroundColor: theme.card, borderColor: theme.border }]}>
             <View style={styles.statTile}>
-              <Text style={[styles.statValue, { color: theme.text }]}>Level {user.verification_level || 0}</Text>
-              <Text style={[styles.statLabel, { color: theme.muted }]}>Verification</Text>
+              <Text style={[styles.statValue, { color: theme.text }]}>{t("profile.level_value", "Level {{level}}", { level: user.verification_level || 0 })}</Text>
+              <Text style={[styles.statLabel, { color: theme.muted }]}>{t("profile.verification")}</Text>
             </View>
             <View style={[styles.statDivider, { backgroundColor: theme.border }]} />
             <View style={styles.statTile}>
               <Text style={[styles.statValue, { color: theme.text }]}>{user.country_code || "NG"}</Text>
-              <Text style={[styles.statLabel, { color: theme.muted }]}>Region</Text>
+              <Text style={[styles.statLabel, { color: theme.muted }]}>{t("profile.region")}</Text>
             </View>
             <View style={[styles.statDivider, { backgroundColor: theme.border }]} />
             <View style={styles.statTile}>
               <Text style={[styles.statValue, { color: theme.text }]}>{new Date(user.created_at).getFullYear()}</Text>
-              <Text style={[styles.statLabel, { color: theme.muted }]}>Joined</Text>
+              <Text style={[styles.statLabel, { color: theme.muted }]}>{t("profile.joined")}</Text>
             </View>
           </View>
 
           {/* Settings Section */}
-          <Text style={[styles.sectionHeading, { color: theme.muted }]}>SECURITY & PREFERENCES</Text>
+          <Text style={[styles.sectionHeading, { color: theme.muted }]}>{t("profile.section_security_pref", "SECURITY & PREFERENCES")}</Text>
           <View style={[styles.menuListCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
             <MenuRow
               icon="lock-closed"
               iconColor={theme.blue}
               iconBgColor={theme.blueSoft}
-              label="Security Settings"
+              label={t("profile.security_settings")}
               onPress={() => router.push("/settings/security")}
             />
             <View style={[styles.menuDivider, { backgroundColor: theme.border }]} />
@@ -327,7 +333,7 @@ export default function ProfileScreen() {
               icon="notifications"
               iconColor={theme.accent}
               iconBgColor={theme.accentSoft}
-              label="Notification Inbox"
+              label={t("profile.notification_inbox")}
               onPress={() => router.push("/settings/notification-inbox")}
               rightContent={
                 <View style={styles.notificationBadgeRow}>
@@ -345,7 +351,7 @@ export default function ProfileScreen() {
               icon="options"
               iconColor={theme.warning}
               iconBgColor={theme.warningSoft}
-              label="Notification Preferences"
+              label={t("profile.notification_preferences")}
               onPress={() => router.push("/settings/notifications")}
             />
             <View style={[styles.menuDivider, { backgroundColor: theme.border }]} />
@@ -353,19 +359,42 @@ export default function ProfileScreen() {
               icon="book"
               iconColor={theme.purple}
               iconBgColor={theme.purpleSoft}
-              label="Education Hub"
+              label={t("profile.education_hub")}
               onPress={() => router.push("/education")}
+            />
+            <View style={[styles.menuDivider, { backgroundColor: theme.border }]} />
+            <MenuRow
+              icon="language-outline"
+              iconColor={theme.accent}
+              iconBgColor={theme.accentSoft}
+              label={t("profile.language")}
+              rightContent={
+                <View style={styles.languageToggleContainer}>
+                  <TouchableOpacity
+                    onPress={() => setLanguage("en")}
+                    style={[styles.langBadge, currentLang === "en" && { backgroundColor: theme.accent }]}
+                  >
+                    <Text style={[styles.langText, currentLang === "en" && styles.activeLangText]}>EN</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => setLanguage("fr")}
+                    style={[styles.langBadge, currentLang === "fr" && { backgroundColor: theme.accent }]}
+                  >
+                    <Text style={[styles.langText, currentLang === "fr" && styles.activeLangText]}>FR</Text>
+                  </TouchableOpacity>
+                </View>
+              }
             />
           </View>
 
           {/* Support Section */}
-          <Text style={[styles.sectionHeading, { color: theme.muted }]}>SUPPORT & HELP</Text>
+          <Text style={[styles.sectionHeading, { color: theme.muted }]}>{t("profile.section_support_help", "SUPPORT & HELP")}</Text>
           <View style={[styles.menuListCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
             <MenuRow
               icon="help-circle"
               iconColor={theme.blue}
               iconBgColor={theme.blueSoft}
-              label="Help & Support Desk"
+              label={t("profile.help_desk")}
               onPress={() => router.push("/help-support")}
             />
           </View>
@@ -377,10 +406,10 @@ export default function ProfileScreen() {
             style={[styles.logoutButton, { backgroundColor: theme.dangerSoft, borderColor: theme.danger + "20" }]}
           >
             <Ionicons name="log-out" size={20} color={theme.danger} />
-            <Text style={[styles.logoutButtonText, { color: theme.danger }]}>Logout Account</Text>
+            <Text style={[styles.logoutButtonText, { color: theme.danger }]}>{t("profile.logout")}</Text>
           </TouchableOpacity>
 
-          <Text style={[styles.versionText, { color: theme.muted }]}>Version 1.1.0</Text>
+          <Text style={[styles.versionText, { color: theme.muted }]}>{t("profile.version")} 1.1.0</Text>
           <View style={styles.bottomSpacer} />
         </View>
       </ScrollView>
@@ -689,5 +718,29 @@ const styles = StyleSheet.create({
   },
   bottomSpacer: {
     height: 48,
+  },
+  languageToggleContainer: {
+    flexDirection: "row",
+    borderRadius: 10,
+    padding: 3,
+    gap: 4,
+    borderWidth: 1,
+    borderColor: "rgba(148, 163, 184, 0.15)",
+  },
+  langBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 7,
+    alignItems: "center",
+    justifyContent: "center",
+    minWidth: 32,
+  },
+  langText: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: "#94A3B8",
+  },
+  activeLangText: {
+    color: "#FFFFFF",
   },
 });

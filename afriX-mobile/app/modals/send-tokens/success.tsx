@@ -7,9 +7,11 @@ import { useTransferStore } from "@/stores";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
 import { formatAmount } from "@/utils/format";
+import { useTranslation } from "react-i18next";
 
 export default function TransferSuccessScreen() {
   const router = useRouter();
+  const { t } = useTranslation();
   const { recipientEmail, tokenType, amount, fee, reset } = useTransferStore();
 
   const colorScheme = useColorScheme();
@@ -68,22 +70,22 @@ export default function TransferSuccessScreen() {
         </View>
 
         {/* Success Message */}
-        <Text style={[styles.title, { color: theme.text }]}>Transfer Successful!</Text>
+        <Text style={[styles.title, { color: theme.text }]}>{t("send_tokens.success.title", "Transfer Successful!")}</Text>
         <Text style={[styles.subtitle, { color: theme.muted }]}>
-          Your tokens have been transferred successfully.
+          {t("send_tokens.success.subtitle", "Your tokens have been transferred successfully.")}
         </Text>
 
         {/* Transfer Details Card */}
         <View style={[styles.detailsCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
           <View style={styles.detailRow}>
-            <Text style={[styles.detailLabel, { color: theme.muted }]}>Sent to</Text>
+            <Text style={[styles.detailLabel, { color: theme.muted }]}>{t("send_tokens.success.label_sent_to", "Sent to")}</Text>
             <Text style={[styles.detailValue, { color: theme.text }]} numberOfLines={1}>
               {recipientEmail}
             </Text>
           </View>
 
           <View style={styles.detailRow}>
-            <Text style={[styles.detailLabel, { color: theme.muted }]}>Transfer Amount</Text>
+            <Text style={[styles.detailLabel, { color: theme.muted }]}>{t("send_tokens.success.label_transfer_amount", "Transfer Amount")}</Text>
             <Text style={[styles.detailValueAmount, { color: theme.accent }]}>
               {formatAmount(amountNum, tokenType)} {tokenType}
             </Text>
@@ -93,19 +95,19 @@ export default function TransferSuccessScreen() {
             <>
               <View style={[styles.divider, { backgroundColor: theme.border }]} />
               <View style={styles.detailRow}>
-                <Text style={[styles.detailLabel, { color: theme.muted }]}>Network Fee</Text>
+                <Text style={[styles.detailLabel, { color: theme.muted }]}>{t("send_tokens.success.label_network_fee", "Network Fee")}</Text>
                 <Text style={[styles.detailValue, { color: theme.text }]}>
                   {formatAmount(feeNum, tokenType)} {tokenType}
                 </Text>
               </View>
               <View style={styles.detailRow}>
-                <Text style={[styles.detailLabel, { color: theme.muted }]}>Recipient Received</Text>
+                <Text style={[styles.detailLabel, { color: theme.muted }]}>{t("send_tokens.success.label_recipient_received", "Recipient Received")}</Text>
                 <Text style={[styles.detailValue, { color: theme.text }]}>
                   {formatAmount(recipientReceived, tokenType)} {tokenType}
                 </Text>
               </View>
               <View style={styles.detailRow}>
-                <Text style={[styles.detailLabel, { color: theme.muted }]}>Total Debited</Text>
+                <Text style={[styles.detailLabel, { color: theme.muted }]}>{t("send_tokens.success.label_total_debited", "Total Debited")}</Text>
                 <Text style={[styles.detailValue, { color: theme.text, fontWeight: "700" }]}>
                   {formatAmount(totalDebited, tokenType)} {tokenType}
                 </Text>
@@ -118,7 +120,7 @@ export default function TransferSuccessScreen() {
         <View style={[styles.infoCard, { backgroundColor: theme.blueSoft, borderColor: theme.blueBorder }]}>
           <Ionicons name="information-circle" size={18} color={theme.blue} />
           <Text style={[styles.infoText, { color: isDark ? "#93C5FD" : "#1E40AF" }]}>
-            The recipient will receive a notification about this transfer immediately.
+            {t("send_tokens.success.info_desc", "The recipient will receive a notification about this transfer immediately.")}
           </Text>
         </View>
 
@@ -129,7 +131,7 @@ export default function TransferSuccessScreen() {
             onPress={handleDone}
             activeOpacity={0.85}
           >
-            <Text style={styles.doneBtnText}>Done</Text>
+            <Text style={styles.doneBtnText}>{t("send_tokens.success.btn_done", "Done")}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -138,7 +140,7 @@ export default function TransferSuccessScreen() {
             activeOpacity={0.7}
           >
             <Ionicons name="send-outline" size={18} color={theme.text} />
-            <Text style={[styles.sendAgainBtnText, { color: theme.text }]}>Send Again</Text>
+            <Text style={[styles.sendAgainBtnText, { color: theme.text }]}>{t("send_tokens.success.btn_send_again", "Send Again")}</Text>
           </TouchableOpacity>
         </View>
       </View>

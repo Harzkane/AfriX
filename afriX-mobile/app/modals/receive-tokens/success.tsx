@@ -17,10 +17,12 @@ import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
 import { formatDate } from "@/utils/format";
+import { useTranslation } from "react-i18next";
 
 export default function ReceiveSuccessScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
 
   const colorScheme = useColorScheme();
@@ -44,7 +46,7 @@ export default function ReceiveSuccessScreen() {
   const { amount, tokenType, fromEmail, senderName, country, city, timestamp } = params;
 
   const formattedDate = timestamp ? formatDate(timestamp as string, true) : "N/A";
-  const location = [city, country].filter(Boolean).join(", ") || "Unknown Location";
+  const location = [city, country].filter(Boolean).join(", ") || t("receive_tokens.success.receipt_value_location_unknown", "Unknown Location");
 
   // Animation values
   const iconScale = useRef(new Animated.Value(0)).current;
@@ -112,19 +114,24 @@ export default function ReceiveSuccessScreen() {
   const handleShare = async () => {
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      const message = `🎉 Payment Received on AfriExchange!\n\n` +
-        `• Amount: ${parseFloat((amount as string) || "0").toLocaleString(undefined, {
-          minimumFractionDigits: 2,
-          maximumFractionDigits: 2,
-        })} ${tokenType}\n` +
-        `• From: ${senderName || fromEmail || "AfriExchange User"}\n` +
-        `• Date: ${formattedDate}\n` +
-        `• Location: ${location}\n\n` +
-        `Verified by AfriExchange Network.`;
+      const message = t(
+        "receive_tokens.success.share_receipt_message",
+        "🎉 Payment Received on AfriExchange!\n\n• Amount: {{amount}} {{tokenType}}\n• From: {{from}}\n• Date: {{date}}\n• Location: {{location}}\n\nVerified by AfriExchange Network.",
+        {
+          amount: parseFloat((amount as string) || "0").toLocaleString(undefined, {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          }),
+          tokenType,
+          from: senderName || fromEmail || t("receive_tokens.success.share_receipt_user_fallback", "AfriExchange User"),
+          date: formattedDate,
+          location,
+        }
+      );
       
       await Share.share({
         message,
-        title: "AfriExchange Receipt",
+        title: t("receive_tokens.success.share_receipt_title", "AfriExchange Receipt"),
       });
     } catch (e) {
       console.error("Share error:", e);
@@ -204,7 +211,7 @@ export default function ReceiveSuccessScreen() {
           ]}
         >
           {/* Hero Amount */}
-          <Text style={[styles.amountTitle, { color: theme.muted }]}>Amount Received</Text>
+          <Text style={[styles.amountTitle, { color: theme.muted }]}>{t("receive_tokens.success.amount_received_title", "Amount Received")}</Text>
           <Text style={[styles.amountText, { color: theme.accent }]}>
             +{parseFloat((amount as string) || "0").toLocaleString(undefined, {
               minimumFractionDigits: 2,
@@ -216,7 +223,7 @@ export default function ReceiveSuccessScreen() {
           {/* Status Badge */}
           <View style={[styles.statusBadge, { backgroundColor: theme.accentSoft, borderColor: theme.accentBorder }]}>
             <Ionicons name="shield-checkmark" size={14} color={theme.accent} style={{ marginRight: 4 }} />
-            <Text style={[styles.statusText, { color: theme.accent }]}>Completed</Text>
+            <Text style={[styles.statusText, { color: theme.accent }]}>{t("receive_tokens.success.status_completed", "Completed")}</Text>
           </View>
 
           {/* Sender Profile Row */}
@@ -232,9 +239,9 @@ export default function ReceiveSuccessScreen() {
               </Text>
             </LinearGradient>
             <View style={styles.senderInfo}>
-              <Text style={[styles.senderEyebrow, { color: theme.muted }]}>Received From</Text>
+              <Text style={[styles.senderEyebrow, { color: theme.muted }]}>{t("receive_tokens.success.received_from_label", "Received From")}</Text>
               <Text style={[styles.senderName, { color: theme.text }]} numberOfLines={1}>
-                {senderName || "AfriExchange User"}
+                {senderName || t("receive_tokens.success.received_from_fallback", "AfriExchange User")}
               </Text>
               {fromEmail && (
                 <Text style={[styles.senderEmail, { color: theme.muted }]} numberOfLines={1}>
@@ -248,7 +255,7 @@ export default function ReceiveSuccessScreen() {
           <View style={[styles.receiptCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
             <View style={styles.receiptHeader}>
               <Ionicons name="receipt-outline" size={18} color={theme.accent} />
-              <Text style={[styles.receiptTitle, { color: theme.text }]}>Transaction Details</Text>
+              <Text style={[styles.receiptTitle, { color: theme.text }]}>{t("receive_tokens.success.receipt_title", "Transaction Details")}</Text>
             </View>
 
             <View style={[styles.divider, { backgroundColor: theme.border }]} />
@@ -257,7 +264,7 @@ export default function ReceiveSuccessScreen() {
             <View style={styles.receiptRow}>
               <View style={styles.rowLabelContainer}>
                 <Ionicons name="location-outline" size={15} color={theme.muted} />
-                <Text style={[styles.receiptLabel, { color: theme.muted }]}>Location</Text>
+                <Text style={[styles.receiptLabel, { color: theme.muted }]}>{t("receive_tokens.success.receipt_label_location", "Location")}</Text>
               </View>
               <Text style={[styles.receiptValue, { color: theme.text }]}>{location}</Text>
             </View>
@@ -266,7 +273,7 @@ export default function ReceiveSuccessScreen() {
             <View style={styles.receiptRow}>
               <View style={styles.rowLabelContainer}>
                 <Ionicons name="calendar-outline" size={15} color={theme.muted} />
-                <Text style={[styles.receiptLabel, { color: theme.muted }]}>Date & Time</Text>
+                <Text style={[styles.receiptLabel, { color: theme.muted }]}>{t("receive_tokens.success.receipt_label_datetime", "Date & Time")}</Text>
               </View>
               <Text style={[styles.receiptValue, { color: theme.text }]}>{formattedDate}</Text>
             </View>
@@ -275,18 +282,18 @@ export default function ReceiveSuccessScreen() {
             <View style={styles.receiptRow}>
               <View style={styles.rowLabelContainer}>
                 <Ionicons name="flash-outline" size={15} color={theme.muted} />
-                <Text style={[styles.receiptLabel, { color: theme.muted }]}>Method</Text>
+                <Text style={[styles.receiptLabel, { color: theme.muted }]}>{t("receive_tokens.success.receipt_label_method", "Method")}</Text>
               </View>
-              <Text style={[styles.receiptValue, { color: theme.text }]}>Instant Transfer</Text>
+              <Text style={[styles.receiptValue, { color: theme.text }]}>{t("receive_tokens.success.receipt_value_method", "Instant Transfer")}</Text>
             </View>
 
             {/* Status Row */}
             <View style={styles.receiptRow}>
               <View style={styles.rowLabelContainer}>
                 <Ionicons name="checkmark-circle-outline" size={15} color={theme.muted} />
-                <Text style={[styles.receiptLabel, { color: theme.muted }]}>Status</Text>
+                <Text style={[styles.receiptLabel, { color: theme.muted }]}>{t("receive_tokens.success.receipt_label_status", "Status")}</Text>
               </View>
-              <Text style={[styles.receiptValue, { color: theme.accent, fontWeight: "700" }]}>Settled</Text>
+              <Text style={[styles.receiptValue, { color: theme.accent, fontWeight: "700" }]}>{t("receive_tokens.success.receipt_value_status_settled", "Settled")}</Text>
             </View>
           </View>
 
@@ -297,7 +304,7 @@ export default function ReceiveSuccessScreen() {
               onPress={handleDone}
               activeOpacity={0.85}
             >
-              <Text style={styles.doneBtnText}>Done</Text>
+              <Text style={styles.doneBtnText}>{t("receive_tokens.success.btn_done", "Done")}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -306,7 +313,7 @@ export default function ReceiveSuccessScreen() {
               activeOpacity={0.8}
             >
               <Ionicons name="share-outline" size={18} color={theme.text} style={{ marginRight: 6 }} />
-              <Text style={[styles.shareBtnText, { color: theme.text }]}>Share Receipt</Text>
+              <Text style={[styles.shareBtnText, { color: theme.text }]}>{t("receive_tokens.success.btn_share_receipt", "Share Receipt")}</Text>
             </TouchableOpacity>
           </View>
         </Animated.View>

@@ -16,6 +16,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { useAgentStore } from "@/stores/slices/agentSlice";
 import * as ImagePicker from "expo-image-picker";
+import { useTranslation } from "react-i18next";
 
 interface DocumentState {
     uri: string;
@@ -35,6 +36,7 @@ interface DocConfig {
 export default function UploadDocumentsScreen() {
     const router = useRouter();
     const params = useLocalSearchParams();
+    const { t } = useTranslation();
     const colorScheme = useColorScheme();
     const isDark = colorScheme === "dark";
 
@@ -61,7 +63,10 @@ export default function UploadDocumentsScreen() {
     const requestPermissions = async () => {
         const { status } = await ImagePicker.requestCameraPermissionsAsync();
         if (status !== "granted") {
-            Alert.alert("Permission Required", "Camera permission is required to take photos of your documents.");
+            Alert.alert(
+                t("agent.kyc.upload_documents.perm_title", "Permission Required"),
+                t("agent.kyc.upload_documents.perm_desc", "Camera permission is required to take photos of your documents.")
+            );
             return false;
         }
         return true;
@@ -95,7 +100,10 @@ export default function UploadDocumentsScreen() {
                 setter({ uri: asset.uri, name: asset.fileName || "document.jpg", type: "image/jpeg" });
             }
         } catch (error) {
-            Alert.alert("Error", "Failed to pick image. Please try again.");
+            Alert.alert(
+                t("agent.kyc.upload_documents.pick_err_title", "Error"),
+                t("agent.kyc.upload_documents.pick_err_desc", "Failed to pick image. Please try again.")
+            );
         }
     };
 
@@ -103,17 +111,17 @@ export default function UploadDocumentsScreen() {
         setter: React.Dispatch<React.SetStateAction<DocumentState | null>>,
         title: string
     ) => {
-        Alert.alert(title, "Choose an option", [
-            { text: "Take Photo", onPress: () => pickImage("camera", setter) },
-            { text: "Choose from Gallery", onPress: () => pickImage("gallery", setter) },
-            { text: "Cancel", style: "cancel" },
+        Alert.alert(title, "", [
+            { text: t("agent.kyc.upload_documents.image_option_camera", "Take Photo"), onPress: () => pickImage("camera", setter) },
+            { text: t("agent.kyc.upload_documents.image_option_gallery", "Choose from Gallery"), onPress: () => pickImage("gallery", setter) },
+            { text: t("agent.kyc.upload_documents.image_option_cancel", "Cancel"), style: "cancel" },
         ]);
     };
 
     const handleSubmit = async () => {
-        if (!idDocument) { Alert.alert("Missing Document", "Please upload your ID document"); return; }
-        if (!selfie) { Alert.alert("Missing Document", "Please upload a selfie with your ID"); return; }
-        if (!proofOfAddress) { Alert.alert("Missing Document", "Please upload proof of address"); return; }
+        if (!idDocument) { Alert.alert(t("agent.kyc.upload_documents.missing_id_title", "Missing Document"), t("agent.kyc.upload_documents.missing_id_desc", "Please upload your ID document")); return; }
+        if (!selfie) { Alert.alert(t("agent.kyc.upload_documents.missing_id_title", "Missing Document"), t("agent.kyc.upload_documents.missing_selfie_desc", "Please upload a selfie with your ID")); return; }
+        if (!proofOfAddress) { Alert.alert(t("agent.kyc.upload_documents.missing_id_title", "Missing Document"), t("agent.kyc.upload_documents.missing_proof_desc", "Please upload proof of address")); return; }
 
         setLoading(true);
         try {
@@ -133,12 +141,15 @@ export default function UploadDocumentsScreen() {
             };
             await useAgentStore.getState().uploadKyc(personalInfo, documents);
             Alert.alert(
-                "KYC Submitted! 🎉",
-                "Your documents have been submitted for review. We'll notify you once approved.",
-                [{ text: "OK", onPress: () => router.replace("/modals/agent-kyc/status") }]
+                t("agent.kyc.upload_documents.success_title", "KYC Submitted! 🎉"),
+                t("agent.kyc.upload_documents.success_desc", "Your documents have been submitted for review. We'll notify you once approved."),
+                [{ text: t("agent.kyc.upload_documents.btn_ok", "OK"), onPress: () => router.replace("/modals/agent-kyc/status") }]
             );
         } catch (error: any) {
-            Alert.alert("Error", error.message || "Failed to submit documents");
+            Alert.alert(
+                t("agent.kyc.upload_documents.err_title", "Error"),
+                error.message || t("agent.kyc.upload_documents.err_failed", "Failed to submit documents")
+            );
         } finally {
             setLoading(false);
         }
@@ -146,32 +157,32 @@ export default function UploadDocumentsScreen() {
 
     const docConfigs: DocConfig[] = [
         {
-            title: "Government-Issued ID",
-            description: "Passport, driver's license, or national ID card",
+            title: t("agent.kyc.upload_documents.doc_gov_id_title", "Government-Issued ID"),
+            description: t("agent.kyc.upload_documents.doc_gov_id_desc", "Passport, driver's license, or national ID card"),
             icon: "card",
             required: true,
             document: idDocument,
             setter: setIdDocument,
         },
         {
-            title: "Selfie with ID",
-            description: "Hold your ID next to your face in a well-lit area",
+            title: t("agent.kyc.upload_documents.doc_selfie_title", "Selfie with ID"),
+            description: t("agent.kyc.upload_documents.doc_selfie_desc", "Hold your ID next to your face in a well-lit area"),
             icon: "camera",
             required: true,
             document: selfie,
             setter: setSelfie,
         },
         {
-            title: "Proof of Address",
-            description: "Utility bill or bank statement (less than 3 months old)",
+            title: t("agent.kyc.upload_documents.doc_proof_title", "Proof of Address"),
+            description: t("agent.kyc.upload_documents.doc_proof_desc", "Utility bill or bank statement (less than 3 months old)"),
             icon: "document-text",
             required: true,
             document: proofOfAddress,
             setter: setProofOfAddress,
         },
         {
-            title: "Business Registration",
-            description: "Optional: If you operate as a registered business",
+            title: t("agent.kyc.upload_documents.doc_biz_title", "Business Registration"),
+            description: t("agent.kyc.upload_documents.doc_biz_desc", "Optional: If you operate as a registered business"),
             icon: "business",
             required: false,
             document: businessReg,
@@ -183,9 +194,9 @@ export default function UploadDocumentsScreen() {
     const requiredCount = 3;
 
     const progressSteps = [
-        { label: "Register", done: true },
-        { label: "KYC", done: false, active: true },
-        { label: "Deposit", done: false },
+        { label: t("agent.kyc.upload_documents.step_register", "Register"), done: true },
+        { label: t("agent.kyc.upload_documents.step_kyc", "KYC"), done: false, active: true },
+        { label: t("agent.kyc.upload_documents.step_deposit", "Deposit"), done: false },
     ];
 
     const renderDocCard = (cfg: DocConfig) => (
@@ -200,11 +211,11 @@ export default function UploadDocumentsScreen() {
                         <Text style={[styles.docTitle, { color: theme.text }]}>{cfg.title}</Text>
                         {cfg.required ? (
                             <View style={[styles.requiredBadge, { backgroundColor: theme.dangerSoft }]}>
-                                <Text style={[styles.requiredText, { color: theme.danger }]}>Required</Text>
+                                <Text style={[styles.requiredText, { color: theme.danger }]}>{t("agent.kyc.upload_documents.badge_required", "Required")}</Text>
                             </View>
                         ) : (
                             <View style={[styles.optionalBadge, { backgroundColor: theme.cardAlt }]}>
-                                <Text style={[styles.optionalText, { color: theme.muted }]}>Optional</Text>
+                                <Text style={[styles.optionalText, { color: theme.muted }]}>{t("agent.kyc.upload_documents.badge_optional", "Optional")}</Text>
                             </View>
                         )}
                     </View>
@@ -227,14 +238,14 @@ export default function UploadDocumentsScreen() {
                             onPress={() => showImageOptions(cfg.setter, cfg.title)}
                         >
                             <Ionicons name="camera-outline" size={15} color={theme.accent} />
-                            <Text style={[styles.previewBtnText, { color: theme.accent }]}>Retake</Text>
+                            <Text style={[styles.previewBtnText, { color: theme.accent }]}>{t("agent.kyc.upload_documents.btn_retake", "Retake")}</Text>
                         </TouchableOpacity>
                         <TouchableOpacity
                             style={[styles.previewBtn, { backgroundColor: theme.dangerSoft, borderColor: theme.danger + "50" }]}
                             onPress={() => cfg.setter(null)}
                         >
                             <Ionicons name="trash-outline" size={15} color={theme.danger} />
-                            <Text style={[styles.previewBtnText, { color: theme.danger }]}>Remove</Text>
+                            <Text style={[styles.previewBtnText, { color: theme.danger }]}>{t("agent.kyc.upload_documents.btn_remove", "Remove")}</Text>
                         </TouchableOpacity>
                     </View>
                 </View>
@@ -247,8 +258,8 @@ export default function UploadDocumentsScreen() {
                     <View style={[styles.uploadIconCircle, { backgroundColor: theme.accentSoft }]}>
                         <Ionicons name="cloud-upload-outline" size={26} color={theme.accent} />
                     </View>
-                    <Text style={[styles.uploadText, { color: theme.text }]}>Tap to Upload</Text>
-                    <Text style={[styles.uploadSubtext, { color: theme.muted }]}>Camera or Gallery</Text>
+                    <Text style={[styles.uploadText, { color: theme.text }]}>{t("agent.kyc.upload_documents.upload_tap", "Tap to Upload")}</Text>
+                    <Text style={[styles.uploadSubtext, { color: theme.muted }]}>{t("agent.kyc.upload_documents.upload_source", "Camera or Gallery")}</Text>
                 </TouchableOpacity>
             )}
         </View>
@@ -264,7 +275,7 @@ export default function UploadDocumentsScreen() {
                 >
                     <Ionicons name="arrow-back" size={20} color={theme.text} />
                 </TouchableOpacity>
-                <Text style={[styles.headerTitle, { color: theme.text }]}>Upload Documents</Text>
+                <Text style={[styles.headerTitle, { color: theme.text }]}>{t("agent.kyc.upload_documents.header_title", "Upload Documents")}</Text>
                 <View style={{ width: 42 }} />
             </View>
 
@@ -307,10 +318,10 @@ export default function UploadDocumentsScreen() {
                     style={styles.progressBanner}
                 >
                     <View>
-                        <Text style={styles.progressBannerEyebrow}>KYC · STEP 2 OF 2</Text>
-                        <Text style={styles.progressBannerTitle}>Upload Documents</Text>
+                        <Text style={styles.progressBannerEyebrow}>{t("agent.kyc.upload_documents.hero_eyebrow", "KYC · STEP 2 OF 2")}</Text>
+                        <Text style={styles.progressBannerTitle}>{t("agent.kyc.upload_documents.hero_title", "Upload Documents")}</Text>
                         <Text style={styles.progressBannerSubtitle}>
-                            Take clear photos with good lighting. All corners must be visible.
+                            {t("agent.kyc.upload_documents.hero_subtitle", "Take clear photos with good lighting. All corners must be visible.")}
                         </Text>
                     </View>
                     <View style={styles.uploadCountBadge}>
@@ -342,7 +353,7 @@ export default function UploadDocumentsScreen() {
                         <ActivityIndicator color="#FFFFFF" />
                     ) : (
                         <>
-                            <Text style={styles.submitBtnText}>Submit for Review</Text>
+                            <Text style={styles.submitBtnText}>{t("agent.kyc.upload_documents.btn_submit", "Submit for Review")}</Text>
                             <Ionicons name="checkmark-circle" size={20} color="#FFFFFF" />
                         </>
                     )}

@@ -5,12 +5,14 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+import { useTranslation } from "react-i18next";
 
 export default function CheckEmailScreen() {
   const router = useRouter();
   const { email } = useLocalSearchParams<{ email: string }>();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
+  const { t } = useTranslation();
 
   const theme = {
     background: isDark ? "#080E14" : "#F4F7FC",
@@ -44,16 +46,16 @@ export default function CheckEmailScreen() {
           >
             <Ionicons name="mail-open-outline" size={34} color="#FFFFFF" />
           </LinearGradient>
-          <Text style={[styles.welcomeText, { color: theme.text }]}>Check Your Email</Text>
-          <Text style={[styles.subtitle, { color: theme.muted }]}>We sent you a password reset link</Text>
+          <Text style={[styles.welcomeText, { color: theme.text }]}>{t("auth.check_email.title")}</Text>
+          <Text style={[styles.subtitle, { color: theme.muted }]}>{t("auth.check_email.subtitle")}</Text>
         </View>
 
         {/* Message Card */}
         <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
           <Text style={[styles.messageText, { color: theme.text }]}>
             {email
-              ? `We sent a password reset link to ${email}. Follow the instructions to reset your password.`
-              : "We sent a password reset link to your email. Follow the instructions to reset your password."}
+              ? t("auth.check_email.body_with_email", `We sent a password reset link to ${email}. Follow the instructions to reset your password.`, { email })
+              : t("auth.check_email.body_no_email", "We sent a password reset link to your email. Follow the instructions to reset your password.")}
           </Text>
 
           <TouchableOpacity
@@ -67,14 +69,14 @@ export default function CheckEmailScreen() {
               end={{ x: 1, y: 0 }}
               style={styles.loginBtnGradient}
             >
-              <Text style={styles.loginBtnText}>Back to Login</Text>
+              <Text style={styles.loginBtnText}>{t("auth.check_email.btn_back", "Back to Login")}</Text>
               <Ionicons name="arrow-back" size={18} color="#FFFFFF" />
             </LinearGradient>
           </TouchableOpacity>
         </View>
 
         <Text style={[styles.footerText, { color: theme.muted }]}>
-          Didn&apos;t receive the email? Check your spam folder
+          {t("auth.check_email.footer", "Didn't receive the email? Check your spam folder")}
         </Text>
       </View>
     </View>

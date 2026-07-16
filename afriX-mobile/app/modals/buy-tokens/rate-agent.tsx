@@ -15,10 +15,12 @@ import { useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useAgentStore, useWalletStore } from "@/stores";
+import { useTranslation } from "react-i18next";
 
 export default function RateAgentScreen() {
   const { transactionId } = useLocalSearchParams<{ transactionId: string }>();
   const router = useRouter();
+  const { t } = useTranslation();
   const { submitReview, loading } = useAgentStore();
   const { fetchWallets } = useWalletStore();
   const scrollViewRef = useRef<ScrollView | null>(null);
@@ -32,12 +34,18 @@ export default function RateAgentScreen() {
 
   const handleSubmit = async () => {
     if (!transactionId) {
-      Alert.alert("Unavailable", "This transaction can no longer be rated.");
+      Alert.alert(
+        t("buy_tokens.rate_agent.err_unavailable", "Unavailable"),
+        t("buy_tokens.rate_agent.err_unavailable", "This transaction can no longer be rated.")
+      );
       return;
     }
 
     if (rating === 0) {
-      Alert.alert("Rating Required", "Please select a star rating");
+      Alert.alert(
+        t("buy_tokens.rate_agent.err_rating_required", "Rating Required"),
+        t("buy_tokens.rate_agent.err_rating_required", "Please select a star rating")
+      );
       return;
     }
 
@@ -48,35 +56,39 @@ export default function RateAgentScreen() {
         review_text: reviewText,
       });
 
-      Alert.alert("Thank You!", "Your review has been submitted.", [
-        {
-          text: "OK",
-          onPress: handleSkip,
-        },
-      ]);
+      Alert.alert(
+        t("buy_tokens.rate_agent.alert_success_title", "Thank You!"),
+        t("buy_tokens.rate_agent.alert_success_desc", "Your review has been submitted."),
+        [
+          {
+            text: t("common.ok", "OK"),
+            onPress: handleSkip,
+          },
+        ]
+      );
     } catch (error: any) {
       const message =
-        error?.message || "Failed to submit review. Please try again.";
+        error?.message || t("common.failed", "Failed to submit review. Please try again.");
       const normalized = message.toLowerCase();
 
       if (normalized.includes("already reviewed this transaction")) {
         Alert.alert(
-          "Already Rated",
-          "You've already submitted a review for this transaction.",
+          t("buy_tokens.rate_agent.alert_already_rated_title", "Already Rated"),
+          t("buy_tokens.rate_agent.alert_already_rated_desc", "You've already submitted a review for this transaction."),
           [
             {
-              text: "OK",
+              text: t("common.ok", "OK"),
               onPress: handleSkip,
             },
           ]
         );
       } else {
-        Alert.alert("Error", message);
+        Alert.alert(t("common.error", "Error"), message);
       }
     }
   };
 
-  const ratingMeta = getRatingMeta(rating);
+  const ratingMeta = getRatingMeta(rating, t);
 
   return (
     <KeyboardAvoidingView
@@ -99,7 +111,7 @@ export default function RateAgentScreen() {
               >
                 <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
               </TouchableOpacity>
-              <Text style={styles.headerTitle}>Rate Agent</Text>
+              <Text style={styles.headerTitle}>{t("buy_tokens.rate_agent.header_title", "Rate Agent")}</Text>
               <View style={styles.headerSpacer} />
             </View>
           </SafeAreaView>
@@ -126,30 +138,28 @@ export default function RateAgentScreen() {
               </LinearGradient>
             </View>
 
-            <Text style={styles.summaryEyebrow}>Transaction Complete</Text>
-            <Text style={styles.summaryTitle}>How was your agent experience?</Text>
+            <Text style={styles.summaryEyebrow}>{t("buy_tokens.rate_agent.summary_eyebrow", "Transaction Complete")}</Text>
+            <Text style={styles.summaryTitle}>{t("buy_tokens.rate_agent.summary_title", "How was your agent experience?")}</Text>
             <Text style={styles.summaryText}>
-              Your feedback helps other users choose better agents and helps us
-              maintain a more trusted marketplace.
+              {t("buy_tokens.rate_agent.summary_text", "Your feedback helps other users choose better agents and helps us maintain a more trusted marketplace.")}
             </Text>
 
             <View style={styles.highlightRow}>
               <View style={styles.highlightPill}>
                 <Ionicons name="shield-checkmark-outline" size={16} color="#059669" />
-                <Text style={styles.highlightText}>Build trust</Text>
+                <Text style={styles.highlightText}>{t("buy_tokens.rate_agent.highlight_trust", "Build trust")}</Text>
               </View>
               <View style={styles.highlightPill}>
                 <Ionicons name="people-outline" size={16} color="#2563EB" />
-                <Text style={styles.highlightText}>Help other users</Text>
+                <Text style={styles.highlightText}>{t("buy_tokens.rate_agent.highlight_users", "Help other users")}</Text>
               </View>
             </View>
           </LinearGradient>
 
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>Your Rating</Text>
+            <Text style={styles.cardTitle}>{t("buy_tokens.rate_agent.rating_title", "Your Rating")}</Text>
             <Text style={styles.cardSubtitle}>
-              Tap a star to score the agent based on speed, communication, and
-              overall reliability.
+              {t("buy_tokens.rate_agent.rating_subtitle", "Tap a star to score the agent based on speed, communication, and overall reliability.")}
             </Text>
 
             <View style={styles.ratingCard}>
@@ -188,14 +198,14 @@ export default function RateAgentScreen() {
           </View>
 
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>Leave a Comment</Text>
+            <Text style={styles.cardTitle}>{t("buy_tokens.rate_agent.comment_title", "Leave a Comment")}</Text>
             <Text style={styles.cardSubtitle}>
-              Share anything helpful about the transaction. This is optional.
+              {t("buy_tokens.rate_agent.comment_subtitle", "Share anything helpful about the transaction. This is optional.")}
             </Text>
 
             <TextInput
               style={styles.input}
-              placeholder="Tell us more about your experience..."
+              placeholder={t("buy_tokens.rate_agent.comment_placeholder", "Tell us more about your experience...")}
               placeholderTextColor="#9CA3AF"
               multiline
               numberOfLines={5}
@@ -216,8 +226,7 @@ export default function RateAgentScreen() {
                 color="#6B7280"
               />
               <Text style={styles.tipText}>
-                Keep feedback specific and respectful so it stays useful for the
-                community.
+                {t("buy_tokens.rate_agent.tip_text", "Keep feedback specific and respectful so it stays useful for the community.")}
               </Text>
             </View>
           </View>
@@ -234,7 +243,7 @@ export default function RateAgentScreen() {
               ) : (
                 <>
                   <Ionicons name="star" size={18} color="#FFFFFF" />
-                  <Text style={styles.submitBtnText}>Submit Review</Text>
+                  <Text style={styles.submitBtnText}>{t("buy_tokens.rate_agent.btn_submit", "Submit Review")}</Text>
                 </>
               )}
             </TouchableOpacity>
@@ -245,7 +254,7 @@ export default function RateAgentScreen() {
               disabled={loading}
               activeOpacity={0.75}
             >
-              <Text style={styles.skipBtnText}>Skip and go to dashboard</Text>
+              <Text style={styles.skipBtnText}>{t("buy_tokens.rate_agent.btn_skip", "Skip and go to dashboard")}</Text>
             </TouchableOpacity>
           </View>
         </ScrollView>
@@ -254,13 +263,13 @@ export default function RateAgentScreen() {
   );
 }
 
-const getRatingMeta = (rating: number) => {
-  if (rating === 5) return { label: "Excellent", color: "#00B14F" };
-  if (rating === 4) return { label: "Great", color: "#16A34A" };
-  if (rating === 3) return { label: "Good", color: "#2563EB" };
-  if (rating === 2) return { label: "Fair", color: "#D97706" };
-  if (rating === 1) return { label: "Poor", color: "#DC2626" };
-  return { label: "Tap to rate", color: "#6B7280" };
+const getRatingMeta = (rating: number, t: any) => {
+  if (rating === 5) return { label: t("buy_tokens.rate_agent.rating_excellent", "Excellent"), color: "#00B14F" };
+  if (rating === 4) return { label: t("buy_tokens.rate_agent.rating_great", "Great"), color: "#16A34A" };
+  if (rating === 3) return { label: t("buy_tokens.rate_agent.rating_good", "Good"), color: "#2563EB" };
+  if (rating === 2) return { label: t("buy_tokens.rate_agent.rating_fair", "Fair"), color: "#D97706" };
+  if (rating === 1) return { label: t("buy_tokens.rate_agent.rating_poor", "Poor"), color: "#DC2626" };
+  return { label: t("buy_tokens.rate_agent.rating_tap", "Tap to rate"), color: "#6B7280" };
 };
 
 const styles = StyleSheet.create({

@@ -12,6 +12,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
+import { useTranslation } from "react-i18next";
 import { useAgentStore } from "@/stores/slices/agentSlice";
 import { formatDate } from "@/utils/format";
 
@@ -19,6 +20,7 @@ type KycStatus = "not_submitted" | "under_review" | "approved" | "rejected";
 
 export default function KycStatusScreen() {
   const router = useRouter();
+  const { t, i18n } = useTranslation();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
   const params = useLocalSearchParams();
@@ -89,8 +91,8 @@ export default function KycStatusScreen() {
           color: theme.warning,
           soft: theme.warningSoft,
           gradientColors: ["#F59E0B", "#D97706"] as [string, string],
-          title: "Under Review",
-          description: "Our security compliance team is currently verifying your documents. This process normally takes 1–3 business days.",
+          title: t("agent.kyc.status.under_review_title", "Under Review"),
+          description: t("agent.kyc.status.under_review_desc", "Our security compliance team is currently verifying your documents. This process normally takes 1–3 business days."),
           showTimeline: true,
         };
       case "approved":
@@ -99,8 +101,8 @@ export default function KycStatusScreen() {
           color: theme.accent,
           soft: theme.accentSoft,
           gradientColors: ["#7C3AED", "#3B82F6"] as [string, string],
-          title: "KYC Approved!",
-          description: "Congratulations! Your identity verification is successful. Please complete the setup with your security deposit.",
+          title: t("agent.kyc.status.approved_title", "KYC Approved!"),
+          description: t("agent.kyc.status.approved_desc", "Congratulations! Your identity verification is successful. Please complete the setup with your security deposit."),
           showTimeline: false,
         };
       case "rejected":
@@ -109,8 +111,8 @@ export default function KycStatusScreen() {
           color: theme.danger,
           soft: theme.dangerSoft,
           gradientColors: ["#EF4444", "#DC2626"] as [string, string],
-          title: "Verification Rejected",
-          description: rejectionReason || "Your documents did not meet our compliance requirements. Please check details and resubmit.",
+          title: t("agent.kyc.status.rejected_title", "Verification Rejected"),
+          description: rejectionReason || t("agent.kyc.status.rejected_default_desc", "Your documents did not meet our compliance requirements. Please check details and resubmit."),
           showTimeline: false,
         };
       default:
@@ -119,8 +121,8 @@ export default function KycStatusScreen() {
           color: theme.muted,
           soft: theme.cardAlt,
           gradientColors: ["#64748B", "#475569"] as [string, string],
-          title: "Not Submitted",
-          description: "Please start your verification process to gain full access to AfriExchange Agent network features.",
+          title: t("agent.kyc.status.not_submitted_title", "Not Submitted"),
+          description: t("agent.kyc.status.not_submitted_desc", "Please start your verification process to gain full access to AfriExchange Agent network features."),
           showTimeline: false,
         };
     }
@@ -129,17 +131,17 @@ export default function KycStatusScreen() {
   const config = getStatusConfig();
 
   const timelineSteps = [
-    { label: "Application Received", desc: "Your details have been recorded.", done: true, active: false },
-    { label: "Document Analysis", desc: "Matching and checking with compliance database.", done: false, active: true },
-    { label: "Approval Decision", desc: "Confirmation email and push updates.", done: false, active: false },
-    { label: "Deposit Collateral", desc: "Initialize smart contract float capacity.", done: false, active: false },
+    { label: t("agent.kyc.status.timeline_received_label", "Application Received"), desc: t("agent.kyc.status.timeline_received_desc", "Your details have been recorded."), done: true, active: false },
+    { label: t("agent.kyc.status.timeline_analysis_label", "Document Analysis"), desc: t("agent.kyc.status.timeline_analysis_desc", "Matching and checking with compliance database."), done: false, active: true },
+    { label: t("agent.kyc.status.timeline_decision_label", "Approval Decision"), desc: t("agent.kyc.status.timeline_decision_desc", "Confirmation email and push updates."), done: false, active: false },
+    { label: t("agent.kyc.status.timeline_deposit_label", "Deposit Collateral"), desc: t("agent.kyc.status.timeline_deposit_desc", "Initialize smart contract float capacity."), done: false, active: false },
   ];
 
   if (loading) {
     return (
       <View style={[styles.loadingContainer, { backgroundColor: theme.bg }]}>
         <ActivityIndicator size="large" color={theme.accent} />
-        <Text style={[styles.loadingText, { color: theme.muted }]}>Checking status...</Text>
+        <Text style={[styles.loadingText, { color: theme.muted }]}>{t("agent.kyc.status.loading_text", "Checking status...")}</Text>
       </View>
     );
   }
@@ -152,7 +154,7 @@ export default function KycStatusScreen() {
           <TouchableOpacity onPress={handleGoBackToOrigin} style={[styles.headerBackBtn, { backgroundColor: theme.accentSoft }]} activeOpacity={0.8}>
             <Ionicons name="arrow-back" size={20} color={theme.accent} />
           </TouchableOpacity>
-          <Text style={[styles.headerTitle, { color: theme.text }]}>KYC Status</Text>
+          <Text style={[styles.headerTitle, { color: theme.text }]}>{t("agent.kyc.status.header_title", "KYC Status")}</Text>
           <View style={styles.headerSpacer} />
         </View>
       </SafeAreaView>
@@ -186,7 +188,7 @@ export default function KycStatusScreen() {
           {status !== "not_submitted" && (
             <View style={[styles.datePill, { backgroundColor: theme.cardAlt, borderColor: theme.border }]}>
               <Ionicons name="calendar-outline" size={13} color={theme.muted} style={{ marginRight: 4 }} />
-              <Text style={[styles.datePillText, { color: theme.muted }]}>Submitted {formatDate(submittedAt)}</Text>
+              <Text style={[styles.datePillText, { color: theme.muted }]}>{t("agent.kyc.status.submitted_date", "Submitted {{date}}", { date: formatDate(submittedAt) })}</Text>
             </View>
           )}
         </View>
@@ -194,7 +196,7 @@ export default function KycStatusScreen() {
         {/* Timeline */}
         {config.showTimeline && (
           <View style={[styles.timelineCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
-            <Text style={[styles.cardSectionLabel, { color: theme.muted }]}>VERIFICATION PROGRESS</Text>
+            <Text style={[styles.cardSectionLabel, { color: theme.muted }]}>{t("agent.kyc.status.section_timeline", "VERIFICATION PROGRESS")}</Text>
             {timelineSteps.map((step, i) => (
               <View key={i} style={styles.timelineRow}>
                 <View style={styles.timelineLeftCol}>
@@ -229,7 +231,7 @@ export default function KycStatusScreen() {
           <View style={[styles.rejectionCard, { backgroundColor: theme.dangerSoft, borderColor: theme.danger + "20" }]}>
             <View style={styles.rejectionHeader}>
               <Ionicons name="warning" size={20} color={theme.danger} style={{ marginRight: 6 }} />
-              <Text style={[styles.rejectionLabel, { color: theme.danger }]}>REJECTION REASON</Text>
+              <Text style={[styles.rejectionLabel, { color: theme.danger }]}>{t("agent.kyc.status.rejection_label", "REJECTION REASON")}</Text>
             </View>
             <Text style={[styles.rejectionText, { color: theme.danger }]}>{rejectionReason}</Text>
           </View>
@@ -239,7 +241,7 @@ export default function KycStatusScreen() {
         <View style={[styles.infoBanner, { backgroundColor: theme.cardAlt, borderColor: theme.border }]}>
           <Ionicons name="information-circle-outline" size={20} color={theme.accent} style={{ marginRight: 8 }} />
           <Text style={[styles.infoBannerText, { color: theme.muted }]}>
-            KYC verification is mandatory to unlock trade capabilities, deposit channels, and secure escrow access.
+            {t("agent.kyc.status.info_banner", "KYC verification is mandatory to unlock trade capabilities, deposit channels, and secure escrow access.")}
           </Text>
         </View>
 
@@ -254,7 +256,7 @@ export default function KycStatusScreen() {
             onPress={() => router.push("/modals/agent-kyc/personal-info")}
             activeOpacity={0.8}
           >
-            <Text style={styles.primaryCTAText}>Start Verification</Text>
+            <Text style={styles.primaryCTAText}>{t("agent.kyc.status.btn_start", "Start Verification")}</Text>
             <Ionicons name="arrow-forward" size={18} color="#FFF" />
           </TouchableOpacity>
         )}
@@ -264,7 +266,7 @@ export default function KycStatusScreen() {
             onPress={() => router.push("/modals/agent-deposit")}
             activeOpacity={0.8}
           >
-            <Text style={styles.primaryCTAText}>Make Security Deposit</Text>
+            <Text style={styles.primaryCTAText}>{t("agent.kyc.status.btn_deposit", "Make Security Deposit")}</Text>
             <Ionicons name="arrow-forward" size={18} color="#FFF" />
           </TouchableOpacity>
         )}
@@ -274,7 +276,7 @@ export default function KycStatusScreen() {
             onPress={() => router.push("/modals/agent-kyc/personal-info")}
             activeOpacity={0.8}
           >
-            <Text style={styles.primaryCTAText}>Resubmit Documents</Text>
+            <Text style={styles.primaryCTAText}>{t("agent.kyc.status.btn_resubmit", "Resubmit Documents")}</Text>
             <Ionicons name="refresh" size={18} color="#FFF" />
           </TouchableOpacity>
         )}
@@ -284,7 +286,11 @@ export default function KycStatusScreen() {
           activeOpacity={0.8}
         >
           <Text style={[styles.secondaryCTAText, { color: theme.muted }]}>
-            {fromAgentProfile ? "Back to Profile" : status === "under_review" ? "Back to Home" : "Back to Dashboard"}
+            {fromAgentProfile
+              ? t("agent.kyc.status.btn_back_profile", "Back to Profile")
+              : status === "under_review"
+              ? t("agent.kyc.status.btn_back_home", "Back to Home")
+              : t("agent.kyc.status.btn_back_dashboard", "Back to Dashboard")}
           </Text>
         </TouchableOpacity>
       </View>

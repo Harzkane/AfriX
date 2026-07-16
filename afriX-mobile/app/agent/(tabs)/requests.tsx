@@ -9,33 +9,35 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { formatAmount, formatDate } from "@/utils/format";
+import { useTranslation } from "react-i18next";
 
-const getCommissionPresentation = (item: any, tokenType: string) => {
+const getCommissionPresentation = (t: any, item: any, tokenType: string) => {
     const rawAmount = item.agent_commission ?? item.fee_amount ?? item.fee ?? 0;
     const amount = formatAmount(rawAmount, tokenType);
     const label = item.fee_kind === "agent_commission"
-        ? (item.fee_label || "Agent Commission")
-        : "Commission Earned";
+        ? (item.fee_label || t("agent.requests.agent_commission", "Agent Commission"))
+        : t("agent.requests.commission_earned", "Commission Earned");
     return { amount, label };
 };
 
 const isAdminResolvedRecord = (item: any) => item?.metadata?.admin_resolved === true;
 
-const getStatusMeta = (status?: string) => {
+const getStatusMeta = (t: any, status?: string) => {
     switch (String(status || "").toLowerCase()) {
-        case "proof_submitted": return { label: "PROOF SUBMITTED", bg: "#FEF3C7", border: "#FDE68A", text: "#B45309" };
-        case "escrowed": return { label: "ESCROWED", bg: "#DBEAFE", border: "#BFDBFE", text: "#1D4ED8" };
-        case "pending": return { label: "PENDING", bg: "#F3F4F6", border: "#E5E7EB", text: "#4B5563" };
-        case "disputed": return { label: "DISPUTED", bg: "#FEE2E2", border: "#FECACA", text: "#B91C1C" };
-        case "completed": return { label: "COMPLETED", bg: "#DCFCE7", border: "#BBF7D0", text: "#15803D" };
-        case "rejected": return { label: "REJECTED", bg: "#FEE2E2", border: "#FECACA", text: "#B91C1C" };
-        case "expired": return { label: "EXPIRED", bg: "#F3F4F6", border: "#E5E7EB", text: "#6B7280" };
-        case "cancelled": return { label: "CANCELLED", bg: "#F3F4F6", border: "#E5E7EB", text: "#6B7280" };
+        case "proof_submitted": return { label: t("agent.requests.status_proof_submitted", "PROOF SUBMITTED"), bg: "#FEF3C7", border: "#FDE68A", text: "#B45309" };
+        case "escrowed": return { label: t("agent.requests.status_escrowed", "ESCROWED"), bg: "#DBEAFE", border: "#BFDBFE", text: "#1D4ED8" };
+        case "pending": return { label: t("agent.requests.status_pending", "PENDING"), bg: "#F3F4F6", border: "#E5E7EB", text: "#4B5563" };
+        case "disputed": return { label: t("agent.requests.status_disputed", "DISPUTED"), bg: "#FEE2E2", border: "#FECACA", text: "#B91C1C" };
+        case "completed": return { label: t("agent.requests.status_completed", "COMPLETED"), bg: "#DCFCE7", border: "#BBF7D0", text: "#15803D" };
+        case "rejected": return { label: t("agent.requests.status_rejected", "REJECTED"), bg: "#FEE2E2", border: "#FECACA", text: "#B91C1C" };
+        case "expired": return { label: t("agent.requests.status_expired", "EXPIRED"), bg: "#F3F4F6", border: "#E5E7EB", text: "#6B7280" };
+        case "cancelled": return { label: t("agent.requests.status_cancelled", "CANCELLED"), bg: "#F3F4F6", border: "#E5E7EB", text: "#6B7280" };
         default: return { label: String(status || "unknown").replace(/_/g, " ").toUpperCase(), bg: "#F3F4F6", border: "#E5E7EB", text: "#4B5563" };
     }
 };
 
 export default function AgentRequests() {
+    const { t } = useTranslation();
     const router = useRouter();
     const params = useLocalSearchParams();
     const { pendingRequests, history, dashboardData, fetchPendingRequests, fetchDashboard, loading } = useAgentStore();
@@ -86,9 +88,9 @@ export default function AgentRequests() {
 
     const historyCount = historyItems.length;
     const tabs: { key: "mint" | "burn" | "history"; label: string; count: number }[] = [
-        { key: "mint", label: "Mint", count: mintCount },
-        { key: "burn", label: "Burn", count: burnCount },
-        { key: "history", label: "History", count: historyCount },
+        { key: "mint", label: t("agent.requests.tab_mint", "Mint"), count: mintCount },
+        { key: "burn", label: t("agent.requests.tab_burn", "Burn"), count: burnCount },
+        { key: "history", label: t("agent.requests.tab_history", "History"), count: historyCount },
     ];
 
     const renderRequest = ({ item }: { item: any }) => {
@@ -101,9 +103,9 @@ export default function AgentRequests() {
             ? (isMint ? item.toUser?.full_name : item.fromUser?.full_name)
             : item.user?.full_name;
         const tokenType = item.token_type || "NT";
-        const commission = isHistoryTransaction ? getCommissionPresentation(item, tokenType) : null;
+        const commission = isHistoryTransaction ? getCommissionPresentation(t, item, tokenType) : null;
         const adminResolved = isHistoryTransaction && isAdminResolvedRecord(item);
-        const statusMeta = getStatusMeta(item.status);
+        const statusMeta = getStatusMeta(t, item.status);
         const mintTone = { iconBg: isDark ? "rgba(0, 177, 79, 0.12)" : "#ECFDF5", iconColor: "#00B14F", chipBg: isDark ? "rgba(0, 177, 79, 0.12)" : "#DCFCE7", chipText: "#15803D" };
         const burnTone = { iconBg: isDark ? "rgba(245, 158, 11, 0.12)" : "#FFFBEB", iconColor: "#D97706", chipBg: isDark ? "rgba(245, 158, 11, 0.12)" : "#FEF3C7", chipText: "#B45309" };
         const tone = isMint ? mintTone : burnTone;
@@ -132,13 +134,13 @@ export default function AgentRequests() {
                             <Text style={[styles.cardEyebrow, { color: theme.muted }]}>
                                 {isHistoryTransaction
                                     ? adminResolved
-                                        ? (isMint ? "Admin Resolved Mint" : "Admin Resolved Burn")
-                                        : (isMint ? "Mint Transaction" : "Burn Transaction")
+                                        ? (isMint ? t("agent.requests.admin_resolved_mint", "Admin Resolved Mint") : t("agent.requests.admin_resolved_burn", "Admin Resolved Burn"))
+                                        : (isMint ? t("agent.requests.mint_transaction", "Mint Transaction") : t("agent.requests.burn_transaction", "Burn Transaction"))
                                     : isHistoryRequest
-                                        ? (isMint ? "Mint Request Record" : "Burn Request Record")
-                                        : (isMint ? "Pending Mint" : "Pending Burn")}
+                                        ? (isMint ? t("agent.requests.mint_request_record", "Mint Request Record") : t("agent.requests.burn_request_record", "Burn Request Record"))
+                                        : (isMint ? t("agent.requests.pending_mint", "Pending Mint") : t("agent.requests.pending_burn", "Pending Burn"))}
                             </Text>
-                            <Text style={[styles.cardUserName, { color: theme.text }]}>{userName || "Unknown User"}</Text>
+                            <Text style={[styles.cardUserName, { color: theme.text }]}>{userName || t("agent.requests.unknown_user", "Unknown User")}</Text>
                             <Text style={[styles.cardDate, { color: theme.muted }]}>{formatDate(item.created_at)}</Text>
                         </View>
                     </View>
@@ -154,7 +156,7 @@ export default function AgentRequests() {
                             </View>
                         )}
                         <View style={[styles.mintBurnBadge, { backgroundColor: tone.chipBg }]}>
-                            <Text style={[styles.mintBurnBadgeText, { color: tone.chipText }]}>{isMint ? "MINT" : "BURN"}</Text>
+                            <Text style={[styles.mintBurnBadgeText, { color: tone.chipText }]}>{isMint ? t("agent.requests.mint_badge", "MINT") : t("agent.requests.burn_badge", "BURN")}</Text>
                         </View>
                     </View>
                 </View>
@@ -162,7 +164,7 @@ export default function AgentRequests() {
                 {/* Amount row */}
                 <View style={[styles.amountBox, { backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "#F8F7FF", borderColor: theme.border }]}>
                     <View>
-                        <Text style={[styles.amountLabel, { color: theme.muted }]}>Amount</Text>
+                        <Text style={[styles.amountLabel, { color: theme.muted }]}>{t("agent.requests.amount_label", "Amount")}</Text>
                         <Text style={[styles.amountValue, { color: theme.text }]}>
                             {formatAmount(item.amount, item.token_type)} {item.token_type}
                         </Text>
@@ -183,10 +185,12 @@ export default function AgentRequests() {
                 {/* Admin resolve banner */}
                 {adminResolved && (
                     <View style={styles.resolvedBox}>
-                        <Text style={styles.resolvedLabel}>Admin Resolution</Text>
+                        <Text style={styles.resolvedLabel}>{t("agent.requests.admin_resolution", "Admin Resolution")}</Text>
                         <View style={[styles.statusBadge, { backgroundColor: "#ECFDF3", borderColor: "#B7E4C7" }]}>
                             <Text style={[styles.statusBadgeText, { color: "#15803D" }]}>
-                                {item.metadata?.resolution_action === "penalize_agent" ? "ADMIN CREDIT + PENALTY" : "ADMIN CREDIT"}
+                                {item.metadata?.resolution_action === "penalize_agent"
+                                    ? t("agent.requests.admin_credit_penalty", "ADMIN CREDIT + PENALTY")
+                                    : t("agent.requests.admin_credit", "ADMIN CREDIT")}
                             </Text>
                         </View>
                     </View>
@@ -195,7 +199,7 @@ export default function AgentRequests() {
                 {/* Status */}
                 {(!isHistory || isHistoryRequest) && (
                     <View style={styles.statusRow}>
-                        <Text style={[styles.resolvedLabel, { color: theme.muted }]}>Status</Text>
+                        <Text style={[styles.resolvedLabel, { color: theme.muted }]}>{t("agent.requests.status_label", "Status")}</Text>
                         <View style={[styles.statusBadge, { backgroundColor: statusMeta.bg, borderColor: statusMeta.border }]}>
                             <Text style={[styles.statusBadgeText, { color: statusMeta.text }]}>{statusMeta.label}</Text>
                         </View>
@@ -205,7 +209,7 @@ export default function AgentRequests() {
                 {/* Footer tap hint */}
                 {(!isHistory || isHistoryRequest) && (
                     <View style={[styles.cardFooter, { borderTopColor: theme.border }]}>
-                        <Text style={[styles.cardFooterText, { color: theme.muted }]}>Tap to view details</Text>
+                        <Text style={[styles.cardFooterText, { color: theme.muted }]}>{t("agent.requests.tap_to_view", "Tap to view details")}</Text>
                         <Ionicons name="chevron-forward" size={15} color={theme.muted} />
                     </View>
                 )}
@@ -215,12 +219,12 @@ export default function AgentRequests() {
 
     return (
         <View style={[styles.container, { backgroundColor: theme.bg }]}>
-            {/* Flat Header (Matches User Header design styling) */}
+            {/* Flat Header */}
             <SafeAreaView edges={["top"]} style={[styles.headerContainer, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
                 <View style={styles.headerRow}>
-                    <Text style={[styles.headerTitleText, { color: theme.text }]}>Requests</Text>
+                    <Text style={[styles.headerTitleText, { color: theme.text }]}>{t("agent.requests.header_title", "Requests")}</Text>
                     <View style={[styles.agentBadge, { backgroundColor: theme.accentLight }]}>
-                        <Text style={[styles.agentBadgeText, { color: theme.accent }]}>Agent</Text>
+                        <Text style={[styles.agentBadgeText, { color: theme.accent }]}>{t("agent.requests.agent_badge", "Agent")}</Text>
                     </View>
                 </View>
             </SafeAreaView>
@@ -268,12 +272,14 @@ export default function AgentRequests() {
                             />
                         </LinearGradient>
                         <Text style={[styles.emptyTitle, { color: theme.text }]}>
-                            {activeTab === "history" ? "No history yet" : `No ${activeTab} requests`}
+                            {activeTab === "history"
+                                ? t("agent.requests.empty_history_title", "No history yet")
+                                : t("agent.requests.empty_requests_title", "No {{tab}} requests", { tab: activeTab })}
                         </Text>
                         <Text style={[styles.emptySub, { color: theme.muted }]}>
                             {activeTab === "history"
-                                ? "Completed transactions and closed records will appear here."
-                                : "New exchange requests from users will appear here."}
+                                ? t("agent.requests.empty_history_sub", "Completed transactions and closed records will appear here.")
+                                : t("agent.requests.empty_requests_sub", "New exchange requests from users will appear here.")}
                         </Text>
                     </View>
                 }

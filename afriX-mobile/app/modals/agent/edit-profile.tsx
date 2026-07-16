@@ -15,6 +15,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
+import { useTranslation } from "react-i18next";
 import { useAuthStore } from "@/stores";
 import { useAgentStore } from "@/stores/slices/agentSlice";
 import { getCountryByCode, stripLeadingZero } from "@/constants/countries";
@@ -34,6 +35,7 @@ const formatPhoneForDisplay = (value: string) => {
 
 export default function EditProfile() {
   const router = useRouter();
+  const { t } = useTranslation();
   const params = useLocalSearchParams();
   const fromAgentProfile = params?.from === "agent-profile";
   const { user } = useAuthStore();
@@ -87,13 +89,13 @@ export default function EditProfile() {
     const newErrors: { phone?: string; whatsapp?: string } = {};
 
     if (!phoneNumber.trim()) {
-      newErrors.phone = "Phone number is required";
+      newErrors.phone = t("agent.modals.edit_profile.err_phone_required", "Phone number is required");
     } else if (!validatePhone(phoneNumber)) {
-      newErrors.phone = "Invalid phone number format";
+      newErrors.phone = t("agent.modals.edit_profile.err_phone_invalid", "Invalid phone number format");
     }
 
     if (whatsappNumber && !validatePhone(whatsappNumber)) {
-      newErrors.whatsapp = "Invalid WhatsApp number format";
+      newErrors.whatsapp = t("agent.modals.edit_profile.err_whatsapp_invalid", "Invalid WhatsApp number format");
     }
 
     if (Object.keys(newErrors).length > 0) {
@@ -111,12 +113,15 @@ export default function EditProfile() {
       });
 
       Alert.alert(
-        "Success",
-        "Profile updated successfully",
-        [{ text: "OK", onPress: () => handleGoBack() }]
+        t("agent.modals.edit_profile.success_title", "Success"),
+        t("agent.modals.edit_profile.success_desc", "Profile updated successfully"),
+        [{ text: t("agent.modals.edit_profile.btn_ok", "OK"), onPress: () => handleGoBack() }]
       );
     } catch (error: any) {
-      Alert.alert("Error", error.message || "Failed to update profile");
+      Alert.alert(
+        t("agent.modals.edit_profile.err_title", "Error"),
+        error.message || t("agent.modals.edit_profile.err_failed", "Failed to update profile")
+      );
     }
   };
 
@@ -130,7 +135,9 @@ export default function EditProfile() {
           <TouchableOpacity onPress={handleGoBack} style={[styles.backButton, { backgroundColor: theme.accentLight }]}>
             <Ionicons name="arrow-back" size={20} color={theme.accent} />
           </TouchableOpacity>
-          <Text style={[styles.headerTitle, { color: theme.text }]}>Edit Profile</Text>
+          <Text style={[styles.headerTitle, { color: theme.text }]}>
+            {t("agent.modals.edit_profile.header_title", "Edit Profile")}
+          </Text>
           <View style={{ width: 36 }} />
         </View>
       </SafeAreaView>
@@ -150,17 +157,23 @@ export default function EditProfile() {
             colors={isDark ? ["rgba(124, 58, 237, 0.15)", "rgba(18, 14, 36, 0.8)"] : ["rgba(124, 58, 237, 0.05)", "#FFFFFF"]}
             style={[styles.summaryCard, { borderColor: theme.border }]}
           >
-            <Text style={[styles.summaryEyebrow, { color: theme.accent }]}>Agent Contact Profile</Text>
-            <Text style={[styles.summaryTitle, { color: theme.text }]}>Update Your Contact Details</Text>
+            <Text style={[styles.summaryEyebrow, { color: theme.accent }]}>
+              {t("agent.modals.edit_profile.summary_eyebrow", "Agent Contact Profile")}
+            </Text>
+            <Text style={[styles.summaryTitle, { color: theme.text }]}>
+              {t("agent.modals.edit_profile.summary_title", "Update Your Contact Details")}
+            </Text>
             <Text style={[styles.summaryText, { color: theme.muted }]}>
-              Keep your phone and WhatsApp details current so users can reach you quickly during exchange flows.
+              {t("agent.modals.edit_profile.summary_desc", "Keep your phone and WhatsApp details current so users can reach you quickly during exchange flows.")}
             </Text>
           </LinearGradient>
 
           {countryInfo ? (
             <View style={[styles.countryRow, { backgroundColor: theme.cardAlt, borderColor: theme.border }]}>
               <Ionicons name="globe-outline" size={20} color={theme.accent} style={styles.countryIcon} />
-              <Text style={[styles.countryLabel, { color: theme.muted }]}>Country</Text>
+              <Text style={[styles.countryLabel, { color: theme.muted }]}>
+                {t("agent.modals.edit_profile.label_country", "Country")}
+              </Text>
               <Text style={[styles.countryValue, { color: theme.text }]}>
                 {countryInfo.name} ({countryInfo.dialCode})
               </Text>
@@ -168,11 +181,15 @@ export default function EditProfile() {
           ) : null}
 
           {/* Group 1: Contact Details Card */}
-          <Text style={[styles.sectionLabel, { color: theme.muted }]}>CONTACT NUMBERS</Text>
+          <Text style={[styles.sectionLabel, { color: theme.muted }]}>
+            {t("agent.modals.edit_profile.section_contacts", "CONTACT NUMBERS")}
+          </Text>
           <View style={[styles.formCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
             {/* Phone Number */}
             <View style={styles.inputGroup}>
-              <Text style={[styles.label, { color: theme.muted }]}>Phone Number *</Text>
+              <Text style={[styles.label, { color: theme.muted }]}>
+                {t("agent.modals.edit_profile.label_phone", "Phone Number *")}
+              </Text>
               <View style={[styles.inputContainer, { backgroundColor: theme.inputBg, borderColor: errors.phone ? "#EF4444" : theme.border }]}>
                 <Ionicons name="call-outline" size={20} color={theme.muted} style={styles.inputIcon} />
                 {countryInfo ? (
@@ -185,7 +202,7 @@ export default function EditProfile() {
                     setPhoneNumber(formatPhoneForDisplay(text));
                     if (errors.phone) setErrors({ ...errors, phone: undefined });
                   }}
-                  placeholder="8012345678"
+                  placeholder={t("agent.modals.edit_profile.placeholder_phone", "8012345678")}
                   placeholderTextColor={theme.muted}
                   keyboardType="phone-pad"
                   editable={!loading}
@@ -198,7 +215,9 @@ export default function EditProfile() {
 
             {/* WhatsApp Number */}
             <View style={styles.inputGroup}>
-              <Text style={[styles.label, { color: theme.muted }]}>WhatsApp Number</Text>
+              <Text style={[styles.label, { color: theme.muted }]}>
+                {t("agent.modals.edit_profile.label_whatsapp", "WhatsApp Number")}
+              </Text>
               <View style={[styles.inputContainer, { backgroundColor: theme.inputBg, borderColor: errors.whatsapp ? "#EF4444" : theme.border }]}>
                 <Ionicons name="logo-whatsapp" size={20} color={theme.green} style={styles.inputIcon} />
                 {countryInfo ? (
@@ -211,7 +230,7 @@ export default function EditProfile() {
                     setWhatsappNumber(formatPhoneForDisplay(text));
                     if (errors.whatsapp) setErrors({ ...errors, whatsapp: undefined });
                   }}
-                  placeholder="8012345678"
+                  placeholder={t("agent.modals.edit_profile.placeholder_whatsapp", "8012345678")}
                   placeholderTextColor={theme.muted}
                   keyboardType="phone-pad"
                   editable={!loading}
@@ -219,7 +238,7 @@ export default function EditProfile() {
               </View>
               {errors.whatsapp && <Text style={styles.errorText}>{errors.whatsapp}</Text>}
               <Text style={[styles.helperText, { color: theme.muted }]}>
-                If empty, phone number will be used for chat routes.
+                {t("agent.modals.edit_profile.desc_whatsapp_fallback", "If empty, phone number will be used for chat routes.")}
               </Text>
             </View>
           </View>
@@ -228,7 +247,7 @@ export default function EditProfile() {
           <View style={[styles.infoBox, { backgroundColor: theme.accentLight, borderColor: theme.border }]}>
             <Ionicons name="information-circle" size={20} color={theme.accent} style={{ marginRight: 4 }} />
             <Text style={[styles.infoText, { color: theme.accent }]}>
-              These contact details will be visible to users when they select you as their agent.
+              {t("agent.modals.edit_profile.info_text", "These contact details will be visible to users when they select you as their agent.")}
             </Text>
           </View>
 
@@ -244,7 +263,7 @@ export default function EditProfile() {
             activeOpacity={0.8}
           >
             <Text style={styles.saveButtonText}>
-              {loading ? "Saving..." : "Save Changes"}
+              {loading ? t("agent.modals.edit_profile.btn_saving", "Saving...") : t("agent.modals.edit_profile.btn_save", "Save Changes")}
             </Text>
           </TouchableOpacity>
         </View>

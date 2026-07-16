@@ -17,6 +17,7 @@ import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 import { LinearGradient } from "expo-linear-gradient";
 import { useAuthStore, useAgentStore } from "@/stores";
 import { AgentCard } from "@/components/ui/AgentCard";
+import { useTranslation } from "react-i18next";
 
 type SortOption = "rating" | "fastest" | "capacity";
 
@@ -34,6 +35,7 @@ export default function AgentsScreen() {
     const [refreshing, setRefreshing] = useState(false);
     const colorScheme = useColorScheme();
     const isDark = colorScheme === "dark";
+    const { t } = useTranslation();
 
     const insets = useSafeAreaInsets();
     const [headerMaxHeight, setHeaderMaxHeight] = useState(insets.top + 70);
@@ -114,8 +116,8 @@ export default function AgentsScreen() {
                 >
                     <View style={styles.snapshotTop}>
                         <View>
-                            <Text style={[styles.snapshotLabel, { color: theme.accent }]}>Quick overview</Text>
-                            <Text style={[styles.snapshotTitle, { color: theme.text }]}>Trade with confidence</Text>
+                            <Text style={[styles.snapshotLabel, { color: theme.accent }]}>{t("agents.quick_overview")}</Text>
+                            <Text style={[styles.snapshotTitle, { color: theme.text }]}>{t("agents.confidence_title")}</Text>
                         </View>
                         <View style={[styles.countryBadge, { backgroundColor: theme.card, borderColor: theme.border }]}>
                             <Ionicons name="flag" size={14} color={theme.accent} />
@@ -127,26 +129,26 @@ export default function AgentsScreen() {
                         <View style={[styles.snapshotTile, { backgroundColor: theme.card, borderColor: theme.border }]}>
                             <Ionicons name="people-outline" size={16} color={theme.accent} />
                             <Text style={[styles.snapshotValue, { color: theme.text }]}>{agents.length}</Text>
-                            <Text style={[styles.snapshotMeta, { color: theme.muted }]}>Available agents</Text>
+                            <Text style={[styles.snapshotMeta, { color: theme.muted }]}>{t("agents.stat_agents")}</Text>
                         </View>
                         <View style={[styles.snapshotTile, { backgroundColor: theme.card, borderColor: theme.border }]}>
                             <Ionicons name="shield-checkmark-outline" size={16} color="#3B82F6" />
                             <Text style={[styles.snapshotValue, { color: theme.text }]}>{verifiedCount}</Text>
-                            <Text style={[styles.snapshotMeta, { color: theme.muted }]}>Verified profiles</Text>
+                            <Text style={[styles.snapshotMeta, { color: theme.muted }]}>{t("agents.stat_verified")}</Text>
                         </View>
                         <View style={[styles.snapshotTile, { backgroundColor: theme.card, borderColor: theme.border }]}>
                             <Ionicons name="flash-outline" size={16} color="#8B5CF6" />
                             <Text style={[styles.snapshotValue, { color: theme.text }]}>{activeCount}</Text>
-                            <Text style={[styles.snapshotMeta, { color: theme.muted }]}>Online now</Text>
+                            <Text style={[styles.snapshotMeta, { color: theme.muted }]}>{t("agents.stat_online")}</Text>
                         </View>
                     </View>
                 </LinearGradient>
 
                 <View style={styles.sectionHeadingRow}>
                     <View>
-                        <Text style={[styles.sectionHeading, { color: theme.text }]}>Browse agents</Text>
+                        <Text style={[styles.sectionHeading, { color: theme.text }]}>{t("agents.browse_title")}</Text>
                         <Text style={[styles.sectionSubheading, { color: theme.muted }]}>
-                            Choose a sorting style that matches how you trade.
+                            {t("agents.browse_subtitle")}
                         </Text>
                     </View>
                 </View>
@@ -170,7 +172,7 @@ export default function AgentsScreen() {
                                     color={active ? "#FFFFFF" : theme.muted}
                                 />
                                 <Text style={[styles.sortText, { color: active ? "#FFFFFF" : theme.muted }]}>
-                                    {option.label}
+                                    {t(`agents.sort.${option.key}`, option.label)}
                                 </Text>
                             </TouchableOpacity>
                         );
@@ -215,7 +217,7 @@ export default function AgentsScreen() {
                         </TouchableOpacity>
 
                         <View style={styles.headerCopy}>
-                            <Text style={[styles.title, { color: theme.text }]}>Agents</Text>
+                            <Text style={[styles.title, { color: theme.text }]}>{t("agents.title")}</Text>
                             <Animated.View style={{
                                 opacity: subtitleOpacity,
                                 maxHeight: subtitleMaxHeight,
@@ -223,14 +225,14 @@ export default function AgentsScreen() {
                                 overflow: "hidden"
                             }}>
                                 <Text style={[styles.headerSubtitle, { color: theme.muted }]}>
-                                    Compare verified agents by rating, response speed, and available capacity.
+                                    {t("agents.subtitle")}
                                 </Text>
                             </Animated.View>
                         </View>
 
                         <View style={[styles.headerBadge, { backgroundColor: theme.card, borderColor: theme.border }]}>
                             <View style={[styles.liveDot, { backgroundColor: theme.accent }]} />
-                            <Text style={[styles.headerBadgeText, { color: theme.text }]}>Live</Text>
+                            <Text style={[styles.headerBadgeText, { color: theme.text }]}>{t("agents.live")}</Text>
                         </View>
                     </View>
                 </SafeAreaView>
@@ -239,7 +241,7 @@ export default function AgentsScreen() {
             {loading ? (
                 <View style={[styles.loadingContainer, { backgroundColor: theme.background, paddingTop: headerMaxHeight }]}>
                     <ActivityIndicator size="large" color={theme.accent} />
-                    <Text style={[styles.loadingText, { color: theme.muted }]}>Loading available agents...</Text>
+                    <Text style={[styles.loadingText, { color: theme.muted }]}>{t("agents.loading")}</Text>
                 </View>
             ) : (
                 <FlatList
@@ -253,9 +255,9 @@ export default function AgentsScreen() {
                             <View style={[styles.emptyIconWrap, { backgroundColor: theme.card, borderColor: theme.border }]}>
                                 <Ionicons name="people-outline" size={28} color={theme.accent} />
                             </View>
-                            <Text style={[styles.emptyTitle, { color: theme.text }]}>No agents found</Text>
+                            <Text style={[styles.emptyTitle, { color: theme.text }]}>{t("agents.no_agents")}</Text>
                             <Text style={[styles.emptyText, { color: theme.muted }]}>
-                                We couldn&apos;t find active agents in your country right now.
+                                {t("agents.empty_hint")}
                             </Text>
                         </View>
                     }

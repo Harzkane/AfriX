@@ -5,9 +5,11 @@ import { useRouter } from "expo-router";
 import { CameraView, Camera } from "expo-camera";
 import { Ionicons } from "@expo/vector-icons";
 import { useTransferStore } from "@/stores";
+import { useTranslation } from "react-i18next";
 
 export default function ScanQRScreen() {
   const router = useRouter();
+  const { t } = useTranslation();
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const [scanned, setScanned] = useState(false);
   const { setRecipient, setTokenType } = useTransferStore();
@@ -41,9 +43,9 @@ export default function ScanQRScreen() {
 
       if (qrData.type !== "afritoken_receive") {
         Alert.alert(
-          "Invalid QR Code",
-          "This QR code is not from AfriToken. Please scan a valid AfriToken receive QR code.",
-          [{ text: "OK", onPress: () => setScanned(false) }]
+          t("send_tokens.scan_qr.err_invalid_qr_title", "Invalid QR Code"),
+          t("send_tokens.scan_qr.err_invalid_qr", "This QR code is not from AfriToken. Please scan a valid AfriToken receive QR code."),
+          [{ text: t("common.ok", "OK"), onPress: () => setScanned(false) }]
         );
         return;
       }
@@ -52,9 +54,9 @@ export default function ScanQRScreen() {
 
       if (!email) {
         Alert.alert(
-          "Invalid QR Code",
-          "QR code does not contain recipient email.",
-          [{ text: "OK", onPress: () => setScanned(false) }]
+          t("send_tokens.scan_qr.err_invalid_qr_title", "Invalid QR Code"),
+          t("send_tokens.scan_qr.err_missing_email", "QR code does not contain recipient email."),
+          [{ text: t("common.ok", "OK"), onPress: () => setScanned(false) }]
         );
         return;
       }
@@ -68,11 +70,11 @@ export default function ScanQRScreen() {
     } catch (error) {
       console.error("QR scan error:", error);
       Alert.alert(
-        "Invalid QR Code",
-        "Could not read QR code. Please try again or enter email manually.",
+        t("send_tokens.scan_qr.err_invalid_qr_title", "Invalid QR Code"),
+        t("send_tokens.scan_qr.err_parse_failed", "Could not read QR code. Please try again or enter email manually."),
         [
-          { text: "Manual Entry", onPress: () => router.back() },
-          { text: "Retry", onPress: () => setScanned(false) },
+          { text: t("send_tokens.scan_qr.btn_manual", "Manual Entry"), onPress: () => router.back() },
+          { text: t("send_tokens.scan_qr.btn_retry", "Retry"), onPress: () => setScanned(false) },
         ]
       );
     }
@@ -81,7 +83,7 @@ export default function ScanQRScreen() {
   if (hasPermission === null) {
     return (
       <View style={[styles.loadingContainer, { backgroundColor: theme.background }]}>
-        <Text style={[styles.message, { color: theme.muted }]}>Requesting camera permission...</Text>
+        <Text style={[styles.message, { color: theme.muted }]}>{t("send_tokens.scan_qr.loading_permission", "Requesting camera permission...")}</Text>
       </View>
     );
   }
@@ -91,16 +93,16 @@ export default function ScanQRScreen() {
       <View style={[styles.container, { backgroundColor: theme.background }]}>
         <View style={styles.permissionDenied}>
           <Ionicons name="camera-outline" size={64} color={theme.muted} />
-          <Text style={[styles.permissionTitle, { color: theme.text }]}>Camera Access Denied</Text>
+          <Text style={[styles.permissionTitle, { color: theme.text }]}>{t("send_tokens.scan_qr.denied_title", "Camera Access Denied")}</Text>
           <Text style={[styles.permissionText, { color: theme.muted }]}>
-            Please enable camera access in your device settings to scan QR codes.
+            {t("send_tokens.scan_qr.denied_desc", "Please enable camera access in your device settings to scan QR codes.")}
           </Text>
           <TouchableOpacity
             style={[styles.backBtn, { backgroundColor: theme.accent }]}
             onPress={() => router.back()}
             activeOpacity={0.75}
           >
-            <Text style={styles.backBtnText}>Go Back</Text>
+            <Text style={styles.backBtnText}>{t("send_tokens.scan_qr.btn_back", "Go Back")}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -121,7 +123,7 @@ export default function ScanQRScreen() {
           {/* Top overlay */}
           <View style={styles.overlayTop}>
             <Text style={styles.instructionText}>
-              Scan AfriToken Receive QR Code
+              {t("send_tokens.scan_qr.scan_instruction", "Scan AfriToken Receive QR Code")}
             </Text>
           </View>
 
@@ -141,7 +143,7 @@ export default function ScanQRScreen() {
               activeOpacity={0.8}
             >
               <Ionicons name="close-circle" size={24} color="#FFFFFF" />
-              <Text style={styles.cancelBtnText}>Cancel</Text>
+              <Text style={styles.cancelBtnText}>{t("send_tokens.scan_qr.btn_cancel", "Cancel")}</Text>
             </TouchableOpacity>
           </View>
         </View>

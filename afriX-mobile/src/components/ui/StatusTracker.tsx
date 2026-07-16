@@ -3,6 +3,7 @@ import React from "react";
 import { View, StyleSheet, useColorScheme } from "react-native";
 import { Text } from "react-native-paper";
 import { Ionicons } from "@expo/vector-icons";
+import { useTranslation } from "react-i18next";
 
 interface StatusStep {
   label: string;
@@ -16,6 +17,7 @@ interface StatusTrackerProps {
 export const StatusTracker: React.FC<StatusTrackerProps> = ({
   currentStatus,
 }) => {
+  const { t } = useTranslation();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
   const theme = {
@@ -39,7 +41,7 @@ export const StatusTracker: React.FC<StatusTrackerProps> = ({
 
   const steps: StatusStep[] = [
     {
-      label: "Request Created",
+      label: t("components.status_tracker.step_created", "Request Created"),
       status: isFailed
         ? "failed"
         : currentIndex >= 0
@@ -49,7 +51,7 @@ export const StatusTracker: React.FC<StatusTrackerProps> = ({
         : "pending",
     },
     {
-      label: "Proof Uploaded",
+      label: t("components.status_tracker.step_proof", "Proof Uploaded"),
       status: isFailed
         ? "failed"
         : currentIndex >= 1
@@ -59,7 +61,7 @@ export const StatusTracker: React.FC<StatusTrackerProps> = ({
         : "pending",
     },
     {
-      label: "Agent Reviewing",
+      label: t("components.status_tracker.step_reviewing", "Agent Reviewing"),
       status: isFailed
         ? "failed"
         : currentIndex >= 1
@@ -69,7 +71,7 @@ export const StatusTracker: React.FC<StatusTrackerProps> = ({
         : "pending",
     },
     {
-      label: "Tokens Minted",
+      label: t("components.status_tracker.step_minted", "Tokens Minted"),
       status: isFailed ? "failed" : currentIndex >= 2 ? "completed" : "pending",
     },
   ];

@@ -17,6 +17,7 @@ import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useTransferStore, useWalletStore } from "@/stores";
+import { useTranslation } from "react-i18next";
 
 const TOKENS = ["NT", "CT", "USDT"] as const;
 const TOKEN_LABELS: Record<string, string> = { NT: "Naira Token", CT: "CFA Token", USDT: "Tether" };
@@ -24,6 +25,7 @@ const TOKEN_SUBTITLES: Record<string, string> = { NT: "Domestic", CT: "Regional"
 
 export default function SendTokensScreen() {
   const router = useRouter();
+  const { t } = useTranslation();
   const scrollViewRef = useRef<ScrollView | null>(null);
   const [email, setEmail] = useState("");
   const [emailError, setEmailError] = useState("");
@@ -72,11 +74,11 @@ export default function SendTokensScreen() {
 
   const handleContinue = () => {
     if (!email.trim()) {
-      setEmailError("Please enter recipient's email");
+      setEmailError(t("send_tokens.index.err_enter_email", "Please enter recipient's email"));
       return;
     }
     if (!validateEmail(email)) {
-      setEmailError("Please enter a valid email address");
+      setEmailError(t("send_tokens.index.err_invalid_email", "Please enter a valid email address"));
       return;
     }
     setRecipient(email);
@@ -112,10 +114,10 @@ export default function SendTokensScreen() {
                 <Ionicons name="arrow-back" size={22} color={theme.text} />
               </TouchableOpacity>
               <View style={styles.headerText}>
-                <Text style={[styles.headerTitle, { color: theme.text }]}>Send Tokens</Text>
+                <Text style={[styles.headerTitle, { color: theme.text }]}>{t("send_tokens.index.header_title", "Send Tokens")}</Text>
                 <Animated.View style={{ opacity: subtitleOpacity, maxHeight: subtitleMaxHeight, marginTop: subtitleMargin, overflow: "hidden" }}>
                   <Text style={[styles.headerSubtitle, { color: theme.muted }]}>
-                    Transfer tokens instantly to any AfriToken user.
+                    {t("send_tokens.index.header_subtitle", "Transfer tokens instantly to any AfriToken user.")}
                   </Text>
                 </Animated.View>
               </View>
@@ -142,15 +144,15 @@ export default function SendTokensScreen() {
 
           {/* INTRO CARD */}
           <View style={[styles.introCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
-            <Text style={[styles.introEyebrow, { color: theme.accent }]}>WALLET TRANSFER</Text>
-            <Text style={[styles.introTitle, { color: theme.text }]}>Instant settlement</Text>
+            <Text style={[styles.introEyebrow, { color: theme.accent }]}>{t("send_tokens.index.intro_eyebrow", "WALLET TRANSFER")}</Text>
+            <Text style={[styles.introTitle, { color: theme.text }]}>{t("send_tokens.index.intro_title", "Instant settlement")}</Text>
             <Text style={[styles.introSubtitle, { color: theme.muted }]}>
-              Select the token type to transfer, specify the recipient's registered email address or scan their QR code.
+              {t("send_tokens.index.intro_desc", "Select the token type to transfer, specify the recipient's registered email address or scan their QR code.")}
             </Text>
           </View>
 
           {/* TOKEN SELECTION */}
-          <Text style={[styles.sectionLabel, { color: theme.muted }]}>Select Token Type</Text>
+          <Text style={[styles.sectionLabel, { color: theme.muted }]}>{t("send_tokens.index.select_token", "Select Token Type")}</Text>
           <View style={styles.tokenGrid}>
             {TOKENS.map((token) => {
               const isSelected = tokenType === token;
@@ -171,13 +173,21 @@ export default function SendTokensScreen() {
                     </View>
                   )}
                   <Text style={[styles.tokenCardSub, { color: isSelected ? theme.accent : theme.muted }]}>
-                    {TOKEN_SUBTITLES[token]}
+                    {token === "NT"
+                      ? t("send_tokens.index.token_subtitle_nt", "Domestic")
+                      : token === "CT"
+                      ? t("send_tokens.index.token_subtitle_ct", "Regional")
+                      : t("send_tokens.index.token_subtitle_usdt", "Reserve")}
                   </Text>
                   <Text style={[styles.tokenCardLabel, { color: isSelected ? theme.accent : theme.text }]}>
                     {token}
                   </Text>
                   <Text style={[styles.tokenCardName, { color: isSelected ? theme.accent + "AA" : theme.muted }]}>
-                    {TOKEN_LABELS[token]}
+                    {token === "NT"
+                      ? t("send_tokens.index.token_label_nt", "Naira Token")
+                      : token === "CT"
+                      ? t("send_tokens.index.token_label_ct", "CFA Token")
+                      : t("send_tokens.index.token_label_usdt", "Tether")}
                   </Text>
                 </TouchableOpacity>
               );
@@ -189,7 +199,7 @@ export default function SendTokensScreen() {
             <View style={[styles.balanceCard, { backgroundColor: theme.cardAlt, borderColor: theme.border }]}>
               <View style={styles.balanceHeader}>
                 <Ionicons name="wallet-outline" size={14} color={theme.muted} />
-                <Text style={[styles.balanceLabel, { color: theme.muted }]}>Available Balance</Text>
+                <Text style={[styles.balanceLabel, { color: theme.muted }]}>{t("send_tokens.index.available_balance", "Available Balance")}</Text>
               </View>
               <Text style={[styles.balanceAmount, { color: theme.text }]}>
                 {parseFloat(wallet.available_balance).toLocaleString(undefined, {
@@ -202,14 +212,14 @@ export default function SendTokensScreen() {
           )}
 
           {/* RECIPIENT INPUT */}
-          <Text style={[styles.sectionLabel, { color: theme.muted }]}>Recipient Details</Text>
+          <Text style={[styles.sectionLabel, { color: theme.muted }]}>{t("send_tokens.index.recipient_details", "Recipient Details")}</Text>
           <View style={[styles.formCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
-            <Text style={[styles.inputLabel, { color: theme.text }]}>Recipient's Email Address</Text>
+            <Text style={[styles.inputLabel, { color: theme.text }]}>{t("send_tokens.index.recipient_email_label", "Recipient's Email Address")}</Text>
             <View style={[styles.inputWrapper, { backgroundColor: theme.inputBg, borderColor: theme.border }, !!emailError && { borderColor: "#EF4444" }]}>
               <Ionicons name="mail-outline" size={20} color={theme.placeholder} style={styles.inputIcon} />
               <TextInput
                 style={[styles.input, { color: theme.text }]}
-                placeholder="user@example.com"
+                placeholder={t("send_tokens.index.recipient_email_placeholder", "user@example.com")}
                 placeholderTextColor={theme.placeholder}
                 value={email}
                 onChangeText={(text) => {
@@ -223,13 +233,13 @@ export default function SendTokensScreen() {
             </View>
             {!!emailError && <Text style={styles.errorText}>{emailError}</Text>}
             <Text style={[styles.inputHint, { color: theme.muted }]}>
-              Type the recipient's AfriToken account email address.
+              {t("send_tokens.index.input_hint", "Type the recipient's AfriToken account email address.")}
             </Text>
 
             {/* OR DIVIDER */}
             <View style={styles.dividerRow}>
               <View style={[styles.dividerLine, { backgroundColor: theme.border }]} />
-              <Text style={[styles.dividerText, { color: theme.placeholder }]}>OR</Text>
+              <Text style={[styles.dividerText, { color: theme.placeholder }]}>{t("send_tokens.index.or_divider", "OR")}</Text>
               <View style={[styles.dividerLine, { backgroundColor: theme.border }]} />
             </View>
 
@@ -240,7 +250,7 @@ export default function SendTokensScreen() {
               activeOpacity={0.8}
             >
               <Ionicons name="qr-code-outline" size={20} color={theme.accent} />
-              <Text style={[styles.scanQrText, { color: theme.accent }]}>Scan QR Code</Text>
+              <Text style={[styles.scanQrText, { color: theme.accent }]}>{t("send_tokens.index.btn_scan_qr", "Scan QR Code")}</Text>
             </TouchableOpacity>
           </View>
 
@@ -250,7 +260,7 @@ export default function SendTokensScreen() {
               <Ionicons name="information-circle-outline" size={18} color={theme.blue} />
             </View>
             <Text style={[styles.tipText, { color: isDark ? "#93C5FD" : "#1E40AF" }]}>
-              Double check the recipient's email address. Transfers are processed instantly and cannot be reversed.
+              {t("send_tokens.index.tip_desc", "Double check the recipient's email address. Transfers are processed instantly and cannot be reversed.")}
             </Text>
           </View>
 
@@ -261,7 +271,7 @@ export default function SendTokensScreen() {
             disabled={!isFormValid}
             activeOpacity={0.85}
           >
-            <Text style={styles.continueBtnText}>Continue</Text>
+            <Text style={styles.continueBtnText}>{t("send_tokens.index.btn_continue", "Continue")}</Text>
             <Ionicons name="arrow-forward" size={18} color="#FFF" />
           </TouchableOpacity>
 

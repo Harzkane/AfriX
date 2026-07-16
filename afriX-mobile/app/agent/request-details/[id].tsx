@@ -12,10 +12,11 @@ import { LinearGradient } from "expo-linear-gradient";
 import * as ImagePicker from "expo-image-picker";
 import { useAgentStore } from "@/stores/slices/agentSlice";
 import { formatAmount, formatDate } from "@/utils/format";
+import { useTranslation } from "react-i18next";
 
-const getTypeConfig = (type: "mint" | "burn") => {
-    if (type === "mint") return { label: "Mint", icon: "arrow-up-circle" as const, color: "#059669", bg: "#ECFDF5", border: "#A7F3D0" };
-    return { label: "Burn", icon: "arrow-down-circle" as const, color: "#D97706", bg: "#FFFBEB", border: "#FDE68A" };
+const getTypeConfig = (t: any, type: "mint" | "burn") => {
+    if (type === "mint") return { label: t("agent.request_details.type_mint", "Mint"), icon: "arrow-up-circle" as const, color: "#059669", bg: "#ECFDF5", border: "#A7F3D0" };
+    return { label: t("agent.request_details.type_burn", "Burn"), icon: "arrow-down-circle" as const, color: "#D97706", bg: "#FFFBEB", border: "#FDE68A" };
 };
 
 const getStatusColor = (status: string) => {
@@ -28,7 +29,22 @@ const getStatusColor = (status: string) => {
     }
 };
 
+const getStatusLabel = (t: any, status?: string) => {
+    switch (String(status || "").toLowerCase()) {
+        case "proof_submitted": return t("agent.requests.status_proof_submitted", "PROOF SUBMITTED");
+        case "escrowed": return t("agent.requests.status_escrowed", "ESCROWED");
+        case "pending": return t("agent.requests.status_pending", "PENDING");
+        case "disputed": return t("agent.requests.status_disputed", "DISPUTED");
+        case "completed": case "confirmed": return t("agent.requests.status_completed", "COMPLETED");
+        case "rejected": return t("agent.requests.status_rejected", "REJECTED");
+        case "expired": return t("agent.requests.status_expired", "EXPIRED");
+        case "cancelled": return t("agent.requests.status_cancelled", "CANCELLED");
+        default: return String(status || "unknown").replace(/_/g, " ").toUpperCase();
+    }
+};
+
 export default function RequestDetailsScreen() {
+    const { t } = useTranslation();
     const { id } = useLocalSearchParams();
     const router = useRouter();
     const { pendingRequests, history, confirmMintRequest, confirmBurnPayment, rejectRequest, loading } = useAgentStore();
@@ -68,25 +84,25 @@ export default function RequestDetailsScreen() {
                     <LinearGradient colors={["#EDE9FE", "#DDD6FE"]} style={styles.errorIconCircle}>
                         <Ionicons name="alert-circle-outline" size={28} color="#7C3AED" />
                     </LinearGradient>
-                    <Text style={[styles.errorTitle, { color: theme.text }]}>Request unavailable</Text>
-                    <Text style={[styles.errorSub, { color: theme.muted }]}>This request could not be found.</Text>
+                    <Text style={[styles.errorTitle, { color: theme.text }]}>{t("agent.request_details.err_unavailable", "Request unavailable")}</Text>
+                    <Text style={[styles.errorSub, { color: theme.muted }]}>{t("agent.request_details.err_not_found", "This request could not be found.")}</Text>
                     <TouchableOpacity style={styles.ctaBtn} onPress={() => router.back()} activeOpacity={0.85}>
-                        <Text style={styles.ctaBtnText}>Go back</Text>
+                        <Text style={styles.ctaBtnText}>{t("agent.request_details.go_back", "Go back")}</Text>
                     </TouchableOpacity>
                 </SafeAreaView>
             </View>
         );
     }
 
-    const typeConfig = getTypeConfig(isMint ? "mint" : "burn");
+    const typeConfig = getTypeConfig(t, isMint ? "mint" : "burn");
     const statusColor = getStatusColor(request.status);
 
     const handleConfirmMint = async () => {
-        Alert.alert("Confirm Mint", "Are you sure you have received the payment? This will mint tokens to the user.", [
-            { text: "Cancel", style: "cancel" },
-            { text: "Confirm", onPress: async () => {
-                try { await confirmMintRequest(request.id); Alert.alert("Success", "Mint request confirmed!"); router.back(); }
-                catch (error: any) { Alert.alert("Error", error.message); }
+        Alert.alert(t("agent.request_details.alert_confirm_mint_title", "Confirm Mint"), t("agent.request_details.alert_confirm_mint_body", "Are you sure you have received the payment? This will mint tokens to the user."), [
+            { text: t("agent.request_details.alert_cancel", "Cancel"), style: "cancel" },
+            { text: t("agent.request_details.alert_confirm", "Confirm"), onPress: async () => {
+                try { await confirmMintRequest(request.id); Alert.alert(t("agent.request_details.alert_success", "Success"), t("agent.request_details.alert_mint_confirmed", "Mint request confirmed!")); router.back(); }
+                catch (error: any) { Alert.alert(t("agent.request_details.alert_error", "Error"), error.message); }
             }},
         ]);
     };
@@ -98,20 +114,20 @@ export default function RequestDetailsScreen() {
                 setUploading(true);
                 await confirmBurnPayment(request.id, result.assets[0]);
                 setUploading(false);
-                Alert.alert("Success", "Payment proof uploaded!");
+                Alert.alert(t("agent.request_details.alert_success", "Success"), t("agent.request_details.alert_proof_uploaded", "Payment proof uploaded!"));
                 router.back();
             }
-        } catch (error: any) { setUploading(false); Alert.alert("Error", error.message); }
+        } catch (error: any) { setUploading(false); Alert.alert(t("agent.request_details.alert_error", "Error"), error.message); }
     };
 
     const handleReject = async () => {
-        if (!rejectReason.trim()) { Alert.alert("Error", "Please provide a reason for rejection"); return; }
+        if (!rejectReason.trim()) { Alert.alert(t("agent.request_details.alert_error", "Error"), t("agent.request_details.alert_reason_required", "Please provide a reason for rejection")); return; }
         try {
             await rejectRequest(request.id, rejectReason, isMint ? "mint" : "burn");
             setRejectModalVisible(false);
-            Alert.alert("Success", "Request rejected");
+            Alert.alert(t("agent.request_details.alert_success", "Success"), t("agent.request_details.alert_request_rejected", "Request rejected"));
             router.back();
-        } catch (error: any) { Alert.alert("Error", error.message); }
+        } catch (error: any) { Alert.alert(t("agent.request_details.alert_error", "Error"), error.message); }
     };
 
     return (
@@ -122,7 +138,7 @@ export default function RequestDetailsScreen() {
                     <TouchableOpacity onPress={() => router.back()} style={[styles.headerBackBtn, { backgroundColor: theme.accentLight }]} activeOpacity={0.8}>
                         <Ionicons name="arrow-back" size={20} color={theme.accent} />
                     </TouchableOpacity>
-                    <Text style={[styles.headerTitle, { color: theme.text }]}>Request Details</Text>
+                    <Text style={[styles.headerTitle, { color: theme.text }]}>{t("agent.request_details.header_title", "Request Details")}</Text>
                     <View style={styles.headerSpacer} />
                 </View>
             </SafeAreaView>
@@ -136,15 +152,15 @@ export default function RequestDetailsScreen() {
                     <View style={styles.heroTopRow}>
                         <View style={[styles.heroTypePill, { backgroundColor: "rgba(255,255,255,0.18)" }]}>
                             <Ionicons name={typeConfig.icon} size={14} color="#FFFFFF" />
-                            <Text style={styles.heroTypePillText}>{isMint ? "Mint Request" : "Burn Request"}</Text>
+                            <Text style={styles.heroTypePillText}>{isMint ? t("agent.request_details.mint_request", "Mint Request") : t("agent.request_details.burn_request", "Burn Request")}</Text>
                         </View>
                         <View style={[styles.heroStatusPill, { backgroundColor: `${statusColor}30` }]}>
                             <Text style={[styles.heroStatusText, { color: "#FFFFFF" }]}>
-                                {String(request.status || "").replace(/_/g, " ").toUpperCase()}
+                                {getStatusLabel(t, request.status)}
                             </Text>
                         </View>
                     </View>
-                    <Text style={styles.heroAmountLabel}>Request Amount</Text>
+                    <Text style={styles.heroAmountLabel}>{t("agent.request_details.amount_label", "Request Amount")}</Text>
                     <Text style={styles.heroAmount}>{formatAmount(request.amount, request.token_type)} {request.token_type}</Text>
                     <Text style={styles.heroDate}>{formatDate(request.created_at, true)}</Text>
                 </LinearGradient>
@@ -154,8 +170,8 @@ export default function RequestDetailsScreen() {
                     <View style={styles.alertBanner}>
                         <Ionicons name="alert-circle" size={20} color="#B42318" />
                         <View style={styles.alertContent}>
-                            <Text style={styles.alertTitle}>Request Expired</Text>
-                            <Text style={styles.alertText}>This request expired and was automatically refunded to the user.</Text>
+                            <Text style={styles.alertTitle}>{t("agent.request_details.expired_title", "Request Expired")}</Text>
+                            <Text style={styles.alertText}>{t("agent.request_details.expired_sub", "This request expired and was automatically refunded to the user.")}</Text>
                         </View>
                     </View>
                 ) : null}
@@ -163,8 +179,8 @@ export default function RequestDetailsScreen() {
                     <View style={[styles.alertBanner, styles.alertBannerWarn]}>
                         <Ionicons name="warning" size={20} color="#D97706" />
                         <View style={styles.alertContent}>
-                            <Text style={[styles.alertTitle, { color: "#B45309" }]}>Dispute Opened</Text>
-                            <Text style={[styles.alertText, { color: "#92400E" }]}>This request is under admin review due to a dispute.</Text>
+                            <Text style={[styles.alertTitle, { color: "#B45309" }]}>{t("agent.request_details.disputed_title", "Dispute Opened")}</Text>
+                            <Text style={[styles.alertText, { color: "#92400E" }]}>{t("agent.request_details.disputed_sub", "This request is under admin review due to a dispute.")}</Text>
                         </View>
                     </View>
                 ) : null}
@@ -172,10 +188,10 @@ export default function RequestDetailsScreen() {
                 {/* User Info */}
                 <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
                     <View style={[styles.cardAccentBar, { backgroundColor: theme.accent }]} />
-                    <Text style={[styles.cardTitle, { color: theme.text }]}>User Information</Text>
+                    <Text style={[styles.cardTitle, { color: theme.text }]}>{t("agent.request_details.user_info", "User Information")}</Text>
                     {[
-                        { label: "Name", value: request.user?.full_name || "—" },
-                        { label: "Email", value: request.user?.email || "—" },
+                        { label: t("agent.request_details.name", "Name"), value: request.user?.full_name || "—" },
+                        { label: t("agent.request_details.email", "Email"), value: request.user?.email || "—" },
                     ].map((row, idx, arr) => (
                         <View key={row.label} style={[styles.infoRow, { borderBottomColor: theme.border }, idx === arr.length - 1 && { borderBottomWidth: 0 }]}>
                             <Text style={[styles.infoLabel, { color: theme.muted }]}>{row.label}</Text>
@@ -187,12 +203,12 @@ export default function RequestDetailsScreen() {
                 {/* Request Summary */}
                 <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
                     <View style={[styles.cardAccentBar, { backgroundColor: typeConfig.color }]} />
-                    <Text style={[styles.cardTitle, { color: theme.text }]}>Request Summary</Text>
+                    <Text style={[styles.cardTitle, { color: theme.text }]}>{t("agent.request_details.summary", "Request Summary")}</Text>
                     {[
-                        { label: "Type", value: typeConfig.label },
-                        { label: "Amount", value: `${formatAmount(request.amount, request.token_type)} ${request.token_type}` },
-                        { label: "Status", value: String(request.status || "").replace(/_/g, " ") },
-                        { label: "Created On", value: formatDate(request.created_at, true) },
+                        { label: t("agent.request_details.type", "Type"), value: typeConfig.label },
+                        { label: t("agent.request_details.amount", "Amount"), value: `${formatAmount(request.amount, request.token_type)} ${request.token_type}` },
+                        { label: t("agent.request_details.status", "Status"), value: getStatusLabel(t, request.status) },
+                        { label: t("agent.request_details.created_on", "Created On"), value: formatDate(request.created_at, true) },
                     ].map((row, idx, arr) => (
                         <View key={row.label} style={[styles.infoRow, { borderBottomColor: theme.border }, idx === arr.length - 1 && { borderBottomWidth: 0 }]}>
                             <Text style={[styles.infoLabel, { color: theme.muted }]}>{row.label}</Text>
@@ -205,11 +221,11 @@ export default function RequestDetailsScreen() {
                 {isMint && request.payment_proof_url ? (
                     <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
                         <View style={[styles.cardAccentBar, { backgroundColor: theme.green }]} />
-                        <Text style={[styles.cardTitle, { color: theme.text }]}>Payment Proof</Text>
+                        <Text style={[styles.cardTitle, { color: theme.text }]}>{t("agent.request_details.payment_proof", "Payment Proof")}</Text>
                         <TouchableOpacity onPress={() => Linking.openURL(request.payment_proof_url!)} activeOpacity={0.85} style={{ paddingHorizontal: 16, paddingBottom: 4 }}>
                             <Image source={{ uri: request.payment_proof_url }} style={styles.proofImage} resizeMode="cover" />
                         </TouchableOpacity>
-                        <Text style={[styles.proofHint, { color: theme.muted }]}>Tap to view full size</Text>
+                        <Text style={[styles.proofHint, { color: theme.muted }]}>{t("agent.request_details.tap_view_full", "Tap to view full size")}</Text>
                     </View>
                 ) : null}
 
@@ -217,11 +233,11 @@ export default function RequestDetailsScreen() {
                 {isBurn && request.fiat_proof_url ? (
                     <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
                         <View style={[styles.cardAccentBar, { backgroundColor: "#D97706" }]} />
-                        <Text style={[styles.cardTitle, { color: theme.text }]}>Fiat Payment Proof</Text>
+                        <Text style={[styles.cardTitle, { color: theme.text }]}>{t("agent.request_details.fiat_proof", "Fiat Payment Proof")}</Text>
                         <TouchableOpacity onPress={() => Linking.openURL(request.fiat_proof_url!)} activeOpacity={0.85} style={{ paddingHorizontal: 16, paddingBottom: 4 }}>
                             <Image source={{ uri: request.fiat_proof_url }} style={styles.proofImage} resizeMode="cover" />
                         </TouchableOpacity>
-                        <Text style={[styles.proofHint, { color: theme.muted }]}>Tap to view full size</Text>
+                        <Text style={[styles.proofHint, { color: theme.muted }]}>{t("agent.request_details.tap_view_full", "Tap to view full size")}</Text>
                     </View>
                 ) : null}
 
@@ -230,12 +246,12 @@ export default function RequestDetailsScreen() {
                     const details = request.bank_account as { type?: string; bank_name?: string; account_number?: string; account_name?: string; provider?: string; phone_number?: string };
                     const isMobileMoney = details.type === "mobile_money" || (!details.bank_name && (details.provider || details.phone_number));
                     const rows = isMobileMoney
-                        ? [{ label: "Provider", value: details.provider ?? "—" }, { label: "Phone Number", value: details.phone_number ?? "—" }, { label: "Wallet Holder", value: details.account_name ?? "—" }]
-                        : [{ label: "Bank Name", value: details.bank_name ?? "—" }, { label: "Account Number", value: details.account_number ?? "—" }, { label: "Account Name", value: details.account_name ?? "—" }];
+                        ? [{ label: t("agent.request_details.provider", "Provider"), value: details.provider ?? "—" }, { label: t("agent.request_details.phone_number", "Phone Number"), value: details.phone_number ?? "—" }, { label: t("agent.request_details.wallet_holder", "Wallet Holder"), value: details.account_name ?? "—" }]
+                        : [{ label: t("agent.request_details.bank_name", "Bank Name"), value: details.bank_name ?? "—" }, { label: t("agent.request_details.account_number", "Account Number"), value: details.account_number ?? "—" }, { label: t("agent.request_details.account_name", "Account Name"), value: details.account_name ?? "—" }];
                     return (
                         <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
                             <View style={[styles.cardAccentBar, { backgroundColor: "#EA580C" }]} />
-                            <Text style={[styles.cardTitle, { color: theme.text }]}>{isMobileMoney ? "Mobile Money Details" : "Bank Details"}</Text>
+                            <Text style={[styles.cardTitle, { color: theme.text }]}>{isMobileMoney ? t("agent.request_details.mobile_money_details", "Mobile Money Details") : t("agent.request_details.bank_details", "Bank Details")}</Text>
                             {rows.map((row, idx, arr) => (
                                 <View key={row.label} style={[styles.infoRow, { borderBottomColor: theme.border }, idx === arr.length - 1 && { borderBottomWidth: 0 }]}>
                                     <Text style={[styles.infoLabel, { color: theme.muted }]}>{row.label}</Text>
@@ -260,7 +276,7 @@ export default function RequestDetailsScreen() {
                     >
                         {loading
                             ? <ActivityIndicator color="#FFFFFF" />
-                            : (<><Text style={styles.primaryActionText}>Confirm Payment Received</Text><Ionicons name="checkmark-circle" size={18} color="#FFFFFF" /></>)
+                            : (<><Text style={styles.primaryActionText}>{t("agent.request_details.btn_confirm_received", "Confirm Payment Received")}</Text><Ionicons name="checkmark-circle" size={18} color="#FFFFFF" /></>)
                         }
                     </TouchableOpacity>
                 ) : null}
@@ -274,7 +290,7 @@ export default function RequestDetailsScreen() {
                     >
                         {uploading
                             ? <ActivityIndicator color="#FFFFFF" />
-                            : (<><Text style={styles.primaryActionText}>Upload Payment Proof</Text><Ionicons name="cloud-upload" size={18} color="#FFFFFF" /></>)
+                            : (<><Text style={styles.primaryActionText}>{t("agent.request_details.btn_upload_proof", "Upload Payment Proof")}</Text><Ionicons name="cloud-upload" size={18} color="#FFFFFF" /></>)
                         }
                     </TouchableOpacity>
                 ) : null}
@@ -287,7 +303,7 @@ export default function RequestDetailsScreen() {
                         activeOpacity={0.8}
                     >
                         <Ionicons name="close-circle-outline" size={16} color="#EF4444" />
-                        <Text style={styles.rejectBtnText}>Reject Request</Text>
+                        <Text style={styles.rejectBtnText}>{t("agent.request_details.btn_reject", "Reject Request")}</Text>
                     </TouchableOpacity>
                 ) : null}
             </View>
@@ -298,18 +314,18 @@ export default function RequestDetailsScreen() {
                     <View style={[styles.modalSheet, { backgroundColor: theme.card }]}>
                         <View style={[styles.modalHandle, { backgroundColor: theme.border }]} />
                         <View style={styles.modalHeader}>
-                            <Text style={[styles.modalTitle, { color: theme.text }]}>Reject Request</Text>
+                            <Text style={[styles.modalTitle, { color: theme.text }]}>{t("agent.request_details.modal_title", "Reject Request")}</Text>
                             <TouchableOpacity onPress={() => setRejectModalVisible(false)} activeOpacity={0.8}>
                                 <Ionicons name="close" size={22} color={theme.muted} />
                             </TouchableOpacity>
                         </View>
                         <Text style={[styles.modalDesc, { color: theme.muted }]}>
-                            Please explain why you are rejecting this request. The user will be notified immediately.
+                            {t("agent.request_details.modal_desc", "Please explain why you are rejecting this request. The user will be notified immediately.")}
                         </Text>
-                        <Text style={[styles.inputLabel, { color: theme.text }]}>Reason</Text>
+                        <Text style={[styles.inputLabel, { color: theme.text }]}>{t("agent.request_details.reason_label", "Reason")}</Text>
                         <TextInput
                             style={[styles.textArea, { backgroundColor: theme.inputBg, borderColor: theme.border, color: theme.text }]}
-                            placeholder="e.g. Payment proof is invalid or unreadable"
+                            placeholder={t("agent.request_details.reason_placeholder", "e.g. Payment proof is invalid or unreadable")}
                             placeholderTextColor={theme.muted}
                             value={rejectReason}
                             onChangeText={setRejectReason}
@@ -322,10 +338,10 @@ export default function RequestDetailsScreen() {
                                 onPress={() => setRejectModalVisible(false)}
                                 activeOpacity={0.8}
                             >
-                                <Text style={[styles.modalCancelText, { color: theme.muted }]}>Cancel</Text>
+                                <Text style={[styles.modalCancelText, { color: theme.muted }]}>{t("agent.request_details.cancel", "Cancel")}</Text>
                             </TouchableOpacity>
                             <TouchableOpacity style={styles.modalSubmitBtn} onPress={handleReject} activeOpacity={0.85}>
-                                <Text style={styles.modalSubmitText}>Reject Request</Text>
+                                <Text style={styles.modalSubmitText}>{t("agent.request_details.btn_reject", "Reject Request")}</Text>
                             </TouchableOpacity>
                         </View>
                     </View>

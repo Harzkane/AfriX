@@ -5,10 +5,11 @@ import { useEffect, useRef, useState } from "react";
 import { AppState, AppStateStatus, View, Text, TextInput, TouchableOpacity, StyleSheet } from "react-native";
 import * as SecureStore from "expo-secure-store";
 import * as LocalAuthentication from "expo-local-authentication";
-import { useAuthStore } from "@/stores";
+import { useAuthStore, useSettingsStore } from "@/stores";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useIncomingTransferListener } from "@/hooks/useIncomingTransferListener";
+import "@/i18n";
 
 // ─── Global Font Scaling Fix ────────────────────────────────────────────────
 // Prevents Android system font size setting from inflating text in the app.
@@ -23,7 +24,8 @@ const BIOMETRIC_LOGIN_KEY = "biometric_login_enabled";
 
 
 export default function RootLayout() {
-  const { isAuthenticated, initAuth } = useAuthStore();
+  const { isAuthenticated, initAuth, user } = useAuthStore();
+  const { initializeLanguage } = useSettingsStore();
   const router = useRouter();
   const [isReady, setIsReady] = useState(false);
   const [appLocked, setAppLocked] = useState(false);
@@ -39,6 +41,13 @@ export default function RootLayout() {
       setIsReady(true);
     });
   }, [initAuth]);
+
+  // Step 1.5: Initialize Language
+  useEffect(() => {
+    if (isReady) {
+      initializeLanguage(user?.country_code);
+    }
+  }, [isReady, user?.country_code, initializeLanguage]);
 
   // Step 2: Safe redirect ONCE
   useEffect(() => {

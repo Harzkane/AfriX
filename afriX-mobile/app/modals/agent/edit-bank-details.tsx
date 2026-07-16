@@ -15,6 +15,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
+import { useTranslation } from "react-i18next";
 import { useAuthStore } from "@/stores";
 import { useAgentStore } from "@/stores/slices/agentSlice";
 import { isXOFCountry, XOF_MOBILE_MONEY_PROVIDERS } from "@/constants/payment";
@@ -22,6 +23,7 @@ import { getCountryByCode } from "@/constants/countries";
 
 export default function EditBankDetails() {
   const router = useRouter();
+  const { t } = useTranslation();
   const params = useLocalSearchParams();
   const fromAgentProfile = params?.from === "agent-profile";
   const { user } = useAuthStore();
@@ -87,21 +89,21 @@ export default function EditBankDetails() {
     const newErrors: any = {};
 
     if (!bankName.trim()) {
-      newErrors.bankName = "Bank name is required";
+      newErrors.bankName = t("agent.modals.edit_bank_details.err_bank_required", "Bank name is required");
     }
 
     if (!accountNumber.trim()) {
-      newErrors.accountNumber = "Account number is required";
+      newErrors.accountNumber = t("agent.modals.edit_bank_details.err_account_num_required", "Account number is required");
     }
 
     if (!accountName.trim()) {
-      newErrors.accountName = "Account name is required";
+      newErrors.accountName = t("agent.modals.edit_bank_details.err_account_name_required", "Account name is required");
     }
 
     if (!withdrawalAddress.trim()) {
-      newErrors.withdrawalAddress = "Withdrawal address is required";
+      newErrors.withdrawalAddress = t("agent.modals.edit_bank_details.err_address_required", "Withdrawal address is required");
     } else if (!validateAddress(withdrawalAddress)) {
-      newErrors.withdrawalAddress = "Invalid address format (must start with 0x)";
+      newErrors.withdrawalAddress = t("agent.modals.edit_bank_details.err_address_invalid", "Invalid address format (must start with 0x)");
     }
 
     if (Object.keys(newErrors).length > 0) {
@@ -123,12 +125,15 @@ export default function EditBankDetails() {
       await updateProfile(payload);
 
       Alert.alert(
-        "Success",
-        "Bank details updated successfully",
-        [{ text: "OK", onPress: () => handleGoBack() }]
+        t("agent.modals.edit_bank_details.success_title", "Success"),
+        t("agent.modals.edit_bank_details.success_desc", "Bank details updated successfully"),
+        [{ text: t("agent.modals.edit_bank_details.btn_ok", "OK"), onPress: () => handleGoBack() }]
       );
     } catch (error: any) {
-      Alert.alert("Error", error.message || "Failed to update bank details");
+      Alert.alert(
+        t("agent.modals.edit_bank_details.err_title", "Error"),
+        error.message || t("agent.modals.edit_bank_details.err_failed", "Failed to update bank details")
+      );
     }
   };
 
@@ -147,7 +152,9 @@ export default function EditBankDetails() {
           <TouchableOpacity onPress={handleGoBack} style={[styles.backButton, { backgroundColor: theme.accentLight }]}>
             <Ionicons name="arrow-back" size={20} color={theme.accent} />
           </TouchableOpacity>
-          <Text style={[styles.headerTitle, { color: theme.text }]}>Update Bank Details</Text>
+          <Text style={[styles.headerTitle, { color: theme.text }]}>
+            {t("agent.modals.edit_bank_details.header_title", "Update Bank Details")}
+          </Text>
           <View style={{ width: 36 }} />
         </View>
       </SafeAreaView>
@@ -167,27 +174,37 @@ export default function EditBankDetails() {
             colors={isDark ? ["rgba(124, 58, 237, 0.15)", "rgba(18, 14, 36, 0.8)"] : ["rgba(124, 58, 237, 0.05)", "#FFFFFF"]}
             style={[styles.summaryCard, { borderColor: theme.border }]}
           >
-            <Text style={[styles.summaryEyebrow, { color: theme.accent }]}>Settlement Details</Text>
-            <Text style={[styles.summaryTitle, { color: theme.text }]}>Update Bank & Payout Details</Text>
+            <Text style={[styles.summaryEyebrow, { color: theme.accent }]}>
+              {t("agent.modals.edit_bank_details.summary_eyebrow", "Settlement Details")}
+            </Text>
+            <Text style={[styles.summaryTitle, { color: theme.text }]}>
+              {t("agent.modals.edit_bank_details.summary_title", "Update Bank & Payout Details")}
+            </Text>
             <Text style={[styles.summaryText, { color: theme.muted }]}>
-              Keep your payout details accurate so deposits, withdrawals, and user settlements flow smoothly.
+              {t("agent.modals.edit_bank_details.summary_desc", "Keep your payout details accurate so deposits, withdrawals, and user settlements flow smoothly.")}
             </Text>
           </LinearGradient>
 
           {countryInfo ? (
             <View style={[styles.countryRow, { backgroundColor: theme.cardAlt, borderColor: theme.border }]}>
               <Ionicons name="globe-outline" size={20} color={theme.accent} style={styles.countryIcon} />
-              <Text style={[styles.countryLabel, { color: theme.muted }]}>Country</Text>
+              <Text style={[styles.countryLabel, { color: theme.muted }]}>
+                {t("agent.modals.edit_bank_details.label_country", "Country")}
+              </Text>
               <Text style={[styles.countryValue, { color: theme.text }]}>{countryInfo.name}</Text>
             </View>
           ) : null}
 
           {/* Card 1: Bank Account Details */}
-          <Text style={[styles.sectionLabel, { color: theme.muted }]}>BANK ACCOUNT DETAILS</Text>
+          <Text style={[styles.sectionLabel, { color: theme.muted }]}>
+            {t("agent.modals.edit_bank_details.section_bank_details", "BANK ACCOUNT DETAILS")}
+          </Text>
           <View style={[styles.formCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
             {/* Bank Name */}
             <View style={styles.inputGroup}>
-              <Text style={[styles.label, { color: theme.muted }]}>Bank Name *</Text>
+              <Text style={[styles.label, { color: theme.muted }]}>
+                {t("agent.modals.edit_bank_details.label_bank_name", "Bank Name *")}
+              </Text>
               <View style={[styles.inputContainer, { backgroundColor: theme.inputBg, borderColor: errors.bankName ? "#EF4444" : theme.border }]}>
                 <Ionicons name="business-outline" size={20} color={theme.muted} style={styles.inputIcon} />
                 <TextInput
@@ -197,7 +214,7 @@ export default function EditBankDetails() {
                     setBankName(text);
                     if (errors.bankName) setErrors({ ...errors, bankName: undefined });
                   }}
-                  placeholder="Enter bank name"
+                  placeholder={t("agent.modals.edit_bank_details.placeholder_bank_name", "Enter bank name")}
                   placeholderTextColor={theme.muted}
                   editable={!loading}
                 />
@@ -209,7 +226,9 @@ export default function EditBankDetails() {
 
             {/* Account Number */}
             <View style={styles.inputGroup}>
-              <Text style={[styles.label, { color: theme.muted }]}>Account Number *</Text>
+              <Text style={[styles.label, { color: theme.muted }]}>
+                {t("agent.modals.edit_bank_details.label_account_num", "Account Number *")}
+              </Text>
               <View style={[styles.inputContainer, { backgroundColor: theme.inputBg, borderColor: errors.accountNumber ? "#EF4444" : theme.border }]}>
                 <Ionicons name="card-outline" size={20} color={theme.muted} style={styles.inputIcon} />
                 <TextInput
@@ -219,7 +238,7 @@ export default function EditBankDetails() {
                     setAccountNumber(text);
                     if (errors.accountNumber) setErrors({ ...errors, accountNumber: undefined });
                   }}
-                  placeholder="Enter account number"
+                  placeholder={t("agent.modals.edit_bank_details.placeholder_account_num", "Enter account number")}
                   placeholderTextColor={theme.muted}
                   keyboardType="numeric"
                   editable={!loading}
@@ -232,7 +251,9 @@ export default function EditBankDetails() {
 
             {/* Account Name */}
             <View style={styles.inputGroup}>
-              <Text style={[styles.label, { color: theme.muted }]}>Account Name *</Text>
+              <Text style={[styles.label, { color: theme.muted }]}>
+                {t("agent.modals.edit_bank_details.label_account_name", "Account Name *")}
+              </Text>
               <View style={[styles.inputContainer, { backgroundColor: theme.inputBg, borderColor: errors.accountName ? "#EF4444" : theme.border }]}>
                 <Ionicons name="person-circle-outline" size={20} color={theme.muted} style={styles.inputIcon} />
                 <TextInput
@@ -242,7 +263,7 @@ export default function EditBankDetails() {
                     setAccountName(text);
                     if (errors.accountName) setErrors({ ...errors, accountName: undefined });
                   }}
-                  placeholder="Enter account holder name"
+                  placeholder={t("agent.modals.edit_bank_details.placeholder_account_name", "Enter account holder name")}
                   placeholderTextColor={theme.muted}
                   editable={!loading}
                 />
@@ -254,14 +275,18 @@ export default function EditBankDetails() {
           {/* Card 2: Mobile Money Integration */}
           {showMobileMoney && (
             <>
-              <Text style={[styles.sectionLabel, { color: theme.muted, marginTop: 16 }]}>MOBILE MONEY INTEGRATION</Text>
+              <Text style={[styles.sectionLabel, { color: theme.muted, marginTop: 16 }]}>
+                {t("agent.modals.edit_bank_details.section_momo", "MOBILE MONEY INTEGRATION")}
+              </Text>
               <View style={[styles.formCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
                 <Text style={[styles.sectionHelperText, { color: theme.muted }]}>
-                  In XOF countries, mobile money (Orange Money, Wave, Kirène) is highly popular. Provide your details to facilitate easy user settlements.
+                  {t("agent.modals.edit_bank_details.desc_momo", "In XOF countries, mobile money (Orange Money, Wave, Kirène) is highly popular. Provide your details to facilitate easy user settlements.")}
                 </Text>
 
                 <View style={styles.inputGroup}>
-                  <Text style={[styles.label, { color: theme.muted }]}>Select Provider</Text>
+                  <Text style={[styles.label, { color: theme.muted }]}>
+                    {t("agent.modals.edit_bank_details.label_select_provider", "Select Provider")}
+                  </Text>
                   <View style={styles.pickerRow}>
                     {XOF_MOBILE_MONEY_PROVIDERS.map((p) => (
                       <TouchableOpacity
@@ -282,14 +307,16 @@ export default function EditBankDetails() {
                 <View style={[styles.divider, { backgroundColor: theme.border, marginVertical: 16 }]} />
 
                 <View style={styles.inputGroup}>
-                  <Text style={[styles.label, { color: theme.muted }]}>Mobile Money Number</Text>
+                  <Text style={[styles.label, { color: theme.muted }]}>
+                    {t("agent.modals.edit_bank_details.label_momo_num", "Mobile Money Number")}
+                  </Text>
                   <View style={[styles.inputContainer, { backgroundColor: theme.inputBg, borderColor: theme.border }]}>
                     <Ionicons name="call-outline" size={20} color={theme.muted} style={styles.inputIcon} />
                     <TextInput
                       style={[styles.input, { color: theme.text }]}
                       value={mobileMoneyNumber}
                       onChangeText={setMobileMoneyNumber}
-                      placeholder="e.g. +221 77 123 45 67"
+                      placeholder={t("agent.modals.edit_bank_details.placeholder_momo_num", "e.g. +221 77 123 45 67")}
                       placeholderTextColor={theme.muted}
                       keyboardType="phone-pad"
                       editable={!loading}
@@ -301,10 +328,14 @@ export default function EditBankDetails() {
           )}
 
           {/* Card 3: Payout Destination */}
-          <Text style={[styles.sectionLabel, { color: theme.muted, marginTop: 16 }]}>PAYOUT DESTINATION</Text>
+          <Text style={[styles.sectionLabel, { color: theme.muted, marginTop: 16 }]}>
+            {t("agent.modals.edit_bank_details.section_payout", "PAYOUT DESTINATION")}
+          </Text>
           <View style={[styles.formCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
             <View style={styles.inputGroup}>
-              <Text style={[styles.label, { color: theme.muted }]}>USDT Withdrawal Address *</Text>
+              <Text style={[styles.label, { color: theme.muted }]}>
+                {t("agent.modals.edit_bank_details.label_usdt_address", "USDT Withdrawal Address *")}
+              </Text>
               <View style={[styles.inputContainer, { backgroundColor: theme.inputBg, borderColor: errors.withdrawalAddress ? "#EF4444" : theme.border }]}>
                 <Ionicons name="wallet-outline" size={20} color={theme.muted} style={styles.inputIcon} />
                 <TextInput
@@ -314,7 +345,7 @@ export default function EditBankDetails() {
                     setWithdrawalAddress(text);
                     if (errors.withdrawalAddress) setErrors({ ...errors, withdrawalAddress: undefined });
                   }}
-                  placeholder="0x..."
+                  placeholder={t("agent.modals.edit_bank_details.placeholder_address", "0x...")}
                   placeholderTextColor={theme.muted}
                   autoCapitalize="none"
                   autoCorrect={false}
@@ -323,7 +354,7 @@ export default function EditBankDetails() {
               </View>
               {errors.withdrawalAddress && <Text style={styles.errorText}>{errors.withdrawalAddress}</Text>}
               <Text style={[styles.helperText, { color: theme.muted }]}>
-                Only provide Polygon network USDT address for withdrawals.
+                {t("agent.modals.edit_bank_details.desc_usdt_payout", "Only provide Polygon network USDT address for withdrawals.")}
               </Text>
             </View>
           </View>
@@ -332,7 +363,7 @@ export default function EditBankDetails() {
           <View style={[styles.warningBox, { backgroundColor: theme.amberLight, borderColor: theme.amber + "20" }]}>
             <Ionicons name="warning" size={20} color={theme.amber} style={{ marginRight: 4 }} />
             <Text style={[styles.warningText, { color: theme.amber }]}>
-              Please verify all details. Incorrect banking or payout address info may cause permanent loss of funds during withdrawal processing.
+              {t("agent.modals.edit_bank_details.warning_text", "Please verify all details. Incorrect banking or payout address info may cause permanent loss of funds during withdrawal processing.")}
             </Text>
           </View>
 
@@ -348,7 +379,7 @@ export default function EditBankDetails() {
             activeOpacity={0.8}
           >
             <Text style={styles.saveButtonText}>
-              {loading ? "Saving..." : "Save Changes"}
+              {loading ? t("agent.modals.edit_bank_details.btn_saving", "Saving...") : t("agent.modals.edit_bank_details.btn_save", "Save Changes")}
             </Text>
           </TouchableOpacity>
         </View>

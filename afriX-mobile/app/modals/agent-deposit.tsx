@@ -20,6 +20,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import QRCode from "react-native-qrcode-svg";
 import apiClient from "@/services/apiClient";
 import { useAgentStore } from "@/stores/slices/agentSlice";
+import { useTranslation } from "react-i18next";
 
 type DepositFieldErrors = {
   amount?: string;
@@ -28,6 +29,7 @@ type DepositFieldErrors = {
 
 export default function AgentDepositScreen() {
   const router = useRouter();
+  const { t } = useTranslation();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
   const { fetchAgentStats, fetchDashboard } = useAgentStore();
@@ -75,23 +77,23 @@ export default function AgentDepositScreen() {
 
   const copyAddress = () => {
     Clipboard.setString(depositAddress);
-    Alert.alert("Copied!", "Deposit address copied to clipboard");
+    Alert.alert(t("agent.deposit.copied_title", "Copied!"), t("agent.deposit.copied_desc", "Deposit address copied to clipboard"));
   };
 
   const validateAmount = (value: string) => {
     const trimmed = value.trim();
-    if (!trimmed) return "Please enter deposit amount";
+    if (!trimmed) return t("agent.deposit.err_amount_empty", "Please enter deposit amount");
     const n = parseFloat(trimmed);
-    if (isNaN(n)) return "Enter a valid deposit amount";
-    if (n < minimumDeposit) return `Minimum deposit is $${minimumDeposit} USDT`;
+    if (isNaN(n)) return t("agent.deposit.err_amount_invalid", "Enter a valid deposit amount");
+    if (n < minimumDeposit) return t("agent.deposit.err_amount_min", "Minimum deposit is {{min}} USDT", { min: minimumDeposit });
     return "";
   };
 
   const validateTxHash = (value: string) => {
     const trimmed = value.trim();
-    if (!trimmed) return "Please enter transaction hash";
-    if (!trimmed.startsWith("0x")) return "Transaction hash must start with 0x";
-    if (!/^0x[a-fA-F0-9]{64}$/.test(trimmed)) return "Enter a valid 66-character transaction hash";
+    if (!trimmed) return t("agent.deposit.err_hash_empty", "Please enter transaction hash");
+    if (!trimmed.startsWith("0x")) return t("agent.deposit.err_hash_prefix", "Transaction hash must start with 0x");
+    if (!/^0x[a-fA-F0-9]{64}$/.test(trimmed)) return t("agent.deposit.err_hash_length", "Enter a valid 66-character transaction hash");
     return "";
   };
 
@@ -124,31 +126,37 @@ export default function AgentDepositScreen() {
 
   const handleSubmit = async () => {
     if (!validateForm()) {
-      Alert.alert("Error", "Please correct the highlighted fields");
+      Alert.alert(t("agent.deposit.err_form_title", "Error"), t("agent.deposit.err_form_desc", "Please correct the highlighted fields"));
       return;
     }
     setLoading(true);
     try {
       await apiClient.post("/agents/deposit", { amount_usd: parseFloat(amount.trim()), tx_hash: txHash.trim() });
       await Promise.all([fetchAgentStats(), fetchDashboard()]);
-      Alert.alert("Deposit Verified", "Your deposit has been verified. Your available capacity has been updated.", [
-        { text: "OK", onPress: () => router.replace("/agent/dashboard") },
-      ]);
+      Alert.alert(
+        t("agent.deposit.success_title", "Deposit Verified"),
+        t("agent.deposit.success_desc", "Your deposit has been verified. Your available capacity has been updated."),
+        [{ text: t("common.ok", "OK"), onPress: () => router.replace("/agent/dashboard") }]
+      );
     } catch (error: any) {
       const raw = error.response?.data?.message || error.message || "";
-      let message = raw || "Deposit could not be verified. Please try again.";
-      if (raw.includes("already been used")) message = "This deposit was already applied. Each transaction can only be used once.";
-      else if (raw.includes("Transaction not found") || raw.includes("could not confirm")) message = "We could not confirm this transaction yet. Please wait for blockchain confirmation and try again.";
-      else if (raw.includes("Transaction failed on blockchain")) message = "This blockchain transaction failed and cannot be used for deposit verification.";
-      else if (raw.includes("No USDT transfer")) message = "No USDT transfer to the platform deposit address was found in this transaction.";
-      else if (raw.includes("Amount mismatch")) message = "The amount you entered does not match the confirmed blockchain transfer.";
-      Alert.alert("Deposit failed", message);
+      let message = raw || t("agent.deposit.err_failed_default", "Deposit could not be verified. Please try again.");
+      if (raw.includes("already been used")) message = t("agent.deposit.err_failed_used", "This deposit was already applied. Each transaction can only be used once.");
+      else if (raw.includes("Transaction not found") || raw.includes("could not confirm")) message = t("agent.deposit.err_failed_pending", "We could not confirm this transaction yet. Please wait for blockchain confirmation and try again.");
+      else if (raw.includes("Transaction failed on blockchain")) message = t("agent.deposit.err_failed_tx_failed", "This blockchain transaction failed and cannot be used for deposit verification.");
+      else if (raw.includes("No USDT transfer")) message = t("agent.deposit.err_failed_no_transfer", "No USDT transfer to the platform deposit address was found in this transaction.");
+      else if (raw.includes("Amount mismatch")) message = t("agent.deposit.err_failed_mismatch", "The amount you entered does not match the confirmed blockchain transfer.");
+      Alert.alert(t("agent.deposit.err_failed_title", "Deposit failed"), message);
     } finally {
       setLoading(false);
     }
   };
 
-  const progressSteps = ["Register", "KYC", "Deposit"];
+  const progressSteps = [
+    t("agent.deposit.step_register", "Register"),
+    t("agent.deposit.step_kyc", "KYC"),
+    t("agent.deposit.step_deposit", "Deposit")
+  ];
 
   return (
     <View style={[styles.container, { backgroundColor: theme.bg }]}>
@@ -158,7 +166,7 @@ export default function AgentDepositScreen() {
           <TouchableOpacity onPress={() => router.back()} style={[styles.headerBackBtn, { backgroundColor: theme.accentLight }]}>
             <Ionicons name="arrow-back" size={20} color={theme.accent} />
           </TouchableOpacity>
-          <Text style={[styles.headerTitle, { color: theme.text }]}>Security Deposit</Text>
+          <Text style={[styles.headerTitle, { color: theme.text }]}>{t("agent.deposit.header_title", "Security Deposit")}</Text>
           <View style={styles.headerSpacer} />
         </View>
       </SafeAreaView>
@@ -190,24 +198,22 @@ export default function AgentDepositScreen() {
             ))}
           </View>
 
-          {/* Hero Intro */}
           <LinearGradient
             colors={isDark ? ["rgba(124, 58, 237, 0.15)", "rgba(18, 14, 36, 0.8)"] : ["rgba(124, 58, 237, 0.05)", "#FFFFFF"]}
             style={[styles.introCard, { borderColor: theme.border }]}
           >
-            <Text style={[styles.introEyebrow, { color: theme.accent }]}>ACCOUNT ACTIVATION</Text>
-            <Text style={[styles.introTitle, { color: theme.text }]}>Almost There! 🎉</Text>
+            <Text style={[styles.introEyebrow, { color: theme.accent }]}>{t("agent.deposit.intro_eyebrow", "ACCOUNT ACTIVATION")}</Text>
+            <Text style={[styles.introTitle, { color: theme.text }]}>{t("agent.deposit.intro_title", "Almost There! 🎉")}</Text>
             <Text style={[styles.introSubtitle, { color: theme.muted }]}>
-              Make your security deposit to activate your agent account and start earning.
+              {t("agent.deposit.intro_desc", "Make your security deposit to activate your agent account and start earning.")}
             </Text>
           </LinearGradient>
 
-          {/* Deposit Info Card */}
           <View style={[styles.infoCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
             {[
-              { label: "Minimum Deposit", value: `$${minimumDeposit} USDT` },
-              { label: "Network", value: "Polygon (MATIC)" },
-              { label: "Token", value: "USDT (ERC-20)" },
+              { label: t("agent.deposit.info_min_deposit", "Minimum Deposit"), value: `$${minimumDeposit} USDT` },
+              { label: t("agent.deposit.info_network", "Network"), value: "Polygon (MATIC)" },
+              { label: t("agent.deposit.info_token", "Token"), value: "USDT (ERC-20)" },
             ].map((row, i) => (
               <View key={i}>
                 <View style={styles.infoRow}>
@@ -219,16 +225,14 @@ export default function AgentDepositScreen() {
             ))}
           </View>
 
-          {/* Warning Banner */}
           <View style={[styles.warningBanner, { backgroundColor: theme.dangerSoft, borderColor: theme.danger + "20" }]}>
             <Ionicons name="warning" size={20} color={theme.danger} style={{ marginRight: 4 }} />
             <Text style={[styles.warningText, { color: theme.danger }]}>
-              Only send USDT on Polygon network! Sending the wrong token or wrong network will result in permanent loss of funds.
+              {t("agent.deposit.warning_desc", "Only send USDT on Polygon network! Sending the wrong token or wrong network will result in permanent loss of funds.")}
             </Text>
           </View>
 
-          {/* QR Code Section */}
-          <Text style={[styles.sectionLabel, { color: theme.muted }]}>DEPOSIT ADDRESS</Text>
+          <Text style={[styles.sectionLabel, { color: theme.muted }]}>{t("agent.deposit.section_address", "DEPOSIT ADDRESS")}</Text>
           <View style={[styles.qrCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
             <View style={[styles.qrBox, { backgroundColor: "#FFFFFF" }]}>
               {fetching ? (
@@ -247,17 +251,15 @@ export default function AgentDepositScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Form */}
-          <Text style={[styles.sectionLabel, { color: theme.muted }]}>CONFIRM YOUR DEPOSIT</Text>
+          <Text style={[styles.sectionLabel, { color: theme.muted }]}>{t("agent.deposit.section_confirm", "CONFIRM YOUR DEPOSIT")}</Text>
           <View style={[styles.formCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
-            {/* Amount */}
             <View style={styles.inputGroup}>
-              <Text style={[styles.inputLabel, { color: theme.muted }]}>AMOUNT (USDT) *</Text>
+              <Text style={[styles.inputLabel, { color: theme.muted }]}>{t("agent.deposit.field_amount", "AMOUNT (USDT) *")}</Text>
               <View style={[styles.inputWrapper, { backgroundColor: theme.inputBg, borderColor: fieldErrors.amount ? theme.danger : theme.border }]}>
                 <Text style={[styles.inputPrefix, { color: theme.text }]}>$</Text>
                 <TextInput
                   style={[styles.input, { color: theme.text }]}
-                  placeholder={`Minimum ${minimumDeposit}`}
+                  placeholder={t("agent.deposit.placeholder_amount", "Minimum {{min}}", { min: minimumDeposit })}
                   placeholderTextColor={theme.muted}
                   value={amount}
                   onChangeText={handleAmountChange}
@@ -268,15 +270,14 @@ export default function AgentDepositScreen() {
               {fieldErrors.amount ? (
                 <Text style={styles.errorText}>{fieldErrors.amount}</Text>
               ) : (
-                <Text style={[styles.helperText, { color: theme.muted }]}>This will define your minting capacity</Text>
+                <Text style={[styles.helperText, { color: theme.muted }]}>{t("agent.deposit.helper_amount", "This will define your minting capacity")}</Text>
               )}
             </View>
 
             <View style={[styles.divider, { backgroundColor: theme.border, marginVertical: 16 }]} />
 
-            {/* TX Hash */}
             <View style={styles.inputGroup}>
-              <Text style={[styles.inputLabel, { color: theme.muted }]}>TRANSACTION HASH *</Text>
+              <Text style={[styles.inputLabel, { color: theme.muted }]}>{t("agent.deposit.field_hash", "TRANSACTION HASH *")}</Text>
               <View style={[styles.inputWrapper, { backgroundColor: theme.inputBg, borderColor: fieldErrors.txHash ? theme.danger : theme.border }]}>
                 <TextInput
                   style={[styles.input, { color: theme.text }]}
@@ -292,23 +293,21 @@ export default function AgentDepositScreen() {
               {fieldErrors.txHash ? (
                 <Text style={styles.errorText}>{fieldErrors.txHash}</Text>
               ) : (
-                <Text style={[styles.helperText, { color: theme.muted }]}>Enter the transaction hash from your wallet</Text>
+                <Text style={[styles.helperText, { color: theme.muted }]}>{t("agent.deposit.helper_hash", "Enter the transaction hash from your wallet")}</Text>
               )}
             </View>
           </View>
 
-          {/* Info Banner */}
           <View style={[styles.infoBanner, { backgroundColor: theme.accentLight, borderColor: theme.border }]}>
             <Ionicons name="information-circle" size={20} color={theme.accent} style={{ marginRight: 4 }} />
             <Text style={[styles.infoBannerText, { color: theme.accent }]}>
-              Your deposit will be verified on the blockchain. This usually takes 2–5 minutes.
+              {t("agent.deposit.info_verification_desc", "Your deposit will be verified on the blockchain. This usually takes 2–5 minutes.")}
             </Text>
           </View>
 
           <View style={{ height: 120 }} />
         </ScrollView>
 
-        {/* Footer */}
         <View style={[styles.footer, { backgroundColor: theme.card, borderTopColor: theme.border }]}>
           <TouchableOpacity
             style={[styles.submitButton, { backgroundColor: theme.accent }, (!isFormValid || loading) && styles.submitButtonDisabled]}
@@ -320,7 +319,7 @@ export default function AgentDepositScreen() {
               <ActivityIndicator color="#FFFFFF" />
             ) : (
               <>
-                <Text style={styles.submitButtonText}>Verify Deposit</Text>
+                <Text style={styles.submitButtonText}>{t("agent.deposit.btn_submit", "Verify Deposit")}</Text>
                 <Ionicons name="checkmark-circle" size={20} color="#FFFFFF" />
               </>
             )}

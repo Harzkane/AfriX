@@ -16,6 +16,7 @@ import apiClient from "@/services/apiClient";
 import { API_ENDPOINTS } from "@/constants/api";
 import { useAuthStore } from "@/stores";
 import { AgentCard } from "@/components/ui/AgentCard";
+import { useTranslation } from "react-i18next";
 
 type SortOption = "rating" | "fastest" | "capacity";
 
@@ -26,6 +27,7 @@ export default function SelectAgentScreen() {
   const [agents, setAgents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [sort, setSort] = useState<SortOption>("rating");
+  const { t } = useTranslation();
 
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
@@ -108,12 +110,12 @@ export default function SelectAgentScreen() {
               <Ionicons name="arrow-back" size={22} color={theme.text} />
             </TouchableOpacity>
             <View style={styles.headerText}>
-              <Text style={[styles.headerTitle, { color: theme.text }]}>Select Agent</Text>
+              <Text style={[styles.headerTitle, { color: theme.text }]}>{t("sell_tokens.select_agent_title", "Select Agent")}</Text>
               <Animated.View style={{ opacity: subtitleOpacity, maxHeight: subtitleMaxHeight, marginTop: subtitleMargin, overflow: "hidden" }}>
                 <Text style={[styles.headerSubtitle, { color: theme.muted }]}>
                   {userAmount != null && userAmount > 0
-                    ? `Sell ${userAmount.toLocaleString(undefined, { maximumFractionDigits: 2 })} ${tokenType} — choose an agent`
-                    : "Choose an agent to sell your tokens"}
+                    ? t("sell_tokens.select_agent_subtitle_amount", "Sell {{amount}} {{tokenType}} — choose an agent", { amount: userAmount.toLocaleString(undefined, { maximumFractionDigits: 2 }), tokenType })
+                    : t("sell_tokens.select_agent_subtitle_default", "Choose an agent to sell your tokens")}
                 </Text>
               </Animated.View>
             </View>
@@ -126,7 +128,7 @@ export default function SelectAgentScreen() {
         <View style={[styles.loadingContainer, { backgroundColor: theme.background }]}>
           <View style={[styles.loadingCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
             <ActivityIndicator size="large" color={theme.accent} />
-            <Text style={[styles.loadingText, { color: theme.muted }]}>Finding available agents...</Text>
+            <Text style={[styles.loadingText, { color: theme.muted }]}>{t("sell_tokens.finding_agents", "Finding available agents...")}</Text>
           </View>
         </View>
       ) : (
@@ -145,18 +147,18 @@ export default function SelectAgentScreen() {
           />
 
           <View style={[styles.summaryCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
-            <Text style={[styles.summaryEyebrow, { color: theme.accent }]}>AGENT MATCHING</Text>
-            <Text style={[styles.summaryTitle, { color: theme.text }]}>Pick the best agent for this order</Text>
+            <Text style={[styles.summaryEyebrow, { color: theme.accent }]}>{t("sell_tokens.agent_matching_label", "AGENT MATCHING")}</Text>
+            <Text style={[styles.summaryTitle, { color: theme.text }]}>{t("sell_tokens.pick_best_agent", "Pick the best agent for this order")}</Text>
             <Text style={[styles.summaryText, { color: theme.muted }]}>
-              Compare agent speed, capacity, and ratings before continuing to payment instructions.
+              {t("sell_tokens.agent_matching_desc", "Compare agent speed, capacity, and ratings before continuing to payment instructions.")}
             </Text>
           </View>
 
           {/* Sort Section */}
           <View style={styles.sortSection}>
             <View style={styles.sortHeader}>
-              <Text style={[styles.sortEyebrow, { color: theme.accent }]}>SORT AGENTS</Text>
-              <Text style={[styles.sortHint, { color: theme.muted }]}>{agents.length} available</Text>
+              <Text style={[styles.sortEyebrow, { color: theme.accent }]}>{t("sell_tokens.sort_agents_label", "SORT AGENTS")}</Text>
+              <Text style={[styles.sortHint, { color: theme.muted }]}>{t("sell_tokens.agents_available_count", "{{count}} available", { count: agents.length })}</Text>
             </View>
             <View style={styles.sortRow}>
               {(["rating", "fastest", "capacity"] as const).map((key) => {
@@ -179,7 +181,7 @@ export default function SelectAgentScreen() {
                         active && { color: "#FFFFFF", fontWeight: "700" },
                       ]}
                     >
-                      {key === "rating" ? "Best rated" : key === "fastest" ? "Fastest" : "Highest capacity"}
+                      {key === "rating" ? t("sell_tokens.sort_best_rated", "Best rated") : key === "fastest" ? t("sell_tokens.sort_fastest", "Fastest") : t("sell_tokens.sort_highest_capacity", "Highest capacity")}
                     </Text>
                   </TouchableOpacity>
                 );
@@ -194,9 +196,9 @@ export default function SelectAgentScreen() {
                 <View style={[styles.emptyIcon, { backgroundColor: theme.cardAlt }]}>
                   <Ionicons name="people-outline" size={48} color={theme.muted} />
                 </View>
-                <Text style={[styles.emptyText, { color: theme.text }]}>No agents available</Text>
+                <Text style={[styles.emptyText, { color: theme.text }]}>{t("sell_tokens.no_agents_available", "No agents available")}</Text>
                 <Text style={[styles.emptySubtext, { color: theme.muted }]}>
-                  Please try again later or contact support
+                  {t("sell_tokens.try_again_later", "Please try again later or contact support")}
                 </Text>
               </View>
             ) : (

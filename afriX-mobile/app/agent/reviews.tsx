@@ -21,8 +21,10 @@ import { useAgentStore } from "@/stores/slices/agentSlice";
 import { AgentReview } from "@/stores/types/agent.types";
 import { formatDate } from "@/utils/format";
 import { useAuthStore } from "@/stores/slices/authSlice";
+import { useTranslation } from "react-i18next";
 
 export default function Reviews() {
+  const { t } = useTranslation();
   const router = useRouter();
   const { reviews, fetchReviews, respondToReview, loading } = useAgentStore();
   const { user } = useAuthStore();
@@ -76,9 +78,9 @@ export default function Reviews() {
     try {
       await respondToReview(selectedReview.id, replyText);
       setReplyModalVisible(false);
-      Alert.alert("Success", "Response posted successfully");
+      Alert.alert(t("agent.request_details.alert_success", "Success"), t("agent.reviews.success_posted", "Response posted successfully"));
     } catch (error: any) {
-      Alert.alert("Error", error.message || "Failed to post response");
+      Alert.alert(t("agent.request_details.alert_error", "Error"), error.message || t("agent.reviews.err_failed_post", "Failed to post response"));
     } finally {
       setSubmitting(false);
     }
@@ -104,7 +106,7 @@ export default function Reviews() {
               </View>
             </View>
             <View style={styles.userTextCol}>
-              <Text style={[styles.reviewEyebrow, { color: theme.muted }]}>Customer Review</Text>
+              <Text style={[styles.reviewEyebrow, { color: theme.muted }]}>{t("agent.reviews.customer_review", "Customer Review")}</Text>
               <Text style={[styles.userName, { color: theme.text }]} numberOfLines={1} ellipsizeMode="tail">
                 {item.user?.full_name || "Unknown User"}
               </Text>
@@ -143,7 +145,7 @@ export default function Reviews() {
             <View style={[styles.responseContainer, { backgroundColor: theme.cardAlt, borderColor: theme.border }]}>
               <View style={styles.responseHeader}>
                 <Ionicons name="chatbubble-ellipses-outline" size={14} color={theme.green} style={{ marginRight: 6 }} />
-                <Text style={[styles.responseLabel, { color: theme.text }]}>Your Response</Text>
+                <Text style={[styles.responseLabel, { color: theme.text }]}>{t("agent.reviews.your_response", "Your Response")}</Text>
                 <Text style={[styles.responseDate, { color: theme.muted }]}>
                   {item.agent_response_at ? formatDate(item.agent_response_at) : ""}
                 </Text>
@@ -158,7 +160,7 @@ export default function Reviews() {
             activeOpacity={0.8}
           >
             <Ionicons name="arrow-undo-outline" size={14} color={theme.accent} />
-            <Text style={[styles.replyButtonText, { color: theme.accent }]}>Reply to Review</Text>
+            <Text style={[styles.replyButtonText, { color: theme.accent }]}>{t("agent.reviews.reply_button", "Reply to Review")}</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -173,7 +175,7 @@ export default function Reviews() {
           <TouchableOpacity onPress={() => router.back()} style={[styles.headerBackBtn, { backgroundColor: theme.accentLight }]} activeOpacity={0.8}>
             <Ionicons name="arrow-back" size={20} color={theme.accent} />
           </TouchableOpacity>
-          <Text style={[styles.headerTitle, { color: theme.text }]}>Reviews</Text>
+          <Text style={[styles.headerTitle, { color: theme.text }]}>{t("agent.reviews.header_title", "Reviews")}</Text>
           <View style={styles.headerSpacer} />
         </View>
       </SafeAreaView>
@@ -190,13 +192,13 @@ export default function Reviews() {
           >
             <View style={styles.summaryTop}>
               <View>
-                <Text style={[styles.summaryEyebrow, { color: theme.accent }]}>Agent Reputation</Text>
-                <Text style={[styles.summaryTitle, { color: theme.text }]}>Customer Reviews</Text>
+                <Text style={[styles.summaryEyebrow, { color: theme.accent }]}>{t("agent.reviews.reputation", "Agent Reputation")}</Text>
+                <Text style={[styles.summaryTitle, { color: theme.text }]}>{t("agent.reviews.customer_reviews", "Customer Reviews")}</Text>
               </View>
               {totalReviews > 0 && (
                 <View style={[styles.badge, { backgroundColor: theme.green + "15", borderColor: theme.green + "30" }]}>
                   <Ionicons name="shield-checkmark" size={14} color={theme.green} style={{ marginRight: 4 }} />
-                  <Text style={[styles.badgeText, { color: theme.green }]}>Active Seller</Text>
+                  <Text style={[styles.badgeText, { color: theme.green }]}>{t("agent.reviews.active_seller", "Active Seller")}</Text>
                 </View>
               )}
             </View>
@@ -209,13 +211,13 @@ export default function Reviews() {
                 <Text style={[styles.metricValue, { color: theme.text }]}>{averageRating}</Text>
                 <View style={styles.metricLabelRow}>
                   <Ionicons name="star" size={12} color="#F59E0B" style={{ marginRight: 2 }} />
-                  <Text style={[styles.metricLabel, { color: theme.muted }]}>Average Score</Text>
+                  <Text style={[styles.metricLabel, { color: theme.muted }]}>{t("agent.reviews.average_score", "Average Score")}</Text>
                 </View>
               </View>
               <View style={[styles.verticalDivider, { backgroundColor: theme.border }]} />
               <View style={styles.metricBlock}>
                 <Text style={[styles.metricValue, { color: theme.text }]}>{totalReviews}</Text>
-                <Text style={[styles.metricLabel, { color: theme.muted }]}>Total Reviews</Text>
+                <Text style={[styles.metricLabel, { color: theme.muted }]}>{t("agent.reviews.total_reviews", "Total Reviews")}</Text>
               </View>
               <View style={[styles.verticalDivider, { backgroundColor: theme.border }]} />
               <View style={styles.metricBlock}>
@@ -224,7 +226,7 @@ export default function Reviews() {
                     ? `${Math.round((reviews.filter(r => r.rating >= 4).length / totalReviews) * 100)}%`
                     : "100%"}
                 </Text>
-                <Text style={[styles.metricLabel, { color: theme.muted }]}>Positive Ratio</Text>
+                <Text style={[styles.metricLabel, { color: theme.muted }]}>{t("agent.reviews.positive_ratio", "Positive Ratio")}</Text>
               </View>
             </View>
           </LinearGradient>
@@ -244,9 +246,9 @@ export default function Reviews() {
             <LinearGradient colors={["#EDE9FE", "#DDD6FE"]} style={styles.emptyIconCircle}>
               <Ionicons name="star-outline" size={28} color={theme.accent} />
             </LinearGradient>
-            <Text style={[styles.emptyText, { color: theme.text }]}>No reviews yet</Text>
+            <Text style={[styles.emptyText, { color: theme.text }]}>{t("agent.reviews.empty_title", "No reviews yet")}</Text>
             <Text style={[styles.emptySub, { color: theme.muted }]}>
-              Customer ratings and feedback will appear here after your completed transactions.
+              {t("agent.reviews.empty_sub", "Customer ratings and feedback will appear here after your completed transactions.")}
             </Text>
           </View>
         }
@@ -266,19 +268,19 @@ export default function Reviews() {
           <View style={[styles.modalSheet, { backgroundColor: theme.card }]}>
             <View style={[styles.modalHandle, { backgroundColor: theme.border }]} />
             <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: theme.text }]}>Reply to Review</Text>
+              <Text style={[styles.modalTitle, { color: theme.text }]}>{t("agent.reviews.modal_title", "Reply to Review")}</Text>
               <TouchableOpacity onPress={() => setReplyModalVisible(false)} activeOpacity={0.8}>
                 <Ionicons name="close" size={22} color={theme.muted} />
               </TouchableOpacity>
             </View>
 
             <Text style={[styles.modalSubtitle, { color: theme.muted }]}>
-              Replying to {selectedReview?.user?.full_name}
+              {t("agent.reviews.modal_subtitle", "Replying to {{name}}", { name: selectedReview?.user?.full_name })}
             </Text>
 
             <TextInput
               style={[styles.modalInput, { backgroundColor: theme.inputBg, borderColor: theme.border, color: theme.text }]}
-              placeholder="Write your response..."
+              placeholder={t("agent.reviews.modal_placeholder", "Write your response...")}
               placeholderTextColor={theme.muted}
               multiline
               numberOfLines={4}
@@ -298,7 +300,7 @@ export default function Reviews() {
               activeOpacity={0.85}
             >
               <Text style={styles.submitButtonText}>
-                {submitting ? "Posting..." : "Post Response"}
+                {submitting ? t("agent.reviews.btn_posting", "Posting...") : t("agent.reviews.btn_post_response", "Post Response")}
               </Text>
             </TouchableOpacity>
           </View>

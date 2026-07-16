@@ -4,9 +4,11 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
+import { useTranslation } from "react-i18next";
 
 export default function AgentLearnMoreModal() {
   const router = useRouter();
+  const { t } = useTranslation();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
 
@@ -30,49 +32,49 @@ export default function AgentLearnMoreModal() {
   const steps = [
     {
       num: "1",
-      title: "Quick Registration",
-      desc: "Choose your country, confirm your currency, and add a Polygon USDT withdrawal address.",
+      title: t("agent.learn_more.step_title_1", "Quick Registration"),
+      desc: t("agent.learn_more.step_desc_1", "Choose your country, confirm your currency, and add a Polygon USDT withdrawal address."),
       color: theme.accent,
       bg: theme.accentSoft,
     },
     {
       num: "2",
-      title: "KYC Verification",
-      desc: "Upload ID, selfie, and proof of address so the team can verify your identity.",
+      title: t("agent.learn_more.step_title_2", "KYC Verification"),
+      desc: t("agent.learn_more.step_desc_2", "Upload ID, selfie, and proof of address so the team can verify your identity."),
       color: theme.blue,
       bg: theme.blueSoft,
     },
     {
       num: "3",
-      title: "Admin Approval",
-      desc: "Your documents are reviewed. Once approved, you can deposit USDT to activate.",
+      title: t("agent.learn_more.step_title_3", "Admin Approval"),
+      desc: t("agent.learn_more.step_desc_3", "Your documents are reviewed. Once approved, you can deposit USDT to activate."),
       color: theme.warning,
       bg: theme.warningSoft,
     },
     {
       num: "4",
-      title: "Deposit USDT & Start Earning",
-      desc: "Deposit at least the minimum USDT, get capacity, and start handling buy/sell requests from users.",
+      title: t("agent.learn_more.step_title_4", "Deposit USDT & Start Earning"),
+      desc: t("agent.learn_more.step_desc_4", "Deposit at least the minimum USDT, get capacity, and start handling buy/sell requests from users."),
       color: theme.purple,
       bg: theme.purpleSoft,
     },
   ];
 
   const bullets = [
-    { icon: "swap-horizontal", text: "Mint tokens when users buy with cash." },
-    { icon: "cash-outline", text: "Burn tokens when users sell for cash." },
-    { icon: "shield-checkmark-outline", text: "Earn fees while the system protects users via escrow." },
+    { icon: "swap-horizontal", text: t("agent.learn_more.do_bullet_1", "Mint tokens when users buy with cash.") },
+    { icon: "cash-outline", text: t("agent.learn_more.do_bullet_2", "Burn tokens when users sell for cash.") },
+    { icon: "shield-checkmark-outline", text: t("agent.learn_more.do_bullet_3", "Earn fees while the system protects users via escrow.") },
   ];
 
   const paymentBullets = [
-    { icon: "card-outline", text: "Nigeria (NT): bank transfers." },
-    { icon: "phone-portrait-outline", text: "XOF countries (CT): bank or mobile money (Orange Money, Wave, Moov, etc.)." },
+    { icon: "card-outline", text: t("agent.learn_more.payments_bullet_1", "Nigeria (NT): bank transfers.") },
+    { icon: "phone-portrait-outline", text: t("agent.learn_more.payments_bullet_2", "XOF countries (CT): bank or mobile money (Orange Money, Wave, Moov, etc.).") },
   ];
 
   const responsibilityBullets = [
-    { icon: "checkmark-circle", text: "Verify every payment in your own bank/mobile money app before confirming." },
-    { icon: "time-outline", text: "Respond quickly (target under 15 minutes) to keep high ratings and more business." },
-    { icon: "alert-circle-outline", text: "Follow dispute rules – if you don't deliver, your deposit can be slashed." },
+    { icon: "checkmark-circle", text: t("agent.learn_more.resp_bullet_1", "Verify every payment in your own bank/mobile money app before confirming.") },
+    { icon: "time-outline", text: t("agent.learn_more.resp_bullet_2", "Respond quickly (target under 15 minutes) to keep high ratings and more business.") },
+    { icon: "alert-circle-outline", text: t("agent.learn_more.resp_bullet_3", "Follow dispute rules – if you don't deliver, your deposit can be slashed.") },
   ];
 
   return (
@@ -82,7 +84,7 @@ export default function AgentLearnMoreModal() {
         <TouchableOpacity onPress={() => router.back()} style={[styles.navBtn, { backgroundColor: theme.card, borderColor: theme.border }]}>
           <Ionicons name="close" size={20} color={theme.text} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: theme.text }]}>About Becoming an Agent</Text>
+        <Text style={[styles.headerTitle, { color: theme.text }]}>{t("agent.learn_more.header_title", "About Becoming an Agent")}</Text>
         <View style={{ width: 42 }} />
       </View>
 
@@ -99,15 +101,15 @@ export default function AgentLearnMoreModal() {
               <Ionicons name="information-circle" size={28} color="#00B14F" />
             </View>
           </View>
-          <Text style={styles.heroEyebrow}>AGENT GUIDE</Text>
-          <Text style={styles.heroTitle}>What is an AfriX Agent?</Text>
+          <Text style={styles.heroEyebrow}>{t("agent.learn_more.hero_eyebrow", "AGENT GUIDE")}</Text>
+          <Text style={styles.heroTitle}>{t("agent.learn_more.hero_title", "What is an AfriX Agent?")}</Text>
           <Text style={styles.heroSubtitle}>
-            Agents are independent partners who help users exchange tokens (NT/CT) for local currency. You run your own small exchange business using the AfriX platform.
+            {t("agent.learn_more.hero_subtitle", "Agents are independent partners who help users exchange tokens (NT/CT) for local currency. You run your own small exchange business using the AfriX platform.")}
           </Text>
         </LinearGradient>
 
         {/* What you do */}
-        <Text style={[styles.sectionHeading, { color: theme.muted }]}>WHAT YOU DO</Text>
+        <Text style={[styles.sectionHeading, { color: theme.muted }]}>{t("agent.learn_more.section_what_you_do", "WHAT YOU DO")}</Text>
         <View style={[styles.bulletCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
           {bullets.map((b, i) => (
             <View key={i}>
@@ -123,28 +125,28 @@ export default function AgentLearnMoreModal() {
         </View>
 
         {/* How it works */}
-        <Text style={[styles.sectionHeading, { color: theme.muted }]}>HOW THE SYSTEM WORKS</Text>
+        <Text style={[styles.sectionHeading, { color: theme.muted }]}>{t("agent.learn_more.section_how_it_works", "HOW THE SYSTEM WORKS")}</Text>
         <View style={[styles.infoCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
-          <Text style={[styles.infoCardTitle, { color: theme.text }]}>Security Deposit & Capacity</Text>
+          <Text style={[styles.infoCardTitle, { color: theme.text }]}>{t("agent.learn_more.works_title_deposit", "Security Deposit & Capacity")}</Text>
           <Text style={[styles.infoCardBody, { color: theme.muted }]}>
-            You deposit USDT as a security bond. Your minting capacity equals your deposit in USDT. When you mint tokens, capacity goes down; when you burn tokens, capacity goes back up.
+            {t("agent.learn_more.works_body_deposit", "You deposit USDT as a security bond. Your minting capacity equals your deposit in USDT. When you mint tokens, capacity goes down; when you burn tokens, capacity goes back up.")}
           </Text>
           <View style={[styles.exampleBox, { backgroundColor: theme.accentSoft, borderColor: theme.accent + "30" }]}>
             <Text style={[styles.exampleText, { color: theme.accent }]}>
-              Example: Deposit 1,000 USDT → you can mint/burn up to 1,000 USDT worth of tokens across users.
+              {t("agent.learn_more.works_example_deposit", "Example: Deposit 1,000 USDT → you can mint/burn up to 1,000 USDT worth of tokens across users.")}
             </Text>
           </View>
         </View>
 
         <View style={[styles.infoCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
-          <Text style={[styles.infoCardTitle, { color: theme.text }]}>Escrow Protection</Text>
+          <Text style={[styles.infoCardTitle, { color: theme.text }]}>{t("agent.learn_more.works_title_escrow", "Escrow Protection")}</Text>
           <Text style={[styles.infoCardBody, { color: theme.muted }]}>
-            For sells (burn), user tokens are locked in escrow until you send fiat and the system confirms. If there is a dispute and you don't deliver, your deposit can be slashed and the user refunded.
+            {t("agent.learn_more.works_body_escrow", "For sells (burn), user tokens are locked in escrow until you send fiat and the system confirms. If there is a dispute and you don't deliver, your deposit can be slashed and the user refunded.")}
           </Text>
         </View>
 
         {/* Steps */}
-        <Text style={[styles.sectionHeading, { color: theme.muted }]}>STEPS TO BECOME AN AGENT</Text>
+        <Text style={[styles.sectionHeading, { color: theme.muted }]}>{t("agent.learn_more.section_steps", "STEPS TO BECOME AN AGENT")}</Text>
         <View style={styles.stepsList}>
           {steps.map((step, i) => (
             <View key={i} style={styles.stepRow}>
@@ -163,10 +165,10 @@ export default function AgentLearnMoreModal() {
         </View>
 
         {/* Payment Methods */}
-        <Text style={[styles.sectionHeading, { color: theme.muted }]}>PAYMENT METHODS</Text>
+        <Text style={[styles.sectionHeading, { color: theme.muted }]}>{t("agent.learn_more.section_payments", "PAYMENT METHODS")}</Text>
         <View style={[styles.bulletCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
           <Text style={[styles.infoCardBody, { color: theme.muted, marginBottom: 12 }]}>
-            You receive and send fiat directly to users using local rails:
+            {t("agent.learn_more.payments_intro", "You receive and send fiat directly to users using local rails:")}
           </Text>
           {paymentBullets.map((b, i) => (
             <View key={i}>
@@ -180,12 +182,12 @@ export default function AgentLearnMoreModal() {
             </View>
           ))}
           <Text style={[styles.infoCardBody, { color: theme.muted, marginTop: 12 }]}>
-            Users see your bank or mobile money details when they choose you as their agent.
+            {t("agent.learn_more.payments_outro", "Users see your bank or mobile money details when they choose you as their agent.")}
           </Text>
         </View>
 
         {/* Responsibilities */}
-        <Text style={[styles.sectionHeading, { color: theme.muted }]}>YOUR RESPONSIBILITIES</Text>
+        <Text style={[styles.sectionHeading, { color: theme.muted }]}>{t("agent.learn_more.section_responsibilities", "YOUR RESPONSIBILITIES")}</Text>
         <View style={[styles.bulletCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
           {responsibilityBullets.map((b, i) => (
             <View key={i}>
@@ -199,7 +201,7 @@ export default function AgentLearnMoreModal() {
             </View>
           ))}
           <Text style={[styles.infoCardBody, { color: theme.muted, marginTop: 12 }]}>
-            For full details, you'll see the Agent Handbook inside your agent dashboard after approval.
+            {t("agent.learn_more.resp_outro", "For full details, you'll see the Agent Handbook inside your agent dashboard after approval.")}
           </Text>
         </View>
 

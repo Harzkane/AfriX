@@ -4,6 +4,7 @@ import { View, StyleSheet, TouchableOpacity, Text, useColorScheme } from "react-
 import { Ionicons } from "@expo/vector-icons";
 import { formatAmountOrCompact } from "@/utils/format";
 import { useWalletStore } from "@/stores";
+import { useTranslation } from "react-i18next";
 
 interface Agent {
   id: string;
@@ -98,6 +99,7 @@ export const AgentCard: React.FC<AgentCardProps> = ({
   tokenType = "USDT",
 }) => {
   const { exchangeRates } = useWalletStore();
+  const { t } = useTranslation();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
   const theme = {
@@ -165,7 +167,7 @@ export const AgentCard: React.FC<AgentCardProps> = ({
 
           <View style={styles.info}>
             <View style={styles.nameRow}>
-              <Text style={[styles.name, { color: theme.text }]}>{agent.full_name || "Agent"}</Text>
+              <Text style={[styles.name, { color: theme.text }]}>{agent.full_name || t("components.agent_card.fallback_name", "Agent")}</Text>
               <View
                 style={[
                   styles.tierBadge,
@@ -173,12 +175,12 @@ export const AgentCard: React.FC<AgentCardProps> = ({
                 ]}
               >
                 <Text style={[styles.tierText, { color: tierColor }]}>
-                  {agent.tier || "starter"}
+                  {agent.tier || t("components.agent_card.tier_starter", "starter")}
                 </Text>
               </View>
               {isActive && (
                 <View style={styles.statusPill}>
-                  <Text style={styles.statusPillText}>Active</Text>
+                  <Text style={styles.statusPillText}>{t("components.agent_card.status_active", "Active")}</Text>
                 </View>
               )}
             </View>
@@ -221,7 +223,7 @@ export const AgentCard: React.FC<AgentCardProps> = ({
               <View style={styles.footerIcon}>
                 <Ionicons name="wallet-outline" size={14} color="#00B14F" />
               </View>
-              <Text style={[styles.footerLabel, { color: theme.muted }]}>Capacity</Text>
+              <Text style={[styles.footerLabel, { color: theme.muted }]}>{t("components.agent_card.label_capacity", "Capacity")}</Text>
               <Text style={[styles.footerValue, { color: theme.text }]} numberOfLines={1}>
                 ${formatAmountOrCompact(capacity)}
               </Text>
@@ -231,7 +233,7 @@ export const AgentCard: React.FC<AgentCardProps> = ({
                 <View style={styles.footerIcon}>
                   <Ionicons name="card-outline" size={14} color="#6B7280" />
                 </View>
-                <Text style={[styles.footerLabel, { color: theme.muted }]}>Max/trade</Text>
+                <Text style={[styles.footerLabel, { color: theme.muted }]}>{t("components.agent_card.label_max_trade", "Max/trade")}</Text>
                 <Text style={[styles.footerValue, { color: theme.text }]} numberOfLines={1} ellipsizeMode="tail">
                   {formatAmountOrCompact(effectiveMaxTrade, maxTradeUnit)}
                 </Text>
@@ -245,7 +247,7 @@ export const AgentCard: React.FC<AgentCardProps> = ({
                   <View style={styles.footerIcon}>
                     <Ionicons name="business-outline" size={14} color="#00B14F" />
                   </View>
-                  <Text style={[styles.footerLabel, { color: theme.muted }]}>Bank</Text>
+                  <Text style={[styles.footerLabel, { color: theme.muted }]}>{t("components.agent_card.label_bank", "Bank")}</Text>
                   <Text style={[styles.footerValue, { color: theme.text }]} numberOfLines={1} ellipsizeMode="tail">
                     {agent.bank_name}
                   </Text>
@@ -256,7 +258,7 @@ export const AgentCard: React.FC<AgentCardProps> = ({
                   <View style={styles.footerIcon}>
                     <Ionicons name="phone-portrait-outline" size={14} color="#00B14F" />
                   </View>
-                  <Text style={[styles.footerLabel, { color: theme.muted }]}>Mobile</Text>
+                  <Text style={[styles.footerLabel, { color: theme.muted }]}>{t("components.agent_card.label_mobile", "Mobile")}</Text>
                   <Text style={[styles.footerValue, { color: theme.text }]} numberOfLines={1} ellipsizeMode="tail">
                     {agent.mobile_money_provider}
                   </Text>
@@ -280,8 +282,8 @@ export const AgentCard: React.FC<AgentCardProps> = ({
               ]}
             >
               {canHandleAmount
-                ? "Can handle your amount"
-                : "Insufficient capacity or over limit"}
+                ? t("components.agent_card.can_handle", "Can handle your amount")
+                : t("components.agent_card.cannot_handle", "Insufficient capacity or over limit")}
             </Text>
           </View>
         )}

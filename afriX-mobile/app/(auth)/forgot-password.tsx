@@ -13,13 +13,19 @@ import { HelperText } from "react-native-paper";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { useAuthStore } from "@/stores";
+import { useAuthStore, useSettingsStore } from "@/stores";
 import * as Haptics from "expo-haptics";
+import { useTranslation } from "react-i18next";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function ForgotPasswordScreen() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
   const router = useRouter();
+  const { t } = useTranslation();
+  const { language, setLanguage } = useSettingsStore();
+  const insets = useSafeAreaInsets();
+  const currentLang = language || "en";
 
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
@@ -72,6 +78,20 @@ export default function ForgotPasswordScreen() {
       />
       <View style={[styles.glowOrb1, { backgroundColor: isDark ? "rgba(0, 177, 79, 0.12)" : "rgba(0, 177, 79, 0.06)" }]} />
 
+      {/* Floating Language Switcher */}
+      <View style={[styles.floatingLangContainer, { top: insets.top + 8 }]}>
+        <TouchableOpacity
+          onPress={() => setLanguage(currentLang === "en" ? "fr" : "en")}
+          style={[styles.floatingLangBtn, { backgroundColor: theme.card, borderColor: theme.border }]}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="language-outline" size={16} color={theme.accent} />
+          <Text style={[styles.floatingLangText, { color: theme.text }]}>
+            {currentLang === "en" ? "FR" : "EN"}
+          </Text>
+        </TouchableOpacity>
+      </View>
+
       <View style={styles.inner}>
         {/* Brand header */}
         <View style={styles.brandSection}>
@@ -89,14 +109,14 @@ export default function ForgotPasswordScreen() {
           >
             <Ionicons name="key-outline" size={32} color="#FFFFFF" />
           </LinearGradient>
-          <Text style={[styles.welcomeText, { color: theme.text }]}>Forgot Password</Text>
-          <Text style={[styles.subtitle, { color: theme.muted }]}>Enter your registered email address below</Text>
+          <Text style={[styles.welcomeText, { color: theme.text }]}>{t("auth.forgot_password.title")}</Text>
+          <Text style={[styles.subtitle, { color: theme.muted }]}>{t("auth.forgot_password.subtitle")}</Text>
         </View>
 
         {/* Form Card */}
         <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
           <View style={styles.inputGroup}>
-            <Text style={[styles.inputLabel, { color: theme.muted }]}>Email Address</Text>
+            <Text style={[styles.inputLabel, { color: theme.muted }]}>{t("auth.login.email_label")}</Text>
             <View style={[styles.inputRow, { backgroundColor: theme.inputBg, borderColor: theme.border }]}>
               <View style={styles.inputIconBox}>
                 <Ionicons name="mail-outline" size={18} color={theme.muted} />
@@ -105,7 +125,7 @@ export default function ForgotPasswordScreen() {
                 style={[styles.textInput, { color: theme.text }]}
                 value={email}
                 onChangeText={setEmail}
-                placeholder="name@example.com"
+                placeholder={t("auth.login.email_placeholder")}
                 placeholderTextColor={theme.placeholder}
                 keyboardType="email-address"
                 autoCapitalize="none"
@@ -138,7 +158,7 @@ export default function ForgotPasswordScreen() {
                 <ActivityIndicator color="#FFFFFF" size="small" />
               ) : (
                 <>
-                  <Text style={styles.submitBtnText}>Send Reset Link</Text>
+                  <Text style={styles.submitBtnText}>{t("auth.forgot_password.btn_send")}</Text>
                   <Ionicons name="paper-plane-outline" size={18} color="#FFFFFF" />
                 </>
               )}
@@ -278,5 +298,29 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 16,
     fontWeight: "800",
+  },
+  floatingLangContainer: {
+    position: "absolute",
+    right: 20,
+    zIndex: 100,
+  },
+  floatingLangBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  floatingLangText: {
+    fontSize: 12,
+    fontWeight: "800",
+    letterSpacing: 0.5,
   },
 });

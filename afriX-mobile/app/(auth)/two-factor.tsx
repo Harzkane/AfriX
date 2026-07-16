@@ -19,6 +19,7 @@ import { Ionicons } from "@expo/vector-icons";
 import apiClient from "@/services/apiClient";
 import { useAuthStore } from "@/stores";
 import * as Haptics from "expo-haptics";
+import { useTranslation } from "react-i18next";
 
 const OTP_LENGTH = 6;
 
@@ -61,6 +62,7 @@ export default function TwoFactorScreen() {
   const { setToken, setUser } = useAuthStore();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
+  const { t } = useTranslation();
 
   const [digits, setDigits] = useState<string[]>(Array(OTP_LENGTH).fill(""));
   const [focusedIndex, setFocusedIndex] = useState(0);
@@ -85,7 +87,7 @@ export default function TwoFactorScreen() {
     if (params.temp_token) {
       setTempToken(params.temp_token as string);
     } else {
-      Alert.alert("Error", "Invalid session. Please login again.");
+      Alert.alert(t("auth.two_factor.error_title", "Error"), t("auth.two_factor.session_error", "Invalid session. Please login again."));
       router.replace("/(auth)/login");
     }
   }, [params]);
@@ -117,7 +119,7 @@ export default function TwoFactorScreen() {
 
   const handleVerify = async () => {
     if (!isComplete) {
-      Alert.alert("Error", "Please enter the complete 6-digit code");
+      Alert.alert(t("auth.two_factor.error_title", "Error"), t("auth.two_factor.complete_code_error", "Please enter the complete 6-digit code"));
       return;
     }
 
@@ -140,7 +142,7 @@ export default function TwoFactorScreen() {
     } catch (error: any) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       const message = error.response?.data?.message || "Verification failed";
-      Alert.alert("Error", message);
+      Alert.alert(t("auth.two_factor.error_title", "Error"), message);
       // Clear and refocus
       setDigits(Array(OTP_LENGTH).fill(""));
       setTimeout(() => inputRefs.current[0]?.focus(), 100);
@@ -178,15 +180,15 @@ export default function TwoFactorScreen() {
               <LinearGradient colors={["#00B14F", "#10B981"]} style={styles.logoCircle}>
                 <Ionicons name="shield-checkmark-outline" size={32} color="#FFFFFF" />
               </LinearGradient>
-              <Text style={[styles.welcomeText, { color: theme.text }]}>Two-Factor Auth</Text>
+              <Text style={[styles.welcomeText, { color: theme.text }]}>{t("auth.two_factor.title")}</Text>
               <Text style={[styles.subtitle, { color: theme.muted }]}>
-                Enter the 6-digit code from your authenticator app
+                {t("auth.two_factor.subtitle")}
               </Text>
             </View>
 
             {/* OTP Card */}
             <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
-              <Text style={[styles.otpLabel, { color: theme.muted }]}>Verification Code</Text>
+              <Text style={[styles.otpLabel, { color: theme.muted }]}>{t("auth.two_factor.code_label")}</Text>
 
               <View style={styles.otpRow}>
                 {digits.map((digit, index) => (
@@ -218,7 +220,7 @@ export default function TwoFactorScreen() {
                     <ActivityIndicator color="#FFFFFF" size="small" />
                   ) : (
                     <>
-                      <Text style={styles.verifyBtnText}>Verify Code</Text>
+                      <Text style={styles.verifyBtnText}>{t("auth.two_factor.btn_submit")}</Text>
                       <Ionicons name="checkmark-circle-outline" size={18} color="#FFFFFF" />
                     </>
                   )}
@@ -227,7 +229,7 @@ export default function TwoFactorScreen() {
             </View>
 
             <Text style={[styles.footerText, { color: theme.muted }]}>
-              Open your authenticator app to find the code
+              {t("auth.two_factor.footer_hint", "Open your authenticator app to find the code")}
             </Text>
           </View>
         </KeyboardAvoidingView>

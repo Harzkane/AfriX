@@ -1,5 +1,5 @@
 // app/help-support/faq.tsx
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useMemo } from "react";
 import {
   ScrollView,
   StyleSheet,
@@ -14,122 +14,21 @@ import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
+import { useTranslation } from "react-i18next";
 
 type FaqItem = { id: string; q: string; a: string };
 
-const SECTIONS: { title: string; icon: string; color: string; items: FaqItem[] }[] = [
-  {
-    title: "Getting Started",
-    icon: "rocket-outline",
-    color: "#3B82F6",
-    items: [
-      {
-        id: "what-is",
-        q: "What is AfriToken?",
-        a: "A peer-to-peer platform for exchanging digital tokens (NT and CT). Buy from agents with Naira or XOF, send to friends, swap token types, and sell back to agents for cash.",
-      },
-      {
-        id: "is-bank",
-        q: "Is AfriToken a bank?",
-        a: "No. We're a technology platform connecting you with users and independent agents. We don't hold your money or provide banking services.",
-      },
-      {
-        id: "create-account",
-        q: "How do I create an account?",
-        a: "Download the app, enter email and password, verify your email. No bank account needed to start.",
-      },
-    ],
-  },
-  {
-    title: "Tokens Explained",
-    icon: "cube-outline",
-    color: "#8B5CF6",
-    items: [
-      {
-        id: "nt-ct",
-        q: "What are NT and CT?",
-        a: "NT (Naira Token) ≈ 1 Naira reference. CT (CFA Token) ≈ 1 XOF reference. They are blockchain tokens, not government-issued currency.",
-      },
-      {
-        id: "pay-things",
-        q: "Can I use tokens to pay for things?",
-        a: "Yes at merchants who accept AfriToken. At regular stores you need to sell tokens for cash first.",
-      },
-    ],
-  },
-  {
-    title: "Acquiring Tokens",
-    icon: "cart-outline",
-    color: "#00B14F",
-    items: [
-      {
-        id: "how-buy",
-        q: "How do I buy tokens from an agent?",
-        a: "Tap Buy Tokens, choose amount and agent, send payment to the agent's bank or mobile money, upload proof. Agent confirms and mints tokens to your wallet, usually within 5 to 15 minutes.",
-      },
-      {
-        id: "choose-agent",
-        q: "How do I choose a good agent?",
-        a: "Look for a high rating, fast response time, and verified or high-liquidity badges. Avoid low ratings and very slow response times.",
-      },
-    ],
-  },
-  {
-    title: "Selling Tokens",
-    icon: "cash-outline",
-    color: "#F59E0B",
-    items: [
-      {
-        id: "how-sell",
-        q: "How do I convert tokens back to cash?",
-        a: "Tap Sell Tokens, choose amount and agent. Your tokens lock in escrow. The agent sends you cash, and you should only confirm after the money lands in your account.",
-      },
-      {
-        id: "escrow",
-        q: "What is escrow protection?",
-        a: "Your tokens are locked in a smart contract. The agent cannot access them until you confirm receipt of cash. If they don't pay, you can dispute and get your tokens refunded.",
-      },
-      {
-        id: "dispute",
-        q: "What if the agent doesn't send me cash?",
-        a: "Open a dispute from the request status screen and upload proof. Admin review usually happens within 24 to 48 hours. If the agent didn't deliver, your tokens are refunded from escrow.",
-      },
-    ],
-  },
-  {
-    title: "Security & Safety",
-    icon: "shield-checkmark-outline",
-    color: "#EF4444",
-    items: [
-      {
-        id: "protect",
-        q: "How do I protect my account?",
-        a: "Use a strong password, never share it, and enable 2FA in Settings > Security. Real support will never ask for your password or tell you to verify by sending tokens.",
-      },
-      {
-        id: "scams",
-        q: "What scams should I avoid?",
-        a: "Avoid support impersonators asking for passwords, double-your-tokens offers, fake websites and apps, and rates that look too good to be true. Never send tokens to prove ownership.",
-      },
-    ],
-  },
-  {
-    title: "Fees",
-    icon: "receipt-outline",
-    color: "#0F766E",
-    items: [
-      {
-        id: "fees",
-        q: "What are the fees?",
-        a: "P2P transfer is 0.5%, swap is 1.5%, receive is free, buy and sell with agents are included in the quoted rate, and merchant payments are paid by the merchant. All fees are shown before you confirm.",
-      },
-    ],
-  },
+const SECTION_DEFS: { id: string; icon: string; color: string; items: string[] }[] = [
+  { id: "getting_started", icon: "rocket-outline", color: "#3B82F6", items: ["what-is", "is-bank", "create-account"] },
+  { id: "tokens_explained", icon: "cube-outline", color: "#8B5CF6", items: ["nt-ct", "pay-things"] },
+  { id: "acquiring_tokens", icon: "cart-outline", color: "#00B14F", items: ["how-buy", "choose-agent"] },
+  { id: "selling_tokens", icon: "cash-outline", color: "#F59E0B", items: ["how-sell", "escrow", "dispute"] },
+  { id: "security_safety", icon: "shield-checkmark-outline", color: "#EF4444", items: ["protect", "scams"] },
+  { id: "fees", icon: "receipt-outline", color: "#0F766E", items: ["fees"] },
 ];
 
-const TOTAL_TOPICS = SECTIONS.reduce((acc, s) => acc + s.items.length, 0);
-
 export default function FullFaqScreen() {
+  const { t } = useTranslation();
   const router = useRouter();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
@@ -137,6 +36,18 @@ export default function FullFaqScreen() {
   const scrollY = useRef(new Animated.Value(0)).current;
   const [headerMaxHeight, setHeaderMaxHeight] = useState(insets.top + 70);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+
+  const SECTIONS = useMemo(() => SECTION_DEFS.map((sec) => ({
+    ...sec,
+    title: t(`help.faq_full.sections.${sec.id}.title`),
+    items: sec.items.map((itemId) => ({
+      id: itemId,
+      q: t(`help.faq_full.sections.${sec.id}.items.${itemId}.q`),
+      a: t(`help.faq_full.sections.${sec.id}.items.${itemId}.a`),
+    })) as FaqItem[],
+  })), [t]);
+
+  const TOTAL_TOPICS = SECTIONS.reduce((acc, s) => acc + s.items.length, 0);
 
   const theme = {
     background: isDark ? "#07111A" : "#F5F7FB",
@@ -179,10 +90,10 @@ export default function FullFaqScreen() {
               <Ionicons name="arrow-back" size={22} color={theme.text} />
             </TouchableOpacity>
             <View style={{ flex: 1 }}>
-              <Text style={[styles.headerTitle, { color: theme.text }]}>Full FAQ</Text>
+              <Text style={[styles.headerTitle, { color: theme.text }]}>{t("help.faq_full.header_title", "Full FAQ")}</Text>
               <Animated.View style={{ opacity: subtitleOpacity, maxHeight: subtitleMaxHeight, marginTop: subtitleMargin, overflow: "hidden" }}>
                 <Text style={[styles.headerSubtitle, { color: theme.muted }]}>
-                  Browse all {TOTAL_TOPICS} topics across {SECTIONS.length} categories.
+                  {t("help.faq_full.header_subtitle", "Browse all {{topics}} topics across {{sections}} categories.", { topics: TOTAL_TOPICS, sections: SECTIONS.length })}
                 </Text>
               </Animated.View>
             </View>
@@ -210,22 +121,22 @@ export default function FullFaqScreen() {
           <View style={styles.heroTopRow}>
             <View style={[styles.heroBadge, { backgroundColor: theme.accentSoft, borderColor: theme.accentBorder }]}>
               <Ionicons name="book-outline" size={13} color={theme.accent} />
-              <Text style={[styles.heroBadgeText, { color: theme.accent }]}>Knowledge Base</Text>
+              <Text style={[styles.heroBadgeText, { color: theme.accent }]}>{t("help.faq_full.knowledge_base", "Knowledge Base")}</Text>
             </View>
             <View style={[styles.countPill, { backgroundColor: isDark ? "#111C2B" : "#F1F5F9", borderColor: theme.border }]}>
-              <Text style={[styles.countPillText, { color: theme.muted }]}>{TOTAL_TOPICS} topics</Text>
+              <Text style={[styles.countPillText, { color: theme.muted }]}>{t("help.faq_full.topic_count", "{{count}} topics", { count: TOTAL_TOPICS })}</Text>
             </View>
           </View>
 
-          <Text style={[styles.heroTitle, { color: theme.text }]}>Answers to the most important questions</Text>
+          <Text style={[styles.heroTitle, { color: theme.text }]}>{t("help.faq_full.hero_title", "Answers to the most important questions")}</Text>
           <Text style={[styles.heroSubtitle, { color: theme.muted }]}>
-            Explore account setup, token usage, agent transactions, security, fees, and dispute guidance in one place.
+            {t("help.faq_full.hero_subtitle", "Explore account setup, token usage, agent transactions, security, fees, and dispute guidance in one place.")}
           </Text>
 
           <View style={styles.featurePillRow}>
             {[
-              { icon: "shield-checkmark-outline", label: "Safety tips included", color: "#059669" },
-              { icon: "flash-outline", label: "Quick scan format", color: "#3B82F6" },
+              { icon: "shield-checkmark-outline", label: t("help.faq_full.pill_safety", "Safety tips included"), color: "#059669" },
+              { icon: "flash-outline", label: t("help.faq_full.pill_quick", "Quick scan format"), color: "#3B82F6" },
             ].map((pill) => (
               <View key={pill.label} style={[styles.featurePill, { backgroundColor: isDark ? "#111C2B" : "#FFFFFF", borderColor: theme.border }]}>
                 <Ionicons name={pill.icon as any} size={14} color={pill.color} />
@@ -284,10 +195,10 @@ export default function FullFaqScreen() {
 
         {/* Still need help card */}
         <View style={[styles.ctaCard, { backgroundColor: isDark ? "#0E1726" : "#0F172A", borderColor: isDark ? "#1E2A3A" : "#1E293B" }]}>
-          <Text style={styles.ctaEyebrow}>STILL NEED HELP?</Text>
-          <Text style={styles.ctaTitle}>Contact the support team directly</Text>
+          <Text style={styles.ctaEyebrow}>{t("help.faq_full.cta_eyebrow", "STILL NEED HELP?")}</Text>
+          <Text style={styles.ctaTitle}>{t("help.faq_full.cta_title", "Contact the support team directly")}</Text>
           <Text style={styles.ctaSubtitle}>
-            If your answer isn&apos;t here, go back to Help &amp; Support and use the Email Support option so we can assist with account or transaction issues.
+            {t("help.faq_full.cta_subtitle", "If your answer isn't here, go back to Help & Support and use the Email Support option so we can assist with account or transaction issues.")}
           </Text>
           <TouchableOpacity
             style={styles.ctaBtn}
@@ -295,7 +206,7 @@ export default function FullFaqScreen() {
             activeOpacity={0.85}
           >
             <Ionicons name="arrow-back" size={16} color="#0F172A" />
-            <Text style={styles.ctaBtnText}>Back to Help & Support</Text>
+            <Text style={styles.ctaBtnText}>{t("help.faq_full.cta_btn", "Back to Help & Support")}</Text>
           </TouchableOpacity>
         </View>
 

@@ -6,11 +6,11 @@
 
 ## What Is AfriX?
 
-**AfriExchange (AfriX)** is a **peer-to-peer digital token exchange and settlement platform** for African commerce. It lets people, independent agents, merchants, and partner platforms move value across currency zones quickly and transparently—using tokens (**NT**, **CT**, **USDT**) instead of relying only on banks and traditional remittance.
+**AfriExchange (AfriX)** an **AfriExchange is a commerce infrastructure platform that enables users, merchants, agents, and partner marketplaces to move value across African markets through programmable settlement rails built on tokenized digital assets.** for African commerce. It lets people, independent agents, merchants, and partner platforms move value across currency zones quickly and transparently—using tokens (**NT**, **CT**, **USDT**) instead of relying only on banks and traditional remittance.
 
 - **For users (mobile app):** Buy, send, receive, swap, and sell tokens with agent-backed mint/burn and escrow protection. **Request tokens from a contact** and **scan-to-pay merchants in the mobile app** are still on the roadmap.
 - **For agents:** Earn by facilitating token–cash exchanges (mint/burn) with capacity tied to a USDT security deposit, clear rules, and dispute handling.
-- **For merchants:** Accept token payments via **API**, **webhooks**, **hosted checkout** (`/pay/...` on the web app), and the **merchant portal** (collections, wallet, sell-through-agent, integration docs). Production reference: **Kaalis Store** (XOF rail) via partner integration APIs.
+- **For merchants:** Accept token payments via **API**, **webhooks**, **hosted checkout** (`/pay/...` on the web app), and the **merchant portal** (collections, wallet, sell-through-agent, integration docs). Production references: **PlugNG Shop** (Path A, [plugng.shop](https://plugng.shop)) and **Kaalis Store** (Path B, XOF rail at [bruthol.com](https://bruthol.com)) via integration APIs.
 - **For operators:** Admin dashboard for users, agents, merchants, financials, operations, disputes, withdrawals, education, and security.
 
 We are **not a bank**. We are a **technology platform and marketplace** that connects users with independent agents and merchants. Tokens are blockchain-based digital assets with reference rates (e.g. 1 NT ≈ 1 Naira); they are not legal tender. We provide the rails; users and agents conduct the exchanges.
@@ -26,7 +26,7 @@ We are **not a bank**. We are a **technology platform and marketplace** that con
 | **Merchant portal** | `afriX_backend/afrix-web` — `/merchant/*` | Approved merchants | Overview, collections, wallet assets, sell-through-agent, settings, API & webhooks, integration hub, docs, sandbox, KYC |
 | **Hosted checkout** | `afriX_backend/afrix-web` — `/pay/[id]` | Customers paying a merchant | View payment request, sign in, pay from wallet (public page; no admin/merchant cookie required) |
 | **REST API** | `afriX_backend` — `/api/v1/*` | Apps & integrations | Auth, wallets, requests (mint/burn), payments, merchants, agents, disputes, education, notifications, **integrations** (e.g. Kaalis) |
-| **Partner APIs** | `/api/v1/integrations/kaalis/*` | Marketplace partners (Path B) | Account verify/link, collections, payouts (server-to-server + signed webhooks back to partner) |
+| **Partner APIs** | `/api/v1/integrations/kaalis/*` | Marketplace partners (Path B) | Account verify/link, collections, payouts (server-to-server + signed webhooks back to partner; verified on [bruthol.com](https://bruthol.com)) |
 
 **Deployment (example):** API hosted on Render — see repo `readme.md` (`https://afrix.onrender.com/`). Mobile points at `EXPO_PUBLIC_API_URL`; web uses `NEXT_PUBLIC_API_URL`.
 
@@ -55,9 +55,9 @@ We are **not a bank**. We are a **technology platform and marketplace** that con
 
 ### 4. **Commerce & marketplace partners**
 
-- Platforms like **Kaalis Store** that need a **dedicated settlement rail** (e.g. XOF) while keeping catalog, orders, and vendor logic on their side.
-- **Path A:** single-merchant ecommerce using standard merchant APIs and hosted checkout.
-- **Path B:** marketplace-style partners using **integration** routes and webhook contracts (Kaalis is the reference implementation).
+- Platforms like **Kaalis Store** ([bruthol.com](https://bruthol.com)) that need a **dedicated settlement rail** (e.g. XOF) while keeping catalog, orders, and vendor logic on their side.
+- **Path A:** single-merchant ecommerce using standard merchant APIs and hosted checkout (fully implemented and tested on **PlugNG Shop** at [plugng.shop](https://plugng.shop)).
+- **Path B:** marketplace-style partners using **integration** routes and webhook contracts (fully implemented and tested on **Kaalis Store** at [bruthol.com](https://bruthol.com)).
 
 ### 5. **Families and communities**
 
@@ -120,7 +120,7 @@ Minimum deposit and tiers are **environment-configurable** (see agent handbook a
 4. **Cash out or reuse:** **Sell through agent** from portal when you need fiat; or reuse tokens in your operations.
 5. **Integrate deeper:** HMAC-signed webhooks, sandbox page, integration hub, and guides under `docs/merchant-platform/`.
 
-**Path B (marketplace partner):** Server-to-server **Kaalis integration** routes (`/api/v1/integrations/kaalis/...`) plus webhook contract—see dual-platform architecture doc. Not required for a single-store Path A merchant.
+**Path B (marketplace partner):** Server-to-server **Kaalis integration** routes (`/api/v1/integrations/kaalis/...`) plus webhook contract—see dual-platform architecture doc. Verified live on **Kaalis Store** ([bruthol.com](https://bruthol.com)). Not required for a single-store Path A merchant.
 
 ### As a **platform admin**
 
@@ -156,7 +156,7 @@ Minimum deposit and tiers are **environment-configurable** (see agent handbook a
 - **Instant settlement:** Tokens in settlement wallet on successful payment.
 - **Operational portal:** Collections, balances, API keys, webhooks, sandbox, docs—not admin-only views.
 - **Hosted checkout:** Customers without your app can pay on the web.
-- **Adoption paths:** Documented **Path A** (standard) and **Path B** (partner/marketplace); Kaalis as production reference for Path B.
+- **Adoption paths:** Documented and verified **Path A** (standard, live on [plugng.shop](https://plugng.shop)) and **Path B** (partner/marketplace, live on [bruthol.com](https://bruthol.com)).
 
 ### For **the ecosystem**
 
@@ -173,7 +173,7 @@ Minimum deposit and tiers are **environment-configurable** (see agent handbook a
 - **Agent accountability:** USDT security deposit, capacity limits, slashing and suspension paths.
 - **Full consumer loop on mobile:** Get tokens → move them → sell back to agents when you need cash.
 - **Merchant stack beyond “API only”:** Portal, hosted pay page, webhooks, sandbox, and partner integration surface.
-- **Proven partner rail:** Kaalis ↔ AfriExchange dual-platform model for XOF commerce (collections, payouts, signed webhooks).
+- **Proven partner rail:** Kaalis ↔ AfriExchange dual-platform model for XOF commerce (collections, payouts, signed webhooks; verified on [bruthol.com](https://bruthol.com)).
 - **Transparent pricing:** Fees and verification-tier limits surfaced in product and config.
 - **Built for Africa:** NT/CT, local payment methods, agents, and bilingual/product considerations in roadmap materials.
 
@@ -238,12 +238,12 @@ Aligned with `PROGRESS - What We Have Built So Far.md` and `afriX_backend/docs/D
 | Auth, 2FA, wallets, P2P, swap | ✅ | — | ✅ |
 | Mint / burn / escrow / disputes | ✅ | Admin ops | ✅ |
 | Agent register, KYC, deposit, withdrawals | ✅ | Admin | ✅ |
-| Merchant register, KYC, payment-request, pay | ✅ | Portal + `/pay/[id]` | — |
-| Kaalis partner integration | ✅ | — | — |
+| Merchant register, KYC, payment-request, pay (Path A) | ✅ (Live on plugng.shop) | Portal + `/pay/[id]` | — |
+| Kaalis partner integration (Path B) | ✅ (Live on bruthol.com) | ✅ (Admin settings) | — |
 | Request tokens from friend | — | — | 🔜 Coming soon |
 | Pay merchant (scan QR / in-app) | ✅ | Hosted pay ✅ | 🔜 Coming soon |
 
-**Merchant public launch:** Path A is feature-close with pilot validation; full self-serve external merchant go-live is gated by `docs/merchant-platform/MERCHANT_GO_PUBLIC_PHASE_GATES.md`.
+**Merchant public launch:** Both **Path A** (standard checkout via **PlugNG Shop** at [plugng.shop](https://plugng.shop)) and **Path B** (partner marketplace integration via **Kaalis Store** at [bruthol.com](https://bruthol.com)) are fully implemented, tested, and working in production.
 
 ---
 

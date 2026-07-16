@@ -10,21 +10,23 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useAgentStore } from "@/stores/slices/agentSlice";
 import { WithdrawalRequest } from "@/stores/types/agent.types";
 import { formatAmount, formatDate } from "@/utils/format";
+import { useTranslation } from "react-i18next";
 
-const getStatusMeta = (status: string) => {
+const getStatusMeta = (t: any, status: string) => {
     switch (status) {
         case "paid":
-            return { label: "Paid", color: "#059669", tint: "#ECFDF5", border: "#A7F3D0", icon: "checkmark-circle-outline" as const };
+            return { label: t("agent.withdrawal_history.status_paid", "Paid"), color: "#059669", tint: "#ECFDF5", border: "#A7F3D0", icon: "checkmark-circle-outline" as const };
         case "approved":
-            return { label: "Approved", color: "#2563EB", tint: "#EFF6FF", border: "#BFDBFE", icon: "checkmark-done-outline" as const };
+            return { label: t("agent.withdrawal_history.status_approved", "Approved"), color: "#2563EB", tint: "#EFF6FF", border: "#BFDBFE", icon: "checkmark-done-outline" as const };
         case "rejected":
-            return { label: "Rejected", color: "#EF4444", tint: "#FEF2F2", border: "#FECACA", icon: "close-circle-outline" as const };
+            return { label: t("agent.withdrawal_history.status_rejected", "Rejected"), color: "#EF4444", tint: "#FEF2F2", border: "#FECACA", icon: "close-circle-outline" as const };
         default:
-            return { label: "Pending", color: "#D97706", tint: "#FFFBEB", border: "#FDE68A", icon: "time-outline" as const };
+            return { label: t("agent.withdrawal_history.status_pending", "Pending"), color: "#D97706", tint: "#FFFBEB", border: "#FDE68A", icon: "time-outline" as const };
     }
 };
 
 export default function WithdrawalHistory() {
+    const { t } = useTranslation();
     const router = useRouter();
     const { withdrawalRequests, fetchWithdrawalRequests, loading } = useAgentStore();
     const colorScheme = useColorScheme();
@@ -48,7 +50,7 @@ export default function WithdrawalHistory() {
     const pendingCount = withdrawalRequests.filter((item) => item.status === "pending").length;
 
     const renderItem = ({ item }: { item: WithdrawalRequest }) => {
-        const statusMeta = getStatusMeta(item.status);
+        const statusMeta = getStatusMeta(t, item.status);
         return (
             <TouchableOpacity
                 activeOpacity={0.8}
@@ -61,7 +63,7 @@ export default function WithdrawalHistory() {
                             <Ionicons name={statusMeta.icon} size={20} color={statusMeta.color} />
                         </View>
                         <View style={styles.cardInfo}>
-                            <Text style={[styles.cardEyebrow, { color: theme.muted }]}>Withdrawal Request</Text>
+                            <Text style={[styles.cardEyebrow, { color: theme.muted }]}>{t("agent.withdrawal_history.wd_request", "Withdrawal Request")}</Text>
                             <Text style={[styles.cardAmount, { color: theme.text }]}>{formatAmount(item.amount_usd, "USDT")} USDT</Text>
                             <Text style={[styles.cardDate, { color: theme.muted }]}>{formatDate(item.created_at, true)}</Text>
                         </View>
@@ -70,11 +72,11 @@ export default function WithdrawalHistory() {
                         </View>
                     </View>
                     <View style={[styles.stripRow, { borderTopColor: theme.border }]}>
-                        <Text style={[styles.stripLabel, { color: theme.muted }]}>Request ID</Text>
+                        <Text style={[styles.stripLabel, { color: theme.muted }]}>{t("agent.withdrawal_history.request_id", "Request ID")}</Text>
                         <Text style={[styles.stripValue, { color: theme.text }]}>#{item.id.slice(0, 8).toUpperCase()}</Text>
                     </View>
                     <View style={[styles.stripRow, { borderTopColor: theme.border }]}>
-                        <Text style={[styles.stripLabel, { color: theme.muted }]}>Submitted</Text>
+                        <Text style={[styles.stripLabel, { color: theme.muted }]}>{t("agent.withdrawal_history.submitted", "Submitted")}</Text>
                         <Text style={[styles.stripValue, { color: theme.text }]}>{formatDate(item.created_at)}</Text>
                     </View>
                     {item.status === "rejected" && item.admin_notes ? (
@@ -90,7 +92,7 @@ export default function WithdrawalHistory() {
                         </View>
                     ) : null}
                     <View style={[styles.cardFooter, { borderTopColor: theme.border }]}>
-                        <Text style={[styles.footerText, { color: theme.muted }]}>Tap to view details</Text>
+                        <Text style={[styles.footerText, { color: theme.muted }]}>{t("agent.withdrawal_history.tap_view", "Tap to view details")}</Text>
                         <Ionicons name="chevron-forward" size={15} color={theme.muted} />
                     </View>
                 </View>
@@ -107,10 +109,10 @@ export default function WithdrawalHistory() {
                         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} activeOpacity={0.8}>
                             <Ionicons name="arrow-back" size={20} color={theme.text} />
                         </TouchableOpacity>
-                        <Text style={[styles.headerTitleText, { color: theme.text }]}>Withdrawals</Text>
+                        <Text style={[styles.headerTitleText, { color: theme.text }]}>{t("agent.withdrawal_history.header_title", "Withdrawals")}</Text>
                     </View>
                     <View style={[styles.agentBadge, { backgroundColor: theme.accentLight }]}>
-                        <Text style={[styles.agentBadgeText, { color: theme.accent }]}>Agent</Text>
+                        <Text style={[styles.agentBadgeText, { color: theme.accent }]}>{t("agent.withdrawal_history.agent_badge", "Agent")}</Text>
                     </View>
                 </View>
             </SafeAreaView>
@@ -118,17 +120,17 @@ export default function WithdrawalHistory() {
             {/* Summary banner */}
             <View style={[styles.summaryBanner, { backgroundColor: theme.card, borderColor: theme.border }]}>
                 <View style={styles.summaryItem}>
-                    <Text style={[styles.summaryLabel, { color: theme.muted }]}>Total Requested</Text>
+                    <Text style={[styles.summaryLabel, { color: theme.muted }]}>{t("agent.withdrawal_history.total_requested", "Total Requested")}</Text>
                     <Text style={[styles.summaryValue, { color: theme.accent }]}>{formatAmount(totalRequested, "USDT")} USDT</Text>
                 </View>
                 <View style={[styles.summaryDivider, { backgroundColor: theme.border }]} />
                 <View style={styles.summaryItem}>
-                    <Text style={[styles.summaryLabel, { color: theme.muted }]}>Pending</Text>
+                    <Text style={[styles.summaryLabel, { color: theme.muted }]}>{t("agent.withdrawal_history.pending", "Pending")}</Text>
                     <Text style={[styles.summaryValue, { color: "#D97706" }]}>{pendingCount}</Text>
                 </View>
                 <View style={[styles.summaryDivider, { backgroundColor: theme.border }]} />
                 <View style={styles.summaryItem}>
-                    <Text style={[styles.summaryLabel, { color: theme.muted }]}>Total</Text>
+                    <Text style={[styles.summaryLabel, { color: theme.muted }]}>{t("agent.withdrawal_history.total", "Total")}</Text>
                     <Text style={[styles.summaryValue, { color: theme.text }]}>{withdrawalRequests.length}</Text>
                 </View>
             </View>
@@ -144,8 +146,8 @@ export default function WithdrawalHistory() {
                         <LinearGradient colors={["#EDE9FE", "#DDD6FE"]} style={styles.emptyIconCircle}>
                             <Ionicons name="cash-outline" size={28} color="#7C3AED" />
                         </LinearGradient>
-                        <Text style={[styles.emptyTitle, { color: theme.text }]}>No withdrawals yet</Text>
-                        <Text style={[styles.emptySub, { color: theme.muted }]}>Your withdrawal requests will appear here once you submit one.</Text>
+                        <Text style={[styles.emptyTitle, { color: theme.text }]}>{t("agent.withdrawal_history.empty_title", "No withdrawals yet")}</Text>
+                        <Text style={[styles.emptySub, { color: theme.muted }]}>{t("agent.withdrawal_history.empty_sub", "Your withdrawal requests will appear here once you submit one.")}</Text>
                     </View>
                 }
             />

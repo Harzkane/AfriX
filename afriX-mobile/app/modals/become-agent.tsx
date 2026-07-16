@@ -7,9 +7,11 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { useAgentStore } from "@/stores/slices/agentSlice";
 import { AgentStatus } from "@/stores/types/agent.types";
+import { useTranslation } from "react-i18next";
 
 export default function BecomeAgentModal() {
   const router = useRouter();
+  const { t } = useTranslation();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
   const { agentStatus, checkKycStatus, fetchAgentStats } = useAgentStore();
@@ -31,6 +33,21 @@ export default function BecomeAgentModal() {
     purpleSoft: isDark ? "rgba(139,92,246,0.12)" : "#F5F3FF",
   };
 
+  const benefits = [
+    { icon: "cash", color: theme.accent, bg: theme.accentSoft, title: t("agent.become_agent.benefit_title_1", "Earn Transaction Fees"), desc: t("agent.become_agent.benefit_desc_1", "Keep 0.5% of every transaction you facilitate") },
+    { icon: "trending-up", color: theme.blue, bg: theme.blueSoft, title: t("agent.become_agent.benefit_title_2", "Volume Bonuses"), desc: t("agent.become_agent.benefit_desc_2", "Earn up to 0.3% extra for high transaction volumes") },
+    { icon: "people", color: theme.purple, bg: theme.purpleSoft, title: t("agent.become_agent.benefit_title_3", "Build Your Network"), desc: t("agent.become_agent.benefit_desc_3", "Connect with users and grow your customer base") },
+    { icon: "shield-checkmark", color: theme.warning, bg: theme.warningSoft, title: t("agent.become_agent.benefit_title_4", "Secure Platform"), desc: t("agent.become_agent.benefit_desc_4", "Protected by smart contracts and escrow system") },
+  ];
+
+  const requirements = [
+    { text: t("agent.become_agent.req_item_1", "Minimum $100 USDT security deposit"), icon: "wallet-outline" },
+    { text: t("agent.become_agent.req_item_2", "Valid government-issued ID"), icon: "id-card-outline" },
+    { text: t("agent.become_agent.req_item_3", "Proof of address (utility bill or bank statement)"), icon: "home-outline" },
+    { text: t("agent.become_agent.req_item_4", "Bank account or mobile money account"), icon: "card-outline" },
+    { text: t("agent.become_agent.req_item_5", "Complete KYC verification"), icon: "shield-checkmark-outline" },
+  ];
+
   useEffect(() => {
     const checkStatus = async () => {
       try {
@@ -48,20 +65,7 @@ export default function BecomeAgentModal() {
     checkStatus();
   }, [agentStatus]);
 
-  const benefits = [
-    { icon: "cash", color: theme.accent, bg: theme.accentSoft, title: "Earn Transaction Fees", desc: "Keep 0.5% of every transaction you facilitate" },
-    { icon: "trending-up", color: theme.blue, bg: theme.blueSoft, title: "Volume Bonuses", desc: "Earn up to 0.3% extra for high transaction volumes" },
-    { icon: "people", color: theme.purple, bg: theme.purpleSoft, title: "Build Your Network", desc: "Connect with users and grow your customer base" },
-    { icon: "shield-checkmark", color: theme.warning, bg: theme.warningSoft, title: "Secure Platform", desc: "Protected by smart contracts and escrow system" },
-  ];
-
-  const requirements = [
-    { text: "Minimum $100 USDT security deposit", icon: "wallet-outline" },
-    { text: "Valid government-issued ID", icon: "id-card-outline" },
-    { text: "Proof of address (utility bill or bank statement)", icon: "home-outline" },
-    { text: "Bank account or mobile money account", icon: "card-outline" },
-    { text: "Complete KYC verification", icon: "shield-checkmark-outline" },
-  ];
+  // Mappings moved inside component body
 
   const renderFooter = () => {
     if (agentStatus === AgentStatus.PENDING || agentStatus === AgentStatus.UNDER_REVIEW) {
@@ -69,10 +73,10 @@ export default function BecomeAgentModal() {
         <View style={[styles.footer, { backgroundColor: theme.card, borderTopColor: theme.border }]}>
           <View style={[styles.statusPill, { backgroundColor: theme.warningSoft }]}>
             <Ionicons name="time" size={16} color={theme.warning} />
-            <Text style={[styles.statusPillText, { color: theme.warning }]}>Application Under Review</Text>
+            <Text style={[styles.statusPillText, { color: theme.warning }]}>{t("agent.become_agent.status_under_review", "Application Under Review")}</Text>
           </View>
           <TouchableOpacity style={[styles.primaryCTA, { backgroundColor: theme.warning }]} onPress={() => router.push("/modals/agent-kyc/status")}>
-            <Text style={styles.primaryCTAText}>Check Status</Text>
+            <Text style={styles.primaryCTAText}>{t("agent.become_agent.btn_check_status", "Check Status")}</Text>
             <Ionicons name="arrow-forward" size={20} color="#FFF" />
           </TouchableOpacity>
         </View>
@@ -83,10 +87,10 @@ export default function BecomeAgentModal() {
         <View style={[styles.footer, { backgroundColor: theme.card, borderTopColor: theme.border }]}>
           <View style={[styles.statusPill, { backgroundColor: theme.accentSoft }]}>
             <Ionicons name="checkmark-circle" size={16} color={theme.accent} />
-            <Text style={[styles.statusPillText, { color: theme.accent }]}>Application Approved!</Text>
+            <Text style={[styles.statusPillText, { color: theme.accent }]}>{t("agent.become_agent.status_approved", "Application Approved!")}</Text>
           </View>
           <TouchableOpacity style={[styles.primaryCTA, { backgroundColor: theme.accent }]} onPress={() => router.push("/modals/agent-deposit")}>
-            <Text style={styles.primaryCTAText}>Complete Setup</Text>
+            <Text style={styles.primaryCTAText}>{t("agent.become_agent.btn_complete_setup", "Complete Setup")}</Text>
             <Ionicons name="arrow-forward" size={20} color="#FFF" />
           </TouchableOpacity>
         </View>
@@ -99,13 +103,13 @@ export default function BecomeAgentModal() {
             style={[styles.secondaryCTA, { backgroundColor: theme.cardAlt, borderColor: theme.border }]}
             onPress={() => router.push("/modals/agent-learn-more")}
           >
-            <Text style={[styles.secondaryCTAText, { color: theme.text }]}>Learn More</Text>
+            <Text style={[styles.secondaryCTAText, { color: theme.text }]}>{t("agent.become_agent.btn_learn_more", "Learn More")}</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.primaryCTA, { backgroundColor: theme.accent, flex: 1 }]}
             onPress={() => router.push("/modals/agent-registration")}
           >
-            <Text style={styles.primaryCTAText}>Start Application</Text>
+            <Text style={styles.primaryCTAText}>{t("agent.become_agent.btn_start_app", "Start Application")}</Text>
             <Ionicons name="arrow-forward" size={18} color="#FFF" />
           </TouchableOpacity>
         </View>
@@ -120,7 +124,7 @@ export default function BecomeAgentModal() {
         <TouchableOpacity onPress={() => router.back()} style={[styles.navBtn, { backgroundColor: theme.card, borderColor: theme.border }]}>
           <Ionicons name="close" size={20} color={theme.text} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: theme.text }]}>Become an Agent</Text>
+        <Text style={[styles.headerTitle, { color: theme.text }]}>{t("agent.become_agent.header_title", "Become an Agent")}</Text>
         <View style={{ width: 42 }} />
       </View>
 
@@ -136,16 +140,16 @@ export default function BecomeAgentModal() {
             <View style={styles.heroIconCircle}>
               <Ionicons name="briefcase" size={32} color="#00B14F" />
             </View>
-            <Text style={styles.heroEyebrow}>EARN WITH AFRIX</Text>
-            <Text style={styles.heroTitle}>Join the AfriX{"\n"}Agent Network</Text>
+            <Text style={styles.heroEyebrow}>{t("agent.become_agent.hero_eyebrow", "EARN WITH AFRIX")}</Text>
+            <Text style={styles.heroTitle}>{t("agent.become_agent.hero_title", "Join the AfriX\nAgent Network")}</Text>
             <Text style={styles.heroSubtitle}>
-              Facilitate token exchanges and earn fees while helping users access digital currency.
+              {t("agent.become_agent.hero_subtitle", "Facilitate token exchanges and earn fees while helping users access digital currency.")}
             </Text>
           </View>
         </LinearGradient>
 
         {/* Benefits */}
-        <Text style={[styles.sectionHeading, { color: theme.muted }]}>WHY BECOME AN AGENT?</Text>
+        <Text style={[styles.sectionHeading, { color: theme.muted }]}>{t("agent.become_agent.section_why", "WHY BECOME AN AGENT?")}</Text>
         <View style={styles.benefitsGrid}>
           {benefits.map((b, i) => (
             <View key={i} style={[styles.benefitCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
@@ -159,15 +163,15 @@ export default function BecomeAgentModal() {
         </View>
 
         {/* Earnings Highlight */}
-        <Text style={[styles.sectionHeading, { color: theme.muted }]}>POTENTIAL EARNINGS</Text>
+        <Text style={[styles.sectionHeading, { color: theme.muted }]}>{t("agent.become_agent.section_earnings", "POTENTIAL EARNINGS")}</Text>
         <LinearGradient
           colors={isDark ? ["#0E1726", "#111E2E"] : ["#F7FFF9", "#FFFFFF"]}
           style={[styles.earningsCard, { borderColor: theme.border }]}
         >
           {[
-            { label: "Conservative", sub: "50 transactions/month", amount: "₦1,250/mo" },
-            { label: "Moderate", sub: "200 transactions/month", amount: "₦9,600/mo" },
-            { label: "Active", sub: "1000 transactions/month", amount: "₦80,000/mo" },
+            { label: t("agent.become_agent.earning_label_1", "Conservative"), sub: t("agent.become_agent.earning_sub_1", "50 transactions/month"), amount: "₦1,250/mo" },
+            { label: t("agent.become_agent.earning_label_2", "Moderate"), sub: t("agent.become_agent.earning_sub_2", "200 transactions/month"), amount: "₦9,600/mo" },
+            { label: t("agent.become_agent.earning_label_3", "Active"), sub: t("agent.become_agent.earning_sub_3", "1000 transactions/month"), amount: "₦80,000/mo" },
           ].map((row, i) => (
             <View key={i} style={[styles.earningRow, i < 2 && { borderBottomColor: theme.border, borderBottomWidth: 1 }]}>
               <View>
@@ -180,7 +184,7 @@ export default function BecomeAgentModal() {
         </LinearGradient>
 
         {/* Requirements */}
-        <Text style={[styles.sectionHeading, { color: theme.muted }]}>REQUIREMENTS</Text>
+        <Text style={[styles.sectionHeading, { color: theme.muted }]}>{t("agent.become_agent.section_requirements", "REQUIREMENTS")}</Text>
         <View style={[styles.requirementsCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
           {requirements.map((req, i) => (
             <View key={i}>
@@ -199,7 +203,7 @@ export default function BecomeAgentModal() {
         <View style={[styles.infoBanner, { backgroundColor: theme.accentSoft, borderColor: theme.accent + "30" }]}>
           <Ionicons name="information-circle" size={20} color={theme.accent} />
           <Text style={[styles.infoBannerText, { color: theme.accent }]}>
-            Application review typically takes 1–3 business days
+            {t("agent.become_agent.info_banner", "Application review typically takes 1–3 business days")}
           </Text>
         </View>
         <View style={{ height: 120 }} />

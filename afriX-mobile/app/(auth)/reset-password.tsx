@@ -15,12 +15,14 @@ import { useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuthStore } from "@/stores";
 import * as Haptics from "expo-haptics";
+import { useTranslation } from "react-i18next";
 
 export default function ResetPasswordScreen() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
   const router = useRouter();
   const { token, email } = useLocalSearchParams<{ token: string; email: string }>();
+  const { t } = useTranslation();
 
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -45,12 +47,12 @@ export default function ResetPasswordScreen() {
   const handleReset = async () => {
     setErrorMessage(null);
     if (password !== confirmPassword) {
-      setErrorMessage("Passwords do not match");
+      setErrorMessage(t("auth.reset_password.error_match", "Passwords do not match"));
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       return;
     }
     if (password.length < 8) {
-      setErrorMessage("Password must be at least 8 characters");
+      setErrorMessage(t("auth.reset_password.error_length", "Password must be at least 8 characters"));
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       return;
     }
@@ -59,12 +61,14 @@ export default function ResetPasswordScreen() {
     try {
       await resetPassword(token as string, password);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Alert.alert("Success", "Your password has been reset. Please sign in.", [
-        { text: "OK", onPress: () => router.replace("/(auth)/login") },
-      ]);
+      Alert.alert(
+        t("auth.reset_password.success_title", "Success"),
+        t("auth.reset_password.success_desc", "Your password has been reset. Please sign in."),
+        [{ text: "OK", onPress: () => router.replace("/(auth)/login") }]
+      );
     } catch (err: any) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      setErrorMessage(err?.message || "Failed to reset password. Please try again.");
+      setErrorMessage(err?.message || t("auth.reset_password.error_failed", "Failed to reset password. Please try again."));
     }
   };
 
@@ -91,15 +95,15 @@ export default function ResetPasswordScreen() {
           <LinearGradient colors={["#00B14F", "#10B981"]} style={styles.logoCircle}>
             <Ionicons name="shield-checkmark-outline" size={32} color="#FFFFFF" />
           </LinearGradient>
-          <Text style={[styles.welcomeText, { color: theme.text }]}>Reset Password</Text>
-          <Text style={[styles.subtitle, { color: theme.muted }]}>Enter a strong new password below</Text>
+          <Text style={[styles.welcomeText, { color: theme.text }]}>{t("auth.reset_password.title")}</Text>
+          <Text style={[styles.subtitle, { color: theme.muted }]}>{t("auth.reset_password.subtitle")}</Text>
         </View>
 
         {/* Form Card */}
         <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
           {/* New Password */}
           <View style={styles.inputGroup}>
-            <Text style={[styles.inputLabel, { color: theme.muted }]}>New Password</Text>
+            <Text style={[styles.inputLabel, { color: theme.muted }]}>{t("auth.reset_password.new_pass_label")}</Text>
             <View style={[styles.inputRow, { backgroundColor: theme.inputBg, borderColor: theme.border }]}>
               <View style={styles.inputIconBox}>
                 <Ionicons name="lock-closed-outline" size={18} color={theme.muted} />
@@ -108,7 +112,7 @@ export default function ResetPasswordScreen() {
                 style={[styles.textInput, { color: theme.text }]}
                 value={password}
                 onChangeText={setPassword}
-                placeholder="••••••••"
+                placeholder={t("auth.login.password_placeholder")}
                 placeholderTextColor={theme.placeholder}
                 secureTextEntry={!showPassword}
                 autoCapitalize="none"
@@ -129,7 +133,7 @@ export default function ResetPasswordScreen() {
 
           {/* Confirm Password */}
           <View style={styles.inputGroup}>
-            <Text style={[styles.inputLabel, { color: theme.muted }]}>Confirm Password</Text>
+            <Text style={[styles.inputLabel, { color: theme.muted }]}>{t("auth.reset_password.confirm_pass_label")}</Text>
             <View style={[styles.inputRow, { backgroundColor: theme.inputBg, borderColor: theme.border }]}>
               <View style={styles.inputIconBox}>
                 <Ionicons name="lock-open-outline" size={18} color={theme.muted} />
@@ -138,7 +142,7 @@ export default function ResetPasswordScreen() {
                 style={[styles.textInput, { color: theme.text }]}
                 value={confirmPassword}
                 onChangeText={setConfirmPassword}
-                placeholder="••••••••"
+                placeholder={t("auth.login.password_placeholder")}
                 placeholderTextColor={theme.placeholder}
                 secureTextEntry={!showConfirmPassword}
                 autoCapitalize="none"
@@ -168,7 +172,7 @@ export default function ResetPasswordScreen() {
           <View style={[styles.hintRow, { backgroundColor: isDark ? "rgba(0, 177, 79, 0.08)" : "#F0FDF4", borderColor: isDark ? "rgba(0, 177, 79, 0.2)" : "#BBFFD6" }]}>
             <Ionicons name="information-circle-outline" size={15} color={theme.accent} />
             <Text style={[styles.hintText, { color: isDark ? "#6EE7A8" : "#047857" }]}>
-              Use 8+ characters with letters, numbers & symbols
+              {t("auth.reset_password.hint", "Use 8+ characters with letters, numbers & symbols")}
             </Text>
           </View>
 
@@ -189,7 +193,7 @@ export default function ResetPasswordScreen() {
                 <ActivityIndicator color="#FFFFFF" size="small" />
               ) : (
                 <>
-                  <Text style={styles.submitBtnText}>Reset Password</Text>
+                  <Text style={styles.submitBtnText}>{t("auth.reset_password.btn_submit")}</Text>
                   <Ionicons name="checkmark-circle-outline" size={18} color="#FFFFFF" />
                 </>
               )}

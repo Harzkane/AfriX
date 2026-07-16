@@ -18,11 +18,13 @@ import { Ionicons } from "@expo/vector-icons";
 import { useTransferStore, useWalletStore } from "@/stores";
 import { LinearGradient } from "expo-linear-gradient";
 import { parseAmountInput, formatAmountForInput, clampAmountToMax, formatAmount } from "@/utils/format";
+import { useTranslation } from "react-i18next";
 
 const PRESET_AMOUNTS = [1000, 5000, 10000, 20000];
 
 export default function SendAmountScreen() {
   const router = useRouter();
+  const { t } = useTranslation();
   const {
     tokenType,
     amount,
@@ -131,10 +133,10 @@ export default function SendAmountScreen() {
                 <Ionicons name="arrow-back" size={22} color={theme.text} />
               </TouchableOpacity>
               <View style={styles.headerText}>
-                <Text style={[styles.headerTitle, { color: theme.text }]}>Enter Amount</Text>
+                <Text style={[styles.headerTitle, { color: theme.text }]}>{t("send_tokens.amount.header_title", "Enter Amount")}</Text>
                 <Animated.View style={{ opacity: subtitleOpacity, maxHeight: subtitleMaxHeight, marginTop: subtitleMargin, overflow: "hidden" }}>
                   <Text style={[styles.headerSubtitle, { color: theme.muted }]}>
-                    Specify how many tokens you want to send.
+                    {t("send_tokens.amount.header_subtitle", "Specify how many tokens you want to send.")}
                   </Text>
                 </Animated.View>
               </View>
@@ -153,7 +155,7 @@ export default function SendAmountScreen() {
         >
           {/* Ambient Glow */}
           <LinearGradient
-            colors={isDark ? ["rgba(0,177,79,0.10)", "rgba(7,17,26,0)"] : ["rgba(0,177,79,0.08)", "rgba(245,247,251,0)"]}
+            colors={isDark ? ["rgba(0,177,79,0.10)", "rgba(0,177,79,0)"] : ["rgba(0,177,79,0.08)", "rgba(245,247,251,0)"]}
             style={styles.glow}
             pointerEvents="none"
           />
@@ -164,7 +166,7 @@ export default function SendAmountScreen() {
               <Ionicons name="person" size={18} color={theme.accent} />
             </View>
             <View style={styles.recipientMeta}>
-              <Text style={[styles.recipientLabel, { color: theme.muted }]}>SENDING TO</Text>
+              <Text style={[styles.recipientLabel, { color: theme.muted }]}>{t("send_tokens.amount.sending_to", "SENDING TO")}</Text>
               <Text style={[styles.recipientEmail, { color: theme.text }]} numberOfLines={1}>
                 {recipientEmail}
               </Text>
@@ -180,7 +182,9 @@ export default function SendAmountScreen() {
             <View style={styles.amountRow}>
               <TextInput
                 style={[styles.amountInput, { color: theme.text }]}
-                placeholder={tokenType === "USDT" ? "0.00" : "0"}
+                placeholder={tokenType === "USDT" 
+                  ? t("send_tokens.amount.placeholder_amount_usdt", "0.00") 
+                  : t("send_tokens.amount.placeholder_amount", "0")}
                 placeholderTextColor={theme.placeholder}
                 keyboardType="numeric"
                 value={formatAmountForInput(amount, tokenType)}
@@ -194,7 +198,7 @@ export default function SendAmountScreen() {
             <View style={styles.balanceRow}>
               <View style={styles.balanceLeft}>
                 <Ionicons name="wallet-outline" size={14} color={theme.muted} />
-                <Text style={[styles.balanceLabel, { color: theme.muted }]}>Available</Text>
+                <Text style={[styles.balanceLabel, { color: theme.muted }]}>{t("send_tokens.amount.available", "Available")}</Text>
               </View>
               <Text style={[styles.balanceValue, { color: amountNum > 0 && !hasInsufficientBalance ? theme.accent : theme.muted }]}>
                 {formatAmount(availableBalance, tokenType)} {tokenType}
@@ -203,7 +207,7 @@ export default function SendAmountScreen() {
           </View>
 
           {/* QUICK PRESETS */}
-          <Text style={[styles.sectionLabel, { color: theme.muted }]}>Quick Amounts</Text>
+          <Text style={[styles.sectionLabel, { color: theme.muted }]}>{t("send_tokens.amount.quick_amounts", "Quick Amounts")}</Text>
           <View style={styles.presetsRow}>
             {PRESET_AMOUNTS.map((preset) => {
               const isActive = amountNum === preset;
@@ -229,28 +233,28 @@ export default function SendAmountScreen() {
               onPress={handleSetMax}
               activeOpacity={0.7}
             >
-              <Text style={[styles.presetChipText, { color: theme.blue, fontWeight: "800" }]}>MAX</Text>
+              <Text style={[styles.presetChipText, { color: theme.blue, fontWeight: "800" }]}>{t("send_tokens.amount.btn_max", "MAX")}</Text>
             </TouchableOpacity>
           </View>
 
           {/* FEES SUMMARY CARD */}
           <View style={[styles.summaryCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
-            <Text style={[styles.summaryTitle, { color: theme.text }]}>Transaction Summary</Text>
+            <Text style={[styles.summaryTitle, { color: theme.text }]}>{t("send_tokens.amount.summary_title", "Transaction Summary")}</Text>
             <View style={styles.summaryRow}>
-              <Text style={[styles.summaryLabel, { color: theme.muted }]}>Amount</Text>
+              <Text style={[styles.summaryLabel, { color: theme.muted }]}>{t("send_tokens.amount.summary_label_amount", "Amount")}</Text>
               <Text style={[styles.summaryValue, { color: theme.text }]}>
                 {formatAmount(amountNum, tokenType)} {tokenType}
               </Text>
             </View>
             <View style={styles.summaryRow}>
-              <Text style={[styles.summaryLabel, { color: theme.muted }]}>Network Fee (0.5%)</Text>
+              <Text style={[styles.summaryLabel, { color: theme.muted }]}>{t("send_tokens.amount.summary_label_fee", "Network Fee (0.5%)")}</Text>
               <Text style={[styles.summaryValue, { color: theme.text }]}>
                 {formatAmount(fee, tokenType)} {tokenType}
               </Text>
             </View>
             <View style={[styles.summaryDivider, { backgroundColor: theme.border }]} />
             <View style={styles.summaryTotalRow}>
-              <Text style={[styles.summaryTotalLabel, { color: theme.text }]}>Total Debit</Text>
+              <Text style={[styles.summaryTotalLabel, { color: theme.text }]}>{t("send_tokens.amount.summary_total_label", "Total Debit")}</Text>
               <Text style={[styles.summaryTotalValue, { color: theme.accent }]}>
                 {formatAmount(total, tokenType)} {tokenType}
               </Text>
@@ -262,19 +266,22 @@ export default function SendAmountScreen() {
             <View style={[styles.warningBox, { backgroundColor: theme.warningSoft, borderColor: theme.warningBorder }]}>
               <Ionicons name="alert-circle" size={18} color={theme.warning} style={{ marginTop: 1 }} />
               <Text style={[styles.warningText, { color: isDark ? "#FDE68A" : "#92400E" }]}>
-                Insufficient funds. You need an additional {formatAmount(total - availableBalance, tokenType)} {tokenType} to complete this.
+                {t("send_tokens.amount.err_insufficient_funds", "Insufficient funds. You need an additional {{additional}} {{tokenType}} to complete this.", {
+                  additional: formatAmount(total - availableBalance, tokenType),
+                  tokenType
+                })}
               </Text>
             </View>
           )}
 
           {/* OPTIONAL NOTE */}
-          <Text style={[styles.sectionLabel, { color: theme.muted }]}>Additional Message</Text>
+          <Text style={[styles.sectionLabel, { color: theme.muted }]}>{t("send_tokens.amount.message_title", "Additional Message")}</Text>
           <View style={[styles.noteCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
             <TextInput
               style={[styles.noteInput, { color: theme.text }]}
               value={note}
               onChangeText={setNote}
-              placeholder="Add a message for the recipient... (Optional)"
+              placeholder={t("send_tokens.amount.placeholder_message", "Add a message for the recipient... (Optional)")}
               placeholderTextColor={theme.placeholder}
               multiline
               numberOfLines={3}
@@ -290,7 +297,7 @@ export default function SendAmountScreen() {
             disabled={!isValid}
             activeOpacity={0.85}
           >
-            <Text style={styles.continueBtnText}>Review Transfer</Text>
+            <Text style={styles.continueBtnText}>{t("send_tokens.amount.btn_review", "Review Transfer")}</Text>
             <Ionicons name="arrow-forward" size={18} color="#FFF" />
           </TouchableOpacity>
 

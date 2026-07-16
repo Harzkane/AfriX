@@ -16,11 +16,13 @@ import { useBurnStore } from "@/stores/slices/burnSlice";
 import type { BankAccount } from "@/stores/types/burn.types";
 import { LinearGradient } from "expo-linear-gradient";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { useTranslation } from "react-i18next";
 
 export default function ConfirmSellScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const { createBurnRequest, loading } = useBurnStore();
+  const { t } = useTranslation();
 
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
@@ -73,7 +75,7 @@ export default function ConfirmSellScreen() {
 
   const handleConfirm = async () => {
     if (!tokenType || !amount || !agentId) {
-      Alert.alert("Error", "Missing required information. Please start over.");
+      Alert.alert(t("profile.error_title", "Error"), t("sell_tokens.missing_info_error", "Missing required information. Please start over."));
       return;
     }
 
@@ -99,19 +101,19 @@ export default function ConfirmSellScreen() {
         bank_account,
       });
 
-      Alert.alert("Success", "Sell request created successfully!", [
-        { text: "OK", onPress: () => router.replace("/(tabs)/sell-tokens/status") },
+      Alert.alert(t("profile.save_success_title", "Success"), t("sell_tokens.request_success_desc", "Sell request created successfully!"), [
+        { text: t("profile.ok_btn", "OK"), onPress: () => router.replace("/(tabs)/sell-tokens/status") },
       ]);
     } catch (error: any) {
       const errorMessage = error.message || "";
       if (errorMessage.includes("cannot create burn requests to themselves")) {
         Alert.alert(
-          "⚠️ Cannot Select Yourself",
-          "As an agent, you cannot sell tokens to yourself. Please select a different agent to complete this transaction.",
-          [{ text: "OK", onPress: () => router.back() }]
+          t("sell_tokens.self_select_warning", "⚠️ Cannot Select Yourself"),
+          t("sell_tokens.self_select_desc", "As an agent, you cannot sell tokens to yourself. Please select a different agent to complete this transaction."),
+          [{ text: t("profile.ok_btn", "OK"), onPress: () => router.back() }]
         );
       } else {
-        Alert.alert("Error", error.message || "Failed to create request");
+        Alert.alert(t("profile.error_title", "Error"), error.message || t("sell_tokens.failed_create_request", "Failed to create request"));
       }
     }
   };
@@ -133,10 +135,10 @@ export default function ConfirmSellScreen() {
               <Ionicons name="arrow-back" size={22} color={theme.text} />
             </TouchableOpacity>
             <View style={styles.headerText}>
-              <Text style={[styles.headerTitle, { color: theme.text }]}>Review Request</Text>
+              <Text style={[styles.headerTitle, { color: theme.text }]}>{t("sell_tokens.review_request_title", "Review Request")}</Text>
               <Animated.View style={{ opacity: subtitleOpacity, maxHeight: subtitleMaxHeight, marginTop: subtitleMargin, overflow: "hidden" }}>
                 <Text style={[styles.headerSubtitle, { color: theme.muted }]}>
-                  Review your transaction details before selling.
+                  {t("sell_tokens.review_request_desc", "Review your transaction details before selling.")}
                 </Text>
               </Animated.View>
             </View>
@@ -160,10 +162,10 @@ export default function ConfirmSellScreen() {
         />
 
         <View style={[styles.introCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
-          <Text style={[styles.introEyebrow, { color: theme.accent }]}>CONFIRMATION</Text>
-          <Text style={[styles.introTitle, { color: theme.text }]}>Confirm Your Transaction</Text>
+          <Text style={[styles.introEyebrow, { color: theme.accent }]}>{t("sell_tokens.confirmation_label", "CONFIRMATION")}</Text>
+          <Text style={[styles.introTitle, { color: theme.text }]}>{t("sell_tokens.confirm_tx_title", "Confirm Your Transaction")}</Text>
           <Text style={[styles.introSubtitle, { color: theme.muted }]}>
-            Please review the details below before processing your sell request.
+            {t("sell_tokens.confirm_tx_desc", "Please review the details below before processing your sell request.")}
           </Text>
         </View>
 
@@ -173,7 +175,7 @@ export default function ConfirmSellScreen() {
             colors={isDark ? ["rgba(0,177,79,0.08)", "rgba(14,23,38,0)"] : ["rgba(0,177,79,0.05)", "rgba(255,255,255,0)"]}
             style={StyleSheet.absoluteFill}
           />
-          <Text style={[styles.summaryLabel, { color: theme.muted }]}>Total to Sell</Text>
+          <Text style={[styles.summaryLabel, { color: theme.muted }]}>{t("sell_tokens.total_sell_label", "Total to Sell")}</Text>
           <View style={styles.amountContainer}>
             <Text style={[styles.summaryAmount, { color: theme.text }]}>{parseFloat(amount as string || "0").toLocaleString()}</Text>
             <Text style={[styles.tokenTag, { color: theme.accent }]}>{tokenType}</Text>
@@ -187,7 +189,7 @@ export default function ConfirmSellScreen() {
               <Ionicons name="person-outline" size={18} color={theme.accent} />
             </View>
             <View style={styles.detailTextContainer}>
-              <Text style={[styles.detailLabel, { color: theme.muted }]}>Recipient Agent</Text>
+              <Text style={[styles.detailLabel, { color: theme.muted }]}>{t("sell_tokens.recipient_agent_label", "Recipient Agent")}</Text>
               <Text style={[styles.detailValue, { color: theme.text }]}>{agentName}</Text>
             </View>
           </View>
@@ -199,7 +201,7 @@ export default function ConfirmSellScreen() {
                   <Ionicons name="business-outline" size={18} color={theme.accent} />
                 </View>
                 <View style={styles.detailTextContainer}>
-                  <Text style={[styles.detailLabel, { color: theme.muted }]}>Payout Bank</Text>
+                  <Text style={[styles.detailLabel, { color: theme.muted }]}>{t("sell_tokens.payout_bank_label", "Payout Bank")}</Text>
                   <Text style={[styles.detailValue, { color: theme.text }]}>{bankName}</Text>
                 </View>
               </View>
@@ -208,7 +210,7 @@ export default function ConfirmSellScreen() {
                   <Ionicons name="card-outline" size={18} color={theme.accent} />
                 </View>
                 <View style={styles.detailTextContainer}>
-                  <Text style={[styles.detailLabel, { color: theme.muted }]}>Account Details</Text>
+                  <Text style={[styles.detailLabel, { color: theme.muted }]}>{t("sell_tokens.account_details_label", "Account Details")}</Text>
                   <Text style={[styles.detailValue, { color: theme.text }]}>{accountNumber}</Text>
                   <Text style={[styles.accountSubValue, { color: theme.muted }]}>{accountName}</Text>
                 </View>
@@ -221,7 +223,7 @@ export default function ConfirmSellScreen() {
                   <Ionicons name="phone-portrait-outline" size={18} color={theme.accent} />
                 </View>
                 <View style={styles.detailTextContainer}>
-                  <Text style={[styles.detailLabel, { color: theme.muted }]}>Payout: Mobile Money</Text>
+                  <Text style={[styles.detailLabel, { color: theme.muted }]}>{t("sell_tokens.payout_momo_label", "Payout: Mobile Money")}</Text>
                   <Text style={[styles.detailValue, { color: theme.text }]}>{mobileProvider}</Text>
                 </View>
               </View>
@@ -230,7 +232,7 @@ export default function ConfirmSellScreen() {
                   <Ionicons name="call-outline" size={18} color={theme.accent} />
                 </View>
                 <View style={styles.detailTextContainer}>
-                  <Text style={[styles.detailLabel, { color: theme.muted }]}>Phone Number</Text>
+                  <Text style={[styles.detailLabel, { color: theme.muted }]}>{t("agents.phone_number_label", "Phone Number")}</Text>
                   <Text style={[styles.detailValue, { color: theme.text }]}>{mobileNumber}</Text>
                   <Text style={[styles.accountSubValue, { color: theme.muted }]}>{accountName}</Text>
                 </View>
@@ -245,9 +247,11 @@ export default function ConfirmSellScreen() {
             <Ionicons name="shield-checkmark" size={24} color={theme.accent} />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={[styles.infoTitle, { color: isDark ? "#4ADE80" : "#166534" }]}>Secure Escrow</Text>
+            <Text style={[styles.infoTitle, { color: isDark ? "#4ADE80" : "#166534" }]}>{t("sell_tokens.secure_escrow_title", "Secure Escrow")}</Text>
             <Text style={[styles.infoText, { color: isDark ? "#86EFAC" : "#15803D" }]}>
-              Your tokens will be held securely in escrow. They will only be released to the agent after you confirm receipt of payment in your {isBank ? "bank account" : "mobile money wallet"}.
+              {isBank
+                ? t("sell_tokens.secure_escrow_desc_bank", "Your tokens will be held securely in escrow. They will only be released to the agent after you confirm receipt of payment in your bank account.")
+                : t("sell_tokens.secure_escrow_desc_momo", "Your tokens will be held securely in escrow. They will only be released to the agent after you confirm receipt of payment in your mobile money wallet.")}
             </Text>
           </View>
         </View>
@@ -263,7 +267,7 @@ export default function ConfirmSellScreen() {
             <ActivityIndicator color="#FFFFFF" />
           ) : (
             <>
-              <Text style={styles.confirmText}>Confirm & Sell Now</Text>
+              <Text style={styles.confirmText}>{t("sell_tokens.btn_confirm_sell", "Confirm & Sell Now")}</Text>
               <Ionicons name="flash" size={18} color="#FFFFFF" />
             </>
           )}

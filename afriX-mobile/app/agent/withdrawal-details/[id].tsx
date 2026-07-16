@@ -9,21 +9,23 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useAgentStore } from "@/stores/slices/agentSlice";
 import { formatAmount, formatDate } from "@/utils/format";
+import { useTranslation } from "react-i18next";
 
-const getStatusMeta = (status?: string | null) => {
+const getStatusMeta = (t: any, status?: string | null) => {
     switch (String(status || "").toLowerCase()) {
         case "pending":
-            return { label: "PENDING", titleCase: "Pending", color: "#D97706", tint: "#FFFBEB", border: "#FDE68A", icon: "time-outline" as const };
+            return { label: t("agent.withdrawal_details.status_pending", "Pending").toUpperCase(), titleCase: t("agent.withdrawal_details.status_pending", "Pending"), color: "#D97706", tint: "#FFFBEB", border: "#FDE68A", icon: "time-outline" as const };
         case "approved":
-            return { label: "APPROVED", titleCase: "Approved", color: "#2563EB", tint: "#EFF6FF", border: "#BFDBFE", icon: "checkmark-done-outline" as const };
+            return { label: t("agent.withdrawal_details.status_approved", "Approved").toUpperCase(), titleCase: t("agent.withdrawal_details.status_approved", "Approved"), color: "#2563EB", tint: "#EFF6FF", border: "#BFDBFE", icon: "checkmark-done-outline" as const };
         case "rejected":
-            return { label: "REJECTED", titleCase: "Rejected", color: "#DC2626", tint: "#FEF2F2", border: "#FECACA", icon: "close-circle-outline" as const };
+            return { label: t("agent.withdrawal_details.status_rejected", "Rejected").toUpperCase(), titleCase: t("agent.withdrawal_details.status_rejected", "Rejected"), color: "#DC2626", tint: "#FEF2F2", border: "#FECACA", icon: "close-circle-outline" as const };
         default:
-            return { label: "PAID", titleCase: "Paid", color: "#059669", tint: "#ECFDF5", border: "#A7F3D0", icon: "cash-outline" as const };
+            return { label: t("agent.withdrawal_details.status_paid", "Paid").toUpperCase(), titleCase: t("agent.withdrawal_details.status_paid", "Paid"), color: "#059669", tint: "#ECFDF5", border: "#A7F3D0", icon: "cash-outline" as const };
     }
 };
 
 export default function AgentWithdrawalDetailsScreen() {
+    const { t } = useTranslation();
     const { id } = useLocalSearchParams<{ id: string }>();
     const router = useRouter();
     const { withdrawalRequests, fetchWithdrawalRequests, loading } = useAgentStore();
@@ -50,7 +52,7 @@ export default function AgentWithdrawalDetailsScreen() {
         return (
             <View style={[styles.centerWrap, { backgroundColor: theme.bg }]}>
                 <ActivityIndicator size="large" color="#7C3AED" />
-                <Text style={[styles.loadingText, { color: theme.muted }]}>Loading withdrawal details...</Text>
+                <Text style={[styles.loadingText, { color: theme.muted }]}>{t("agent.withdrawal_details.loading", "Loading withdrawal details...")}</Text>
             </View>
         );
     }
@@ -62,24 +64,24 @@ export default function AgentWithdrawalDetailsScreen() {
                     <LinearGradient colors={["#EDE9FE", "#DDD6FE"]} style={styles.errorIconCircle}>
                         <Ionicons name="alert-circle-outline" size={28} color="#7C3AED" />
                     </LinearGradient>
-                    <Text style={[styles.errorTitle, { color: theme.text }]}>Withdrawal unavailable</Text>
-                    <Text style={[styles.errorSub, { color: theme.muted }]}>This withdrawal request could not be found.</Text>
+                    <Text style={[styles.errorTitle, { color: theme.text }]}>{t("agent.withdrawal_details.err_unavailable", "Withdrawal unavailable")}</Text>
+                    <Text style={[styles.errorSub, { color: theme.muted }]}>{t("agent.withdrawal_details.err_not_found", "This withdrawal request could not be found.")}</Text>
                     <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} activeOpacity={0.85}>
-                        <Text style={styles.backBtnText}>Go back</Text>
+                        <Text style={styles.backBtnText}>{t("agent.withdrawal_details.go_back", "Go back")}</Text>
                     </TouchableOpacity>
                 </SafeAreaView>
             </View>
         );
     }
 
-    const statusMeta = getStatusMeta(request.status);
+    const statusMeta = getStatusMeta(t, request.status);
 
     const summaryRows = [
-        { label: "Request ID", value: request.id, mono: true },
-        { label: "Agent ID", value: request.agent_id, mono: true },
-        { label: "Status", value: statusMeta.titleCase, colored: statusMeta.color },
-        { label: "Created On", value: formatDate(request.created_at, true) },
-        ...(request.paid_at ? [{ label: "Paid On", value: formatDate(request.paid_at, true) }] : []),
+        { label: t("agent.withdrawal_details.request_id", "Request ID"), value: request.id, mono: true },
+        { label: t("agent.withdrawal_details.agent_id", "Agent ID"), value: request.agent_id, mono: true },
+        { label: t("agent.withdrawal_details.status", "Status"), value: statusMeta.titleCase, colored: statusMeta.color },
+        { label: t("agent.withdrawal_details.created_on", "Created On"), value: formatDate(request.created_at, true) },
+        ...(request.paid_at ? [{ label: t("agent.withdrawal_details.paid_on", "Paid On"), value: formatDate(request.paid_at, true) }] : []),
     ] as Array<{ label: string; value: string; mono?: boolean; colored?: string }>;
 
     return (
@@ -92,10 +94,10 @@ export default function AgentWithdrawalDetailsScreen() {
                         <TouchableOpacity onPress={() => router.back()} style={styles.headerBackBtn} activeOpacity={0.8}>
                             <Ionicons name="arrow-back" size={20} color={theme.text} />
                         </TouchableOpacity>
-                        <Text style={[styles.headerTitleText, { color: theme.text }]}>Details</Text>
+                        <Text style={[styles.headerTitleText, { color: theme.text }]}>{t("agent.withdrawal_details.header_title", "Details")}</Text>
                     </View>
                     <View style={[styles.agentBadge, { backgroundColor: theme.accentLight }]}>
-                        <Text style={[styles.agentBadgeText, { color: theme.accent }]}>Agent</Text>
+                        <Text style={[styles.agentBadgeText, { color: theme.accent }]}>{t("agent.withdrawal_details.agent_badge", "Agent")}</Text>
                     </View>
                 </View>
             </SafeAreaView>
@@ -112,15 +114,15 @@ export default function AgentWithdrawalDetailsScreen() {
                             <Ionicons name="cash-outline" size={16} color={statusMeta.color} />
                         </View>
                     </View>
-                    <Text style={[styles.heroLabel, { color: theme.muted }]}>Requested Amount</Text>
+                    <Text style={[styles.heroLabel, { color: theme.muted }]}>{t("agent.withdrawal_details.requested_amount_label", "Requested Amount")}</Text>
                     <Text style={[styles.heroAmount, { color: theme.text }]}>{formatAmount(request.amount_usd, "USDT")} USDT</Text>
-                    <Text style={[styles.heroDate, { color: theme.muted }]}>Submitted {formatDate(request.created_at, true)}</Text>
+                    <Text style={[styles.heroDate, { color: theme.muted }]}>{t("agent.withdrawal_details.submitted_at", "Submitted {{date}}", { date: formatDate(request.created_at, true) })}</Text>
                 </View>
 
                 {/* Request summary */}
                 <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
                     <View style={[styles.cardAccentBar, { backgroundColor: theme.accent }]} />
-                    <Text style={[styles.cardTitle, { color: theme.text }]}>Request Summary</Text>
+                    <Text style={[styles.cardTitle, { color: theme.text }]}>{t("agent.withdrawal_details.summary", "Request Summary")}</Text>
                     {summaryRows.map((row, idx) => (
                         <View key={row.label} style={[styles.infoRow, { borderBottomColor: theme.border }, idx === summaryRows.length - 1 && { borderBottomWidth: 0 }]}>
                             <Text style={[styles.infoLabel, { color: theme.muted }]}>{row.label}</Text>
@@ -137,10 +139,10 @@ export default function AgentWithdrawalDetailsScreen() {
                 {/* Settlement details */}
                 <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
                     <View style={[styles.cardAccentBar, { backgroundColor: statusMeta.color }]} />
-                    <Text style={[styles.cardTitle, { color: theme.text }]}>Settlement Details</Text>
+                    <Text style={[styles.cardTitle, { color: theme.text }]}>{t("agent.withdrawal_details.settlement_details", "Settlement Details")}</Text>
                     {[
-                        { label: "Payout Amount", value: `${formatAmount(request.amount_usd, "USDT")} USDT`, color: theme.text },
-                        { label: "Current Status", value: statusMeta.titleCase, color: statusMeta.color },
+                        { label: t("agent.withdrawal_details.payout_amount", "Payout Amount"), value: `${formatAmount(request.amount_usd, "USDT")} USDT`, color: theme.text },
+                        { label: t("agent.withdrawal_details.current_status", "Current Status"), value: statusMeta.titleCase, color: statusMeta.color },
                     ].map((row) => (
                         <View key={row.label} style={[styles.stripRow, { backgroundColor: theme.inputBg, borderColor: theme.border }]}>
                             <Text style={[styles.stripLabel, { color: theme.muted }]}>{row.label}</Text>
@@ -151,7 +153,7 @@ export default function AgentWithdrawalDetailsScreen() {
                     {/* Tx hash */}
                     {request.paid_tx_hash ? (
                         <View style={[styles.txHashBox, { backgroundColor: isDark ? "rgba(5, 150, 105, 0.1)" : "#ECFDF5", borderColor: isDark ? "rgba(5, 150, 105, 0.2)" : "#A7F3D0" }]}>
-                            <Text style={[styles.txHashLabel, { color: "#059669" }]}>Paid Transaction Hash</Text>
+                            <Text style={[styles.txHashLabel, { color: "#059669" }]}>{t("agent.withdrawal_details.paid_tx_hash", "Paid Transaction Hash")}</Text>
                             <Text style={[styles.txHashText, { color: "#059669" }]} numberOfLines={2}>{request.paid_tx_hash}</Text>
                         </View>
                     ) : null}
@@ -165,7 +167,7 @@ export default function AgentWithdrawalDetailsScreen() {
                                 : { backgroundColor: theme.inputBg, borderColor: theme.border },
                         ]}>
                             <Text style={[styles.messageBoxLabel, { color: request.status === "rejected" ? "#DC2626" : theme.muted }]}>
-                                {request.status === "rejected" ? "Rejection Reason" : "Admin Notes"}
+                                {request.status === "rejected" ? t("agent.withdrawal_details.rejection_reason", "Rejection Reason") : t("agent.withdrawal_details.admin_notes", "Admin Notes")}
                             </Text>
                             <Text style={[styles.messageBoxText, { color: request.status === "rejected" ? "#B42318" : theme.text }]}>
                                 {request.admin_notes}

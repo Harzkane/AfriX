@@ -19,6 +19,7 @@ import QRCode from "react-native-qrcode-svg";
 import * as Clipboard from "expo-clipboard";
 import * as Haptics from "expo-haptics";
 import { useAuthStore, useWalletStore } from "@/stores";
+import { useTranslation } from "react-i18next";
 
 const TOKENS = ["NT", "CT", "USDT"] as const;
 const TOKEN_LABELS: Record<string, string> = { NT: "Naira Token", CT: "CFA Token", USDT: "Tether" };
@@ -26,6 +27,7 @@ const TOKEN_SUBTITLES: Record<string, string> = { NT: "Domestic", CT: "Regional"
 
 export default function ReceiveTokensScreen() {
   const router = useRouter();
+  const { t } = useTranslation();
   const [tokenType, setTokenType] = useState<"NT" | "CT" | "USDT">("NT");
 
   const { user } = useAuthStore();
@@ -77,24 +79,35 @@ export default function ReceiveTokensScreen() {
     if (walletAddress) {
       await Clipboard.setStringAsync(walletAddress);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Alert.alert("Copied!", "Wallet address copied to clipboard");
+      Alert.alert(
+        t("receive_tokens.index.copied_title", "Copied!"),
+        t("receive_tokens.index.copied_address_desc", "Wallet address copied to clipboard")
+      );
     }
   };
 
   const handleCopyEmail = async () => {
     await Clipboard.setStringAsync(userEmail);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    Alert.alert("Copied!", "Email address copied to clipboard");
+    Alert.alert(
+      t("receive_tokens.index.copied_title", "Copied!"),
+      t("receive_tokens.index.copied_email_desc", "Email address copied to clipboard")
+    );
   };
 
   const handleShare = async () => {
     try {
-      const message = `Send me ${tokenType} tokens on AfriExchange!\n\nMy email: ${userEmail}\n${
-        walletAddress ? `Wallet Address: ${walletAddress}` : ""
-      }`;
+      const walletAddressInfo = walletAddress
+        ? t("receive_tokens.index.wallet_address_prefix", "Wallet Address: {{address}}", { address: walletAddress })
+        : "";
+      const message = t(
+        "receive_tokens.index.share_message",
+        "Send me {{tokenType}} tokens on AfriExchange!\n\nMy email: {{email}}\n{{walletAddressInfo}}",
+        { tokenType, email: userEmail, walletAddressInfo }
+      );
       await Share.share({
         message,
-        title: "Receive AfriExchange Tokens",
+        title: t("receive_tokens.index.share_title", "Receive AfriExchange Tokens"),
       });
     } catch (e) {
       console.error("Share error:", e);
@@ -118,10 +131,10 @@ export default function ReceiveTokensScreen() {
               <Ionicons name="arrow-back" size={22} color={theme.text} />
             </TouchableOpacity>
             <View style={styles.headerText}>
-              <Text style={[styles.headerTitle, { color: theme.text }]}>Receive Tokens</Text>
+              <Text style={[styles.headerTitle, { color: theme.text }]}>{t("receive_tokens.index.header_title", "Receive Tokens")}</Text>
               <Animated.View style={{ opacity: subtitleOpacity, maxHeight: subtitleMaxHeight, marginTop: subtitleMargin, overflow: "hidden" }}>
                 <Text style={[styles.headerSubtitle, { color: theme.muted }]}>
-                  Share your credentials to receive payments.
+                  {t("receive_tokens.index.header_subtitle", "Share your credentials to receive payments.")}
                 </Text>
               </Animated.View>
             </View>
@@ -146,15 +159,15 @@ export default function ReceiveTokensScreen() {
 
         {/* INTRO CARD */}
         <View style={[styles.introCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
-          <Text style={[styles.introEyebrow, { color: theme.accent }]}>RECEIVE METHOD</Text>
-          <Text style={[styles.introTitle, { color: theme.text }]}>Share receive details</Text>
+          <Text style={[styles.introEyebrow, { color: theme.accent }]}>{t("receive_tokens.index.method_eyebrow", "RECEIVE METHOD")}</Text>
+          <Text style={[styles.introTitle, { color: theme.text }]}>{t("receive_tokens.index.method_title", "Share receive details")}</Text>
           <Text style={[styles.introSubtitle, { color: theme.muted }]}>
-            Senders can scan your QR code or enter your registered account email to transfer tokens directly to your wallet.
+            {t("receive_tokens.index.method_desc", "Senders can scan your QR code or enter your registered account email to transfer tokens directly to your wallet.")}
           </Text>
         </View>
 
         {/* TOKEN SELECTION */}
-        <Text style={[styles.sectionLabel, { color: theme.muted }]}>Select Token Type</Text>
+        <Text style={[styles.sectionLabel, { color: theme.muted }]}>{t("receive_tokens.index.select_token", "Select Token Type")}</Text>
         <View style={styles.tokenGrid}>
           {TOKENS.map((token) => {
             const isSelected = tokenType === token;
@@ -175,13 +188,21 @@ export default function ReceiveTokensScreen() {
                   </View>
                 )}
                 <Text style={[styles.tokenCardSub, { color: isSelected ? theme.accent : theme.muted }]}>
-                  {TOKEN_SUBTITLES[token]}
+                  {token === "NT"
+                    ? t("receive_tokens.index.token_subtitle_nt", "Domestic")
+                    : token === "CT"
+                    ? t("receive_tokens.index.token_subtitle_ct", "Regional")
+                    : t("receive_tokens.index.token_subtitle_usdt", "Reserve")}
                 </Text>
                 <Text style={[styles.tokenCardLabel, { color: isSelected ? theme.accent : theme.text }]}>
                   {token}
                 </Text>
                 <Text style={[styles.tokenCardName, { color: isSelected ? theme.accent + "AA" : theme.muted }]}>
-                  {TOKEN_LABELS[token]}
+                  {token === "NT"
+                    ? t("receive_tokens.index.token_label_nt", "Naira Token")
+                    : token === "CT"
+                    ? t("receive_tokens.index.token_label_ct", "CFA Token")
+                    : t("receive_tokens.index.token_label_usdt", "Tether")}
                 </Text>
               </TouchableOpacity>
             );
@@ -193,14 +214,16 @@ export default function ReceiveTokensScreen() {
           <View style={styles.qrWrapper}>
             <QRCode value={qrData} size={200} backgroundColor="#FFFFFF" />
           </View>
-          <Text style={[styles.qrLabel, { color: theme.text }]}>Scan to Send {tokenType}</Text>
+          <Text style={[styles.qrLabel, { color: theme.text }]}>
+            {t("receive_tokens.index.scan_to_send", "Scan to Send {{tokenType}}", { tokenType })}
+          </Text>
         </View>
 
         {/* ACCOUNT EMAIL CARD */}
         <View style={[styles.addressCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
           <View style={styles.addressHeader}>
             <Ionicons name="mail" size={18} color={theme.accent} />
-            <Text style={[styles.addressLabel, { color: theme.text }]}>Your Account Email</Text>
+            <Text style={[styles.addressLabel, { color: theme.text }]}>{t("receive_tokens.index.email_header", "Your Account Email")}</Text>
           </View>
           <TouchableOpacity style={[styles.addressRow, { backgroundColor: theme.inputBg, borderColor: theme.border }]} onPress={handleCopyEmail} activeOpacity={0.75}>
             <Text style={[styles.addressText, { color: theme.text }]} numberOfLines={1}>
@@ -215,7 +238,7 @@ export default function ReceiveTokensScreen() {
           <View style={[styles.addressCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
             <View style={styles.addressHeader}>
               <Ionicons name="wallet" size={18} color={theme.accent} />
-              <Text style={[styles.addressLabel, { color: theme.text }]}>On-Chain Address</Text>
+              <Text style={[styles.addressLabel, { color: theme.text }]}>{t("receive_tokens.index.blockchain_header", "On-Chain Address")}</Text>
             </View>
             <TouchableOpacity style={[styles.addressRow, { backgroundColor: theme.inputBg, borderColor: theme.border }]} onPress={handleCopyAddress} activeOpacity={0.75}>
               <Text style={[styles.addressText, { color: theme.text }]} numberOfLines={1}>
@@ -232,9 +255,9 @@ export default function ReceiveTokensScreen() {
             <Ionicons name="information-circle-outline" size={18} color={theme.blue} />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={[styles.tipTitle, { color: isDark ? "#93C5FD" : "#1E40AF" }]}>How to Receive</Text>
+            <Text style={[styles.tipTitle, { color: isDark ? "#93C5FD" : "#1E40AF" }]}>{t("receive_tokens.index.tip_title", "How to Receive")}</Text>
             <Text style={[styles.tipDesc, { color: isDark ? "#BFDBFE" : "#1E3A8A" }]}>
-              Show this QR code to the sender. Senders can also complete transfers using your AfriExchange account email.
+              {t("receive_tokens.index.tip_desc", "Show this QR code to the sender. Senders can also complete transfers using your AfriExchange account email.")}
             </Text>
           </View>
         </View>
@@ -243,7 +266,7 @@ export default function ReceiveTokensScreen() {
         <View style={styles.actionRow}>
           <TouchableOpacity style={[styles.shareBtn, { backgroundColor: theme.accent }]} onPress={handleShare} activeOpacity={0.85}>
             <Ionicons name="share-outline" size={18} color="#FFF" />
-            <Text style={styles.shareBtnText}>Share Details</Text>
+            <Text style={styles.shareBtnText}>{t("receive_tokens.index.btn_share", "Share Details")}</Text>
           </TouchableOpacity>
         </View>
 

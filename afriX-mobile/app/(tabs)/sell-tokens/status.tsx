@@ -25,11 +25,13 @@ import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 import { LinearGradient } from "expo-linear-gradient";
 import { formatDate } from "@/utils/format";
 import apiClient from "@/services/apiClient";
+import { useTranslation } from "react-i18next";
 
 export default function SellTokensStatusScreen() {
   const router = useRouter();
   const { requestId } = useLocalSearchParams<{ requestId: string }>();
   const { currentRequest, fetchCurrentBurnRequest, confirmFiatReceipt, openDispute, loading } = useBurnStore();
+  const { t } = useTranslation();
   const [showDisputeModal, setShowDisputeModal] = useState(false);
   const [disputeReason, setDisputeReason] = useState("");
   const [disputeDetails, setDisputeDetails] = useState("");
@@ -123,18 +125,18 @@ export default function SellTokensStatusScreen() {
   const handleConfirmFiat = async () => {
     if (!currentRequest) return;
     Alert.alert(
-      "Confirm Fiat Payout",
-      "Have you received the cash in your mobile money or bank account?",
+      t("sell_tokens.confirm_payout_title", "Confirm Fiat Payout"),
+      t("sell_tokens.confirm_payout_body", "Have you received the cash in your mobile money or bank account?"),
       [
-        { text: "No, Go Back", style: "cancel" },
+        { text: t("sell_tokens.confirm_payout_no", "No, Go Back"), style: "cancel" },
         {
-          text: "Yes, I've Received It",
+          text: t("sell_tokens.confirm_payout_yes", "Yes, I've Received It"),
           onPress: async () => {
             try {
               await confirmFiatReceipt(currentRequest.id);
-              Alert.alert("Success 🎉", "Escrow released successfully!");
+              Alert.alert(t("sell_tokens.confirm_success_title", "Success 🎉"), t("sell_tokens.confirm_success_body", "Escrow released successfully!"));
             } catch (error: any) {
-              Alert.alert("Error", error.message || "Failed to confirm receipt");
+              Alert.alert(t("profile.error_title", "Error"), error.message || t("sell_tokens.failed_confirm_receipt", "Failed to confirm receipt"));
             }
           },
         },
@@ -144,7 +146,7 @@ export default function SellTokensStatusScreen() {
 
   const handleSubmitDispute = async () => {
     if (!currentRequest || !disputeReason.trim()) {
-      Alert.alert("Error", "Please provide a reason for the dispute");
+      Alert.alert(t("profile.error_title", "Error"), t("sell_tokens.dispute_reason_required", "Please provide a reason for the dispute"));
       return;
     }
     try {
@@ -152,9 +154,9 @@ export default function SellTokensStatusScreen() {
       setShowDisputeModal(false);
       setDisputeReason("");
       setDisputeDetails("");
-      Alert.alert("Dispute Opened", "Our support team will review this transaction.");
+      Alert.alert(t("sell_tokens.dispute_opened_title", "Dispute Opened"), t("sell_tokens.dispute_opened_body", "Our support team will review this transaction."));
     } catch (error: any) {
-      Alert.alert("Error", error.message || "Failed to open dispute");
+      Alert.alert(t("profile.error_title", "Error"), error.message || t("sell_tokens.failed_open_dispute", "Failed to open dispute"));
     }
   };
 
@@ -168,7 +170,7 @@ export default function SellTokensStatusScreen() {
       <View style={[styles.loading, { backgroundColor: theme.background }]}>
         <View style={[styles.loadingCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
           <ActivityIndicator size="large" color={theme.accent} />
-          <Text style={[styles.loadingText, { color: theme.muted }]}>Loading request status…</Text>
+          <Text style={[styles.loadingText, { color: theme.muted }]}>{t("sell_tokens.loading_status", "Loading request status…")}</Text>
         </View>
       </View>
     );
@@ -180,9 +182,9 @@ export default function SellTokensStatusScreen() {
         <SafeAreaView style={styles.errorContainer}>
           <View style={[styles.emptyCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
             <Ionicons name="document-text-outline" size={64} color={theme.muted} />
-            <Text style={[styles.emptyText, { color: theme.text }]}>No active sell requests found.</Text>
+            <Text style={[styles.emptyText, { color: theme.text }]}>{t("sell_tokens.no_active_requests", "No active sell requests found.")}</Text>
             <TouchableOpacity style={[styles.homeButton, { backgroundColor: theme.accent }]} onPress={() => router.replace("/(tabs)")}>
-              <Text style={styles.homeButtonText}>Go Home</Text>
+              <Text style={styles.homeButtonText}>{t("sell_tokens.go_home", "Go Home")}</Text>
             </TouchableOpacity>
           </View>
         </SafeAreaView>
@@ -224,13 +226,13 @@ export default function SellTokensStatusScreen() {
 
   const getStatusLabel = (status: BurnRequestStatus) => {
     switch (status) {
-      case BurnRequestStatus.PENDING: return "Processing Request";
-      case BurnRequestStatus.ESCROWED: return "Locked in Escrow";
-      case BurnRequestStatus.FIAT_SENT: return "Payout Sent";
-      case BurnRequestStatus.CONFIRMED: return "Transaction Completed";
-      case BurnRequestStatus.EXPIRED: return "Request Expired";
-      case BurnRequestStatus.REJECTED: return "Request Rejected";
-      case BurnRequestStatus.DISPUTED: return "Under Dispute";
+      case BurnRequestStatus.PENDING: return t("sell_tokens.status_pending", "Processing Request");
+      case BurnRequestStatus.ESCROWED: return t("sell_tokens.status_escrowed", "Locked in Escrow");
+      case BurnRequestStatus.FIAT_SENT: return t("sell_tokens.status_fiat_sent", "Payout Sent");
+      case BurnRequestStatus.CONFIRMED: return t("sell_tokens.status_confirmed", "Transaction Completed");
+      case BurnRequestStatus.EXPIRED: return t("sell_tokens.status_expired", "Request Expired");
+      case BurnRequestStatus.REJECTED: return t("sell_tokens.status_rejected", "Request Rejected");
+      case BurnRequestStatus.DISPUTED: return t("sell_tokens.status_disputed", "Under Dispute");
       default: return (status as string).toUpperCase();
     }
   };
@@ -268,10 +270,10 @@ export default function SellTokensStatusScreen() {
               <Ionicons name="arrow-back" size={22} color={theme.text} />
             </TouchableOpacity>
             <View style={styles.headerText}>
-              <Text style={[styles.headerTitle, { color: theme.text }]}>Sell Request Status</Text>
+              <Text style={[styles.headerTitle, { color: theme.text }]}>{t("sell_tokens.status_title", "Sell Request Status")}</Text>
               <Animated.View style={{ opacity: subtitleOpacity, maxHeight: subtitleMaxHeight, marginTop: subtitleMargin, overflow: "hidden" }}>
                 <Text style={[styles.headerSubtitle, { color: theme.muted }]}>
-                  Track your payout progress and confirm receipt.
+                  {t("sell_tokens.status_desc", "Track your payout progress and confirm receipt.")}
                 </Text>
               </Animated.View>
             </View>
@@ -322,7 +324,7 @@ export default function SellTokensStatusScreen() {
             <Text style={[styles.heroToken, { color: theme.muted }]}>{currentRequest.token_type}</Text>
           </Text>
           <Text style={[styles.heroDate, { color: theme.muted }]}>
-            Created {formatDate(currentRequest.created_at, true)}
+            {t("sell_tokens.created_at_time", "Created {{time}}", { time: formatDate(currentRequest.created_at, true) })}
           </Text>
         </View>
 
@@ -330,7 +332,7 @@ export default function SellTokensStatusScreen() {
         <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
           <View style={styles.cardHeader}>
             <Ionicons name="git-branch-outline" size={16} color={theme.accent} />
-            <Text style={[styles.cardTitle, { color: theme.text }]}>Tracking Progress</Text>
+            <Text style={[styles.cardTitle, { color: theme.text }]}>{t("sell_tokens.tracking_progress", "Tracking Progress")}</Text>
           </View>
 
           <View style={styles.timeline}>
@@ -341,8 +343,8 @@ export default function SellTokensStatusScreen() {
                 <View style={styles.timelineLineActive} />
               </View>
               <View style={styles.timelineContent}>
-                <Text style={[styles.timelineTitle, { color: theme.text }]}>Request Created</Text>
-                <Text style={[styles.timelineDesc, { color: theme.muted }]}>Tokens are locked in secure escrow.</Text>
+                <Text style={[styles.timelineTitle, { color: theme.text }]}>{t("sell_tokens.timeline_step1_title", "Request Created")}</Text>
+                <Text style={[styles.timelineDesc, { color: theme.muted }]}>{t("sell_tokens.timeline_step1_desc", "Tokens are locked in secure escrow.")}</Text>
               </View>
             </View>
 
@@ -365,13 +367,13 @@ export default function SellTokensStatusScreen() {
                 />
               </View>
               <View style={styles.timelineContent}>
-                <Text style={[styles.timelineTitle, { color: theme.text }]}>Agent Payout</Text>
+                <Text style={[styles.timelineTitle, { color: theme.text }]}>{t("sell_tokens.timeline_step2_title", "Agent Payout")}</Text>
                 <Text style={[styles.timelineDesc, { color: theme.muted }]}>
                   {currentRequest.status === BurnRequestStatus.FIAT_SENT
-                    ? "Agent marked payout as sent. Check bank / mobile wallet."
+                    ? t("sell_tokens.timeline_step2_desc_sent", "Agent marked payout as sent. Check bank / mobile wallet.")
                     : currentRequest.status === BurnRequestStatus.CONFIRMED
-                    ? "Payment verified by you."
-                    : "Waiting for agent to transfer local currency…"}
+                    ? t("sell_tokens.timeline_step2_desc_verified", "Payment verified by you.")
+                    : t("sell_tokens.timeline_step2_desc_waiting", "Waiting for agent to transfer local currency…")}
                 </Text>
               </View>
             </View>
@@ -387,11 +389,11 @@ export default function SellTokensStatusScreen() {
                 />
               </View>
               <View style={styles.timelineContent}>
-                <Text style={[styles.timelineTitle, { color: theme.text }]}>Completion</Text>
+                <Text style={[styles.timelineTitle, { color: theme.text }]}>{t("sell_tokens.timeline_step3_title", "Completion")}</Text>
                 <Text style={[styles.timelineDesc, { color: theme.muted }]}>
                   {currentRequest.status === BurnRequestStatus.CONFIRMED
-                    ? "Escrow released to agent. Order complete."
-                    : "Pending confirmation from your side."}
+                    ? t("sell_tokens.timeline_step3_desc_complete", "Escrow released to agent. Order complete.")
+                    : t("sell_tokens.timeline_step3_desc_pending", "Pending confirmation from your side.")}
                 </Text>
               </View>
             </View>
@@ -405,10 +407,10 @@ export default function SellTokensStatusScreen() {
             <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
               <View style={styles.cardHeader}>
                 <Ionicons name="image-outline" size={16} color={theme.accent} />
-                <Text style={[styles.cardTitle, { color: theme.text }]}>Agent's Payout Receipt</Text>
+                <Text style={[styles.cardTitle, { color: theme.text }]}>{t("sell_tokens.agent_receipt_title", "Agent's Payout Receipt")}</Text>
               </View>
               <Text style={[styles.proofHint, { color: theme.muted }]}>
-                Verify this receipt matches the incoming amount in your account.
+                {t("sell_tokens.agent_receipt_desc", "Verify this receipt matches the incoming amount in your account.")}
               </Text>
               <TouchableOpacity
                 onPress={() => Linking.openURL(currentRequest.fiat_proof_url!)}
@@ -419,7 +421,7 @@ export default function SellTokensStatusScreen() {
                 <View style={styles.proofOverlay}>
                   <View style={styles.proofTapBadge}>
                     <Ionicons name="expand-outline" size={14} color="#FFF" />
-                    <Text style={styles.proofTapText}>View full size</Text>
+                    <Text style={styles.proofTapText}>{t("sell_tokens.view_full_size", "View full size")}</Text>
                   </View>
                 </View>
               </TouchableOpacity>
@@ -433,9 +435,9 @@ export default function SellTokensStatusScreen() {
               <Ionicons name="information-circle" size={20} color={theme.blue} />
             </View>
             <View style={styles.messageBody}>
-              <Text style={[styles.messageTitle, { color: theme.text }]}>Incoming Payment</Text>
+              <Text style={[styles.messageTitle, { color: theme.text }]}>{t("sell_tokens.incoming_payment", "Incoming Payment")}</Text>
               <Text style={[styles.messageText, { color: theme.muted }]}>
-                The agent marked the payout as completed. Please confirm receipt to release the escrowed tokens.
+                {t("sell_tokens.incoming_payment_desc", "The agent marked the payout as completed. Please confirm receipt to release the escrowed tokens.")}
               </Text>
             </View>
           </View>
@@ -447,9 +449,9 @@ export default function SellTokensStatusScreen() {
               <Ionicons name="checkmark-circle" size={20} color={theme.accent} />
             </View>
             <View style={styles.messageBody}>
-              <Text style={[styles.messageTitle, { color: theme.text }]}>Sell Request Completed</Text>
+              <Text style={[styles.messageTitle, { color: theme.text }]}>{t("sell_tokens.status_completed_title", "Sell Request Completed")}</Text>
               <Text style={[styles.messageText, { color: theme.muted }]}>
-                Payout confirmed. Escrowed tokens have been safely released to the agent.
+                {t("sell_tokens.status_completed_desc", "Payout confirmed. Escrowed tokens have been safely released to the agent.")}
               </Text>
             </View>
           </View>
@@ -479,14 +481,14 @@ export default function SellTokensStatusScreen() {
             </View>
             <View style={styles.messageBody}>
               <Text style={[styles.messageTitle, { color: theme.text }]}>
-                {isExpired ? "Request Expired" : isRejected ? "Request Rejected" : "Dispute Opened"}
+                {isExpired ? t("sell_tokens.status_expired", "Request Expired") : isRejected ? t("sell_tokens.status_rejected", "Request Rejected") : t("sell_tokens.status_disputed", "Under Dispute")}
               </Text>
               <Text style={[styles.messageText, { color: theme.muted }]}>
                 {isDisputed
-                  ? "This request expired after agent claimed paid. An administrative dispute is open."
+                  ? t("sell_tokens.status_disputed_desc", "This request expired after agent claimed paid. An administrative dispute is open.")
                   : isExpired
-                  ? "Tokens have been refunded to your wallet."
-                  : "The agent rejected this request. Tokens returned."}
+                  ? t("sell_tokens.status_expired_desc", "Tokens have been refunded to your wallet.")
+                  : t("sell_tokens.status_rejected_desc", "The agent rejected this request. Tokens returned.")}
               </Text>
             </View>
           </View>
@@ -502,7 +504,7 @@ export default function SellTokensStatusScreen() {
                 activeOpacity={0.8}
               >
                 <Ionicons name="alert-circle-outline" size={18} color={theme.danger} />
-                <Text style={[styles.secondaryBtnText, { color: theme.danger }]}>No Payment</Text>
+                <Text style={[styles.secondaryBtnText, { color: theme.danger }]}>{t("sell_tokens.btn_no_payment", "No Payment")}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.primaryBtn, { flex: 1, backgroundColor: theme.accent }]}
@@ -510,7 +512,7 @@ export default function SellTokensStatusScreen() {
                 activeOpacity={0.85}
               >
                 <Ionicons name="checkmark" size={18} color="#FFF" />
-                <Text style={styles.primaryBtnText}>Confirm Receipt</Text>
+                <Text style={styles.primaryBtnText}>{t("sell_tokens.btn_confirm_receipt", "Confirm Receipt")}</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -543,7 +545,7 @@ export default function SellTokensStatusScreen() {
               activeOpacity={0.85}
             >
               <Ionicons name="star" size={18} color="#FFF" />
-              <Text style={styles.primaryBtnText}>Rate Experience</Text>
+              <Text style={styles.primaryBtnText}>{t("sell_tokens.btn_rate_experience", "Rate Experience")}</Text>
             </TouchableOpacity>
           )}
 
@@ -554,7 +556,7 @@ export default function SellTokensStatusScreen() {
                 onPress={handleDismiss}
                 activeOpacity={0.8}
               >
-                <Text style={[styles.secondaryBtnText, { color: theme.muted }]}>Dismiss</Text>
+                <Text style={[styles.secondaryBtnText, { color: theme.muted }]}>{t("sell_tokens.btn_dismiss", "Dismiss")}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.primaryBtn, { flex: 1, backgroundColor: theme.accent }]}
@@ -562,7 +564,7 @@ export default function SellTokensStatusScreen() {
                 activeOpacity={0.85}
               >
                 <Ionicons name="refresh" size={18} color="#FFF" />
-                <Text style={styles.primaryBtnText}>Try Again</Text>
+                <Text style={styles.primaryBtnText}>{t("sell_tokens.btn_try_again", "Try Again")}</Text>
               </TouchableOpacity>
             </View>
           ) : (
@@ -574,15 +576,15 @@ export default function SellTokensStatusScreen() {
                 activeOpacity={0.8}
               >
                 <Ionicons name="home-outline" size={18} color={theme.muted} />
-                <Text style={[styles.secondaryBtnText, { color: theme.text }]}>Dashboard</Text>
+                <Text style={[styles.secondaryBtnText, { color: theme.text }]}>{t("tabs.home", "Dashboard")}</Text>
               </TouchableOpacity>
             )
           )}
         </View>
 
         <TouchableOpacity style={styles.helpLink} onPress={() => router.push("/(tabs)/profile")} activeOpacity={0.7}>
-          <Text style={[styles.helpLinkText, { color: theme.muted }]}>Need help with this request?</Text>
-          <Text style={[styles.supportText, { color: theme.accent }]}>Contact Support</Text>
+          <Text style={[styles.helpLinkText, { color: theme.muted }]}>{t("sell_tokens.need_help", "Need help with this request?")}</Text>
+          <Text style={[styles.supportText, { color: theme.accent }]}>{t("sell_tokens.contact_support", "Contact Support")}</Text>
         </TouchableOpacity>
 
         <View style={{ height: 40 }} />
@@ -604,7 +606,7 @@ export default function SellTokensStatusScreen() {
                 <View style={[styles.modalIconBox, { backgroundColor: isDark ? "rgba(245,158,11,0.15)" : "#FFF7E8" }]}>
                   <Ionicons name="shield-outline" size={18} color="#F59E0B" />
                 </View>
-                <Text style={[styles.modalTitle, { color: isDark ? "#F8FAFC" : "#111827" }]}>Open Dispute</Text>
+                <Text style={[styles.modalTitle, { color: isDark ? "#F8FAFC" : "#111827" }]}>{t("sell_tokens.open_dispute_title", "Open Dispute")}</Text>
               </View>
               <TouchableOpacity
                 onPress={() => setShowDisputeModal(false)}
@@ -615,10 +617,10 @@ export default function SellTokensStatusScreen() {
             </View>
 
             <Text style={[styles.modalDescription, { color: isDark ? "#94A3B8" : "#6B7280" }]}>
-              Please explain why you didn't receive the payment. Our support team will investigate.
+              {t("sell_tokens.dispute_modal_desc", "Please explain why you didn't receive the payment. Our support team will investigate.")}
             </Text>
 
-            <Text style={[styles.inputLabel, { color: isDark ? "#CBD5E1" : "#374151" }]}>Reason *</Text>
+            <Text style={[styles.inputLabel, { color: isDark ? "#CBD5E1" : "#374151" }]}>{t("sell_tokens.dispute_reason_label", "Reason *")}</Text>
             <TextInput
               style={[
                 styles.input,
@@ -628,7 +630,7 @@ export default function SellTokensStatusScreen() {
                   color: isDark ? "#F8FAFC" : "#111827",
                 },
               ]}
-              placeholder="e.g., No payment received in my account"
+              placeholder={t("sell_tokens.dispute_reason_placeholder", "e.g., No payment received in my account")}
               placeholderTextColor={isDark ? "#475569" : "#98A2B3"}
               value={disputeReason}
               onChangeText={setDisputeReason}
@@ -637,7 +639,7 @@ export default function SellTokensStatusScreen() {
             />
 
             <Text style={[styles.inputLabel, { color: isDark ? "#CBD5E1" : "#374151" }]}>
-              Additional Details (Optional)
+              {t("sell_tokens.dispute_details_label", "Additional Details (Optional)")}
             </Text>
             <TextInput
               style={[
@@ -649,7 +651,7 @@ export default function SellTokensStatusScreen() {
                   color: isDark ? "#F8FAFC" : "#111827",
                 },
               ]}
-              placeholder="Provide any additional information..."
+              placeholder={t("sell_tokens.dispute_details_placeholder", "Provide any additional information...")}
               placeholderTextColor={isDark ? "#475569" : "#98A2B3"}
               value={disputeDetails}
               onChangeText={setDisputeDetails}
@@ -662,13 +664,13 @@ export default function SellTokensStatusScreen() {
                 style={[styles.modalBtn, { backgroundColor: isDark ? "#1E2A3A" : "#F3F4F6" }]}
                 onPress={() => setShowDisputeModal(false)}
               >
-                <Text style={[styles.modalCancelText, { color: isDark ? "#94A3B8" : "#4B5563" }]}>Cancel</Text>
+                <Text style={[styles.modalCancelText, { color: isDark ? "#94A3B8" : "#4B5563" }]}>{t("common.cancel", "Cancel")}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.modalBtn, { backgroundColor: "#EF4444" }]}
                 onPress={handleSubmitDispute}
               >
-                <Text style={styles.modalSubmitText}>Submit Dispute</Text>
+                <Text style={styles.modalSubmitText}>{t("sell_tokens.btn_submit_dispute", "Submit Dispute")}</Text>
               </TouchableOpacity>
             </View>
           </View>

@@ -17,6 +17,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useAuthStore } from "@/stores";
 import { useAgentStore } from "@/stores/slices/agentSlice";
 import { getCountryByCode, stripLeadingZero } from "@/constants/countries";
+import { useTranslation } from "react-i18next";
 
 const normalizeLocalPhoneInput = (value: string) =>
   stripLeadingZero(value).replace(/\D/g, "").slice(0, 15);
@@ -31,6 +32,7 @@ const formatPhoneForDisplay = (value: string) => {
 };
 
 export default function AgentProfile() {
+  const { t } = useTranslation();
   const router = useRouter();
   const { user } = useAuthStore();
   const colorScheme = useColorScheme();
@@ -151,31 +153,31 @@ export default function AgentProfile() {
   const agentRating = parseFloat(dashboardData?.agent?.rating || "5");
 
   const infoRows = [
-    { icon: "person-outline", iconBg: theme.accentLight, iconColor: theme.accent, label: "Full Name", value: user?.full_name || "N/A" },
-    { icon: "mail-outline", iconBg: isDark ? "rgba(59,130,246,0.12)" : "#EFF6FF", iconColor: "#3B82F6", label: "Email", value: user?.email || "N/A" },
-    { icon: "call-outline", iconBg: theme.greenLight, iconColor: theme.green, label: "Phone", value: formatContactNumber(user?.phone_number) },
-    { icon: "logo-whatsapp", iconBg: theme.greenLight, iconColor: "#25D366", label: "WhatsApp", value: formatContactNumber((user as any)?.whatsapp_number || user?.phone_number) },
-    { icon: "location-outline", iconBg: isDark ? "rgba(245,158,11,0.12)" : "#FFFBEB", iconColor: "#D97706", label: "Country", value: countryInfo ? `${countryInfo.name} (${countryInfo.code})` : "N/A" },
+    { icon: "person-outline", iconBg: theme.accentLight, iconColor: theme.accent, label: t("agent.profile.full_name", "Full Name"), value: user?.full_name || "N/A" },
+    { icon: "mail-outline", iconBg: isDark ? "rgba(59,130,246,0.12)" : "#EFF6FF", iconColor: "#3B82F6", label: t("agent.profile.email", "Email"), value: user?.email || "N/A" },
+    { icon: "call-outline", iconBg: theme.greenLight, iconColor: theme.green, label: t("agent.profile.phone", "Phone"), value: formatContactNumber(user?.phone_number) },
+    { icon: "logo-whatsapp", iconBg: theme.greenLight, iconColor: "#25D366", label: t("agent.profile.whatsapp", "WhatsApp"), value: formatContactNumber((user as any)?.whatsapp_number || user?.phone_number) },
+    { icon: "location-outline", iconBg: isDark ? "rgba(245,158,11,0.12)" : "#FFFBEB", iconColor: "#D97706", label: t("agent.profile.country", "Country"), value: countryInfo ? `${countryInfo.name} (${countryInfo.code})` : "N/A" },
   ];
 
   const businessRows = [
-    { icon: "business-outline", iconBg: isDark ? "rgba(219,39,119,0.12)" : "#FDF2F8", iconColor: "#DB2777", label: "Bank Name", value: (user as any)?.bank_name || "Not set" },
-    { icon: "card-outline", iconBg: theme.accentLight, iconColor: theme.accent, label: "Account Number", value: (user as any)?.account_number || "Not set" },
-    { icon: "person-circle-outline", iconBg: theme.accentLight, iconColor: theme.accent, label: "Account Name", value: (user as any)?.account_name || "Not set" },
-    { icon: "wallet-outline", iconBg: theme.accentLight, iconColor: theme.accent, label: "Withdrawal Address", value: (user as any)?.withdrawal_address || "Not set", truncate: true },
+    { icon: "business-outline", iconBg: isDark ? "rgba(219,39,119,0.12)" : "#FDF2F8", iconColor: "#DB2777", label: t("agent.profile.bank_name", "Bank Name"), value: (user as any)?.bank_name || t("agent.profile.not_set", "Not set") },
+    { icon: "card-outline", iconBg: theme.accentLight, iconColor: theme.accent, label: t("agent.profile.account_number", "Account Number"), value: (user as any)?.account_number || t("agent.profile.not_set", "Not set") },
+    { icon: "person-circle-outline", iconBg: theme.accentLight, iconColor: theme.accent, label: t("agent.profile.account_name", "Account Name"), value: (user as any)?.account_name || t("agent.profile.not_set", "Not set") },
+    { icon: "wallet-outline", iconBg: theme.accentLight, iconColor: theme.accent, label: t("agent.profile.withdrawal_address", "Withdrawal Address"), value: (user as any)?.withdrawal_address || t("agent.profile.not_set", "Not set"), truncate: true },
     ...((user as any)?.mobile_money_provider || (user as any)?.mobile_money_number ? [
-      { icon: "phone-portrait-outline", iconBg: isDark ? "rgba(234,88,12,0.12)" : "#FFF7ED", iconColor: "#EA580C", label: "Mobile Money Provider", value: (user as any)?.mobile_money_provider || "—" },
-      { icon: "call-outline", iconBg: isDark ? "rgba(234,88,12,0.12)" : "#FFF7ED", iconColor: "#EA580C", label: "Mobile Money Number", value: formatContactNumber((user as any)?.mobile_money_number) === "N/A" ? "—" : formatContactNumber((user as any)?.mobile_money_number) },
+      { icon: "phone-portrait-outline", iconBg: isDark ? "rgba(234,88,12,0.12)" : "#FFF7ED", iconColor: "#EA580C", label: t("agent.profile.mobile_money_provider", "Mobile Money Provider"), value: (user as any)?.mobile_money_provider || "—" },
+      { icon: "call-outline", iconBg: isDark ? "rgba(234,88,12,0.12)" : "#FFF7ED", iconColor: "#EA580C", label: t("agent.profile.mobile_money_number", "Mobile Money Number"), value: formatContactNumber((user as any)?.mobile_money_number) === "N/A" ? "—" : formatContactNumber((user as any)?.mobile_money_number) },
     ] : []),
-    { icon: "shield-checkmark-outline", iconBg: theme.greenLight, iconColor: theme.green, label: "Verification", value: (user as any)?.is_verified ? "Verified ✓" : "Not Verified" },
+    { icon: "shield-checkmark-outline", iconBg: theme.greenLight, iconColor: theme.green, label: t("agent.profile.verification", "Verification"), value: (user as any)?.is_verified ? t("agent.profile.verified", "Verified ✓") : t("agent.profile.not_verified", "Not Verified") },
   ] as Array<{ icon: string; iconBg: string; iconColor: string; label: string; value: string; truncate?: boolean }>;
 
   const settingsRows = [
-    { icon: "create-outline", iconBg: theme.accentLight, iconColor: theme.accent, label: "Edit Profile", path: "/modals/agent/edit-profile?from=agent-profile" },
-    { icon: "card-outline", iconBg: isDark ? "rgba(219,39,119,0.12)" : "#FDF2F8", iconColor: "#DB2777", label: "Update Bank Details", path: "/modals/agent/edit-bank-details?from=agent-profile" },
-    { icon: "cash-outline", iconBg: theme.greenLight, iconColor: theme.green, label: "Request Withdrawal", path: "/modals/agent/withdrawal-request?from=agent-profile" },
-    { icon: "shield-checkmark-outline", iconBg: isDark ? "rgba(59,130,246,0.12)" : "#EFF6FF", iconColor: "#3B82F6", label: "View KYC Status", path: "/modals/agent-kyc/status?from=agent-profile" },
-    { icon: "star", iconBg: isDark ? "rgba(245,158,11,0.12)" : "#FFFBEB", iconColor: "#F59E0B", label: `View Reviews (${stats?.total_reviews || 0})`, path: "/agent/reviews" },
+    { icon: "create-outline", iconBg: theme.accentLight, iconColor: theme.accent, label: t("agent.profile.edit_profile", "Edit Profile"), path: "/modals/agent/edit-profile?from=agent-profile" },
+    { icon: "card-outline", iconBg: isDark ? "rgba(219,39,119,0.12)" : "#FDF2F8", iconColor: "#DB2777", label: t("agent.profile.update_bank", "Update Bank Details"), path: "/modals/agent/edit-bank-details?from=agent-profile" },
+    { icon: "cash-outline", iconBg: theme.greenLight, iconColor: theme.green, label: t("agent.profile.request_withdrawal", "Request Withdrawal"), path: "/modals/agent/withdrawal-request?from=agent-profile" },
+    { icon: "shield-checkmark-outline", iconBg: isDark ? "rgba(59,130,246,0.12)" : "#EFF6FF", iconColor: "#3B82F6", label: t("agent.profile.view_kyc", "View KYC Status"), path: "/modals/agent-kyc/status?from=agent-profile" },
+    { icon: "star", iconBg: isDark ? "rgba(245,158,11,0.12)" : "#FFFBEB", iconColor: "#F59E0B", label: t("agent.profile.view_reviews", "View Reviews ({{count}})", { count: stats?.total_reviews || 0 }), path: "/agent/reviews" },
   ];
 
   type InfoRow = { icon: string; iconBg: string; iconColor: string; label: string; value: string; truncate?: boolean };
@@ -232,7 +234,7 @@ export default function AgentProfile() {
         <SafeAreaView edges={["top"]} style={styles.headerContent}>
           <View style={styles.headerTop}>
             <View style={styles.headerCopy}>
-              <Text style={[styles.headerTitle, { color: theme.text }]}>Agent Profile</Text>
+              <Text style={[styles.headerTitle, { color: theme.text }]}>{t("agent.profile.header_title", "Agent Profile")}</Text>
               <Animated.View style={{
                 opacity: subtitleOpacity,
                 maxHeight: subtitleMaxHeight,
@@ -240,7 +242,7 @@ export default function AgentProfile() {
                 overflow: "hidden"
               }}>
                 <Text style={[styles.headerSubtitle, { color: theme.muted }]}>
-                  Manage bank details, check review scores, and request withdrawals.
+                  {t("agent.profile.header_subtitle", "Manage bank details, check review scores, and request withdrawals.")}
                 </Text>
               </Animated.View>
             </View>
@@ -251,7 +253,7 @@ export default function AgentProfile() {
               activeOpacity={0.8}
             >
               <Ionicons name="swap-horizontal" size={13} color={theme.accent} style={{ marginRight: 4 }} />
-              <Text style={[styles.switchBtnText, { color: theme.accent }]}>User Mode</Text>
+              <Text style={[styles.switchBtnText, { color: theme.accent }]}>{t("agent.profile.user_mode", "User Mode")}</Text>
             </TouchableOpacity>
           </View>
         </SafeAreaView>
@@ -311,46 +313,46 @@ export default function AgentProfile() {
               <Ionicons name="star" size={12} color="#F59E0B" style={{ marginRight: 2 }} />
               <Text style={[styles.ratingSubLabel, { color: theme.muted }]}>({stats?.total_reviews || 0})</Text>
             </View>
-            <Text style={[styles.statLabel, { color: theme.muted }]}>Rating</Text>
+            <Text style={[styles.statLabel, { color: theme.muted }]}>{t("agent.profile.stat_rating", "Rating")}</Text>
           </View>
           <View style={[styles.statDivider, { backgroundColor: theme.border }]} />
           <View style={styles.statTile}>
             <Text style={[styles.statValue, { color: theme.text }]}>{dashboardData?.performance?.success_rate || "100%"}</Text>
             <View style={styles.placeholderMargin} />
-            <Text style={[styles.statLabel, { color: theme.muted }]}>Success Rate</Text>
+            <Text style={[styles.statLabel, { color: theme.muted }]}>{t("agent.profile.stat_success_rate", "Success Rate")}</Text>
           </View>
           <View style={[styles.statDivider, { backgroundColor: theme.border }]} />
           <View style={styles.statTile}>
             <Text style={[styles.statValue, { color: theme.text }]}>{`${dashboardData?.performance?.response_time || "5"}m`}</Text>
             <View style={styles.placeholderMargin} />
-            <Text style={[styles.statLabel, { color: theme.muted }]}>Avg Response</Text>
+            <Text style={[styles.statLabel, { color: theme.muted }]}>{t("agent.profile.stat_avg_response", "Avg Response")}</Text>
           </View>
         </View>
 
         {/* Personal Information */}
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: theme.muted }]}>PERSONAL INFORMATION</Text>
+          <Text style={[styles.sectionTitle, { color: theme.muted }]}>{t("agent.profile.section_personal", "PERSONAL INFORMATION")}</Text>
           {renderInfoCard(infoRows)}
         </View>
 
         {/* Business Details */}
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: theme.muted }]}>BUSINESS DETAILS</Text>
+          <Text style={[styles.sectionTitle, { color: theme.muted }]}>{t("agent.profile.section_business", "BUSINESS DETAILS")}</Text>
           {renderInfoCard(businessRows)}
         </View>
 
         {/* Financial Summary */}
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: theme.muted }]}>FINANCIAL SUMMARY</Text>
+          <Text style={[styles.sectionTitle, { color: theme.muted }]}>{t("agent.profile.section_financial", "FINANCIAL SUMMARY")}</Text>
           <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
             <View style={styles.finGrid}>
               {[
-                { label: "Total Deposit", value: `${(dashboardData?.financials?.total_deposit ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDT`, color: theme.text },
-                { label: "Available Capacity", value: `${(dashboardData?.financials?.available_capacity ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDT`, color: theme.accent },
-                { label: "Total Earnings", value: `${(dashboardData?.financials?.total_earnings ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDT`, color: theme.green },
-                { label: "Outstanding", value: `${(dashboardData?.financials?.outstanding_tokens ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDT`, color: theme.text },
-                { label: "Max Withdrawable", value: `${effectiveMaxWithdrawable.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDT`, color: theme.text },
-                { label: "Utilization Rate", value: dashboardData?.financials?.utilization_rate || "0%", color: theme.text },
+                { label: t("agent.profile.fin_total_deposit", "Total Deposit"), value: `${(dashboardData?.financials?.total_deposit ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDT`, color: theme.text },
+                { label: t("agent.profile.fin_available_capacity", "Available Capacity"), value: `${(dashboardData?.financials?.available_capacity ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDT`, color: theme.accent },
+                { label: t("agent.profile.fin_total_earnings", "Total Earnings"), value: `${(dashboardData?.financials?.total_earnings ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDT`, color: theme.green },
+                { label: t("agent.profile.fin_outstanding", "Outstanding"), value: `${(dashboardData?.financials?.outstanding_tokens ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDT`, color: theme.text },
+                { label: t("agent.profile.fin_max_withdrawable", "Max Withdrawable"), value: `${effectiveMaxWithdrawable.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDT`, color: theme.text },
+                { label: t("agent.profile.fin_utilization_rate", "Utilization Rate"), value: dashboardData?.financials?.utilization_rate || "0%", color: theme.text },
               ].map((item) => (
                 <View key={item.label} style={styles.finItem}>
                   <Text style={[styles.finLabel, { color: theme.muted }]}>{item.label}</Text>
@@ -363,11 +365,11 @@ export default function AgentProfile() {
 
             {/* Withdrawal status */}
             <View style={styles.wdStatus}>
-              <Text style={[styles.wdStatusTitle, { color: theme.text }]}>Withdrawal Status</Text>
+              <Text style={[styles.wdStatusTitle, { color: theme.text }]}>{t("agent.profile.withdrawal_status", "Withdrawal Status")}</Text>
               <View style={styles.wdRow}>
                 <View style={styles.wdPill}>
                   <View style={[styles.wdDot, { backgroundColor: "#F59E0B" }]} />
-                  <Text style={[styles.wdPillLabel, { color: theme.muted }]}>Pending</Text>
+                  <Text style={[styles.wdPillLabel, { color: theme.muted }]}>{t("agent.profile.wd_pending", "Pending")}</Text>
                 </View>
                 <Text style={[styles.wdPillValue, { color: theme.text }]}>
                   {pendingWithdrawals.length} • {totalPendingAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDT
@@ -376,7 +378,7 @@ export default function AgentProfile() {
               <View style={styles.wdRow}>
                 <View style={styles.wdPill}>
                   <View style={[styles.wdDot, { backgroundColor: "#3B82F6" }]} />
-                  <Text style={[styles.wdPillLabel, { color: theme.muted }]}>Approved (Unpaid)</Text>
+                  <Text style={[styles.wdPillLabel, { color: theme.muted }]}>{t("agent.profile.wd_approved_unpaid", "Approved (Unpaid)")}</Text>
                 </View>
                 <Text style={[styles.wdPillValue, { color: theme.text }]}>
                   {approvedUnpaidWithdrawals.length} • {totalApprovedUnpaidAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDT
@@ -388,12 +390,12 @@ export default function AgentProfile() {
 
         {/* Performance Metrics */}
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: theme.muted }]}>PERFORMANCE METRICS</Text>
+          <Text style={[styles.sectionTitle, { color: theme.muted }]}>{t("agent.profile.section_performance", "PERFORMANCE METRICS")}</Text>
           <View style={[styles.perfCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
             {[
-              { icon: "swap-horizontal", iconBg: theme.accentLight, iconColor: theme.accent, label: "Total Transactions", value: dashboardData?.performance?.total_transactions || "0" },
-              { icon: "checkmark-done-circle", iconBg: theme.greenLight, iconColor: theme.green, label: "Success Rate", value: dashboardData?.performance?.success_rate || "100%" },
-              { icon: "time-outline", iconBg: isDark ? "rgba(245,158,11,0.12)" : "#FFFBEB", iconColor: "#D97706", label: "Response Time", value: `${dashboardData?.performance?.response_time || "5"} mins` },
+              { icon: "swap-horizontal", iconBg: theme.accentLight, iconColor: theme.accent, label: t("agent.profile.perf_total_tx", "Total Transactions"), value: dashboardData?.performance?.total_transactions || "0" },
+              { icon: "checkmark-done-circle", iconBg: theme.greenLight, iconColor: theme.green, label: t("agent.profile.perf_success_rate", "Success Rate"), value: dashboardData?.performance?.success_rate || "100%" },
+              { icon: "time-outline", iconBg: isDark ? "rgba(245,158,11,0.12)" : "#FFFBEB", iconColor: "#D97706", label: t("agent.profile.perf_response_time", "Response Time"), value: `${dashboardData?.performance?.response_time || "5"} mins` },
             ].map((item) => (
               <View key={item.label} style={styles.perfItem}>
                 <View style={[styles.perfIconBox, { backgroundColor: item.iconBg }]}>
@@ -408,7 +410,7 @@ export default function AgentProfile() {
 
         {/* Account Settings */}
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: theme.muted }]}>ACCOUNT SETTINGS</Text>
+          <Text style={[styles.sectionTitle, { color: theme.muted }]}>{t("agent.profile.section_settings", "ACCOUNT SETTINGS")}</Text>
           <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
             {settingsRows.map((row, idx) => (
               <View key={row.label}>
@@ -439,7 +441,7 @@ export default function AgentProfile() {
           activeOpacity={0.8}
         >
           <Ionicons name="log-out" size={18} color={theme.danger} />
-          <Text style={[styles.logoutText, { color: theme.danger }]}>Logout Account</Text>
+          <Text style={[styles.logoutText, { color: theme.danger }]}>{t("agent.profile.logout", "Logout Account")}</Text>
         </TouchableOpacity>
 
         <View style={{ height: 40 }} />

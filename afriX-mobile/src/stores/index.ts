@@ -8,6 +8,7 @@ export { useBurnStore } from "./slices/burnSlice";
 export { useTransferStore } from "./slices/transferSlice";
 export { useSwapStore } from "./slices/swapSlice";
 export { useNotificationStore } from "./slices/notificationSlice";
+export { useSettingsStore } from "./slices/settingsSlice";
 
 export type { User } from "./types/auth.types";
 export type { Wallet } from "./types/wallet.types";

@@ -3,11 +3,13 @@ import { Tabs } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Platform, useColorScheme } from "react-native";
 import { useNotificationStore } from "@/stores";
+import { useTranslation } from "react-i18next";
 
 export default function TabLayout() {
   const unreadCount = useNotificationStore((s) => s.unreadCount);
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
+  const { t } = useTranslation();
   const tabBarBg = isDark ? "#0E1726" : "#FFFFFF";
   const tabBarBorder = isDark ? "#1E2A3A" : "#E5E7EB";
   const activeTint = "#00B14F";
@@ -42,7 +44,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: "Home",
+          title: t("tabs.home", "Home"),
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="home" size={size} color={color} />
           ),
@@ -51,7 +53,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="activity"
         options={{
-          title: "Activity",
+          title: t("tabs.activity", "Activity"),
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="list" size={size} color={color} />
           ),
@@ -60,7 +62,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="agents"
         options={{
-          title: "Agents",
+          title: t("tabs.agents", "Agents"),
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="people-outline" size={size} color={color} />
           ),
@@ -69,7 +71,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="profile"
         options={{
-          title: "Profile",
+          title: t("tabs.profile", "Profile"),
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="person" size={size} color={color} />
           ),

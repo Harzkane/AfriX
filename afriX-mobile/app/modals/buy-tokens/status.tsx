@@ -26,10 +26,12 @@ import { LinearGradient } from "expo-linear-gradient";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { formatDate } from "@/utils/format";
 import apiClient from "@/services/apiClient";
+import { useTranslation } from "react-i18next";
 
 export default function MintStatusScreen() {
   const { requestId } = useLocalSearchParams<{ requestId: string }>();
   const router = useRouter();
+  const { t } = useTranslation();
   const { currentRequest, checkStatus, openDispute } = useMintRequestStore();
   const { fetchWallets } = useWalletStore();
   const [refreshing, setRefreshing] = useState(false);
@@ -119,7 +121,10 @@ export default function MintStatusScreen() {
 
   const handleSubmitDispute = async () => {
     if (!currentRequest || !disputeReason.trim()) {
-      Alert.alert("Error", "Please provide a reason for the dispute");
+      Alert.alert(
+        t("common.error", "Error"),
+        t("buy_tokens.status.modal_dispute_reason_err", "Please provide a reason for the dispute")
+      );
       return;
     }
     try {
@@ -127,9 +132,15 @@ export default function MintStatusScreen() {
       setShowDisputeModal(false);
       setDisputeReason("");
       setDisputeDetails("");
-      Alert.alert("Dispute Submitted", "Our support team will review it shortly.");
+      Alert.alert(
+        t("buy_tokens.status.modal_dispute_success_title", "Dispute Submitted"),
+        t("buy_tokens.status.modal_dispute_success_desc", "Our support team will review it shortly.")
+      );
     } catch (error: any) {
-      Alert.alert("Error", error.message || "Failed to open dispute");
+      Alert.alert(
+        t("common.error", "Error"),
+        error.message || t("buy_tokens.status.modal_dispute_reason_err", "Failed to open dispute")
+      );
     }
   };
 
@@ -163,7 +174,7 @@ export default function MintStatusScreen() {
       <View style={[styles.loading, { backgroundColor: theme.background }]}>
         <View style={[styles.loadingCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
           <ActivityIndicator size="large" color={theme.accent} />
-          <Text style={[styles.loadingText, { color: theme.muted }]}>Loading request status…</Text>
+          <Text style={[styles.loadingText, { color: theme.muted }]}>{t("buy_tokens.status.loading_text", "Loading request status…")}</Text>
         </View>
       </View>
     );
@@ -208,13 +219,13 @@ export default function MintStatusScreen() {
 
   const getStatusLabel = (status: string) => {
     switch (status.toLowerCase()) {
-      case "confirmed": return "Confirmed";
-      case "pending": return "Pending";
-      case "proof_submitted": return "Under Review";
-      case "expired": return "Expired";
-      case "cancelled": return "Cancelled";
-      case "rejected": return "Rejected";
-      case "disputed": return "In Dispute";
+      case "confirmed": return t("buy_tokens.status.status_confirmed", "Confirmed");
+      case "pending": return t("buy_tokens.status.status_pending", "Pending");
+      case "proof_submitted": return t("buy_tokens.status.status_review", "Under Review");
+      case "expired": return t("buy_tokens.status.status_expired", "Expired");
+      case "cancelled": return t("buy_tokens.status.status_cancelled", "Cancelled");
+      case "rejected": return t("buy_tokens.status.status_rejected", "Rejected");
+      case "disputed": return t("buy_tokens.status.status_disputed", "In Dispute");
       default: return status.replace("_", " ");
     }
   };
@@ -239,10 +250,10 @@ export default function MintStatusScreen() {
               <Ionicons name="arrow-back" size={22} color={theme.text} />
             </TouchableOpacity>
             <View style={styles.headerText}>
-              <Text style={[styles.headerTitle, { color: theme.text }]}>Request Status</Text>
+              <Text style={[styles.headerTitle, { color: theme.text }]}>{t("buy_tokens.status.header_title", "Request Status")}</Text>
               <Animated.View style={{ opacity: subtitleOpacity, maxHeight: subtitleMaxHeight, marginTop: subtitleMargin, overflow: "hidden" }}>
                 <Text style={[styles.headerSubtitle, { color: theme.muted }]}>
-                  Track progress and take action when needed.
+                  {t("buy_tokens.status.header_subtitle", "Track progress and take action when needed.")}
                 </Text>
               </Animated.View>
             </View>
@@ -284,7 +295,7 @@ export default function MintStatusScreen() {
                 </Text>
               </View>
               <Text style={[styles.heroRef, { color: theme.muted }]}>
-                Ref: {currentRequest.id.split("-")[0].toUpperCase()}
+                {t("buy_tokens.status.ref_label", "Ref: {{ref}}", { ref: currentRequest.id.split("-")[0].toUpperCase() })}
               </Text>
             </View>
           </View>
@@ -293,7 +304,7 @@ export default function MintStatusScreen() {
             <Text style={[styles.heroToken, { color: theme.muted }]}>{currentRequest.token_type}</Text>
           </Text>
           <Text style={[styles.heroDate, { color: theme.muted }]}>
-            Created {formatDate(currentRequest.created_at, true)}
+            {t("buy_tokens.status.created_date", "Created {{date}}", { date: formatDate(currentRequest.created_at, true) })}
           </Text>
         </View>
 
@@ -309,7 +320,7 @@ export default function MintStatusScreen() {
         <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
           <View style={styles.cardHeader}>
             <Ionicons name="git-branch-outline" size={16} color={theme.accent} />
-            <Text style={[styles.cardTitle, { color: theme.text }]}>Tracking Progress</Text>
+            <Text style={[styles.cardTitle, { color: theme.text }]}>{t("buy_tokens.status.tracking_title", "Tracking Progress")}</Text>
           </View>
           <StatusTracker currentStatus={currentRequest.status} />
         </View>
@@ -319,10 +330,10 @@ export default function MintStatusScreen() {
           <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
             <View style={styles.cardHeader}>
               <Ionicons name="image-outline" size={16} color={theme.accent} />
-              <Text style={[styles.cardTitle, { color: theme.text }]}>Payment Proof</Text>
+              <Text style={[styles.cardTitle, { color: theme.text }]}>{t("buy_tokens.status.proof_title", "Payment Proof")}</Text>
             </View>
             <Text style={[styles.proofHint, { color: theme.muted }]}>
-              Your uploaded receipt — the agent will verify this image.
+              {t("buy_tokens.status.proof_hint", "Your uploaded receipt — the agent will verify this image.")}
             </Text>
             <TouchableOpacity
               onPress={() => Linking.openURL(currentRequest.payment_proof_url!)}
@@ -333,7 +344,7 @@ export default function MintStatusScreen() {
               <View style={styles.proofOverlay}>
                 <View style={styles.proofTapBadge}>
                   <Ionicons name="expand-outline" size={14} color="#FFF" />
-                  <Text style={styles.proofTapText}>View full size</Text>
+                  <Text style={styles.proofTapText}>{t("buy_tokens.status.proof_tap_full", "View full size")}</Text>
                 </View>
               </View>
             </TouchableOpacity>
@@ -347,16 +358,16 @@ export default function MintStatusScreen() {
               <Ionicons name="information-circle" size={20} color={theme.warning} />
             </View>
             <View style={styles.messageBody}>
-              <Text style={[styles.messageTitle, { color: theme.text }]}>Action Required</Text>
+              <Text style={[styles.messageTitle, { color: theme.text }]}>{t("buy_tokens.status.msg_action_required", "Action Required")}</Text>
               <Text style={[styles.messageText, { color: theme.muted }]}>
-                Please upload your payment proof so the agent can confirm your transfer.
+                {t("buy_tokens.status.msg_action_required_desc", "Please upload your payment proof so the agent can confirm your transfer.")}
               </Text>
               <TouchableOpacity
                 style={[styles.msgActionBtn, { backgroundColor: theme.accent }]}
                 onPress={() => router.push({ pathname: "/modals/buy-tokens/upload-proof", params: { requestId: currentRequest.id } })}
                 activeOpacity={0.85}
               >
-                <Text style={styles.msgActionBtnText}>Upload Proof Now</Text>
+                <Text style={styles.msgActionBtnText}>{t("buy_tokens.status.btn_upload_now", "Upload Proof Now")}</Text>
                 <Ionicons name="arrow-forward" size={14} color="#FFF" />
               </TouchableOpacity>
             </View>
@@ -369,9 +380,9 @@ export default function MintStatusScreen() {
               <Ionicons name="search" size={20} color={theme.blue} />
             </View>
             <View style={styles.messageBody}>
-              <Text style={[styles.messageTitle, { color: theme.text }]}>Under Review</Text>
+              <Text style={[styles.messageTitle, { color: theme.text }]}>{t("buy_tokens.status.msg_review_title", "Under Review")}</Text>
               <Text style={[styles.messageText, { color: theme.muted }]}>
-                The agent is verifying your payment. You'll be notified once complete.
+                {t("buy_tokens.status.msg_review_desc", "The agent is verifying your payment. You'll be notified once complete.")}
               </Text>
             </View>
           </View>
@@ -383,9 +394,12 @@ export default function MintStatusScreen() {
               <Ionicons name="checkmark-circle" size={20} color={theme.accent} />
             </View>
             <View style={styles.messageBody}>
-              <Text style={[styles.messageTitle, { color: theme.text }]}>Successfully Minted!</Text>
+              <Text style={[styles.messageTitle, { color: theme.text }]}>{t("buy_tokens.status.msg_success_title", "Successfully Minted!")}</Text>
               <Text style={[styles.messageText, { color: theme.muted }]}>
-                {parseFloat(currentRequest.amount).toLocaleString()} {currentRequest.token_type} tokens are now in your wallet.
+                {t("buy_tokens.status.msg_success_desc", "{{amount}} {{tokenType}} tokens are now in your wallet.", {
+                  amount: parseFloat(currentRequest.amount).toLocaleString(),
+                  tokenType: currentRequest.token_type
+                })}
               </Text>
             </View>
           </View>
@@ -398,14 +412,18 @@ export default function MintStatusScreen() {
             </View>
             <View style={styles.messageBody}>
               <Text style={[styles.messageTitle, { color: theme.text }]}>
-                {isExpired ? "Request Expired" : isCancelled ? "Request Cancelled" : "Payment Rejected"}
+                {isExpired
+                  ? t("buy_tokens.status.msg_failed_expired", "Request Expired")
+                  : isCancelled
+                  ? t("buy_tokens.status.msg_failed_cancelled", "Request Cancelled")
+                  : t("buy_tokens.status.msg_failed_rejected", "Payment Rejected")}
               </Text>
               <Text style={[styles.messageText, { color: theme.muted }]}>
                 {isRejected
                   ? hasResolvedDispute
-                    ? "This request was closed after dispute review. Contact support if you need further help."
-                    : "Your payment proof was rejected. If you have concerns, you can open a dispute."
-                  : "This transaction was not completed in time or was manually cancelled."}
+                    ? t("buy_tokens.status.msg_failed_rejected_disputed_resolved", "This request was closed after dispute review. Contact support if you need further help.")
+                    : t("buy_tokens.status.msg_failed_rejected_default", "Your payment proof was rejected. If you have concerns, you can open a dispute.")
+                  : t("buy_tokens.status.msg_failed_default", "This transaction was not completed in time or was manually cancelled.")}
               </Text>
               {isRejected && !hasExistingDispute && (
                 <TouchableOpacity
@@ -414,7 +432,7 @@ export default function MintStatusScreen() {
                   activeOpacity={0.85}
                 >
                   <Ionicons name="shield-outline" size={14} color="#FFF" />
-                  <Text style={styles.msgActionBtnText}>Open Dispute</Text>
+                  <Text style={styles.msgActionBtnText}>{t("buy_tokens.status.btn_open_dispute", "Open Dispute")}</Text>
                 </TouchableOpacity>
               )}
             </View>
@@ -427,9 +445,9 @@ export default function MintStatusScreen() {
               <Ionicons name="alert-circle" size={20} color={theme.warning} />
             </View>
             <View style={styles.messageBody}>
-              <Text style={[styles.messageTitle, { color: theme.text }]}>Dispute Opened</Text>
+              <Text style={[styles.messageTitle, { color: theme.text }]}>{t("buy_tokens.status.msg_disputed_title", "Dispute Opened")}</Text>
               <Text style={[styles.messageText, { color: theme.muted }]}>
-                Our support team is investigating. We'll reach out to you via email soon.
+                {t("buy_tokens.status.msg_disputed_desc", "Our support team is investigating. We'll reach out to you via email soon.")}
               </Text>
             </View>
           </View>
@@ -455,7 +473,7 @@ export default function MintStatusScreen() {
               activeOpacity={0.85}
             >
               <Ionicons name="star" size={18} color="#FFF" />
-              <Text style={styles.primaryBtnText}>Rate Experience</Text>
+              <Text style={styles.primaryBtnText}>{t("buy_tokens.status.btn_rate", "Rate Experience")}</Text>
             </TouchableOpacity>
           ) : isFailed ? (
             <View style={styles.footerRow}>
@@ -464,7 +482,7 @@ export default function MintStatusScreen() {
                 onPress={handleDismiss}
                 activeOpacity={0.8}
               >
-                <Text style={[styles.secondaryBtnText, { color: theme.muted }]}>Dismiss</Text>
+                <Text style={[styles.secondaryBtnText, { color: theme.muted }]}>{t("buy_tokens.status.btn_dismiss", "Dismiss")}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.primaryBtn, { flex: 1, backgroundColor: theme.accent }]}
@@ -472,7 +490,7 @@ export default function MintStatusScreen() {
                 activeOpacity={0.85}
               >
                 <Ionicons name="refresh" size={18} color="#FFF" />
-                <Text style={styles.primaryBtnText}>Try Again</Text>
+                <Text style={styles.primaryBtnText}>{t("buy_tokens.status.btn_try_again", "Try Again")}</Text>
               </TouchableOpacity>
             </View>
           ) : (
@@ -482,15 +500,15 @@ export default function MintStatusScreen() {
               activeOpacity={0.8}
             >
               <Ionicons name="home-outline" size={18} color={theme.muted} />
-              <Text style={[styles.secondaryBtnText, { color: theme.text }]}>Go to Dashboard</Text>
+              <Text style={[styles.secondaryBtnText, { color: theme.text }]}>{t("buy_tokens.status.btn_dashboard", "Go to Dashboard")}</Text>
             </TouchableOpacity>
           )}
         </View>
 
         {/* SUPPORT LINK */}
         <TouchableOpacity style={styles.helpLink} onPress={() => router.push("/(tabs)/profile")} activeOpacity={0.7}>
-          <Text style={[styles.helpLinkText, { color: theme.muted }]}>Need help with this request?</Text>
-          <Text style={[styles.supportText, { color: theme.accent }]}>Contact Support</Text>
+          <Text style={[styles.helpLinkText, { color: theme.muted }]}>{t("buy_tokens.status.help_need", "Need help with this request?")}</Text>
+          <Text style={[styles.supportText, { color: theme.accent }]}>{t("buy_tokens.status.help_contact", "Contact Support")}</Text>
         </TouchableOpacity>
 
         <View style={{ height: 40 }} />
@@ -515,7 +533,7 @@ export default function MintStatusScreen() {
                 <View style={[styles.modalIconBox, { backgroundColor: isDark ? "rgba(245,158,11,0.15)" : "#FFF7E8" }]}>
                   <Ionicons name="shield-outline" size={18} color="#F59E0B" />
                 </View>
-                <Text style={[styles.modalTitle, { color: isDark ? "#F8FAFC" : "#111827" }]}>Open Dispute</Text>
+                <Text style={[styles.modalTitle, { color: isDark ? "#F8FAFC" : "#111827" }]}>{t("buy_tokens.status.modal_dispute_title", "Open Dispute")}</Text>
               </View>
               <TouchableOpacity
                 onPress={() => setShowDisputeModal(false)}
@@ -526,13 +544,13 @@ export default function MintStatusScreen() {
             </View>
 
             <Text style={[styles.modalDescription, { color: isDark ? "#94A3B8" : "#6B7280" }]}>
-              Explain why you believe your payment proof was wrongly rejected. Our support team will investigate.
+              {t("buy_tokens.status.modal_dispute_desc", "Explain why you believe your payment proof was wrongly rejected. Our support team will investigate.")}
             </Text>
 
-            <Text style={[styles.inputLabel, { color: isDark ? "#CBD5E1" : "#374151" }]}>Reason *</Text>
+            <Text style={[styles.inputLabel, { color: isDark ? "#CBD5E1" : "#374151" }]}>{t("buy_tokens.status.modal_dispute_label_reason", "Reason *")}</Text>
             <TextInput
               style={[styles.input, { backgroundColor: isDark ? "#111C2B" : "#FBFCFD", borderColor: isDark ? "#1E2A3A" : "#E4E7EC", color: isDark ? "#F8FAFC" : "#111827" }]}
-              placeholder="e.g., I have valid payment proof"
+              placeholder={t("buy_tokens.status.modal_dispute_placeholder_reason", "e.g., I have valid payment proof")}
               placeholderTextColor={isDark ? "#475569" : "#98A2B3"}
               value={disputeReason}
               onChangeText={setDisputeReason}
@@ -540,10 +558,10 @@ export default function MintStatusScreen() {
               numberOfLines={2}
             />
 
-            <Text style={[styles.inputLabel, { color: isDark ? "#CBD5E1" : "#374151" }]}>Additional Details (Optional)</Text>
+            <Text style={[styles.inputLabel, { color: isDark ? "#CBD5E1" : "#374151" }]}>{t("buy_tokens.status.modal_dispute_label_details", "Additional Details (Optional)")}</Text>
             <TextInput
               style={[styles.input, styles.textArea, { backgroundColor: isDark ? "#111C2B" : "#FBFCFD", borderColor: isDark ? "#1E2A3A" : "#E4E7EC", color: isDark ? "#F8FAFC" : "#111827" }]}
-              placeholder="Provide any additional information..."
+              placeholder={t("buy_tokens.status.modal_dispute_placeholder_details", "Provide any additional information...")}
               placeholderTextColor={isDark ? "#475569" : "#98A2B3"}
               value={disputeDetails}
               onChangeText={setDisputeDetails}
@@ -556,13 +574,13 @@ export default function MintStatusScreen() {
                 style={[styles.modalBtn, { backgroundColor: isDark ? "#1E2A3A" : "#F3F4F6" }]}
                 onPress={() => setShowDisputeModal(false)}
               >
-                <Text style={[styles.modalCancelText, { color: isDark ? "#94A3B8" : "#4B5563" }]}>Cancel</Text>
+                <Text style={[styles.modalCancelText, { color: isDark ? "#94A3B8" : "#4B5563" }]}>{t("buy_tokens.status.modal_dispute_btn_cancel", "Cancel")}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.modalBtn, { backgroundColor: "#EF4444" }]}
                 onPress={handleSubmitDispute}
               >
-                <Text style={styles.modalSubmitText}>Submit Dispute</Text>
+                <Text style={styles.modalSubmitText}>{t("buy_tokens.status.modal_dispute_btn_submit", "Submit Dispute")}</Text>
               </TouchableOpacity>
             </View>
           </View>

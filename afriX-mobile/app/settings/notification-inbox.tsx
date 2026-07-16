@@ -20,6 +20,8 @@ import apiClient from "@/services/apiClient";
 import { useNotificationStore } from "@/stores";
 import * as Haptics from "expo-haptics";
 
+import { useTranslation } from "react-i18next";
+
 type NotificationItem = {
   id: string;
   type: string;
@@ -34,6 +36,7 @@ type NotificationItem = {
 const AnimatedFlatList = Animated.createAnimatedComponent(FlatList);
 
 export default function NotificationInboxScreen() {
+  const { t } = useTranslation();
   const router = useRouter();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
@@ -102,14 +105,14 @@ export default function NotificationInboxScreen() {
       useNotificationStore.getState().setUnreadCount(count);
     } catch (error) {
       console.error("Fetch notifications error:", error);
-      setFetchError("Couldn’t load notifications. Pull to try again.");
+      setFetchError(t("settings.notifications_inbox.err_fetch", "Couldn’t load notifications. Pull to try again."));
       if (!append) setList([]);
     } finally {
       setLoading(false);
       setLoadingMore(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [t]);
 
   useFocusEffect(
     useCallback(() => {
@@ -183,9 +186,9 @@ export default function NotificationInboxScreen() {
     const date = new Date(iso);
     const now = new Date();
     const diff = now.getTime() - date.getTime();
-    if (diff < 60000) return "Just now";
-    if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
-    if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
+    if (diff < 60000) return t("settings.notifications_inbox.just_now", "Just now");
+    if (diff < 3600000) return t("settings.notifications_inbox.m_ago", "{{count}}m ago", { count: Math.floor(diff / 60000) });
+    if (diff < 86400000) return t("settings.notifications_inbox.h_ago", "{{count}}h ago", { count: Math.floor(diff / 3600000) });
     return date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
   };
 
@@ -247,7 +250,7 @@ export default function NotificationInboxScreen() {
 
           <View style={[styles.itemFooter, { borderTopColor: theme.divider }]}>
             <Text style={[styles.itemStatusText, { color: theme.muted }]}>
-              {item.is_read ? "Read" : "Unread"}
+              {item.is_read ? t("settings.notifications_inbox.status_read", "Read") : t("settings.notifications_inbox.status_unread", "Unread")}
             </Text>
             {markingId === item.id ? (
               <ActivityIndicator size="small" color={theme.accent} />
@@ -280,10 +283,10 @@ export default function NotificationInboxScreen() {
               <Ionicons name="arrow-back" size={22} color={theme.text} />
             </TouchableOpacity>
             <View style={{ flex: 1 }}>
-              <Text style={[styles.headerTitle, { color: theme.text }]}>Notification Center</Text>
+              <Text style={[styles.headerTitle, { color: theme.text }]}>{t("settings.notifications_inbox.header_title", "Notification Center")}</Text>
               <Animated.View style={{ opacity: subtitleOpacity, maxHeight: subtitleMaxHeight, marginTop: subtitleMargin, overflow: "hidden" }}>
                 <Text style={[styles.headerSubtitle, { color: theme.muted }]}>
-                  Keep track of transactions and activity alerts.
+                  {t("settings.notifications_inbox.header_subtitle", "Keep track of transactions and activity alerts.")}
                 </Text>
               </Animated.View>
             </View>
@@ -295,23 +298,23 @@ export default function NotificationInboxScreen() {
       {loading && list.length === 0 && !fetchError ? (
         <View style={[styles.centered, { backgroundColor: theme.background }]}>
           <ActivityIndicator size="large" color={theme.accent} />
-          <Text style={[styles.loadingText, { color: theme.muted }]}>Loading notifications...</Text>
+          <Text style={[styles.loadingText, { color: theme.muted }]}>{t("settings.notifications_inbox.loading", "Loading notifications...")}</Text>
         </View>
       ) : fetchError ? (
         <View style={[styles.centered, { backgroundColor: theme.background }]}>
           <Ionicons name="cloud-offline-outline" size={48} color={theme.muted} style={{ marginBottom: 12 }} />
-          <Text style={[styles.emptyTitle, { color: theme.text }]}>Couldn't load notifications</Text>
+          <Text style={[styles.emptyTitle, { color: theme.text }]}>{t("settings.notifications_inbox.err_title", "Couldn't load notifications")}</Text>
           <Text style={[styles.emptySubtitle, { color: theme.muted }]}>{fetchError}</Text>
           <TouchableOpacity style={[styles.retryBtn, { backgroundColor: theme.accent }]} onPress={() => fetchNotifications(1, false)} activeOpacity={0.85}>
-            <Text style={styles.retryBtnText}>Retry</Text>
+            <Text style={styles.retryBtnText}>{t("common.retry", "Retry")}</Text>
           </TouchableOpacity>
         </View>
       ) : list.length === 0 ? (
         <View style={[styles.centered, { backgroundColor: theme.background }]}>
           <Ionicons name="notifications-off-outline" size={48} color={theme.muted} style={{ marginBottom: 12 }} />
-          <Text style={[styles.emptyTitle, { color: theme.text }]}>No notifications yet</Text>
+          <Text style={[styles.emptyTitle, { color: theme.text }]}>{t("settings.notifications_inbox.empty_title", "No notifications yet")}</Text>
           <Text style={[styles.emptySubtitle, { color: theme.muted }]}>
-            You will see alerts here when you complete transactions, receive agent updates, or key security events occur.
+            {t("settings.notifications_inbox.empty_sub", "You will see alerts here when you complete transactions, receive agent updates, or key security events occur.")}
           </Text>
         </View>
       ) : (
@@ -331,10 +334,10 @@ export default function NotificationInboxScreen() {
             <View style={styles.listHeader}>
               {/* Summary Overview Card */}
               <View style={[styles.introCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
-                <Text style={[styles.introEyebrow, { color: theme.accent }]}>INBOX OVERVIEW</Text>
-                <Text style={[styles.introTitle, { color: theme.text }]}>Stay on top of updates</Text>
+                <Text style={[styles.introEyebrow, { color: theme.accent }]}>{t("settings.notifications_inbox.overview_eyebrow", "INBOX OVERVIEW")}</Text>
+                <Text style={[styles.introTitle, { color: theme.text }]}>{t("settings.notifications_inbox.overview_title", "Stay on top of updates")}</Text>
                 <Text style={[styles.introSubtitle, { color: theme.muted }]}>
-                  Review your transaction logs, security updates, and general alerts from one organized repository.
+                  {t("settings.notifications_inbox.overview_subtitle", "Review your transaction logs, security updates, and general alerts from one organized repository.")}
                 </Text>
               </View>
 
@@ -342,11 +345,11 @@ export default function NotificationInboxScreen() {
               <View style={styles.toolbarRow}>
                 <View style={[styles.counterBadge, { backgroundColor: theme.card, borderColor: theme.border }]}>
                   <Text style={[styles.counterValue, { color: theme.text }]}>{unreadCount}</Text>
-                  <Text style={[styles.counterLabel, { color: theme.muted }]}>Unread</Text>
+                  <Text style={[styles.counterLabel, { color: theme.muted }]}>{t("settings.notifications_inbox.unread_label", "Unread")}</Text>
                 </View>
                 {unreadCount > 0 && (
                   <TouchableOpacity onPress={markAllRead} style={[styles.markAllBtn, { backgroundColor: theme.accentSoft, borderColor: theme.accentBorder }]} activeOpacity={0.8}>
-                    <Text style={[styles.markAllText, { color: theme.accent }]}>Mark all read</Text>
+                    <Text style={[styles.markAllText, { color: theme.accent }]}>{t("settings.notifications_inbox.btn_mark_all", "Mark all read")}</Text>
                   </TouchableOpacity>
                 )}
               </View>
@@ -356,7 +359,7 @@ export default function NotificationInboxScreen() {
             loadingMore ? (
               <View style={styles.footerLoader}>
                 <ActivityIndicator size="small" color={theme.accent} />
-                <Text style={[styles.footerLoaderText, { color: theme.muted }]}>Loading more notifications...</Text>
+                <Text style={[styles.footerLoaderText, { color: theme.muted }]}>{t("settings.notifications_inbox.loading_more", "Loading more notifications...")}</Text>
               </View>
             ) : <View style={{ height: 32 }} />
           }
@@ -399,12 +402,12 @@ export default function NotificationInboxScreen() {
 
                 <Text style={[styles.sheetTitle, { color: theme.text }]}>{selectedNotification.title}</Text>
                 <Text style={[styles.sheetMeta, { color: theme.muted }]}>
-                  {formatDate(selectedNotification.created_at)} · {selectedNotification.is_read ? "Read" : "Unread"}
+                  {formatDate(selectedNotification.created_at)} · {selectedNotification.is_read ? t("settings.notifications_inbox.status_read", "Read") : t("settings.notifications_inbox.status_unread", "Unread")}
                 </Text>
 
                 <View style={[styles.sheetMessageCard, { backgroundColor: isDark ? "#111C2B" : "#F8FAFC", borderColor: theme.border }]}>
                   <Text style={[styles.sheetMessage, { color: theme.text }]}>
-                    {selectedNotification.message || "No additional message content for this notification."}
+                    {selectedNotification.message || t("settings.notifications_inbox.no_message", "No additional message content for this notification.")}
                   </Text>
                 </View>
 
@@ -413,7 +416,7 @@ export default function NotificationInboxScreen() {
                   onPress={() => setSelectedNotification(null)}
                   activeOpacity={0.85}
                 >
-                  <Text style={styles.sheetPrimaryBtnText}>Done</Text>
+                  <Text style={styles.sheetPrimaryBtnText}>{t("common.done", "Done")}</Text>
                 </TouchableOpacity>
               </View>
             ) : null}

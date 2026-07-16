@@ -16,11 +16,13 @@ import { useMintRequestStore } from "@/stores";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { useTranslation } from "react-i18next";
 
 export default function UploadProofScreen() {
   const { requestId } = useLocalSearchParams<{ requestId: string }>();
   const [imageUri, setImageUri] = useState<string | null>(null);
   const router = useRouter();
+  const { t } = useTranslation();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
   const { uploadProof, cancelMintRequest, loading } = useMintRequestStore();
@@ -58,7 +60,10 @@ export default function UploadProofScreen() {
   const requestCameraPermissions = async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== "granted") {
-      Alert.alert("Permission Required", "Camera access is needed to take photos of payment proof");
+      Alert.alert(
+        t("buy_tokens.upload_proof.perm_required", "Permission Required"),
+        t("buy_tokens.upload_proof.perm_camera_desc", "Camera access is needed to take photos of payment proof")
+      );
       return false;
     }
     return true;
@@ -67,7 +72,10 @@ export default function UploadProofScreen() {
   const requestMediaLibraryPermissions = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== "granted") {
-      Alert.alert("Permission Required", "Photo library access is needed to select payment proof");
+      Alert.alert(
+        t("buy_tokens.upload_proof.perm_required", "Permission Required"),
+        t("buy_tokens.upload_proof.perm_gallery_desc", "Photo library access is needed to select payment proof")
+      );
       return false;
     }
     return true;
@@ -98,34 +106,52 @@ export default function UploadProofScreen() {
   };
 
   const handleUpload = async () => {
-    if (!imageUri) { Alert.alert("No Image", "Please select or take a photo first"); return; }
+    if (!imageUri) {
+      Alert.alert(
+        t("buy_tokens.upload_proof.alert_no_image_title", "No Image"),
+        t("buy_tokens.upload_proof.err_no_image", "Please select or take a photo first")
+      );
+      return;
+    }
     try {
       await uploadProof(requestId, imageUri);
-      Alert.alert("Success 🎉", "Payment proof uploaded! Agent will review shortly.", [
-        { text: "View Status", onPress: () => router.push({ pathname: "/modals/buy-tokens/status", params: { requestId } }) },
-      ]);
+      Alert.alert(
+        t("buy_tokens.upload_proof.alert_success_title", "Success 🎉"),
+        t("buy_tokens.upload_proof.alert_success_desc", "Payment proof uploaded! Agent will review shortly."),
+        [
+          { text: t("buy_tokens.upload_proof.btn_view_status", "View Status"), onPress: () => router.push({ pathname: "/modals/buy-tokens/status", params: { requestId } }) },
+        ]
+      );
     } catch {
-      Alert.alert("Error", "Failed to upload proof. Please try again.");
+      Alert.alert(
+        t("common.error", "Error"),
+        t("buy_tokens.upload_proof.err_upload_failed", "Failed to upload proof. Please try again.")
+      );
     }
   };
 
   const handleCancelRequest = () => {
     Alert.alert(
-      "Cancel Request?",
-      "Are you sure you want to cancel this mint request? This action cannot be undone.",
+      t("buy_tokens.upload_proof.alert_cancel_title", "Cancel Request?"),
+      t("buy_tokens.upload_proof.alert_cancel_desc", "Are you sure you want to cancel this mint request? This action cannot be undone."),
       [
-        { text: "No, Keep It", style: "cancel" },
+        { text: t("buy_tokens.upload_proof.btn_cancel_keep", "No, Keep It"), style: "cancel" },
         {
-          text: "Yes, Cancel",
+          text: t("buy_tokens.upload_proof.btn_cancel_yes", "Yes, Cancel"),
           style: "destructive",
           onPress: async () => {
             try {
               await cancelMintRequest(requestId);
-              Alert.alert("Request Cancelled", "Your mint request has been cancelled successfully.", [
-                { text: "OK", onPress: () => router.back() },
-              ]);
+              Alert.alert(
+                t("buy_tokens.upload_proof.alert_cancelled_title", "Request Cancelled"),
+                t("buy_tokens.upload_proof.alert_cancelled_desc", "Your mint request has been cancelled successfully."),
+                [{ text: t("common.ok", "OK"), onPress: () => router.back() }]
+              );
             } catch (error: any) {
-              Alert.alert("Error", error.message || "Failed to cancel request");
+              Alert.alert(
+                t("common.error", "Error"),
+                error.message || t("buy_tokens.upload_proof.err_cancel_failed", "Failed to cancel request")
+              );
             }
           },
         },
@@ -134,9 +160,9 @@ export default function UploadProofScreen() {
   };
 
   const guidelines = [
-    { icon: "eye-outline" as const, text: "Recipient details clearly visible" },
-    { icon: "receipt-outline" as const, text: "Transaction ID is readable" },
-    { icon: "checkmark-circle-outline" as const, text: "Amount matches your request" },
+    { icon: "eye-outline" as const, text: t("buy_tokens.upload_proof.guideline_1", "Recipient details clearly visible") },
+    { icon: "receipt-outline" as const, text: t("buy_tokens.upload_proof.guideline_2", "Transaction ID is readable") },
+    { icon: "checkmark-circle-outline" as const, text: t("buy_tokens.upload_proof.guideline_3", "Amount matches your request") },
   ];
 
   return (
@@ -165,10 +191,10 @@ export default function UploadProofScreen() {
               <Ionicons name="arrow-back" size={22} color={theme.text} />
             </TouchableOpacity>
             <View style={styles.headerText}>
-              <Text style={[styles.headerTitle, { color: theme.text }]}>Upload Proof</Text>
+              <Text style={[styles.headerTitle, { color: theme.text }]}>{t("buy_tokens.upload_proof.header_title", "Upload Proof")}</Text>
               <Animated.View style={{ opacity: subtitleOpacity, maxHeight: subtitleMaxHeight, marginTop: subtitleMargin, overflow: "hidden" }}>
                 <Text style={[styles.headerSubtitle, { color: theme.muted }]}>
-                  Share your payment receipt so the agent can verify your transfer.
+                  {t("buy_tokens.upload_proof.header_subtitle", "Share your payment receipt so the agent can verify your transfer.")}
                 </Text>
               </Animated.View>
             </View>
@@ -206,7 +232,7 @@ export default function UploadProofScreen() {
             </React.Fragment>
           ))}
         </View>
-        <Text style={[styles.stepHint, { color: theme.muted }]}>Step 3 of 3 — Submit receipt for verification</Text>
+        <Text style={[styles.stepHint, { color: theme.muted }]}>{t("buy_tokens.upload_proof.step_hint", "Step 3 of 3 — Submit receipt for verification")}</Text>
 
         {/* IMAGE UPLOAD ZONE */}
         {imageUri ? (
@@ -222,12 +248,12 @@ export default function UploadProofScreen() {
                 activeOpacity={0.8}
               >
                 <Ionicons name="refresh-outline" size={16} color="#FFF" />
-                <Text style={styles.retakeBtnText}>Change Photo</Text>
+                <Text style={styles.retakeBtnText}>{t("buy_tokens.upload_proof.btn_change_photo", "Change Photo")}</Text>
               </TouchableOpacity>
             </LinearGradient>
             <View style={[styles.previewReadyBadge, { backgroundColor: theme.accent }]}>
               <Ionicons name="checkmark-circle" size={14} color="#FFF" />
-              <Text style={styles.previewReadyText}>Ready to submit</Text>
+              <Text style={styles.previewReadyText}>{t("buy_tokens.upload_proof.btn_ready", "Ready to submit")}</Text>
             </View>
           </View>
         ) : (
@@ -245,8 +271,8 @@ export default function UploadProofScreen() {
                 <Ionicons name="cloud-upload-outline" size={28} color="#FFF" />
               </View>
             </View>
-            <Text style={[styles.uploadZoneTitle, { color: theme.text }]}>Tap to upload receipt</Text>
-            <Text style={[styles.uploadZoneSub, { color: theme.muted }]}>JPG, PNG — Max 10MB</Text>
+            <Text style={[styles.uploadZoneTitle, { color: theme.text }]}>{t("buy_tokens.upload_proof.btn_upload_title", "Tap to upload receipt")}</Text>
+            <Text style={[styles.uploadZoneSub, { color: theme.muted }]}>{t("buy_tokens.upload_proof.btn_upload_sub", "JPG, PNG — Max 10MB")}</Text>
           </TouchableOpacity>
         )}
 
@@ -261,8 +287,8 @@ export default function UploadProofScreen() {
               <Ionicons name="camera-outline" size={20} color={theme.accent} />
             </View>
             <View>
-              <Text style={[styles.sourceBtnLabel, { color: theme.text }]}>Take Photo</Text>
-              <Text style={[styles.sourceBtnSub, { color: theme.muted }]}>Use camera</Text>
+              <Text style={[styles.sourceBtnLabel, { color: theme.text }]}>{t("buy_tokens.upload_proof.btn_take_photo", "Take Photo")}</Text>
+              <Text style={[styles.sourceBtnSub, { color: theme.muted }]}>{t("buy_tokens.upload_proof.btn_take_photo_sub", "Use camera")}</Text>
             </View>
           </TouchableOpacity>
 
@@ -275,8 +301,8 @@ export default function UploadProofScreen() {
               <Ionicons name="images-outline" size={20} color={theme.blue} />
             </View>
             <View>
-              <Text style={[styles.sourceBtnLabel, { color: theme.text }]}>Gallery</Text>
-              <Text style={[styles.sourceBtnSub, { color: theme.muted }]}>From library</Text>
+              <Text style={[styles.sourceBtnLabel, { color: theme.text }]}>{t("buy_tokens.upload_proof.btn_gallery", "Gallery")}</Text>
+              <Text style={[styles.sourceBtnSub, { color: theme.muted }]}>{t("buy_tokens.upload_proof.btn_gallery_sub", "From library")}</Text>
             </View>
           </TouchableOpacity>
         </View>
@@ -285,7 +311,7 @@ export default function UploadProofScreen() {
         <View style={[styles.guidelinesCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
           <View style={styles.guidelinesHeader}>
             <Ionicons name="shield-checkmark-outline" size={18} color={theme.accent} />
-            <Text style={[styles.guidelinesTitle, { color: theme.text }]}>Receipt Requirements</Text>
+            <Text style={[styles.guidelinesTitle, { color: theme.text }]}>{t("buy_tokens.upload_proof.guidelines_title", "Receipt Requirements")}</Text>
           </View>
           {guidelines.map((g, idx) => (
             <View key={idx} style={[styles.guidelineRow, idx < guidelines.length - 1 && { borderBottomWidth: 1, borderBottomColor: theme.border }]}>
@@ -301,7 +327,7 @@ export default function UploadProofScreen() {
         <View style={[styles.warningBox, { backgroundColor: theme.warningSoft, borderColor: theme.warning + "40" }]}>
           <Ionicons name="alert-circle" size={18} color={theme.warning} />
           <Text style={[styles.warningText, { color: isDark ? "#FDE68A" : "#92400E" }]}>
-            Fraudulent receipts result in immediate and permanent account suspension.
+            {t("buy_tokens.upload_proof.warning_desc", "Fraudulent receipts result in immediate and permanent account suspension.")}
           </Text>
         </View>
 
@@ -321,7 +347,7 @@ export default function UploadProofScreen() {
           ) : (
             <>
               <Ionicons name="cloud-upload" size={20} color="#FFF" />
-              <Text style={styles.submitBtnText}>Submit Payment Proof</Text>
+              <Text style={styles.submitBtnText}>{t("buy_tokens.upload_proof.btn_submit", "Submit Payment Proof")}</Text>
             </>
           )}
         </TouchableOpacity>
@@ -333,7 +359,7 @@ export default function UploadProofScreen() {
           activeOpacity={0.7}
         >
           <Ionicons name="close-circle-outline" size={16} color={theme.danger} />
-          <Text style={[styles.cancelBtnText, { color: theme.danger }]}>Cancel Request</Text>
+          <Text style={[styles.cancelBtnText, { color: theme.danger }]}>{t("buy_tokens.upload_proof.btn_cancel_request", "Cancel Request")}</Text>
         </TouchableOpacity>
 
         <View style={{ height: 40 }} />

@@ -22,6 +22,7 @@ import {
   clampAmountToMax,
   formatAmount,
 } from "@/utils/format";
+import { useTranslation } from "react-i18next";
 
 const TOKENS = ["NT", "CT", "USDT"];
 const TOKEN_LABELS: Record<string, string> = { NT: "Naira Token", CT: "CFA Token", USDT: "Tether" };
@@ -35,6 +36,7 @@ export default function SellTokensScreen() {
   const scrollViewRef = useRef<ScrollView | null>(null);
   const [amount, setAmount] = useState("");
   const [selectedToken, setSelectedToken] = useState("NT");
+  const { t } = useTranslation();
 
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
@@ -138,10 +140,10 @@ export default function SellTokensScreen() {
                 <Ionicons name="arrow-back" size={22} color={theme.text} />
               </TouchableOpacity>
               <View style={styles.headerText}>
-                <Text style={[styles.headerTitle, { color: theme.text }]}>Sell Tokens</Text>
+                <Text style={[styles.headerTitle, { color: theme.text }]}>{t("activity.btn_sell", "Sell Tokens")}</Text>
                 <Animated.View style={{ opacity: subtitleOpacity, maxHeight: subtitleMaxHeight, marginTop: subtitleMargin, overflow: "hidden" }}>
                   <Text style={[styles.headerSubtitle, { color: theme.muted }]}>
-                    Redeem your tokens via an agent for cash payout.
+                    {t("sell_tokens.index_subtitle", "Redeem your tokens via an agent for cash payout.")}
                   </Text>
                 </Animated.View>
               </View>
@@ -167,7 +169,7 @@ export default function SellTokensScreen() {
           />
 
           {/* TOKEN SELECTOR */}
-          <Text style={[styles.sectionLabel, { color: theme.muted }]}>Select Token to Sell</Text>
+          <Text style={[styles.sectionLabel, { color: theme.muted }]}>{t("sell_tokens.select_token_label", "Select Token to Sell")}</Text>
           <View style={styles.tokenGrid}>
             {TOKENS.map((token) => {
               const isSelected = selectedToken === token;
@@ -188,13 +190,13 @@ export default function SellTokensScreen() {
                     </View>
                   )}
                   <Text style={[styles.tokenCardSub, { color: isSelected ? theme.accent : theme.muted }]}>
-                    {TOKEN_SUBTITLES[token]}
+                    {t("tokens." + token.toLowerCase() + "_subtitle", TOKEN_SUBTITLES[token])}
                   </Text>
                   <Text style={[styles.tokenCardLabel, { color: isSelected ? theme.accent : theme.text }]}>
                     {token}
                   </Text>
                   <Text style={[styles.tokenCardName, { color: isSelected ? theme.accent + "AA" : theme.muted }]}>
-                    {TOKEN_LABELS[token]}
+                    {t("tokens." + token.toLowerCase() + "_label", TOKEN_LABELS[token])}
                   </Text>
                 </TouchableOpacity>
               );
@@ -224,7 +226,7 @@ export default function SellTokensScreen() {
             <View style={styles.balanceRow}>
               <View style={styles.balanceLeft}>
                 <Ionicons name="wallet-outline" size={14} color={theme.muted} />
-                <Text style={[styles.balanceLabel, { color: theme.muted }]}>Available</Text>
+                <Text style={[styles.balanceLabel, { color: theme.muted }]}>{t("sell_tokens.available_label", "Available")}</Text>
               </View>
               <Text style={[styles.balanceValue, { color: amountNum > 0 && !hasInsufficientBalance ? theme.accent : theme.muted }]}>
                 {formatAmount(availableBalance, selectedToken)} {selectedToken}
@@ -234,7 +236,7 @@ export default function SellTokensScreen() {
             {hasInsufficientBalance && amountNum > 0 && (
               <View style={[styles.insufficientBadge, { backgroundColor: "rgba(239,68,68,0.10)", borderColor: "rgba(239,68,68,0.25)" }]}>
                 <Ionicons name="warning-outline" size={13} color="#EF4444" />
-                <Text style={styles.insufficientText}>Exceeds available balance</Text>
+                <Text style={styles.insufficientText}>{t("sell_tokens.error_exceeds_balance", "Exceeds available balance")}</Text>
               </View>
             )}
           </View>
@@ -245,12 +247,12 @@ export default function SellTokensScreen() {
               <Ionicons name="shield-checkmark-outline" size={18} color={theme.blue} />
             </View>
             <Text style={[styles.infoText, { color: isDark ? "#93C5FD" : "#1E40AF" }]}>
-              Tokens are held in escrow until the agent confirms payment to your account.
+              {t("sell_tokens.escrow_hint", "Tokens are held in escrow until the agent confirms payment to your account.")}
             </Text>
           </View>
 
           {/* QUICK AMOUNTS */}
-          <Text style={[styles.sectionLabel, { color: theme.muted }]}>Quick Amounts</Text>
+          <Text style={[styles.sectionLabel, { color: theme.muted }]}>{t("sell_tokens.quick_amounts_label", "Quick Amounts")}</Text>
           <View style={styles.presetsRow}>
             {PRESET_AMOUNTS.map((preset) => {
               const isActive = amountNum === preset;
@@ -276,7 +278,7 @@ export default function SellTokensScreen() {
               onPress={handleSetMax}
               activeOpacity={0.7}
             >
-              <Text style={[styles.presetChipText, { color: theme.blue, fontWeight: "800" }]}>MAX</Text>
+              <Text style={[styles.presetChipText, { color: theme.blue, fontWeight: "800" }]}>{t("sell_tokens.btn_max", "MAX")}</Text>
             </TouchableOpacity>
           </View>
 
@@ -288,7 +290,7 @@ export default function SellTokensScreen() {
             activeOpacity={0.85}
           >
             <Text style={styles.continueBtnText}>
-              {preSelectedAgentId ? "Continue to Payment Details" : "Continue to Agent Selection"}
+              {preSelectedAgentId ? t("sell_tokens.btn_continue_payment", "Continue to Payment Details") : t("sell_tokens.btn_continue_agent", "Continue to Agent Selection")}
             </Text>
             <Ionicons name="arrow-forward" size={18} color="#FFF" />
           </TouchableOpacity>

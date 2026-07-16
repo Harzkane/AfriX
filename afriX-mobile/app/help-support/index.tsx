@@ -1,5 +1,5 @@
 // app/help-support/index.tsx
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useMemo } from "react";
 import {
   Alert,
   View,
@@ -16,49 +16,27 @@ import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
+import { useTranslation } from "react-i18next";
 
-const FAQ_ITEMS = [
-  {
-    id: "what-is-afritoken",
-    question: "What is AfriToken?",
-    answer:
-      "AfriToken is a peer-to-peer platform for exchanging digital tokens (NT and CT). Buy tokens from agents with Naira or XOF, send tokens to friends instantly, swap between token types, and sell tokens back to agents for cash.",
-  },
-  {
-    id: "what-are-nt-ct",
-    question: "What are NT and CT tokens?",
-    answer:
-      "NT (Naira Token) has a reference rate of 1 NT ≈ 1 Naira. CT (CFA Token) has 1 CT ≈ 1 XOF. They are blockchain-based digital assets rather than government-issued currency.",
-  },
-  {
-    id: "how-buy",
-    question: "How do I buy tokens from an agent?",
-    answer:
-      "Tap Buy Tokens, choose token type and amount, pick an agent, send payment to the agent's bank or mobile money, then upload proof in the app. The agent confirms and mints tokens to your wallet.",
-  },
-  {
-    id: "escrow",
-    question: "What is escrow protection?",
-    answer:
-      "When you sell, your tokens are locked in a smart contract. The agent cannot access them until you confirm you received cash. If the agent doesn't pay, you can dispute and your tokens are refunded.",
-  },
-];
+const FAQ_IDS = ["what-is-afritoken", "what-are-nt-ct", "how-buy", "escrow"];
 
 const SUPPORT_PHONE_NUMBERS = [
-  { id: "ng", label: "Nigeria", value: "+234 810 706 0160", flag: "🇳🇬" },
-  { id: "sn", label: "Senegal", value: "+221 781 332 487", flag: "🇸🇳" },
-  { id: "bf", label: "Burkina Faso", value: "+226 70 21 09 88", flag: "🇧🇫" },
-  { id: "ml", label: "Mali", value: "+223 78 80 83 63", flag: "🇲🇱" },
+  { id: "ng", value: "+234 810 706 0160", flag: "🇳🇬" },
+  { id: "sn", value: "+221 781 332 487", flag: "🇸🇳" },
+  { id: "bf", value: "+226 70 21 09 88", flag: "🇧🇫" },
+  { id: "ml", value: "+223 78 80 83 63", flag: "🇲🇱" },
 ];
 
-const QUICK_LINKS = [
-  { id: "faq", icon: "help-circle-outline", label: "Frequently asked questions", color: "#00B14F", bg: "rgba(0,177,79,0.12)", action: "faq-scroll" },
-  { id: "email", icon: "mail-outline", label: "Email support", color: "#3B82F6", bg: "rgba(59,130,246,0.12)", action: "email" },
-  { id: "full-faq", icon: "book-outline", label: "Browse full FAQ", color: "#8B5CF6", bg: "rgba(139,92,246,0.12)", action: "full-faq" },
-  { id: "activity", icon: "document-text-outline", label: "My requests & disputes", color: "#F59E0B", bg: "rgba(245,158,11,0.12)", action: "activity" },
+const QUICK_LINK_DEFS = [
+  { id: "faq", icon: "help-circle-outline", color: "#00B14F", bg: "rgba(0,177,79,0.12)", action: "faq-scroll" },
+  { id: "email", icon: "mail-outline", color: "#3B82F6", bg: "rgba(59,130,246,0.12)", action: "email" },
+  { id: "full-faq", icon: "book-outline", color: "#8B5CF6", bg: "rgba(139,92,246,0.12)", action: "full-faq" },
+  { id: "activity", icon: "document-text-outline", color: "#F59E0B", bg: "rgba(245,158,11,0.12)", action: "activity" },
 ];
+
 
 export default function HelpSupportScreen() {
+  const { t } = useTranslation();
   const router = useRouter();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
@@ -68,6 +46,35 @@ export default function HelpSupportScreen() {
   const scrollY = useRef(new Animated.Value(0)).current;
   const [headerMaxHeight, setHeaderMaxHeight] = useState(insets.top + 70);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  const FAQ_ITEMS = useMemo(() => FAQ_IDS.map((id) => ({
+    id,
+    question: t(`help.faq.${id}.q`),
+    answer: t(`help.faq.${id}.a`),
+  })), [t]);
+
+  const QUICK_LINKS = useMemo(() => QUICK_LINK_DEFS.map((def) => ({
+    ...def,
+    label: t(`help.quick_links.${def.id}`),
+  })), [t]);
+
+  const PHONE_LABELS = useMemo(() => ({
+    ng: t("help.phones.ng"),
+    sn: t("help.phones.sn"),
+    bf: t("help.phones.bf"),
+    ml: t("help.phones.ml"),
+  }), [t]);
+
+  const DO_TIPS = useMemo(() => [
+    t("help.safety.do_1"),
+    t("help.safety.do_2"),
+    t("help.safety.do_3"),
+  ], [t]);
+
+  const DONT_TIPS = useMemo(() => [
+    t("help.safety.dont_1"),
+    t("help.safety.dont_2"),
+  ], [t]);
 
   const theme = {
     background: isDark ? "#07111A" : "#F5F7FB",
@@ -92,7 +99,7 @@ export default function HelpSupportScreen() {
 
   const openEmail = async () => {
     const supportEmail = "codewithharz@gmail.com";
-    const subject = "Help & Support";
+    const subject = t("help.email_subject", "Help & Support");
     const emailUrl = `mailto:${supportEmail}?subject=${encodeURIComponent(subject)}`;
     const webFallbackUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(supportEmail)}&su=${encodeURIComponent(subject)}`;
     try {
@@ -101,7 +108,7 @@ export default function HelpSupportScreen() {
       try {
         await Linking.openURL(webFallbackUrl);
       } catch {
-        Alert.alert("Email Unavailable", "We couldn't open your email app on this device.");
+        Alert.alert(t("help.err_email_title", "Email Unavailable"), t("help.err_email_desc", "We couldn't open your email app on this device."));
       }
     }
   };
@@ -112,7 +119,7 @@ export default function HelpSupportScreen() {
     try {
       await Linking.openURL(phoneUrl);
     } catch {
-      Alert.alert("Call Unavailable", "We couldn't open the phone dialer on this device.");
+      Alert.alert(t("help.err_call_title", "Call Unavailable"), t("help.err_call_desc", "We couldn't open the phone dialer on this device."));
     }
   };
 
@@ -150,10 +157,10 @@ export default function HelpSupportScreen() {
               <Ionicons name="arrow-back" size={22} color={theme.text} />
             </TouchableOpacity>
             <View style={{ flex: 1 }}>
-              <Text style={[styles.headerTitle, { color: theme.text }]}>Help & Support</Text>
+              <Text style={[styles.headerTitle, { color: theme.text }]}>{t("help.header_title", "Help & Support")}</Text>
               <Animated.View style={{ opacity: subtitleOpacity, maxHeight: subtitleMaxHeight, marginTop: subtitleMargin, overflow: "hidden" }}>
                 <Text style={[styles.headerSubtitle, { color: theme.muted }]}>
-                  Find answers and get help quickly.
+                  {t("help.header_subtitle", "Find answers and get help quickly.")}
                 </Text>
               </Animated.View>
             </View>
@@ -179,15 +186,15 @@ export default function HelpSupportScreen() {
 
         {/* Intro card */}
         <View style={[styles.introCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
-          <Text style={[styles.introEyebrow, { color: theme.accent }]}>SUPPORT CENTER</Text>
-          <Text style={[styles.introTitle, { color: theme.text }]}>Find answers and get help quickly</Text>
+          <Text style={[styles.introEyebrow, { color: theme.accent }]}>{t("help.intro_eyebrow", "SUPPORT CENTER")}</Text>
+          <Text style={[styles.introTitle, { color: theme.text }]}>{t("help.intro_title", "Find answers and get help quickly")}</Text>
           <Text style={[styles.introSubtitle, { color: theme.muted }]}>
-            Browse common questions, review safety guidance, and contact support when you need help with transactions, disputes, or account issues.
+            {t("help.intro_subtitle", "Browse common questions, review safety guidance, and contact support when you need help with transactions, disputes, or account issues.")}
           </Text>
         </View>
 
         {/* Quick Links */}
-        <Text style={[styles.sectionLabel, { color: theme.muted }]}>Quick Links</Text>
+        <Text style={[styles.sectionLabel, { color: theme.muted }]}>{t("help.section_quick_links", "Quick Links")}</Text>
         <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
           {QUICK_LINKS.map((link, i) => (
             <View key={link.id}>
@@ -215,7 +222,7 @@ export default function HelpSupportScreen() {
         <View
           onLayout={(e) => { faqSectionY.current = e.nativeEvent.layout.y - 20; }}
         >
-          <Text style={[styles.sectionLabel, { color: theme.muted }]}>Frequently Asked Questions</Text>
+          <Text style={[styles.sectionLabel, { color: theme.muted }]}>{t("help.section_faq", "Frequently Asked Questions")}</Text>
           {FAQ_ITEMS.map((item) => {
             const isOpen = expandedId === item.id;
             return (
@@ -245,17 +252,17 @@ export default function HelpSupportScreen() {
         </View>
 
         {/* Contact Support */}
-        <Text style={[styles.sectionLabel, { color: theme.muted }]}>Contact Support</Text>
+        <Text style={[styles.sectionLabel, { color: theme.muted }]}>{t("help.section_contact", "Contact Support")}</Text>
         <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
           <Text style={[styles.bodyText, { color: theme.muted }]}>
-            For account issues, disputes, or questions about tokens and agents, our team is here to help.
+            {t("help.contact_body", "For account issues, disputes, or questions about tokens and agents, our team is here to help.")}
           </Text>
 
           <View style={[styles.infoBlock, { backgroundColor: isDark ? "#111C2B" : "#F8FAFC", borderColor: theme.border }]}>
             {[
               { icon: "mail-outline", text: "codewithharz@gmail.com" },
-              { icon: "time-outline", text: "General: within 24 hrs · Urgent: 1–4 hrs" },
-              { icon: "information-circle-outline", text: "Have your transaction ID, screenshots, and device details ready." },
+              { icon: "time-outline", text: t("help.response_time", "General: within 24 hrs · Urgent: 1–4 hrs") },
+              { icon: "information-circle-outline", text: t("help.contact_tip", "Have your transaction ID, screenshots, and device details ready.") },
             ].map((item, i) => (
               <View key={i} style={[styles.infoRow, i > 0 && { borderTopWidth: 1, borderTopColor: theme.divider, marginTop: 10, paddingTop: 10 }]}>
                 <View style={[styles.infoIconBox, { backgroundColor: theme.accentSoft }]}>
@@ -267,7 +274,7 @@ export default function HelpSupportScreen() {
           </View>
 
           {/* Phone Numbers */}
-          <Text style={[styles.subLabel, { color: theme.muted }]}>Call Support</Text>
+          <Text style={[styles.subLabel, { color: theme.muted }]}>{t("help.call_support", "Call Support")}</Text>
           {SUPPORT_PHONE_NUMBERS.map((item) => (
             <TouchableOpacity
               key={item.id}
@@ -277,12 +284,12 @@ export default function HelpSupportScreen() {
             >
               <Text style={styles.phoneFlag}>{item.flag}</Text>
               <View style={{ flex: 1 }}>
-                <Text style={[styles.phoneLabel, { color: theme.muted }]}>{item.label}</Text>
+                <Text style={[styles.phoneLabel, { color: theme.muted }]}>{PHONE_LABELS[item.id as keyof typeof PHONE_LABELS]}</Text>
                 <Text style={[styles.phoneValue, { color: theme.text }]}>{item.value}</Text>
               </View>
               <View style={[styles.callChip, { backgroundColor: theme.accentSoft, borderColor: theme.accentBorder }]}>
                 <Ionicons name="call-outline" size={13} color={theme.accent} />
-                <Text style={[styles.callChipText, { color: theme.accent }]}>Call</Text>
+                <Text style={[styles.callChipText, { color: theme.accent }]}>{t("help.call", "Call")}</Text>
               </View>
             </TouchableOpacity>
           ))}
@@ -293,21 +300,17 @@ export default function HelpSupportScreen() {
             activeOpacity={0.85}
           >
             <Ionicons name="mail" size={18} color="#FFFFFF" />
-            <Text style={styles.emailBtnText}>Send Email to Support</Text>
+            <Text style={styles.emailBtnText}>{t("help.btn_send_email", "Send Email to Support")}</Text>
           </TouchableOpacity>
         </View>
 
         {/* Safety Tips */}
-        <Text style={[styles.sectionLabel, { color: theme.muted }]}>Safety Tips</Text>
+        <Text style={[styles.sectionLabel, { color: theme.muted }]}>{t("help.section_safety", "Safety Tips")}</Text>
         <View style={[styles.safetyCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
           {/* Do's */}
           <View style={[styles.safetyGroup, { backgroundColor: theme.accentSoft, borderColor: theme.accentBorder }]}>
-            <Text style={[styles.safetyGroupTitle, { color: isDark ? "#6EE7B7" : "#065F46" }]}>✅ Do</Text>
-            {[
-              "Verify recipient and amount before sending.",
-              "Confirm receipt only after cash is in your account.",
-              "Keep your password secure and enable 2FA.",
-            ].map((tip, i) => (
+            <Text style={[styles.safetyGroupTitle, { color: isDark ? "#6EE7B7" : "#065F46" }]}>✅ {t("help.safety_dos", "Do")}</Text>
+            {DO_TIPS.map((tip, i) => (
               <View key={i} style={styles.tipRow}>
                 <View style={[styles.tipDot, { backgroundColor: theme.accent }]} />
                 <Text style={[styles.tipText, { color: isDark ? "#A7F3D0" : "#064E3B" }]}>{tip}</Text>
@@ -317,11 +320,8 @@ export default function HelpSupportScreen() {
 
           {/* Don'ts */}
           <View style={[styles.safetyGroup, { backgroundColor: theme.redSoft, borderColor: isDark ? "rgba(239,68,68,0.25)" : "#FEE2E2", marginTop: 12 }]}>
-            <Text style={[styles.safetyGroupTitle, { color: isDark ? "#FCA5A5" : "#991B1B" }]}>🚫 Don&apos;t</Text>
-            {[
-              "Share your password. Support never asks for it.",
-              "Fall for double-your-tokens or verify-by-sending scams.",
-            ].map((tip, i) => (
+            <Text style={[styles.safetyGroupTitle, { color: isDark ? "#FCA5A5" : "#991B1B" }]}>🚫 {t("help.safety_donts", "Don't")}</Text>
+            {DONT_TIPS.map((tip, i) => (
               <View key={i} style={styles.tipRow}>
                 <View style={[styles.tipDot, { backgroundColor: theme.red }]} />
                 <Text style={[styles.tipText, { color: isDark ? "#FCA5A5" : "#7F1D1D" }]}>{tip}</Text>

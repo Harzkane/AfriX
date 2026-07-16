@@ -18,9 +18,11 @@ import { LinearGradient } from "expo-linear-gradient";
 import { SUPPORTED_COUNTRIES, Country } from "@/constants/countries";
 import apiClient from "@/services/apiClient";
 import { useAgentStore } from "@/stores/slices/agentSlice";
+import { useTranslation } from "react-i18next";
 
 export default function AgentRegistrationModal() {
     const router = useRouter();
+    const { t } = useTranslation();
     const colorScheme = useColorScheme();
     const isDark = colorScheme === "dark";
 
@@ -72,14 +74,14 @@ export default function AgentRegistrationModal() {
     };
 
     const getCountryName = () =>
-        countries.find((c) => c.code === country)?.name || "Select Country";
+        countries.find((c) => c.code === country)?.name || t("agent.registration.select_country", "Select Country");
 
     const handleSubmit = async () => {
         const newErrors: { [key: string]: string } = {};
         if (!withdrawalAddress.trim()) {
-            newErrors.withdrawalAddress = "Withdrawal address is required";
+            newErrors.withdrawalAddress = t("agent.registration.err_address_required", "Withdrawal address is required");
         } else if (!validateAddress(withdrawalAddress)) {
-            newErrors.withdrawalAddress = "Must be a valid Ethereum address (0x...)";
+            newErrors.withdrawalAddress = t("agent.registration.err_address_invalid", "Must be a valid Ethereum address (0x...)");
         }
 
         if (Object.keys(newErrors).length > 0) {
@@ -97,21 +99,21 @@ export default function AgentRegistrationModal() {
                 withdrawal_address: withdrawalAddress,
             });
             Alert.alert(
-                "Registration Successful!",
-                "Your agent application has been submitted. Please complete KYC verification to continue.",
-                [{ text: "Continue to KYC", onPress: () => router.replace("/modals/agent-kyc") }]
+                t("agent.registration.success_title", "Registration Successful!"),
+                t("agent.registration.success_desc", "Your agent application has been submitted. Please complete KYC verification to continue."),
+                [{ text: t("agent.registration.btn_continue_kyc", "Continue to KYC"), onPress: () => router.replace("/modals/agent-kyc") }]
             );
         } catch (error: any) {
-            Alert.alert("Error", error.message || "Failed to register as agent");
+            Alert.alert(t("agent.registration.err_failed_title", "Error"), error.message || t("agent.registration.err_failed_fallback", "Failed to register as agent"));
         } finally {
             setLoading(false);
         }
     };
 
     const progressSteps = [
-        { label: "Register", active: true, done: false },
-        { label: "KYC", active: false, done: false },
-        { label: "Deposit", active: false, done: false },
+        { label: t("agent.registration.step_register", "Register"), active: true, done: false },
+        { label: t("agent.registration.step_kyc", "KYC"), active: false, done: false },
+        { label: t("agent.registration.step_deposit", "Deposit"), active: false, done: false },
     ];
 
     return (
@@ -124,7 +126,7 @@ export default function AgentRegistrationModal() {
                 >
                     <Ionicons name="arrow-back" size={20} color={theme.text} />
                 </TouchableOpacity>
-                <Text style={[styles.headerTitle, { color: theme.text }]}>Agent Registration</Text>
+                <Text style={[styles.headerTitle, { color: theme.text }]}>{t("agent.registration.header_title", "Agent Registration")}</Text>
                 <View style={{ width: 42 }} />
             </View>
 
@@ -168,10 +170,10 @@ export default function AgentRegistrationModal() {
                     <View style={styles.heroIconCircle}>
                         <Ionicons name="person-add" size={26} color="#00B14F" />
                     </View>
-                    <Text style={styles.heroEyebrow}>STEP 1 OF 3</Text>
-                    <Text style={styles.heroTitle}>Basic Information</Text>
+                    <Text style={styles.heroEyebrow}>{t("agent.registration.hero_eyebrow", "STEP 1 OF 3")}</Text>
+                    <Text style={styles.heroTitle}>{t("agent.registration.hero_title", "Basic Information")}</Text>
                     <Text style={styles.heroSubtitle}>
-                        Provide your location and the wallet address where you'd like to receive your earnings.
+                        {t("agent.registration.hero_subtitle", "Provide your location and the wallet address where you'd like to receive your earnings.")}
                     </Text>
                 </LinearGradient>
 
@@ -180,7 +182,7 @@ export default function AgentRegistrationModal() {
 
                     {/* Country */}
                     <View style={styles.fieldGroup}>
-                        <Text style={[styles.fieldLabel, { color: theme.muted }]}>COUNTRY *</Text>
+                        <Text style={[styles.fieldLabel, { color: theme.muted }]}>{t("agent.registration.field_country", "COUNTRY *")}</Text>
                         <TouchableOpacity
                             style={[styles.selectField, { backgroundColor: theme.inputBg, borderColor: theme.border }]}
                             onPress={() => setShowCountryPicker(true)}
@@ -200,7 +202,7 @@ export default function AgentRegistrationModal() {
 
                     {/* Currency (auto) */}
                     <View style={styles.fieldGroup}>
-                        <Text style={[styles.fieldLabel, { color: theme.muted }]}>CURRENCY</Text>
+                        <Text style={[styles.fieldLabel, { color: theme.muted }]}>{t("agent.registration.field_currency", "CURRENCY")}</Text>
                         <View style={[styles.disabledField, { backgroundColor: isDark ? "#09121D" : "#F1F5F9", borderColor: theme.border }]}>
                             <View style={styles.selectFieldLeft}>
                                 <View style={[styles.fieldIconBox, { backgroundColor: theme.border }]}>
@@ -211,7 +213,7 @@ export default function AgentRegistrationModal() {
                             <Ionicons name="lock-closed" size={14} color={theme.muted} />
                         </View>
                         <Text style={[styles.helperText, { color: theme.muted }]}>
-                            Automatically set based on your country
+                            {t("agent.registration.helper_currency", "Automatically set based on your country")}
                         </Text>
                     </View>
 
@@ -219,7 +221,7 @@ export default function AgentRegistrationModal() {
 
                     {/* Withdrawal Address */}
                     <View style={styles.fieldGroup}>
-                        <Text style={[styles.fieldLabel, { color: theme.muted }]}>USDT WITHDRAWAL ADDRESS (POLYGON) *</Text>
+                        <Text style={[styles.fieldLabel, { color: theme.muted }]}>{t("agent.registration.field_address", "USDT WITHDRAWAL ADDRESS (POLYGON) *")}</Text>
                         <View style={[
                             styles.inputWrapper,
                             {
@@ -249,7 +251,7 @@ export default function AgentRegistrationModal() {
                             <Text style={styles.errorText}>{errors.withdrawalAddress}</Text>
                         ) : (
                             <Text style={[styles.helperText, { color: theme.muted }]}>
-                                Your earnings will be sent to this address
+                                {t("agent.registration.helper_address", "Your earnings will be sent to this address")}
                             </Text>
                         )}
                     </View>
@@ -259,7 +261,7 @@ export default function AgentRegistrationModal() {
                 <View style={[styles.infoBanner, { backgroundColor: theme.accentSoft, borderColor: theme.accent + "30" }]}>
                     <Ionicons name="information-circle" size={20} color={theme.accent} />
                     <Text style={[styles.infoBannerText, { color: theme.accent }]}>
-                        Make sure your withdrawal address is correct. You can update it later in settings.
+                        {t("agent.registration.info_warning", "Make sure your withdrawal address is correct. You can update it later in settings.")}
                     </Text>
                 </View>
 
@@ -278,7 +280,7 @@ export default function AgentRegistrationModal() {
                         <ActivityIndicator color="#FFFFFF" />
                     ) : (
                         <>
-                            <Text style={styles.submitBtnText}>Continue to KYC</Text>
+                            <Text style={styles.submitBtnText}>{t("agent.registration.btn_submit", "Continue to KYC")}</Text>
                             <Ionicons name="arrow-forward" size={20} color="#FFF" />
                         </>
                     )}
@@ -299,7 +301,7 @@ export default function AgentRegistrationModal() {
 
                         {/* Modal Header */}
                         <View style={[styles.modalHeader, { borderBottomColor: theme.border }]}>
-                            <Text style={[styles.modalTitle, { color: theme.text }]}>Select Country</Text>
+                            <Text style={[styles.modalTitle, { color: theme.text }]}>{t("agent.registration.select_country", "Select Country")}</Text>
                             <TouchableOpacity
                                 onPress={() => setShowCountryPicker(false)}
                                 style={[styles.modalCloseBtn, { backgroundColor: theme.cardAlt }]}

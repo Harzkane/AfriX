@@ -1,8 +1,10 @@
 import { Tabs } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Platform, useColorScheme, View, StyleSheet } from "react-native";
+import { useTranslation } from "react-i18next";
 
 export default function AgentTabsLayout() {
+    const { t } = useTranslation();
     const colorScheme = useColorScheme();
     const isDark = colorScheme === "dark";
 
@@ -35,7 +37,7 @@ export default function AgentTabsLayout() {
             <Tabs.Screen
                 name="dashboard"
                 options={{
-                    title: "Dashboard",
+                    title: t("agent.tabs.dashboard", "Dashboard"),
                     tabBarIcon: ({ color, size, focused }) => (
                         <View style={[styles.iconWrap, focused && styles.iconWrapActive]}>
                             <Ionicons name={focused ? "grid" : "grid-outline"} size={size - 2} color={color} />
@@ -46,7 +48,7 @@ export default function AgentTabsLayout() {
             <Tabs.Screen
                 name="requests"
                 options={{
-                    title: "Requests",
+                    title: t("agent.tabs.requests", "Requests"),
                     tabBarIcon: ({ color, size, focused }) => (
                         <View style={[styles.iconWrap, focused && styles.iconWrapActive]}>
                             <Ionicons name={focused ? "list-circle" : "list-circle-outline"} size={size - 2} color={color} />
@@ -57,7 +59,7 @@ export default function AgentTabsLayout() {
             <Tabs.Screen
                 name="profile"
                 options={{
-                    title: "Profile",
+                    title: t("agent.tabs.profile", "Profile"),
                     tabBarIcon: ({ color, size, focused }) => (
                         <View style={[styles.iconWrap, focused && styles.iconWrapActive]}>
                             <Ionicons name={focused ? "person" : "person-outline"} size={size - 2} color={color} />

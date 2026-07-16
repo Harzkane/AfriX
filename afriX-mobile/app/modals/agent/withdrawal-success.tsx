@@ -4,11 +4,13 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
+import { useTranslation } from "react-i18next";
 
 const { width } = Dimensions.get("window");
 
 export default function WithdrawalSuccess() {
     const router = useRouter();
+    const { t, i18n } = useTranslation();
     const params = useLocalSearchParams<{
         amount?: string;
         requestId?: string;
@@ -100,15 +102,19 @@ export default function WithdrawalSuccess() {
 
                     {/* Animated Text & Card */}
                     <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }], width: "100%", alignItems: "center" }}>
-                        <Text style={[styles.title, { color: theme.text }]}>Request Submitted</Text>
+                        <Text style={[styles.title, { color: theme.text }]}>
+                            {t("agent.modals.withdrawal_success.title", "Request Submitted")}
+                        </Text>
                         <Text style={[styles.subtitle, { color: theme.muted }]}>
-                            Your withdrawal is on its way.
+                            {t("agent.modals.withdrawal_success.subtitle", "Your withdrawal is on its way.")}
                         </Text>
 
                         {/* Premium Receipt Card */}
                         <View style={[styles.receiptCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
                             <View style={styles.receiptHeader}>
-                                <Text style={[styles.receiptAmountLabel, { color: theme.muted }]}>Withdrawal Amount</Text>
+                                <Text style={[styles.receiptAmountLabel, { color: theme.muted }]}>
+                                    {t("agent.modals.withdrawal_success.amount_label", "Withdrawal Amount")}
+                                </Text>
                                 <Text style={[styles.receiptAmountValue, { color: theme.text }]}>
                                     <Text style={styles.currencySymbol}>$</Text>
                                     {Number(amount).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -130,17 +136,27 @@ export default function WithdrawalSuccess() {
 
                             <View style={styles.receiptFooter}>
                                 <View style={styles.detailRow}>
-                                    <Text style={[styles.detailLabel, { color: theme.muted }]}>Date</Text>
-                                    <Text style={[styles.detailValue, { color: theme.text }]}>{new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</Text>
+                                    <Text style={[styles.detailLabel, { color: theme.muted }]}>
+                                        {t("agent.modals.withdrawal_success.label_date", "Date")}
+                                    </Text>
+                                    <Text style={[styles.detailValue, { color: theme.text }]}>
+                                        {new Date().toLocaleDateString(i18n.language === "fr" ? "fr-FR" : "en-US", { month: "short", day: "numeric", year: "numeric" })}
+                                    </Text>
                                 </View>
                                 <View style={styles.detailRow}>
-                                    <Text style={[styles.detailLabel, { color: theme.muted }]}>Request ID</Text>
+                                    <Text style={[styles.detailLabel, { color: theme.muted }]}>
+                                        {t("agent.modals.withdrawal_success.label_request_id", "Request ID")}
+                                    </Text>
                                     <Text style={[styles.detailValueMono, { color: theme.text }]}>{shortId}</Text>
                                 </View>
                                 <View style={styles.detailRow}>
-                                    <Text style={[styles.detailLabel, { color: theme.muted }]}>Status</Text>
+                                    <Text style={[styles.detailLabel, { color: theme.muted }]}>
+                                        {t("agent.modals.withdrawal_success.label_status", "Status")}
+                                    </Text>
                                     <View style={[styles.statusBadge, { backgroundColor: theme.accentLight }]}>
-                                        <Text style={[styles.statusBadgeText, { color: theme.accent }]}>Processing</Text>
+                                        <Text style={[styles.statusBadgeText, { color: theme.accent }]}>
+                                            {t("agent.modals.withdrawal_success.status_processing", "Processing")}
+                                        </Text>
                                     </View>
                                 </View>
                             </View>
@@ -149,7 +165,7 @@ export default function WithdrawalSuccess() {
                         <View style={[styles.infoPill, { backgroundColor: isDark ? "rgba(255,255,255,0.05)" : "#F1F5F9", borderColor: isDark ? "rgba(255,255,255,0.1)" : "#E2E8F0" }]}>
                             <Ionicons name="information-circle" size={16} color={theme.muted} style={{ marginRight: 6 }} />
                             <Text style={[styles.infoPillText, { color: theme.muted }]}>
-                                Usually processed within 1–3 business days.
+                                {t("agent.modals.withdrawal_success.info_processing", "Usually processed within 1–3 business days.")}
                             </Text>
                         </View>
                     </Animated.View>
@@ -161,7 +177,9 @@ export default function WithdrawalSuccess() {
                         onPress={handleDone} 
                         activeOpacity={0.85}
                     >
-                        <Text style={styles.doneButtonText}>Done</Text>
+                        <Text style={styles.doneButtonText}>
+                            {t("agent.modals.withdrawal_success.btn_done", "Done")}
+                        </Text>
                     </TouchableOpacity>
                 </Animated.View>
             </SafeAreaView>
@@ -394,4 +412,3 @@ const styles = StyleSheet.create({
         letterSpacing: 0.3,
     },
 });
-

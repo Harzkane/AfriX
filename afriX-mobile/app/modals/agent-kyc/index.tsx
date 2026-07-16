@@ -4,9 +4,11 @@ import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
+import { useTranslation } from "react-i18next";
 
 export default function AgentKycModal() {
     const router = useRouter();
+    const { t } = useTranslation();
     const colorScheme = useColorScheme();
     const isDark = colorScheme === "dark";
 
@@ -30,48 +32,48 @@ export default function AgentKycModal() {
             icon: "card",
             color: theme.blue,
             bg: theme.blueSoft,
-            title: "Government-Issued ID",
-            description: "Passport, driver's license, or national ID card",
+            title: t("agent.kyc.index.doc_gov_id_title", "Government-Issued ID"),
+            description: t("agent.kyc.index.doc_gov_id_desc", "Passport, driver's license, or national ID card"),
             required: true,
         },
         {
             icon: "camera",
             color: theme.accent,
             bg: theme.accentSoft,
-            title: "Selfie with ID",
-            description: "Clear photo of you holding your ID document",
+            title: t("agent.kyc.index.doc_selfie_title", "Selfie with ID"),
+            description: t("agent.kyc.index.doc_selfie_desc", "Clear photo of you holding your ID document"),
             required: true,
         },
         {
             icon: "document-text",
             color: "#8B5CF6",
             bg: isDark ? "rgba(139,92,246,0.12)" : "#F5F3FF",
-            title: "Proof of Address",
-            description: "Utility bill or bank statement (less than 3 months old)",
+            title: t("agent.kyc.index.doc_proof_title", "Proof of Address"),
+            description: t("agent.kyc.index.doc_proof_desc", "Utility bill or bank statement (less than 3 months old)"),
             required: true,
         },
         {
             icon: "business",
             color: "#F59E0B",
             bg: isDark ? "rgba(245,158,11,0.12)" : "#FEF3C7",
-            title: "Business Registration",
-            description: "Optional: If you operate as a business",
+            title: t("agent.kyc.index.doc_biz_title", "Business Registration"),
+            description: t("agent.kyc.index.doc_biz_desc", "Optional: If you operate as a business"),
             required: false,
         },
     ];
 
     const tips = [
-        "Ensure all documents are clear and readable",
-        "Photos should be well-lit with no glare",
-        "All four corners of documents should be visible",
-        "Selfie should clearly show your face and ID",
-        "Documents must be valid and not expired",
+        t("agent.kyc.index.tip_1", "Ensure all documents are clear and readable"),
+        t("agent.kyc.index.tip_2", "Photos should be well-lit with no glare"),
+        t("agent.kyc.index.tip_3", "All four corners of documents should be visible"),
+        t("agent.kyc.index.tip_4", "Selfie should clearly show your face and ID"),
+        t("agent.kyc.index.tip_5", "Documents must be valid and not expired"),
     ];
 
     const progressSteps = [
-        { label: "Register", done: true, active: false },
-        { label: "KYC", done: false, active: true },
-        { label: "Deposit", done: false, active: false },
+        { label: t("agent.kyc.index.step_register", "Register"), done: true, active: false },
+        { label: t("agent.kyc.index.step_kyc", "KYC"), done: false, active: true },
+        { label: t("agent.kyc.index.step_deposit", "Deposit"), done: false, active: false },
     ];
 
     return (
@@ -84,7 +86,7 @@ export default function AgentKycModal() {
                 >
                     <Ionicons name="arrow-back" size={20} color={theme.text} />
                 </TouchableOpacity>
-                <Text style={[styles.headerTitle, { color: theme.text }]}>KYC Verification</Text>
+                <Text style={[styles.headerTitle, { color: theme.text }]}>{t("agent.kyc.index.header_title", "KYC Verification")}</Text>
                 <View style={{ width: 42 }} />
             </View>
 
@@ -129,15 +131,15 @@ export default function AgentKycModal() {
                     <View style={styles.heroIconCircle}>
                         <Ionicons name="shield-checkmark" size={26} color="#00B14F" />
                     </View>
-                    <Text style={styles.heroEyebrow}>STEP 2 OF 3</Text>
-                    <Text style={styles.heroTitle}>Verify Your Identity</Text>
+                    <Text style={styles.heroEyebrow}>{t("agent.kyc.index.hero_eyebrow", "STEP 2 OF 3")}</Text>
+                    <Text style={styles.heroTitle}>{t("agent.kyc.index.hero_title", "Verify Your Identity")}</Text>
                     <Text style={styles.heroSubtitle}>
-                        To become an agent, we need to verify your identity. This helps keep the platform safe for everyone.
+                        {t("agent.kyc.index.hero_subtitle", "To become an agent, we need to verify your identity. This helps keep the platform safe for everyone.")}
                     </Text>
                 </LinearGradient>
 
                 {/* Required Documents */}
-                <Text style={[styles.sectionHeading, { color: theme.muted }]}>REQUIRED DOCUMENTS</Text>
+                <Text style={[styles.sectionHeading, { color: theme.muted }]}>{t("agent.kyc.index.section_docs", "REQUIRED DOCUMENTS")}</Text>
                 <View style={[styles.docsCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
                     {documents.map((doc, i) => (
                         <View key={i}>
@@ -150,11 +152,11 @@ export default function AgentKycModal() {
                                         <Text style={[styles.docTitle, { color: theme.text }]}>{doc.title}</Text>
                                         {doc.required ? (
                                             <View style={[styles.requiredBadge, { backgroundColor: theme.dangerSoft }]}>
-                                                <Text style={[styles.requiredText, { color: theme.danger }]}>Required</Text>
+                                                <Text style={[styles.requiredText, { color: theme.danger }]}>{t("agent.kyc.index.badge_required", "Required")}</Text>
                                             </View>
                                         ) : (
                                             <View style={[styles.optionalBadge, { backgroundColor: theme.cardAlt }]}>
-                                                <Text style={[styles.optionalText, { color: theme.muted }]}>Optional</Text>
+                                                <Text style={[styles.optionalText, { color: theme.muted }]}>{t("agent.kyc.index.badge_optional", "Optional")}</Text>
                                             </View>
                                         )}
                                     </View>
@@ -167,7 +169,7 @@ export default function AgentKycModal() {
                 </View>
 
                 {/* Photo Tips */}
-                <Text style={[styles.sectionHeading, { color: theme.muted }]}>📸 PHOTO TIPS</Text>
+                <Text style={[styles.sectionHeading, { color: theme.muted }]}>{t("agent.kyc.index.section_tips", "📸 PHOTO TIPS")}</Text>
                 <View style={[styles.tipsCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
                     {tips.map((tip, i) => (
                         <View key={i}>
@@ -186,7 +188,7 @@ export default function AgentKycModal() {
                 <View style={[styles.infoBanner, { backgroundColor: theme.accentSoft, borderColor: theme.accent + "30" }]}>
                     <Ionicons name="shield-checkmark" size={20} color={theme.accent} />
                     <Text style={[styles.infoBannerText, { color: theme.accent }]}>
-                        Your documents are encrypted and stored securely. We never share your information with third parties.
+                        {t("agent.kyc.index.info_banner", "Your documents are encrypted and stored securely. We never share your information with third parties.")}
                     </Text>
                 </View>
 
@@ -200,7 +202,7 @@ export default function AgentKycModal() {
                     onPress={() => router.push("/modals/agent-kyc/personal-info")}
                     activeOpacity={0.85}
                 >
-                    <Text style={styles.startBtnText}>Start KYC Verification</Text>
+                    <Text style={styles.startBtnText}>{t("agent.kyc.index.btn_start", "Start KYC Verification")}</Text>
                     <Ionicons name="arrow-forward" size={20} color="#FFF" />
                 </TouchableOpacity>
             </View>

@@ -10,13 +10,14 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useAgentStore } from "@/stores/slices/agentSlice";
 import { DepositTransaction } from "@/stores/types/agent.types";
 import { formatAmount, formatDate } from "@/utils/format";
+import { useTranslation } from "react-i18next";
 
-const getStatusMeta = (status?: string, isDark?: boolean) => {
+const getStatusMeta = (t: any, status?: string, isDark?: boolean) => {
     switch ((status || "").toLowerCase()) {
         case "completed":
         case "verified":
             return {
-                label: "Verified",
+                label: t("agent.deposit_history.status_verified", "Verified"),
                 color: "#059669",
                 tint: isDark ? "rgba(5, 150, 105, 0.15)" : "#ECFDF5",
                 border: isDark ? "rgba(5, 150, 105, 0.3)" : "#A7F3D0",
@@ -24,7 +25,7 @@ const getStatusMeta = (status?: string, isDark?: boolean) => {
             };
         case "pending":
             return {
-                label: "Pending",
+                label: t("agent.deposit_history.status_pending", "Pending"),
                 color: "#D97706",
                 tint: isDark ? "rgba(217, 119, 6, 0.15)" : "#FFFBEB",
                 border: isDark ? "rgba(217, 119, 6, 0.3)" : "#FDE68A",
@@ -33,7 +34,7 @@ const getStatusMeta = (status?: string, isDark?: boolean) => {
         case "failed":
         case "rejected":
             return {
-                label: "Rejected",
+                label: t("agent.deposit_history.status_rejected", "Rejected"),
                 color: "#EF4444",
                 tint: isDark ? "rgba(239, 68, 68, 0.15)" : "#FEF2F2",
                 border: isDark ? "rgba(239, 68, 68, 0.3)" : "#FECACA",
@@ -41,7 +42,7 @@ const getStatusMeta = (status?: string, isDark?: boolean) => {
             };
         default:
             return {
-                label: "Processing",
+                label: t("agent.deposit_history.status_processing", "Processing"),
                 color: "#3B82F6",
                 tint: isDark ? "rgba(59, 130, 246, 0.15)" : "#EFF6FF",
                 border: isDark ? "rgba(59, 130, 246, 0.3)" : "#BFDBFE",
@@ -51,6 +52,7 @@ const getStatusMeta = (status?: string, isDark?: boolean) => {
 };
 
 export default function DepositHistory() {
+    const { t } = useTranslation();
     const router = useRouter();
     const { depositHistory, fetchDepositHistory, loading } = useAgentStore();
     const colorScheme = useColorScheme();
@@ -73,7 +75,7 @@ export default function DepositHistory() {
     const totalDeposits = depositHistory.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
 
     const renderItem = ({ item }: { item: DepositTransaction }) => {
-        const statusMeta = getStatusMeta(item.status, isDark);
+        const statusMeta = getStatusMeta(t, item.status, isDark);
         return (
             <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
                 <View style={[styles.cardAccentBar, { backgroundColor: statusMeta.color }]} />
@@ -82,7 +84,7 @@ export default function DepositHistory() {
                         <Ionicons name={statusMeta.icon} size={20} color={statusMeta.color} />
                     </View>
                     <View style={styles.cardInfo}>
-                        <Text style={[styles.cardEyebrow, { color: theme.muted }]}>USDT Deposit</Text>
+                        <Text style={[styles.cardEyebrow, { color: theme.muted }]}>{t("agent.deposit_history.usdt_deposit", "USDT Deposit")}</Text>
                         <Text style={[styles.cardAmount, { color: theme.text }]}>+{formatAmount(item.amount, "USDT")} USDT</Text>
                         <Text style={[styles.cardDate, { color: theme.muted }]}>{formatDate(item.created_at, true)}</Text>
                     </View>
@@ -91,11 +93,11 @@ export default function DepositHistory() {
                     </View>
                 </View>
                 <View style={[styles.stripRow, { borderTopColor: theme.border }]}>
-                    <Text style={[styles.stripLabel, { color: theme.muted }]}>Reference</Text>
+                    <Text style={[styles.stripLabel, { color: theme.muted }]}>{t("agent.deposit_history.reference", "Reference")}</Text>
                     <Text style={[styles.stripValue, { color: theme.text }]}>#{item.id.slice(0, 8).toUpperCase()}</Text>
                 </View>
                 <View style={[styles.stripRow, { borderTopColor: theme.border }]}>
-                    <Text style={[styles.stripLabel, { color: theme.muted }]}>Date</Text>
+                    <Text style={[styles.stripLabel, { color: theme.muted }]}>{t("agent.deposit_history.date", "Date")}</Text>
                     <Text style={[styles.stripValue, { color: theme.text }]}>{formatDate(item.created_at)}</Text>
                 </View>
             </View>
@@ -110,7 +112,7 @@ export default function DepositHistory() {
                     <TouchableOpacity onPress={() => router.back()} style={[styles.headerBackBtn, { backgroundColor: theme.accentLight }]} activeOpacity={0.8}>
                         <Ionicons name="arrow-back" size={20} color={theme.accent} />
                     </TouchableOpacity>
-                    <Text style={[styles.headerTitle, { color: theme.text }]}>Deposit History</Text>
+                    <Text style={[styles.headerTitle, { color: theme.text }]}>{t("agent.deposit_history.header_title", "Deposit History")}</Text>
                     <View style={styles.headerSpacer} />
                 </View>
             </SafeAreaView>
@@ -118,12 +120,12 @@ export default function DepositHistory() {
             {/* Summary banner */}
             <View style={[styles.summaryBanner, { backgroundColor: theme.card, borderColor: theme.border }]}>
                 <View style={styles.summaryItem}>
-                    <Text style={[styles.summaryLabel, { color: theme.muted }]}>Total Deposited</Text>
+                    <Text style={[styles.summaryLabel, { color: theme.muted }]}>{t("agent.deposit_history.total_deposited", "Total Deposited")}</Text>
                     <Text style={[styles.summaryValue, { color: theme.green }]}>{formatAmount(totalDeposits, "USDT")} USDT</Text>
                 </View>
                 <View style={[styles.summaryDivider, { backgroundColor: theme.border }]} />
                 <View style={styles.summaryItem}>
-                    <Text style={[styles.summaryLabel, { color: theme.muted }]}>Transactions</Text>
+                    <Text style={[styles.summaryLabel, { color: theme.muted }]}>{t("agent.deposit_history.transactions", "Transactions")}</Text>
                     <Text style={[styles.summaryValue, { color: theme.text }]}>{depositHistory.length}</Text>
                 </View>
             </View>
@@ -139,8 +141,8 @@ export default function DepositHistory() {
                         <LinearGradient colors={isDark ? ["rgba(124,58,237,0.12)", "rgba(124,58,237,0.06)"] : ["#EDE9FE", "#DDD6FE"]} style={styles.emptyIconCircle}>
                             <Ionicons name="arrow-down-circle-outline" size={28} color={theme.accent} />
                         </LinearGradient>
-                        <Text style={[styles.emptyTitle, { color: theme.text }]}>No deposits yet</Text>
-                        <Text style={[styles.emptySub, { color: theme.muted }]}>Your deposit history will appear here once you make your first deposit.</Text>
+                        <Text style={[styles.emptyTitle, { color: theme.text }]}>{t("agent.deposit_history.empty_title", "No deposits yet")}</Text>
+                        <Text style={[styles.emptySub, { color: theme.muted }]}>{t("agent.deposit_history.empty_sub", "Your deposit history will appear here once you make your first deposit.")}</Text>
                     </View>
                 }
             />

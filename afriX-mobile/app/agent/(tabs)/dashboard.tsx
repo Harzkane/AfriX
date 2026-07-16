@@ -17,17 +17,19 @@ import { useAuthStore } from "@/stores";
 import { useAgentStore } from "@/stores/slices/agentSlice";
 import { WithdrawalRequest } from "@/stores/types/agent.types";
 import { formatAmount, formatDate } from "@/utils/format";
+import { useTranslation } from "react-i18next";
 
-const getCommissionPresentation = (tx: any, tokenType: string) => {
+const getCommissionPresentation = (t: any, tx: any, tokenType: string) => {
     const rawAmount = tx.agent_commission ?? tx.fee_amount ?? tx.fee ?? 0;
     const amount = formatAmount(rawAmount, tokenType);
     const label = tx.fee_kind === "agent_commission"
-        ? (tx.fee_label || "Agent Commission")
-        : "Commission earned";
+        ? (tx.fee_label || t("agent.dashboard.agent_commission", "Agent Commission"))
+        : t("agent.dashboard.commission_earned", "Commission earned");
     return { amount, label };
 };
 
 export default function AgentDashboard() {
+    const { t } = useTranslation();
     const router = useRouter();
     const { user } = useAuthStore();
     const colorScheme = useColorScheme();
@@ -115,7 +117,7 @@ export default function AgentDashboard() {
                 <View style={styles.headerRow}>
                     <View style={styles.headerLeft}>
                         <Text style={[styles.logoText, { color: theme.text }]}>
-                            Afri<Text style={{ color: "#00B14F" }}>X</Text> <Text style={{ color: theme.accent, fontSize: 16 }}>Agent</Text>
+                            Afri<Text style={{ color: "#00B14F" }}>X</Text> <Text style={{ color: theme.accent, fontSize: 16 }}>{t("agent.dashboard.agent_label", "Agent")}</Text>
                         </Text>
                     </View>
                     <View style={styles.headerRight}>
@@ -125,7 +127,7 @@ export default function AgentDashboard() {
                             activeOpacity={0.8}
                         >
                             <Ionicons name="swap-horizontal" size={13} color={theme.accent} style={{ marginRight: 4 }} />
-                            <Text style={[styles.switchBtnText, { color: theme.accent }]}>User Mode</Text>
+                            <Text style={[styles.switchBtnText, { color: theme.accent }]}>{t("agent.dashboard.user_mode", "User Mode")}</Text>
                         </TouchableOpacity>
 
                         <TouchableOpacity
@@ -160,36 +162,36 @@ export default function AgentDashboard() {
                     <View style={styles.heroTopRow}>
                         <View style={styles.heroBadge}>
                             <Ionicons name="flash" size={12} color="#EDE9FE" />
-                            <Text style={styles.heroBadgeText}>Live Agent Snapshot</Text>
+                            <Text style={styles.heroBadgeText}>{t("agent.dashboard.live_snapshot", "Live Agent Snapshot")}</Text>
                         </View>
                         {pendingRequestsCount > 0 && (
                             <View style={styles.heroPendingChip}>
                                 <View style={styles.heroPendingDot} />
-                                <Text style={styles.heroPendingText}>{pendingRequestsCount} pending</Text>
+                                <Text style={styles.heroPendingText}>{t("agent.dashboard.pending_count", "{{count}} pending", { count: pendingRequestsCount })}</Text>
                             </View>
                         )}
                     </View>
 
                     {/* Earnings */}
-                    <Text style={styles.heroLabel}>Total Earnings</Text>
+                    <Text style={styles.heroLabel}>{t("agent.dashboard.total_earnings", "Total Earnings")}</Text>
                     <Text style={styles.heroValue}>{formatAmount(totalEarningsUsdt, "USDT")} <Text style={styles.heroValueSuffix}>USDT</Text></Text>
-                    <Text style={styles.heroSubtext}>Combined commission across your completed mint and burn activity.</Text>
+                    <Text style={styles.heroSubtext}>{t("agent.dashboard.earnings_desc", "Combined commission across your completed mint and burn activity.")}</Text>
 
                     {/* Stats strip */}
                     <View style={styles.heroStatsRow}>
                         <View style={styles.heroStatBlock}>
-                            <Text style={styles.heroStatCaption}>Float Capacity</Text>
+                            <Text style={styles.heroStatCaption}>{t("agent.dashboard.float_capacity", "Float Capacity")}</Text>
                             <Text style={styles.heroStatValue}>{formatAmount(availableCapacityUsdt, "USDT")} USDT</Text>
                         </View>
                         <View style={styles.heroDivider} />
                         <View style={styles.heroStatBlock}>
-                            <Text style={styles.heroStatCaption}>Success Rate</Text>
+                            <Text style={styles.heroStatCaption}>{t("agent.dashboard.success_rate", "Success Rate")}</Text>
                             <Text style={styles.heroStatValue}>{dashboardData?.performance?.success_rate || "100%"}</Text>
                         </View>
                         <View style={styles.heroDivider} />
                         <View style={styles.heroStatBlock}>
-                            <Text style={styles.heroStatCaption}>Avg Response</Text>
-                            <Text style={styles.heroStatValue}>{dashboardData?.performance?.response_time || "5"} min</Text>
+                            <Text style={styles.heroStatCaption}>{t("agent.dashboard.avg_response", "Avg Response")}</Text>
+                            <Text style={styles.heroStatValue}>{dashboardData?.performance?.response_time || "5"} {t("agent.dashboard.minutes", "min")}</Text>
                         </View>
                     </View>
                 </LinearGradient>
@@ -197,9 +199,9 @@ export default function AgentDashboard() {
                 {/* ─── Quick Insight Pills ─── */}
                 <View style={styles.insightRow}>
                     {[
-                        { icon: "time-outline", iconBg: theme.amberLight, iconColor: theme.amber, label: "Pending", value: String(pendingRequestsCount) },
-                        { icon: "analytics-outline", iconBg: theme.blueLight, iconColor: theme.blue, label: "Net Activity", value: `${formatAmount(totalMintedUsdt - totalBurnedUsdt, "USDT")} USDT` },
-                        { icon: "star", iconBg: isDark ? "rgba(245,158,11,0.12)" : "#FFFBEB", iconColor: "#F59E0B", label: "Rating", value: dashboardData?.agent?.rating || "5.0" },
+                        { icon: "time-outline", iconBg: theme.amberLight, iconColor: theme.amber, label: t("agent.dashboard.pending", "Pending"), value: String(pendingRequestsCount) },
+                        { icon: "analytics-outline", iconBg: theme.blueLight, iconColor: theme.blue, label: t("agent.dashboard.net_activity", "Net Activity"), value: `${formatAmount(totalMintedUsdt - totalBurnedUsdt, "USDT")} USDT` },
+                        { icon: "star", iconBg: isDark ? "rgba(245,158,11,0.12)" : "#FFFBEB", iconColor: "#F59E0B", label: t("agent.dashboard.rating", "Rating"), value: dashboardData?.agent?.rating || "5.0" },
                     ].map((item) => (
                         <View key={item.label} style={[styles.insightCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
                             <View style={[styles.insightIconBox, { backgroundColor: item.iconBg }]}>
@@ -213,22 +215,22 @@ export default function AgentDashboard() {
 
                 {/* ─── Quick Actions ─── */}
                 <View style={styles.section}>
-                    <Text style={[styles.sectionTitle, { color: theme.muted }]}>QUICK ACTIONS</Text>
+                    <Text style={[styles.sectionTitle, { color: theme.muted }]}>{t("agent.dashboard.quick_actions_header", "QUICK ACTIONS")}</Text>
                     <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
                         {[
                             {
                                 icon: "list", iconBg: theme.accentLight, iconColor: theme.accent,
-                                label: "Review Requests", sub: "Process incoming mint and burn tasks.",
+                                label: t("agent.dashboard.action_review", "Review Requests"), sub: t("agent.dashboard.action_review_sub", "Process incoming mint and burn tasks."),
                                 onPress: () => router.push({ pathname: "/agent/requests", params: { tab: "mint" } } as any),
                             },
                             {
                                 icon: "wallet", iconBg: theme.greenLight, iconColor: theme.green,
-                                label: "Deposit Funds", sub: "Top up your float and keep exchange capacity healthy.",
+                                label: t("agent.dashboard.action_deposit", "Deposit Funds"), sub: t("agent.dashboard.action_deposit_sub", "Top up your float and keep exchange capacity healthy."),
                                 onPress: () => router.push("/agent/deposit"),
                             },
                             {
                                 icon: "cash-outline", iconBg: theme.blueLight, iconColor: theme.blue,
-                                label: "Request Withdrawal", sub: "Cash out your earned commissions.",
+                                label: t("agent.dashboard.action_withdrawal", "Request Withdrawal"), sub: t("agent.dashboard.action_withdrawal_sub", "Cash out your earned commissions."),
                                 onPress: () => router.push("/modals/agent/withdrawal-request?from=agent-dashboard"),
                             },
                         ].map((action, idx, arr) => (
@@ -251,24 +253,24 @@ export default function AgentDashboard() {
 
                 {/* ─── Agent Float & Liquidity ─── */}
                 <View style={styles.section}>
-                    <Text style={[styles.sectionTitle, { color: theme.muted }]}>FLOAT & LIQUIDITY</Text>
+                    <Text style={[styles.sectionTitle, { color: theme.muted }]}>{t("agent.dashboard.float_liquidity_header", "FLOAT & LIQUIDITY")}</Text>
                     <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
                         {[
                             {
                                 icon: "speedometer-outline", iconBg: theme.accentLight, iconColor: theme.accent,
-                                label: "Available Capacity", sub: "Liquidity limit to process trades",
+                                label: t("agent.dashboard.float_avail_capacity", "Available Capacity"), sub: t("agent.dashboard.float_avail_capacity_sub", "Liquidity limit to process trades"),
                                 value: `${formatAmount(availableCapacityUsdt, "USDT")} USDT`,
                                 valueColor: theme.accent,
                             },
                             {
                                 icon: "hourglass-outline", iconBg: theme.amberLight, iconColor: theme.amber,
-                                label: "Outstanding Balance", sub: "Float currently tied in processes",
+                                label: t("agent.dashboard.float_outstanding", "Outstanding Balance"), sub: t("agent.dashboard.float_outstanding_sub", "Float currently tied in processes"),
                                 value: `${formatAmount(outstandingTokens, "USDT")} USDT`,
                                 valueColor: theme.amber,
                             },
                             {
                                 icon: "wallet-outline", iconBg: theme.greenLight, iconColor: theme.green,
-                                label: "Total Deposited Float", sub: "Agent collateral in smart contract",
+                                label: t("agent.dashboard.float_total_deposited", "Total Deposited Float"), sub: t("agent.dashboard.float_total_deposited_sub", "Agent collateral in smart contract"),
                                 value: `${formatAmount(totalDepositedFloat, "USDT")} USDT`,
                                 valueColor: theme.green,
                             },
@@ -292,16 +294,16 @@ export default function AgentDashboard() {
 
                 {/* ─── Token Performance ─── */}
                 <View style={styles.section}>
-                    <Text style={[styles.sectionTitle, { color: theme.muted }]}>TOKEN PERFORMANCE</Text>
+                    <Text style={[styles.sectionTitle, { color: theme.muted }]}>{t("agent.dashboard.token_perf_header", "TOKEN PERFORMANCE")}</Text>
                     <View style={[styles.tokenPanel, { backgroundColor: theme.card, borderColor: theme.border }]}>
 
                         {/* Column header chips */}
                         <View style={styles.tokenColHeaders}>
                             <View style={styles.tokenColHeaderLabel} />
                             {[
-                                { label: "Earnings", icon: "cash-outline", iconColor: theme.green, iconBg: theme.greenLight },
-                                { label: "Minted", icon: "arrow-up-circle-outline", iconColor: theme.blue, iconBg: theme.blueLight },
-                                { label: "Burned", icon: "flame-outline", iconColor: theme.danger, iconBg: theme.dangerLight },
+                                { label: t("agent.dashboard.earnings", "Earnings"), icon: "cash-outline", iconColor: theme.green, iconBg: theme.greenLight },
+                                { label: t("agent.dashboard.minted", "Minted"), icon: "arrow-up-circle-outline", iconColor: theme.blue, iconBg: theme.blueLight },
+                                { label: t("agent.dashboard.burned", "Burned"), icon: "flame-outline", iconColor: theme.danger, iconBg: theme.dangerLight },
                             ].map((col) => (
                                 <View key={col.label} style={styles.tokenColHeaderCell}>
                                     <View style={[styles.tokenColIconBox, { backgroundColor: col.iconBg }]}>
@@ -365,15 +367,22 @@ export default function AgentDashboard() {
                 {/* ─── Recent Deposits ─── */}
                 <View style={styles.section}>
                     <View style={styles.sectionHeader}>
-                        <Text style={[styles.sectionTitle, { color: theme.muted }]}>RECENT DEPOSITS</Text>
+                        <Text style={[styles.sectionTitle, { color: theme.muted }]}>{t("agent.dashboard.recent_deposits_header", "RECENT DEPOSITS")}</Text>
                         <TouchableOpacity onPress={() => router.push("/agent/deposit-history")} activeOpacity={0.7}>
-                            <Text style={[styles.viewAll, { color: theme.accent }]}>View All</Text>
+                            <Text style={[styles.viewAll, { color: theme.accent }]}>{t("agent.dashboard.view_all", "View All")}</Text>
                         </TouchableOpacity>
                     </View>
                     {dashboardData?.deposit_history && dashboardData.deposit_history.length > 0 ? (
                         <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
                             {dashboardData.deposit_history.map((deposit: any, index: number) => {
                                 const ds = getDepositStatusColor(deposit.status);
+                                const localizedLabel = ds.label === "Verified"
+                                    ? t("agent.dashboard.status_verified", "Verified")
+                                    : ds.label === "Pending"
+                                        ? t("agent.dashboard.status_pending", "Pending")
+                                        : ds.label === "Rejected"
+                                            ? t("agent.dashboard.status_rejected", "Rejected")
+                                            : t("agent.dashboard.status_processing", "Processing");
                                 return (
                                     <View key={deposit.id}>
                                         <TouchableOpacity
@@ -385,12 +394,12 @@ export default function AgentDashboard() {
                                                 <Ionicons name="arrow-down" size={18} color={theme.green} />
                                             </View>
                                             <View style={styles.listInfo}>
-                                                <Text style={[styles.listEyebrow, { color: theme.muted }]}>Deposit</Text>
+                                                <Text style={[styles.listEyebrow, { color: theme.muted }]}>{t("agent.dashboard.deposit_label", "Deposit")}</Text>
                                                 <Text style={[styles.listAmount, { color: theme.text }]}>+{formatAmount(deposit.amount, "USDT")} USDT</Text>
                                                 <Text style={[styles.listDate, { color: theme.muted }]}>{formatDate(deposit.created_at)}</Text>
                                             </View>
                                             <View style={[styles.statusPill, { backgroundColor: ds.bg }]}>
-                                                <Text style={[styles.statusPillText, { color: ds.text }]}>{ds.label}</Text>
+                                                <Text style={[styles.statusPillText, { color: ds.text }]}>{localizedLabel}</Text>
                                             </View>
                                         </TouchableOpacity>
                                         {index < dashboardData.deposit_history.length - 1 && (
@@ -403,7 +412,7 @@ export default function AgentDashboard() {
                     ) : (
                         <View style={[styles.emptyCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
                             <Ionicons name="wallet-outline" size={28} color={theme.muted} style={{ marginBottom: 8 }} />
-                            <Text style={[styles.emptyText, { color: theme.muted }]}>No recent deposits</Text>
+                            <Text style={[styles.emptyText, { color: theme.muted }]}>{t("agent.dashboard.no_recent_deposits", "No recent deposits")}</Text>
                         </View>
                     )}
                 </View>
@@ -411,15 +420,24 @@ export default function AgentDashboard() {
                 {/* ─── Recent Withdrawals ─── */}
                 <View style={styles.section}>
                     <View style={styles.sectionHeader}>
-                        <Text style={[styles.sectionTitle, { color: theme.muted }]}>RECENT WITHDRAWALS</Text>
+                        <Text style={[styles.sectionTitle, { color: theme.muted }]}>{t("agent.dashboard.recent_withdrawals_header", "RECENT WITHDRAWALS")}</Text>
                         <TouchableOpacity onPress={() => router.push("/agent/withdrawal-history")} activeOpacity={0.7}>
-                            <Text style={[styles.viewAll, { color: theme.accent }]}>View All</Text>
+                            <Text style={[styles.viewAll, { color: theme.accent }]}>{t("agent.dashboard.view_all", "View All")}</Text>
                         </TouchableOpacity>
                     </View>
                     {withdrawalRequests.length > 0 ? (
                         <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
                             {withdrawalRequests.slice(0, 3).map((request: WithdrawalRequest, index: number) => {
                                 const ws = getWithdrawalStatusColor(request.status);
+                                const localizedStatus = request.status === "approved"
+                                    ? t("agent.dashboard.status_approved", "Approved")
+                                    : request.status === "pending"
+                                        ? t("agent.dashboard.status_pending", "Pending")
+                                        : request.status === "paid"
+                                            ? t("agent.dashboard.status_paid", "Paid")
+                                            : request.status === "rejected"
+                                                ? t("agent.dashboard.status_rejected", "Rejected")
+                                                : (String(request.status).charAt(0).toUpperCase() + String(request.status).slice(1));
                                 return (
                                     <View key={request.id}>
                                         <TouchableOpacity
@@ -431,13 +449,13 @@ export default function AgentDashboard() {
                                                 <Ionicons name="arrow-up" size={18} color={theme.danger} />
                                             </View>
                                             <View style={styles.listInfo}>
-                                                <Text style={[styles.listEyebrow, { color: theme.muted }]}>Withdrawal</Text>
+                                                <Text style={[styles.listEyebrow, { color: theme.muted }]}>{t("agent.dashboard.withdrawal_label", "Withdrawal")}</Text>
                                                 <Text style={[styles.listAmount, { color: theme.text }]}>{formatAmount(request.amount_usd, "USDT")} USDT</Text>
                                                 <Text style={[styles.listDate, { color: theme.muted }]}>{formatDate(request.created_at)}</Text>
                                             </View>
                                             <View style={[styles.statusPill, { backgroundColor: ws.bg }]}>
                                                 <Text style={[styles.statusPillText, { color: ws.text }]}>
-                                                    {request.status === "approved" ? "Approved" : request.status.charAt(0).toUpperCase() + request.status.slice(1)}
+                                                    {localizedStatus}
                                                 </Text>
                                             </View>
                                         </TouchableOpacity>
@@ -451,7 +469,7 @@ export default function AgentDashboard() {
                     ) : (
                         <View style={[styles.emptyCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
                             <Ionicons name="cash-outline" size={28} color={theme.muted} style={{ marginBottom: 8 }} />
-                            <Text style={[styles.emptyText, { color: theme.muted }]}>No withdrawal requests</Text>
+                            <Text style={[styles.emptyText, { color: theme.muted }]}>{t("agent.dashboard.no_recent_withdrawals", "No withdrawal requests")}</Text>
                         </View>
                     )}
                 </View>
@@ -459,9 +477,9 @@ export default function AgentDashboard() {
                 {/* ─── Recent Transactions ─── */}
                 <View style={styles.section}>
                     <View style={styles.sectionHeader}>
-                        <Text style={[styles.sectionTitle, { color: theme.muted }]}>RECENT TRANSACTIONS</Text>
+                        <Text style={[styles.sectionTitle, { color: theme.muted }]}>{t("agent.dashboard.recent_transactions_header", "RECENT TRANSACTIONS")}</Text>
                         <TouchableOpacity onPress={() => router.push({ pathname: "/agent/requests", params: { tab: "history" } } as any)} activeOpacity={0.7}>
-                            <Text style={[styles.viewAll, { color: theme.accent }]}>View All</Text>
+                            <Text style={[styles.viewAll, { color: theme.accent }]}>{t("agent.dashboard.view_all", "View All")}</Text>
                         </TouchableOpacity>
                     </View>
                     {dashboardData?.recent_transactions && dashboardData.recent_transactions.length > 0 ? (
@@ -470,7 +488,7 @@ export default function AgentDashboard() {
                                 const isMint = tx.type === "mint";
                                 const userName = isMint ? tx.toUser?.full_name : tx.fromUser?.full_name;
                                 const tokenType = tx.token_type || "NT";
-                                const commission = getCommissionPresentation(tx, tokenType);
+                                const commission = getCommissionPresentation(t, tx, tokenType);
                                 return (
                                     <View key={tx.id}>
                                         <TouchableOpacity
@@ -482,8 +500,8 @@ export default function AgentDashboard() {
                                                 <Ionicons name={isMint ? "arrow-up" : "arrow-down"} size={18} color={isMint ? theme.green : theme.amber} />
                                             </View>
                                             <View style={styles.listInfo}>
-                                                <Text style={[styles.listEyebrow, { color: theme.muted }]}>{isMint ? "Mint Transaction" : "Burn Transaction"}</Text>
-                                                <Text style={[styles.listAmount, { color: theme.text }]}>{userName || "Unknown user"}</Text>
+                                                <Text style={[styles.listEyebrow, { color: theme.muted }]}>{isMint ? t("agent.dashboard.mint_tx", "Mint Transaction") : t("agent.dashboard.burn_tx", "Burn Transaction")}</Text>
+                                                <Text style={[styles.listAmount, { color: theme.text }]}>{userName || t("agent.dashboard.unknown_user", "Unknown user")}</Text>
                                                 <Text style={[styles.listDate, { color: theme.muted }]}>{formatDate(tx.created_at)}</Text>
                                             </View>
                                             <View style={styles.txAmountCol}>
@@ -501,7 +519,7 @@ export default function AgentDashboard() {
                     ) : (
                         <View style={[styles.emptyCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
                             <Ionicons name="swap-horizontal" size={28} color={theme.muted} style={{ marginBottom: 8 }} />
-                            <Text style={[styles.emptyText, { color: theme.muted }]}>No recent transactions</Text>
+                            <Text style={[styles.emptyText, { color: theme.muted }]}>{t("agent.dashboard.no_recent_transactions", "No recent transactions")}</Text>
                         </View>
                     )}
                 </View>

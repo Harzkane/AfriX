@@ -14,9 +14,11 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSwapStore } from "@/stores";
 import * as Haptics from "expo-haptics";
+import { useTranslation } from "react-i18next";
 
 export default function SwapSuccessScreen() {
   const router = useRouter();
+  const { t } = useTranslation();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
   const insets = useSafeAreaInsets();
@@ -72,24 +74,24 @@ export default function SwapSuccessScreen() {
         </View>
 
         {/* Heading */}
-        <Text style={[styles.title, { color: theme.text }]}>Swap Successful!</Text>
+        <Text style={[styles.title, { color: theme.text }]}>{t("swap_tokens.success.title", "Swap Successful!")}</Text>
         <Text style={[styles.subtitle, { color: theme.muted }]}>
-          Your tokens have been converted and your wallet is updated.
+          {t("swap_tokens.success.subtitle", "Your tokens have been converted and your wallet is updated.")}
         </Text>
 
         {/* Summary banner card */}
         <View style={[styles.summaryCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
-          <Text style={[styles.summaryEyebrow, { color: theme.accent }]}>COMPLETED</Text>
-          <Text style={[styles.summaryTitle, { color: theme.text }]}>Balances are updated</Text>
+          <Text style={[styles.summaryEyebrow, { color: theme.accent }]}>{t("swap_tokens.success.banner_eyebrow", "COMPLETED")}</Text>
+          <Text style={[styles.summaryTitle, { color: theme.text }]}>{t("swap_tokens.success.banner_title", "Balances are updated")}</Text>
           <Text style={[styles.summarySubtitle, { color: theme.muted }]}>
-            The received amount is now reflected in your wallet.
+            {t("swap_tokens.success.banner_subtitle", "The received amount is now reflected in your wallet.")}
           </Text>
         </View>
 
         {/* Swap flow visual */}
         <View style={styles.flowRow}>
           <View style={[styles.flowCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
-            <Text style={[styles.flowDirection, { color: theme.muted }]}>Swapped</Text>
+            <Text style={[styles.flowDirection, { color: theme.muted }]}>{t("swap_tokens.success.direction_swapped", "Swapped")}</Text>
             <Text style={[styles.flowToken, { color: theme.text }]}>{fromToken}</Text>
             <Text style={[styles.flowAmount, { color: theme.text }]}>
               {amountNum.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -101,7 +103,7 @@ export default function SwapSuccessScreen() {
           </View>
 
           <View style={[styles.flowCard, { backgroundColor: theme.accentSoft, borderColor: theme.accentBorder }]}>
-            <Text style={[styles.flowDirection, { color: theme.accent }]}>Received</Text>
+            <Text style={[styles.flowDirection, { color: theme.accent }]}>{t("swap_tokens.success.direction_received", "Received")}</Text>
             <Text style={[styles.flowToken, { color: theme.accent }]}>{toToken}</Text>
             <Text style={[styles.flowAmount, { color: theme.accent }]}>
               {receivedNum.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -114,10 +116,10 @@ export default function SwapSuccessScreen() {
           <View style={[styles.feeCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
             <View style={styles.feeRow}>
               <Ionicons name="receipt-outline" size={16} color={theme.muted} />
-              <Text style={[styles.feeLabel, { color: theme.muted }]}>Platform Fee</Text>
+              <Text style={[styles.feeLabel, { color: theme.muted }]}>{t("swap_tokens.success.fee_label", "Platform Fee")}</Text>
             </View>
             <Text style={[styles.feeValue, { color: theme.text }]}>
-              {feeNum.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {fromToken}
+              {t("swap_tokens.success.fee_value", "{{fee}} {{fromToken}}", { fee: feeNum.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }), fromToken })}
             </Text>
           </View>
         )}
@@ -128,7 +130,7 @@ export default function SwapSuccessScreen() {
             <Ionicons name="wallet-outline" size={16} color={theme.blue} />
           </View>
           <Text style={[styles.infoText, { color: isDark ? "#BFDBFE" : "#1E3A8A" }]}>
-            Your wallet balances have been updated to reflect this swap.
+            {t("swap_tokens.success.info_desc", "Your wallet balances have been updated to reflect this swap.")}
           </Text>
         </View>
 
@@ -140,7 +142,7 @@ export default function SwapSuccessScreen() {
             activeOpacity={0.8}
           >
             <Ionicons name="swap-horizontal" size={20} color={theme.accent} />
-            <Text style={[styles.swapAgainText, { color: theme.accent }]}>Swap Again</Text>
+            <Text style={[styles.swapAgainText, { color: theme.accent }]}>{t("swap_tokens.success.btn_swap_again", "Swap Again")}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -148,7 +150,7 @@ export default function SwapSuccessScreen() {
             onPress={handleDone}
             activeOpacity={0.85}
           >
-            <Text style={styles.doneBtnText}>Done</Text>
+            <Text style={styles.doneBtnText}>{t("swap_tokens.success.btn_done", "Done")}</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>

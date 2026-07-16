@@ -9,11 +9,12 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { useAgentStore } from "@/stores/slices/agentSlice";
 import { formatAmount, formatDate } from "@/utils/format";
+import { useTranslation } from "react-i18next";
 
-const getTypeConfig = (type: string) => {
-    if (type === "mint") return { label: "Mint", icon: "arrow-up-circle" as const, bg: "#ECFDF5", color: "#059669", border: "#A7F3D0" };
-    if (type === "burn") return { label: "Burn", icon: "arrow-down-circle" as const, bg: "#FFFBEB", color: "#D97706", border: "#FDE68A" };
-    return { label: type || "Transaction", icon: "cash" as const, bg: "#F3F4F6", color: "#6B7280", border: "#E5E7EB" };
+const getTypeConfig = (t: any, type: string) => {
+    if (type === "mint") return { label: t("agent.transaction_details.type_mint", "Mint"), icon: "arrow-up-circle" as const, bg: "#ECFDF5", color: "#059669", border: "#A7F3D0" };
+    if (type === "burn") return { label: t("agent.transaction_details.type_burn", "Burn"), icon: "arrow-down-circle" as const, bg: "#FFFBEB", color: "#D97706", border: "#FDE68A" };
+    return { label: type || t("agent.transaction_details.type_transaction", "Transaction"), icon: "cash" as const, bg: "#F3F4F6", color: "#6B7280", border: "#E5E7EB" };
 };
 
 const getStatusColor = (status: string) => {
@@ -25,7 +26,17 @@ const getStatusColor = (status: string) => {
     }
 };
 
+const getStatusLabel = (t: any, status?: string) => {
+    switch (String(status || "").toLowerCase()) {
+        case "completed": return t("agent.requests.status_completed", "COMPLETED");
+        case "pending": return t("agent.requests.status_pending", "PENDING");
+        case "failed": return t("agent.transaction_details.status_failed", "FAILED");
+        default: return String(status || "unknown").replace(/_/g, " ").toUpperCase();
+    }
+};
+
 export default function TransactionDetailsScreen() {
+    const { t } = useTranslation();
     const { id } = useLocalSearchParams();
     const router = useRouter();
     const { dashboardData } = useAgentStore();
@@ -53,10 +64,10 @@ export default function TransactionDetailsScreen() {
                     <LinearGradient colors={["#EDE9FE", "#DDD6FE"]} style={styles.errorIconCircle}>
                         <Ionicons name="alert-circle-outline" size={28} color="#7C3AED" />
                     </LinearGradient>
-                    <Text style={[styles.errorTitle, { color: theme.text }]}>Transaction unavailable</Text>
-                    <Text style={[styles.errorSub, { color: theme.muted }]}>This transaction could not be found.</Text>
+                    <Text style={[styles.errorTitle, { color: theme.text }]}>{t("agent.transaction_details.err_unavailable", "Transaction unavailable")}</Text>
+                    <Text style={[styles.errorSub, { color: theme.muted }]}>{t("agent.transaction_details.err_not_found", "This transaction could not be found.")}</Text>
                     <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} activeOpacity={0.85}>
-                        <Text style={styles.backBtnText}>Go back</Text>
+                        <Text style={styles.backBtnText}>{t("agent.transaction_details.go_back", "Go back")}</Text>
                     </TouchableOpacity>
                 </SafeAreaView>
             </View>
@@ -74,17 +85,17 @@ export default function TransactionDetailsScreen() {
         : tx.status === "completed"
             ? (parseFloat(String(tx.amount || 0)) * 0.01).toString()
             : "0";
-    const commissionLabel = tx.fee_kind === "agent_commission" ? (tx.fee_label || "Agent Commission") : "Commission earned";
+    const commissionLabel = tx.fee_kind === "agent_commission" ? (tx.fee_label || t("agent.transaction_details.agent_commission", "Agent Commission")) : t("agent.transaction_details.commission_earned", "Commission earned");
     const commission = formatAmount(commissionAmount, tokenType);
     const amountDisplay = formatAmount(tx.amount, tokenType);
-    const typeConfig = getTypeConfig(normalizedType);
+    const typeConfig = getTypeConfig(t, normalizedType);
     const statusColor = getStatusColor(tx.status);
 
     const infoRows = [
-        { label: "Flow", value: isMint ? "Mint to customer" : isBurn ? "Burn from customer" : tx.type },
-        { label: "Counterparty", value: counterparty || "User" },
-        { label: "Token", value: tokenType },
-        { label: "Reference", value: tx.reference || "—" },
+        { label: t("agent.transaction_details.flow", "Flow"), value: isMint ? t("agent.transaction_details.flow_mint", "Mint to customer") : isBurn ? t("agent.transaction_details.flow_burn", "Burn from customer") : tx.type },
+        { label: t("agent.transaction_details.counterparty", "Counterparty"), value: counterparty || t("agent.transaction_details.user", "User") },
+        { label: t("agent.transaction_details.token", "Token"), value: tokenType },
+        { label: t("agent.transaction_details.reference", "Reference"), value: tx.reference || "—" },
     ];
 
     return (
@@ -95,7 +106,7 @@ export default function TransactionDetailsScreen() {
                     <TouchableOpacity onPress={() => router.back()} style={[styles.headerBackBtn, { backgroundColor: theme.accentLight }]} activeOpacity={0.8}>
                         <Ionicons name="arrow-back" size={20} color={theme.accent} />
                     </TouchableOpacity>
-                    <Text style={[styles.headerTitle, { color: theme.text }]}>Transaction Details</Text>
+                    <Text style={[styles.headerTitle, { color: theme.text }]}>{t("agent.transaction_details.header_title", "Transaction Details")}</Text>
                     <View style={styles.headerSpacer} />
                 </View>
             </SafeAreaView>
@@ -113,11 +124,11 @@ export default function TransactionDetailsScreen() {
                         </View>
                         <View style={[styles.heroStatusPill, { backgroundColor: `${statusColor}25` }]}>
                             <Text style={[styles.heroStatusText, { color: "#FFFFFF" }]}>
-                                {String(tx.status || "completed").replace(/_/g, " ").toUpperCase()}
+                                {getStatusLabel(t, tx.status)}
                             </Text>
                         </View>
                     </View>
-                    <Text style={styles.heroAmountLabel}>Transaction Amount</Text>
+                    <Text style={styles.heroAmountLabel}>{t("agent.transaction_details.amount_label", "Transaction Amount")}</Text>
                     <Text style={styles.heroAmount}>{amountDisplay} {tokenType}</Text>
                     <Text style={styles.heroDate}>{formatDate(tx.created_at, true)}</Text>
                 </LinearGradient>
@@ -125,7 +136,7 @@ export default function TransactionDetailsScreen() {
                 {/* Transaction Summary */}
                 <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
                     <View style={[styles.cardAccentBar, { backgroundColor: typeConfig.color }]} />
-                    <Text style={[styles.cardTitle, { color: theme.text }]}>Transaction Summary</Text>
+                    <Text style={[styles.cardTitle, { color: theme.text }]}>{t("agent.transaction_details.summary", "Transaction Summary")}</Text>
                     {infoRows.map((row, idx) => (
                         <View key={row.label} style={[styles.infoRow, { borderBottomColor: theme.border }, idx === infoRows.length - 1 && { borderBottomWidth: 0 }]}>
                             <Text style={[styles.infoLabel, { color: theme.muted }]}>{row.label}</Text>
@@ -137,7 +148,7 @@ export default function TransactionDetailsScreen() {
                 {/* Commission card */}
                 <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
                     <View style={[styles.cardAccentBar, { backgroundColor: theme.green }]} />
-                    <Text style={[styles.cardTitle, { color: theme.text }]}>Settlement Details</Text>
+                    <Text style={[styles.cardTitle, { color: theme.text }]}>{t("agent.transaction_details.settlement_details", "Settlement Details")}</Text>
                     <View style={[styles.commissionBanner, { backgroundColor: isDark ? "rgba(0,177,79,0.1)" : "#ECFDF5", borderColor: isDark ? "rgba(0,177,79,0.2)" : "#A7F3D0" }]}>
                         <View>
                             <Text style={[styles.commissionLabel, { color: "#059669" }]}>{commissionLabel}</Text>
@@ -145,8 +156,8 @@ export default function TransactionDetailsScreen() {
                         <Text style={[styles.commissionValue, { color: theme.green }]}>+{commission} {tokenType}</Text>
                     </View>
                     {[
-                        { label: "Status", value: String(tx.status || "completed").replace(/_/g, " ").toUpperCase() },
-                        { label: "Recorded On", value: formatDate(tx.created_at, true) },
+                        { label: t("agent.transaction_details.status", "Status"), value: getStatusLabel(t, tx.status) },
+                        { label: t("agent.transaction_details.recorded_on", "Recorded On"), value: formatDate(tx.created_at, true) },
                     ].map((row, idx) => (
                         <View key={row.label} style={[styles.stripRow, { backgroundColor: theme.inputBg, borderColor: theme.border }]}>
                             <Text style={[styles.stripLabel, { color: theme.muted }]}>{row.label}</Text>
@@ -159,9 +170,9 @@ export default function TransactionDetailsScreen() {
                 {tx.metadata ? (
                     <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
                         <View style={[styles.cardAccentBar, { backgroundColor: theme.accent }]} />
-                        <Text style={[styles.cardTitle, { color: theme.text }]}>Additional Data</Text>
+                        <Text style={[styles.cardTitle, { color: theme.text }]}>{t("agent.transaction_details.additional_data", "Additional Data")}</Text>
                         <View style={[styles.metaBox, { backgroundColor: theme.inputBg, borderColor: theme.border }]}>
-                            <Text style={[styles.metaLabel, { color: theme.muted }]}>Metadata</Text>
+                            <Text style={[styles.metaLabel, { color: theme.muted }]}>{t("agent.transaction_details.metadata_label", "Metadata")}</Text>
                             <Text style={[styles.metaText, { color: theme.muted }]}>
                                 {JSON.stringify(tx.metadata, null, 2)}
                             </Text>

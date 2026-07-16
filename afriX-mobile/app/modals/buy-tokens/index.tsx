@@ -17,11 +17,13 @@ import { useWalletStore } from "@/stores";
 import { parseAmountInput, formatAmountForInput, formatAmount } from "@/utils/format";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
+import { useTranslation } from "react-i18next";
 
 const PRESET_AMOUNTS = [5000, 10000, 20000, 50000];
 
 export default function BuyTokensScreen() {
   const router = useRouter();
+  const { t } = useTranslation();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
   const { getWalletByType } = useWalletStore();
@@ -86,7 +88,10 @@ export default function BuyTokensScreen() {
   const wallet = getWalletByType(tokenType);
 
   const handleContinue = () => {
-    if (!amount || parseFloat(amount) <= 0) { alert("Please enter a valid amount"); return; }
+    if (!amount || parseFloat(amount) <= 0) {
+      alert(t("buy_tokens.index.err_invalid_amount", "Please enter a valid amount"));
+      return;
+    }
     if (preSelectedAgentId && preSelectedAgentName) {
       router.push({ pathname: "/modals/buy-tokens/payment-instructions", params: { tokenType, amount, agentId: preSelectedAgentId, agentName: preSelectedAgentName } });
     } else {
@@ -127,7 +132,7 @@ export default function BuyTokensScreen() {
               </TouchableOpacity>
 
               <View style={styles.headerCopy}>
-                <Text style={[styles.title, { color: theme.text }]}>Buy Tokens</Text>
+                <Text style={[styles.title, { color: theme.text }]}>{t("buy_tokens.index.header_title", "Buy Tokens")}</Text>
                 <Animated.View style={{
                   opacity: subtitleOpacity,
                   maxHeight: subtitleMaxHeight,
@@ -135,7 +140,7 @@ export default function BuyTokensScreen() {
                   overflow: "hidden"
                 }}>
                   <Text style={[styles.headerSubtitle, { color: theme.muted }]}>
-                    Select Naira or XOF token, set amount, and select an agent to finalize trade.
+                    {t("buy_tokens.index.header_subtitle", "Select Naira or XOF token, set amount, and select an agent to finalize trade.")}
                   </Text>
                 </Animated.View>
               </View>
@@ -171,7 +176,7 @@ export default function BuyTokensScreen() {
             >
               <Ionicons name="cash" size={16} color={isNT ? theme.accent : theme.muted} />
               <Text style={[styles.toggleText, { color: isNT ? theme.text : theme.muted, fontWeight: isNT ? "800" : "600" }]}>
-                Naira Token (NT)
+                {t("buy_tokens.index.naira_token", "Naira Token (NT)")}
               </Text>
             </TouchableOpacity>
 
@@ -185,7 +190,7 @@ export default function BuyTokensScreen() {
             >
               <Ionicons name="leaf" size={16} color={!isNT ? theme.ctGreen : theme.muted} />
               <Text style={[styles.toggleText, { color: !isNT ? theme.text : theme.muted, fontWeight: !isNT ? "800" : "600" }]}>
-                XOF Token (CT)
+                {t("buy_tokens.index.xof_token", "XOF Token (CT)")}
               </Text>
             </TouchableOpacity>
           </View>
@@ -209,14 +214,17 @@ export default function BuyTokensScreen() {
 
             {/* Helper text returned */}
             <Text style={[styles.amountHelperText, { color: theme.muted }]}>
-              Enter the amount of {tokenType} you want the agent to deliver.
+              {t("buy_tokens.index.amount_helper", "Enter the amount of {{tokenType}} you want the agent to deliver.", { tokenType })}
             </Text>
 
             {/* Live Exchange Rate Info Pill */}
             <View style={[styles.infoPill, { backgroundColor: theme.card, borderColor: theme.border }]}>
               <Ionicons name="swap-horizontal" size={14} color={theme.accent} />
               <Text style={[styles.infoPillText, { color: theme.muted }]}>
-                Estimated Pay: {isNT ? "₦" : "XOF "}{formatAmount(amount || "0", tokenType)}
+                {t("buy_tokens.index.estimated_pay", "Estimated Pay: {{currency}}{{amount}}", {
+                  currency: isNT ? "₦" : "XOF ",
+                  amount: formatAmount(amount || "0", tokenType)
+                })}
               </Text>
             </View>
           </View>
@@ -248,24 +256,30 @@ export default function BuyTokensScreen() {
           <View style={[styles.summaryBlock, { backgroundColor: theme.card, borderColor: theme.border }]}>
             <View style={styles.summaryRow}>
               <View style={styles.summaryCol}>
-                <Text style={[styles.summaryLabel, { color: theme.muted }]}>WALLET BALANCE</Text>
+                <Text style={[styles.summaryLabel, { color: theme.muted }]}>{t("buy_tokens.index.wallet_balance", "WALLET BALANCE")}</Text>
                 <Text style={[styles.summaryVal, { color: theme.text }]}>
                   {wallet ? parseFloat(wallet.balance).toLocaleString() : "0"} {tokenType}
                 </Text>
                 {wallet && (
                   <Text style={[styles.availableSubtext, { color: theme.accent }]}>
-                    Available: {parseFloat(wallet.available_balance).toLocaleString()}
+                    {t("buy_tokens.index.available_balance", "Available: {{amount}} {{tokenType}}", {
+                      amount: parseFloat(wallet.available_balance).toLocaleString(),
+                      tokenType
+                    })}
                   </Text>
                 )}
               </View>
               <View style={[styles.summaryDivider, { backgroundColor: theme.border }]} />
               <View style={styles.summaryCol}>
-                <Text style={[styles.summaryLabel, { color: theme.muted }]}>EXCHANGE RATE</Text>
+                <Text style={[styles.summaryLabel, { color: theme.muted }]}>{t("buy_tokens.index.exchange_rate", "EXCHANGE RATE")}</Text>
                 <Text style={[styles.summaryVal, { color: theme.accent }]}>
                   1 {tokenType} = {isNT ? "₦1.00" : "XOF 1.00"}
                 </Text>
                 <Text style={[styles.availableSubtext, { color: theme.muted }]}>
-                  You'll pay approx. {isNT ? "₦" : "XOF "}{formatAmount(amount || "0", tokenType)}
+                  {t("buy_tokens.index.you_pay_approx", "You'll pay approx. {{currency}}{{amount}}", {
+                    currency: isNT ? "₦" : "XOF ",
+                    amount: formatAmount(amount || "0", tokenType)
+                  })}
                 </Text>
               </View>
             </View>
@@ -283,7 +297,7 @@ export default function BuyTokensScreen() {
               disabled={!amount || parseFloat(amount) <= 0}
               activeOpacity={0.85}
             >
-              <Text style={styles.continueBtnText}>Continue to Agent Selection</Text>
+              <Text style={styles.continueBtnText}>{t("buy_tokens.index.btn_continue", "Continue to Agent Selection")}</Text>
               <Ionicons name="arrow-forward" size={20} color="#FFF" />
             </TouchableOpacity>
           </View>

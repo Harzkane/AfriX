@@ -19,6 +19,8 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useAuthStore } from "@/stores";
 import * as Haptics from "expo-haptics";
 
+import { useTranslation } from "react-i18next";
+
 interface PasswordFieldProps {
   label: string;
   value: string;
@@ -72,6 +74,7 @@ function PasswordField({
 }
 
 export default function ChangePasswordScreen() {
+  const { t } = useTranslation();
   const router = useRouter();
   const { changePassword, loading } = useAuthStore();
   const colorScheme = useColorScheme();
@@ -111,23 +114,23 @@ export default function ChangePasswordScreen() {
 
   const handleSubmit = async () => {
     if (!currentPassword.trim()) {
-      Alert.alert("Error", "Enter your current password");
+      Alert.alert(t("settings.change_password.err_title", "Error"), t("settings.change_password.err_current_required", "Enter your current password"));
       return;
     }
     if (!newPassword.trim()) {
-      Alert.alert("Error", "Enter a new password");
+      Alert.alert(t("settings.change_password.err_title", "Error"), t("settings.change_password.err_new_required", "Enter a new password"));
       return;
     }
     if (newPassword.length < 8) {
-      Alert.alert("Error", "New password must be at least 8 characters");
+      Alert.alert(t("settings.change_password.err_title", "Error"), t("settings.change_password.err_length", "New password must be at least 8 characters"));
       return;
     }
     if (newPassword !== confirmPassword) {
-      Alert.alert("Error", "New password and confirmation do not match");
+      Alert.alert(t("settings.change_password.err_title", "Error"), t("settings.change_password.err_mismatch", "New password and confirmation do not match"));
       return;
     }
     if (currentPassword === newPassword) {
-      Alert.alert("Error", "New password must be different from current password");
+      Alert.alert(t("settings.change_password.err_title", "Error"), t("settings.change_password.err_same", "New password must be different from current password"));
       return;
     }
 
@@ -135,11 +138,11 @@ export default function ChangePasswordScreen() {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       await changePassword(currentPassword, newPassword);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Alert.alert("Success", "Your password has been updated.", [
-        { text: "OK", onPress: () => router.replace("/(tabs)/profile") },
+      Alert.alert(t("settings.change_password.success_title", "Success"), t("settings.change_password.success_desc", "Your password has been updated."), [
+        { text: t("common.ok", "OK"), onPress: () => router.replace("/(tabs)/profile") },
       ]);
     } catch (error: any) {
-      Alert.alert("Error", error.message || "Failed to change password");
+      Alert.alert(t("settings.change_password.err_title", "Error"), error.message || t("settings.change_password.err_failed", "Failed to change password"));
     }
   };
 
@@ -163,10 +166,10 @@ export default function ChangePasswordScreen() {
               <Ionicons name="arrow-back" size={22} color={theme.text} />
             </TouchableOpacity>
             <View style={{ flex: 1 }}>
-              <Text style={[styles.headerTitle, { color: theme.text }]}>Change Password</Text>
+              <Text style={[styles.headerTitle, { color: theme.text }]}>{t("settings.change_password.header_title", "Change Password")}</Text>
               <Animated.View style={{ opacity: subtitleOpacity, maxHeight: subtitleMaxHeight, marginTop: subtitleMargin, overflow: "hidden" }}>
                 <Text style={[styles.headerSubtitle, { color: theme.muted }]}>
-                  Keep your account secure with a new password.
+                  {t("settings.change_password.header_subtitle", "Keep your account secure with a new password.")}
                 </Text>
               </Animated.View>
             </View>
@@ -192,41 +195,41 @@ export default function ChangePasswordScreen() {
 
         {/* Intro card */}
         <View style={[styles.introCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
-          <Text style={[styles.introEyebrow, { color: theme.accent }]}>PASSWORD SECURITY</Text>
-          <Text style={[styles.introTitle, { color: theme.text }]}>Create a stronger password</Text>
+          <Text style={[styles.introEyebrow, { color: theme.accent }]}>{t("settings.change_password.intro_eyebrow", "PASSWORD SECURITY")}</Text>
+          <Text style={[styles.introTitle, { color: theme.text }]}>{t("settings.change_password.intro_title", "Create a stronger password")}</Text>
           <Text style={[styles.introSubtitle, { color: theme.muted }]}>
-            Update your password regularly to keep your account protected across all of your devices.
+            {t("settings.change_password.intro_subtitle", "Update your password regularly to keep your account protected across all of your devices.")}
           </Text>
         </View>
 
         {/* Inputs card */}
-        <Text style={[styles.sectionLabel, { color: theme.muted }]}>Credentials</Text>
+        <Text style={[styles.sectionLabel, { color: theme.muted }]}>{t("settings.change_password.section_credentials", "Credentials")}</Text>
         <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
           <PasswordField
-            label="Current password"
+            label={t("settings.change_password.current_label", "Current password")}
             value={currentPassword}
             onChangeText={setCurrentPassword}
-            placeholder="Enter current password"
+            placeholder={t("settings.change_password.current_placeholder", "Enter current password")}
             secure={!showCurrent}
             onToggleSecure={() => setShowCurrent((prev) => !prev)}
             theme={theme}
           />
           <View style={[styles.cardDivider, { backgroundColor: theme.divider }]} />
           <PasswordField
-            label="New password"
+            label={t("settings.change_password.new_label", "New password")}
             value={newPassword}
             onChangeText={setNewPassword}
-            placeholder="At least 8 characters"
+            placeholder={t("settings.change_password.new_placeholder", "At least 8 characters")}
             secure={!showNew}
             onToggleSecure={() => setShowNew((prev) => !prev)}
             theme={theme}
           />
           <View style={[styles.cardDivider, { backgroundColor: theme.divider }]} />
           <PasswordField
-            label="Confirm new password"
+            label={t("settings.change_password.confirm_label", "Confirm new password")}
             value={confirmPassword}
             onChangeText={setConfirmPassword}
-            placeholder="Re-enter new password"
+            placeholder={t("settings.change_password.confirm_placeholder", "Re-enter new password")}
             secure={!showConfirm}
             onToggleSecure={() => setShowConfirm((prev) => !prev)}
             theme={theme}
@@ -239,9 +242,9 @@ export default function ChangePasswordScreen() {
             <Ionicons name="shield-checkmark-outline" size={16} color={theme.blue} />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={[styles.tipTitle, { color: isDark ? "#93C5FD" : "#1E40AF" }]}>Password requirements</Text>
+            <Text style={[styles.tipTitle, { color: isDark ? "#93C5FD" : "#1E40AF" }]}>{t("settings.change_password.tips_title", "Password requirements")}</Text>
             <Text style={[styles.tipDesc, { color: isDark ? "#BFDBFE" : "#1E3A8A" }]}>
-              Use a mix of upper/lowercase letters, numbers, and symbols to ensure maximum defense against password attacks.
+              {t("settings.change_password.tips_desc", "Use a mix of upper/lowercase letters, numbers, and symbols to ensure maximum defense against password attacks.")}
             </Text>
           </View>
         </View>
@@ -257,7 +260,7 @@ export default function ChangePasswordScreen() {
             <ActivityIndicator color="#FFFFFF" size="small" />
           ) : (
             <>
-              <Text style={styles.submitBtnText}>Update Password</Text>
+              <Text style={styles.submitBtnText}>{t("settings.change_password.btn_submit", "Update Password")}</Text>
               <Ionicons name="lock-closed-outline" size={18} color="#FFFFFF" />
             </>
           )}

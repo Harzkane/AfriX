@@ -17,9 +17,11 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSwapStore, useWalletStore } from "@/stores";
 import * as Haptics from "expo-haptics";
+import { useTranslation } from "react-i18next";
 
 export default function ConfirmSwapScreen() {
   const router = useRouter();
+  const { t } = useTranslation();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
   const insets = useSafeAreaInsets();
@@ -64,9 +66,9 @@ export default function ConfirmSwapScreen() {
       router.replace("/modals/swap-tokens/success");
     } catch (e: any) {
       Alert.alert(
-        "Swap Failed",
-        e.response?.data?.message || e.message || "Please try again",
-        [{ text: "OK" }]
+        t("swap_tokens.confirm.err_failed_title", "Swap Failed"),
+        e.response?.data?.message || e.message || t("swap_tokens.confirm.err_failed_fallback", "Please try again"),
+        [{ text: t("common.ok", "OK") }]
       );
     }
   };
@@ -98,10 +100,10 @@ export default function ConfirmSwapScreen() {
               <Ionicons name="arrow-back" size={22} color={theme.text} />
             </TouchableOpacity>
             <View style={{ flex: 1 }}>
-              <Text style={[styles.headerTitle, { color: theme.text }]}>Confirm Swap</Text>
+              <Text style={[styles.headerTitle, { color: theme.text }]}>{t("swap_tokens.confirm.header_title", "Confirm Swap")}</Text>
               <Animated.View style={{ opacity: subtitleOpacity, maxHeight: subtitleMaxHeight, marginTop: subtitleMargin, overflow: "hidden" }}>
                 <Text style={[styles.headerSubtitle, { color: theme.muted }]}>
-                  Review your conversion before submitting.
+                  {t("swap_tokens.confirm.header_subtitle", "Review your conversion before submitting.")}
                 </Text>
               </Animated.View>
             </View>
@@ -126,10 +128,10 @@ export default function ConfirmSwapScreen() {
 
         {/* Intro card */}
         <View style={[styles.introCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
-          <Text style={[styles.introEyebrow, { color: theme.accent }]}>FINAL REVIEW</Text>
-          <Text style={[styles.introTitle, { color: theme.text }]}>Everything looks ready</Text>
+          <Text style={[styles.introEyebrow, { color: theme.accent }]}>{t("swap_tokens.confirm.intro_eyebrow", "FINAL REVIEW")}</Text>
+          <Text style={[styles.introTitle, { color: theme.text }]}>{t("swap_tokens.confirm.intro_title", "Everything looks ready")}</Text>
           <Text style={[styles.introSubtitle, { color: theme.muted }]}>
-            Verify the tokens, amounts, and exchange rate below before submitting this instant conversion.
+            {t("swap_tokens.confirm.intro_desc", "Verify the tokens, amounts, and exchange rate below before submitting this instant conversion.")}
           </Text>
         </View>
 
@@ -137,7 +139,7 @@ export default function ConfirmSwapScreen() {
         <View style={styles.flowRow}>
           {/* From token */}
           <View style={[styles.flowCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
-            <Text style={[styles.flowDirection, { color: theme.muted }]}>You send</Text>
+            <Text style={[styles.flowDirection, { color: theme.muted }]}>{t("swap_tokens.confirm.direction_send", "You send")}</Text>
             <Text style={[styles.flowToken, { color: theme.text }]}>{fromToken}</Text>
             <Text style={[styles.flowAmount, { color: theme.text }]}>
               {amountNum.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -151,7 +153,7 @@ export default function ConfirmSwapScreen() {
 
           {/* To token */}
           <View style={[styles.flowCard, { backgroundColor: theme.accentSoft, borderColor: theme.accentBorder }]}>
-            <Text style={[styles.flowDirection, { color: theme.accent }]}>You receive</Text>
+            <Text style={[styles.flowDirection, { color: theme.accent }]}>{t("swap_tokens.confirm.direction_receive", "You receive")}</Text>
             <Text style={[styles.flowToken, { color: theme.accent }]}>{toToken}</Text>
             <Text style={[styles.flowAmount, { color: theme.accent }]}>
               {estimatedNum.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -162,23 +164,26 @@ export default function ConfirmSwapScreen() {
         {/* Details card */}
         <View style={[styles.detailsCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
           <DetailRow
-            label="Exchange Rate"
-            value={`1 ${fromToken} = ${exchangeRate.toFixed(4)} ${toToken}`}
+            label={t("swap_tokens.confirm.detail_rate_label", "Exchange Rate")}
+            value={t("swap_tokens.confirm.detail_rate_value", "1 {{fromToken}} = {{rate}} {{toToken}}", { fromToken, rate: exchangeRate.toFixed(4), toToken })}
           />
           {swapFee > 0 && (
             <>
               <View style={[styles.divider, { backgroundColor: theme.border }]} />
               <DetailRow
-                label="Platform Fee (1.5%)"
-                value={`${swapFee.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${fromToken}`}
+                label={t("swap_tokens.confirm.detail_fee_label", "Platform Fee (1.5%)")}
+                value={t("swap_tokens.confirm.detail_fee_value", "{{fee}} {{fromToken}}", { fee: swapFee.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }), fromToken })}
               />
             </>
           )}
           <View style={[styles.divider, { backgroundColor: theme.border }]} />
-          <DetailRow label="Amount Sent" value={`${amountNum.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${fromToken}`} />
           <DetailRow
-            label="Estimated Received"
-            value={`${estimatedNum.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${toToken}`}
+            label={t("swap_tokens.confirm.detail_amount_sent_label", "Amount Sent")}
+            value={t("swap_tokens.confirm.detail_amount_sent_value", "{{amount}} {{fromToken}}", { amount: amountNum.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }), fromToken })}
+          />
+          <DetailRow
+            label={t("swap_tokens.confirm.detail_estimated_received_label", "Estimated Received")}
+            value={t("swap_tokens.confirm.detail_estimated_received_value", "{{amount}} {{toToken}}", { amount: estimatedNum.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }), toToken })}
             accent
           />
         </View>
@@ -189,9 +194,9 @@ export default function ConfirmSwapScreen() {
             <Ionicons name="flash" size={16} color={theme.blue} />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={[styles.infoTitle, { color: isDark ? "#93C5FD" : "#1E40AF" }]}>Rate locked for this session</Text>
+            <Text style={[styles.infoTitle, { color: isDark ? "#93C5FD" : "#1E40AF" }]}>{t("swap_tokens.confirm.rate_lock_title", "Rate locked for this session")}</Text>
             <Text style={[styles.infoDesc, { color: isDark ? "#BFDBFE" : "#1E3A8A" }]}>
-              The exchange rate shown is locked for this transaction and won't change once confirmed.
+              {t("swap_tokens.confirm.rate_lock_desc", "The exchange rate shown is locked for this transaction and won't change once confirmed.")}
             </Text>
           </View>
         </View>
@@ -212,7 +217,7 @@ export default function ConfirmSwapScreen() {
             disabled={loading}
             activeOpacity={0.7}
           >
-            <Text style={[styles.backBtnText, { color: theme.muted }]}>Back</Text>
+            <Text style={[styles.backBtnText, { color: theme.muted }]}>{t("swap_tokens.confirm.btn_back", "Back")}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -226,7 +231,7 @@ export default function ConfirmSwapScreen() {
             ) : (
               <>
                 <Ionicons name="checkmark-circle-outline" size={20} color="#FFF" />
-                <Text style={styles.confirmBtnText}>Confirm Swap</Text>
+                <Text style={styles.confirmBtnText}>{t("swap_tokens.confirm.btn_confirm", "Confirm Swap")}</Text>
               </>
             )}
           </TouchableOpacity>

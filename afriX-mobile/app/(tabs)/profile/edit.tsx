@@ -21,6 +21,7 @@ import apiClient from "@/services/apiClient";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
+import { useTranslation } from "react-i18next";
 
 // Defined OUTSIDE to prevent focus loss on re-render
 function ProfileField({
@@ -113,6 +114,7 @@ export default function EditProfileScreen() {
   const scrollY = useRef(new Animated.Value(0)).current;
   const [headerMaxHeight, setHeaderMaxHeight] = useState(insets.top + 70);
   const [loading, setLoading] = useState(false);
+  const { t } = useTranslation();
 
   const theme = {
     background: isDark ? "#07111A" : "#F5F7FB",
@@ -145,7 +147,7 @@ export default function EditProfileScreen() {
 
   const handleSave = async () => {
     if (!fullName.trim()) {
-      Alert.alert("Error", "Full name is required");
+      Alert.alert(t("profile.error_title", "Error"), t("profile.error_name_required", "Full name is required"));
       return;
     }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -158,12 +160,12 @@ export default function EditProfileScreen() {
       if (response.data.success) {
         setUser(response.data.data);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        Alert.alert("Success", "Profile updated successfully", [
-          { text: "OK", onPress: () => router.back() },
+        Alert.alert(t("profile.save_success_title", "Success"), t("profile.save_success_desc", "Profile updated successfully"), [
+          { text: t("profile.ok_btn", "OK"), onPress: () => router.back() },
         ]);
       }
     } catch (error: any) {
-      Alert.alert("Error", error.response?.data?.message || "Failed to update profile");
+      Alert.alert(t("profile.error_title", "Error"), error.response?.data?.message || t("profile.error_save_failed", "Failed to update profile"));
     } finally {
       setLoading(false);
     }
@@ -189,10 +191,10 @@ export default function EditProfileScreen() {
               <Ionicons name="arrow-back" size={22} color={theme.text} />
             </TouchableOpacity>
             <View style={{ flex: 1 }}>
-              <Text style={[styles.headerTitle, { color: theme.text }]}>Edit Profile</Text>
+              <Text style={[styles.headerTitle, { color: theme.text }]}>{t("profile.edit_profile_title", "Edit Profile")}</Text>
               <Animated.View style={{ opacity: subtitleOpacity, maxHeight: subtitleMaxHeight, marginTop: subtitleMargin, overflow: "hidden" }}>
                 <Text style={[styles.headerSubtitle, { color: theme.muted }]}>
-                  Update your personal information.
+                  {t("profile.edit_profile_desc", "Update your personal information.")}
                 </Text>
               </Animated.View>
             </View>
@@ -235,41 +237,41 @@ export default function EditProfileScreen() {
             </LinearGradient>
 
             <View style={{ flex: 1 }}>
-              <Text style={[styles.avatarName, { color: theme.text }]}>{user?.full_name || "Your Name"}</Text>
+              <Text style={[styles.avatarName, { color: theme.text }]}>{user?.full_name || t("profile.your_name", "Your Name")}</Text>
               <Text style={[styles.avatarEmail, { color: theme.muted }]}>{user?.email}</Text>
 
               <View style={styles.badgeRow}>
                 {user?.email_verified && (
                   <View style={[styles.badge, { backgroundColor: theme.accentSoft, borderColor: theme.accentBorder }]}>
                     <Ionicons name="checkmark-circle" size={11} color={theme.accent} />
-                    <Text style={[styles.badgeText, { color: theme.accent }]}>Verified</Text>
+                    <Text style={[styles.badgeText, { color: theme.accent }]}>{t("profile.verification_verified", "Verified")}</Text>
                   </View>
                 )}
                 <View style={[styles.badge, { backgroundColor: isDark ? "rgba(59,130,246,0.12)" : "#EFF6FF", borderColor: isDark ? "rgba(59,130,246,0.25)" : "#DBEAFE" }]}>
                   <Ionicons name="shield-checkmark-outline" size={11} color="#3B82F6" />
-                  <Text style={[styles.badgeText, { color: "#3B82F6" }]}>Level {user?.verification_level || 0}</Text>
+                  <Text style={[styles.badgeText, { color: "#3B82F6" }]}>{t("profile.level_value", "Level {{level}}", { level: user?.verification_level || 0 })}</Text>
                 </View>
               </View>
             </View>
           </View>
 
           {/* Editable fields */}
-          <Text style={[styles.sectionLabel, { color: theme.muted }]}>Personal Information</Text>
+          <Text style={[styles.sectionLabel, { color: theme.muted }]}>{t("profile.section_personal_info", "Personal Information")}</Text>
           <View style={[styles.formCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
             <ProfileField
-              label="Full Name"
+              label={t("profile.fullname_label", "Full Name")}
               value={fullName}
               onChangeText={setFullName}
-              placeholder="Enter your full name"
+              placeholder={t("profile.fullname_placeholder", "Enter your full name")}
               icon="person-outline"
               theme={theme}
             />
             <View style={[styles.cardDivider, { backgroundColor: theme.divider }]} />
             <ProfileField
-              label="Phone Number"
+              label={t("profile.phone_label", "Phone Number")}
               value={phoneNumber}
               onChangeText={setPhoneNumber}
-              placeholder="+234..."
+              placeholder={t("profile.phone_placeholder", "+234...")}
               keyboardType="phone-pad"
               autoCapitalize="none"
               icon="call-outline"
@@ -283,24 +285,24 @@ export default function EditProfileScreen() {
               <Ionicons name="information-circle-outline" size={16} color={theme.amber} />
             </View>
             <Text style={[styles.warningText, { color: isDark ? "#FCD34D" : "#92400E" }]}>
-              Changing your phone number will require re-verification before it becomes active.
+              {t("profile.phone_change_warning", "Changing your phone number will require re-verification before it becomes active.")}
             </Text>
           </View>
 
           {/* Read-only fields */}
-          <Text style={[styles.sectionLabel, { color: theme.muted }]}>Account Details</Text>
+          <Text style={[styles.sectionLabel, { color: theme.muted }]}>{t("profile.section_account_details", "Account Details")}</Text>
           <View style={[styles.formCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
             <ProfileField
-              label="Email Address"
+              label={t("profile.email_label", "Email Address")}
               value={user?.email || ""}
-              placeholder="Email address"
+              placeholder={t("profile.email_placeholder", "Email address")}
               icon="mail-outline"
               editable={false}
               theme={theme}
             />
             <View style={[styles.cardDivider, { backgroundColor: theme.divider }]} />
             <ProfileField
-              label="Account Role"
+              label={t("profile.role_label", "Account Role")}
               value={user?.role?.charAt(0).toUpperCase() + (user?.role?.slice(1) || "") || "User"}
               placeholder="Role"
               icon="briefcase-outline"
@@ -313,7 +315,7 @@ export default function EditProfileScreen() {
           <View style={[styles.infoCard, { backgroundColor: theme.accentSoft, borderColor: theme.accentBorder }]}>
             <Ionicons name="lock-closed-outline" size={14} color={theme.accent} />
             <Text style={[styles.infoText, { color: isDark ? "#6EE7B7" : "#065F46" }]}>
-              Email and role fields are managed by the system and cannot be changed here. Contact support to update these.
+              {t("profile.readonly_info_tip", "Email and role fields are managed by the system and cannot be changed here. Contact support to update these.")}
             </Text>
           </View>
 
@@ -328,7 +330,7 @@ export default function EditProfileScreen() {
               <ActivityIndicator color="#FFFFFF" size="small" />
             ) : (
               <>
-                <Text style={styles.saveBtnText}>Save Changes</Text>
+                <Text style={styles.saveBtnText}>{t("profile.save_changes_btn", "Save Changes")}</Text>
                 <Ionicons name="checkmark-circle-outline" size={20} color="#FFFFFF" />
               </>
             )}

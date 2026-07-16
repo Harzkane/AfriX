@@ -16,6 +16,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { isXOFToken } from "@/constants/payment";
 import { XOF_MOBILE_MONEY_PROVIDERS } from "@/constants/payment";
+import { useTranslation } from "react-i18next";
 
 type PaymentMethod = "bank" | "mobile_money";
 
@@ -27,6 +28,7 @@ export default function BankDetailsScreen() {
     agentId?: string;
     agentName?: string;
   }>();
+  const { t } = useTranslation();
 
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
@@ -124,11 +126,11 @@ export default function BankDetailsScreen() {
               </TouchableOpacity>
               <View style={styles.headerText}>
                 <Text style={[styles.headerTitle, { color: theme.text }]}>
-                  {showPaymentChoice ? "Receive Payment" : "Recipient Bank"}
+                  {showPaymentChoice ? t("sell_tokens.receive_payment", "Receive Payment") : t("sell_tokens.recipient_bank", "Recipient Bank")}
                 </Text>
                 <Animated.View style={{ opacity: subtitleOpacity, maxHeight: subtitleMaxHeight, marginTop: subtitleMargin, overflow: "hidden" }}>
                   <Text style={[styles.headerSubtitle, { color: theme.muted }]}>
-                    Provide details where agent will send cash.
+                    {t("sell_tokens.bank_subtitle", "Provide details where agent will send cash.")}
                   </Text>
                 </Animated.View>
               </View>
@@ -153,12 +155,12 @@ export default function BankDetailsScreen() {
           />
 
           <View style={[styles.introCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
-            <Text style={[styles.introEyebrow, { color: theme.accent }]}>RECEIVE DETAILS</Text>
-            <Text style={[styles.introTitle, { color: theme.text }]}>Where should we send funds?</Text>
+            <Text style={[styles.introEyebrow, { color: theme.accent }]}>{t("sell_tokens.receive_details_label", "RECEIVE DETAILS")}</Text>
+            <Text style={[styles.introTitle, { color: theme.text }]}>{t("sell_tokens.where_send_funds", "Where should we send funds?")}</Text>
             <Text style={[styles.introSubtitle, { color: theme.muted }]}>
               {showPaymentChoice
-                ? "Choose how you want to receive payment. In XOF countries most agents use mobile money (Orange Money, Wave, MTN) or bank transfer."
-                : "Provide the bank account details where your chosen agent will transfer the local currency."}
+                ? t("sell_tokens.intro_desc_xof", "Choose how you want to receive payment. In XOF countries most agents use mobile money (Orange Money, Wave, MTN) or bank transfer.")
+                : t("sell_tokens.intro_desc_other", "Provide the bank account details where your chosen agent will transfer the local currency.")}
             </Text>
           </View>
 
@@ -176,7 +178,7 @@ export default function BankDetailsScreen() {
               >
                 <Ionicons name="business-outline" size={20} color={paymentMethod === "bank" ? theme.accent : theme.muted} />
                 <Text style={[styles.methodBtnText, { color: paymentMethod === "bank" ? theme.accent : theme.muted }]}>
-                  Bank
+                  {t("sell_tokens.method_bank", "Bank")}
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
@@ -190,7 +192,7 @@ export default function BankDetailsScreen() {
               >
                 <Ionicons name="phone-portrait-outline" size={20} color={paymentMethod === "mobile_money" ? theme.accent : theme.muted} />
                 <Text style={[styles.methodBtnText, { color: paymentMethod === "mobile_money" ? theme.accent : theme.muted }]}>
-                  Mobile Money
+                  {t("agents.mobile_money_header", "Mobile Money")}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -201,7 +203,7 @@ export default function BankDetailsScreen() {
             {paymentMethod === "bank" ? (
               <>
                 <View style={styles.formGroup}>
-                  <Text style={[styles.label, { color: theme.text }]}>Bank Name</Text>
+                  <Text style={[styles.label, { color: theme.text }]}>{t("agents.bank_name_label", "Bank Name")}</Text>
                   <View style={[styles.inputWrapper, { backgroundColor: theme.inputBg, borderColor: theme.border }]}>
                     <Ionicons name="business-outline" size={20} color={theme.placeholder} style={styles.inputIcon} />
                     <TextInput
@@ -215,7 +217,7 @@ export default function BankDetailsScreen() {
                 </View>
 
                 <View style={styles.formGroup}>
-                  <Text style={[styles.label, { color: theme.text }]}>Account Number</Text>
+                  <Text style={[styles.label, { color: theme.text }]}>{t("agents.account_number_label", "Account Number")}</Text>
                   <View style={[styles.inputWrapper, { backgroundColor: theme.inputBg, borderColor: theme.border }]}>
                     <Ionicons name="card-outline" size={20} color={theme.placeholder} style={styles.inputIcon} />
                     <TextInput
@@ -231,12 +233,12 @@ export default function BankDetailsScreen() {
                 </View>
 
                 <View style={styles.formGroup}>
-                  <Text style={[styles.label, { color: theme.text }]}>Account Holder Name</Text>
+                  <Text style={[styles.label, { color: theme.text }]}>{t("sell_tokens.account_holder_name", "Account Holder Name")}</Text>
                   <View style={[styles.inputWrapper, { backgroundColor: theme.inputBg, borderColor: theme.border }]}>
                     <Ionicons name="person-outline" size={20} color={theme.placeholder} style={styles.inputIcon} />
                     <TextInput
                       style={[styles.input, { color: theme.text }]}
-                      placeholder="Full name as on account"
+                      placeholder={t("sell_tokens.fullname_on_account", "Full name as on account")}
                       placeholderTextColor={theme.placeholder}
                       value={accountName}
                       onChangeText={setAccountName}
@@ -247,7 +249,7 @@ export default function BankDetailsScreen() {
             ) : (
               <>
                 <View style={styles.formGroup}>
-                  <Text style={[styles.label, { color: theme.text }]}>Mobile Money Provider</Text>
+                  <Text style={[styles.label, { color: theme.text }]}>{t("sell_tokens.momo_provider", "Mobile Money Provider")}</Text>
                   <View style={styles.pickerRow}>
                     {XOF_MOBILE_MONEY_PROVIDERS.map((p) => {
                       const isActive = mobileProvider === p;
@@ -272,7 +274,7 @@ export default function BankDetailsScreen() {
                 </View>
 
                 <View style={styles.formGroup}>
-                  <Text style={[styles.label, { color: theme.text }]}>Phone Number</Text>
+                  <Text style={[styles.label, { color: theme.text }]}>{t("agents.phone_number_label", "Phone Number")}</Text>
                   <View style={[styles.inputWrapper, { backgroundColor: theme.inputBg, borderColor: theme.border }]}>
                     <Ionicons name="call-outline" size={20} color={theme.placeholder} style={styles.inputIcon} />
                     <TextInput
@@ -287,12 +289,12 @@ export default function BankDetailsScreen() {
                 </View>
 
                 <View style={styles.formGroup}>
-                  <Text style={[styles.label, { color: theme.text }]}>Account / Wallet Holder Name</Text>
+                  <Text style={[styles.label, { color: theme.text }]}>{t("sell_tokens.momo_holder_name", "Account / Wallet Holder Name")}</Text>
                   <View style={[styles.inputWrapper, { backgroundColor: theme.inputBg, borderColor: theme.border }]}>
                     <Ionicons name="person-outline" size={20} color={theme.placeholder} style={styles.inputIcon} />
                     <TextInput
                       style={[styles.input, { color: theme.text }]}
-                      placeholder="Full name as on mobile money"
+                      placeholder={t("sell_tokens.fullname_on_momo", "Full name as on mobile money")}
                       placeholderTextColor={theme.placeholder}
                       value={accountName}
                       onChangeText={setAccountName}
@@ -307,7 +309,7 @@ export default function BankDetailsScreen() {
           <View style={[styles.warningBox, { backgroundColor: theme.warningSoft, borderColor: theme.warningBorder }]}>
             <Ionicons name="alert-circle" size={20} color={theme.warning} style={{ marginTop: 1 }} />
             <Text style={[styles.warningText, { color: isDark ? "#FDE68A" : "#92400E" }]}>
-              Please double-check these details. Incorrect information will lead to permanently lost funds.
+              {t("sell_tokens.warning_incorrect_details", "Please double-check these details. Incorrect information will lead to permanently lost funds.")}
             </Text>
           </View>
 
@@ -318,7 +320,7 @@ export default function BankDetailsScreen() {
             disabled={!isFormValid}
             activeOpacity={0.85}
           >
-            <Text style={styles.continueText}>Review & Confirm</Text>
+            <Text style={styles.continueText}>{t("sell_tokens.btn_review_confirm", "Review & Confirm")}</Text>
             <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />
           </TouchableOpacity>
 

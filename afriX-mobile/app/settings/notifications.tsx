@@ -19,6 +19,8 @@ import { useAuthStore } from "@/stores";
 import apiClient from "@/services/apiClient";
 import * as Haptics from "expo-haptics";
 
+import { useTranslation } from "react-i18next";
+
 type NotificationSettingsData = {
   push: {
     enabled: boolean;
@@ -38,6 +40,7 @@ type NotificationSettingsData = {
 };
 
 export default function NotificationScreen() {
+  const { t } = useTranslation();
   const router = useRouter();
   const { user, setUser } = useAuthStore();
   const colorScheme = useColorScheme();
@@ -243,10 +246,10 @@ export default function NotificationScreen() {
               <Ionicons name="arrow-back" size={22} color={theme.text} />
             </TouchableOpacity>
             <View style={{ flex: 1 }}>
-              <Text style={[styles.headerTitle, { color: theme.text }]}>Notifications</Text>
+              <Text style={[styles.headerTitle, { color: theme.text }]}>{t("settings.notifications.header_title", "Notifications")}</Text>
               <Animated.View style={{ opacity: subtitleOpacity, maxHeight: subtitleMaxHeight, marginTop: subtitleMargin, overflow: "hidden" }}>
                 <Text style={[styles.headerSubtitle, { color: theme.muted }]}>
-                  Manage your notification preferences.
+                  {t("settings.notifications.header_subtitle", "Manage your notification preferences.")}
                 </Text>
               </Animated.View>
             </View>
@@ -271,22 +274,22 @@ export default function NotificationScreen() {
 
         {/* Summary Card */}
         <View style={[styles.introCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
-          <Text style={[styles.introEyebrow, { color: theme.accent }]}>ALERT PREFERENCES</Text>
-          <Text style={[styles.introTitle, { color: theme.text }]}>Control how we keep you informed</Text>
+          <Text style={[styles.introEyebrow, { color: theme.accent }]}>{t("settings.notifications.intro_eyebrow", "ALERT PREFERENCES")}</Text>
+          <Text style={[styles.introTitle, { color: theme.text }]}>{t("settings.notifications.intro_title", "Control how we keep you informed")}</Text>
           <Text style={[styles.introSubtitle, { color: theme.muted }]}>
-            Choose your preferred channels and select which transaction, security, and promotional updates you want to receive.
+            {t("settings.notifications.intro_subtitle", "Choose your preferred channels and select which transaction, security, and promotional updates you want to receive.")}
           </Text>
         </View>
 
         {/* ── Channels ── */}
-        <Text style={[styles.sectionLabel, { color: theme.muted }]}>Channels</Text>
+        <Text style={[styles.sectionLabel, { color: theme.muted }]}>{t("settings.notifications.section_channels", "Channels")}</Text>
         <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
           <SettingRow
             icon="notifications-outline"
             iconColor={theme.accent}
             iconBg={theme.accentSoft}
-            title="Push Notifications"
-            subtitle="Receive alerts on this device"
+            title={t("settings.notifications.push_title", "Push Notifications")}
+            subtitle={t("settings.notifications.push_subtitle", "Receive alerts on this device")}
             value={pushEnabled}
             onValueChange={(val) => handleToggle("push", val)}
             disabled={updating}
@@ -296,8 +299,8 @@ export default function NotificationScreen() {
             icon="mail-outline"
             iconColor={theme.blue}
             iconBg={theme.blueSoft}
-            title="Email Notifications"
-            subtitle="Receive updates via email address"
+            title={t("settings.notifications.email_title", "Email Notifications")}
+            subtitle={t("settings.notifications.email_subtitle", "Receive updates via email address")}
             value={emailEnabled}
             onValueChange={(val) => handleToggle("email", val)}
             disabled={updating}
@@ -311,23 +314,23 @@ export default function NotificationScreen() {
           </View>
           <View style={{ flex: 1 }}>
             <View style={styles.smsTitleRow}>
-              <Text style={[styles.smsTitle, { color: isDark ? "#FCD34D" : "#92400E" }]}>SMS Notifications</Text>
+              <Text style={[styles.smsTitle, { color: isDark ? "#FCD34D" : "#92400E" }]}>{t("settings.notifications.sms_title", "SMS Notifications")}</Text>
               <View style={[styles.smsBadge, { backgroundColor: isDark ? "#1E2A3A" : "#FFFFFF", borderColor: theme.amberBorder }]}>
-                <Text style={[styles.smsBadgeText, { color: theme.amber }]}>Coming soon</Text>
+                <Text style={[styles.smsBadgeText, { color: theme.amber }]}>{t("common.coming_soon", "Coming soon")}</Text>
               </View>
             </View>
             <Text style={[styles.smsDesc, { color: isDark ? "#FDE68A" : "#B45309" }]}>
-              Critical SMS transactional updates are planned, but they are not active on your account yet.
+              {t("settings.notifications.sms_desc", "Critical SMS transactional updates are planned, but they are not active on your account yet.")}
             </Text>
           </View>
         </View>
 
         {/* ── Alert Types ── */}
-        <Text style={[styles.sectionLabel, { color: theme.muted }]}>Alert Types</Text>
+        <Text style={[styles.sectionLabel, { color: theme.muted }]}>{t("settings.notifications.section_alert_types", "Alert Types")}</Text>
         {loadingSettings ? (
           <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border, paddingVertical: 32, alignItems: "center", justifyContent: "center" }]}>
             <ActivityIndicator size="small" color={theme.accent} />
-            <Text style={[styles.loadingText, { color: theme.muted }]}>Loading preferences...</Text>
+            <Text style={[styles.loadingText, { color: theme.muted }]}>{t("settings.notifications.loading_prefs", "Loading preferences...")}</Text>
           </View>
         ) : (
           <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
@@ -335,8 +338,8 @@ export default function NotificationScreen() {
               icon="wallet-outline"
               iconColor={theme.accent}
               iconBg={theme.accentSoft}
-              title="Transaction updates"
-              subtitle="Mint, burn, and transfer notifications"
+              title={t("settings.notifications.alert_transactions_title", "Transaction updates")}
+              subtitle={t("settings.notifications.alert_transactions_subtitle", "Mint, burn, and transfer notifications")}
               value={transactions}
               onValueChange={(val) => handleAlertTypeToggle("transactions", val)}
               disabled={updating}
@@ -346,8 +349,8 @@ export default function NotificationScreen() {
               icon="git-pull-request-outline"
               iconColor={theme.teal}
               iconBg={theme.tealSoft}
-              title="Request updates"
-              subtitle="Mint, burn, and dispute status changes"
+              title={t("settings.notifications.alert_requests_title", "Request updates")}
+              subtitle={t("settings.notifications.alert_requests_subtitle", "Mint, burn, and dispute status changes")}
               value={requests}
               onValueChange={(val) => handleAlertTypeToggle("requests", val)}
               disabled={updating || !pushEnabled}
@@ -357,8 +360,8 @@ export default function NotificationScreen() {
               icon="shield-checkmark-outline"
               iconColor={theme.red}
               iconBg={theme.redSoft}
-              title="Security alerts"
-              subtitle="Login prompts and key credential changes"
+              title={t("settings.notifications.alert_security_title", "Security alerts")}
+              subtitle={t("settings.notifications.alert_security_subtitle", "Login prompts and key credential changes")}
               value={security}
               onValueChange={(val) => handleAlertTypeToggle("security", val)}
               disabled={updating}
@@ -368,8 +371,8 @@ export default function NotificationScreen() {
               icon="briefcase-outline"
               iconColor={theme.purple}
               iconBg={theme.purpleSoft}
-              title="Agent updates"
-              subtitle="Withdrawals, deposits, and agent verification status"
+              title={t("settings.notifications.alert_agent_title", "Agent updates")}
+              subtitle={t("settings.notifications.alert_agent_subtitle", "Withdrawals, deposits, and agent verification status")}
               value={agentUpdates}
               onValueChange={(val) => handleAlertTypeToggle("agentUpdates", val)}
               disabled={updating}
@@ -379,8 +382,8 @@ export default function NotificationScreen() {
               icon="megaphone-outline"
               iconColor={theme.amber}
               iconBg={theme.amberSoft}
-              title="Marketing & promos"
-              subtitle="Product news, special offers, and market reports"
+              title={t("settings.notifications.alert_marketing_title", "Marketing & promos")}
+              subtitle={t("settings.notifications.alert_marketing_subtitle", "Product news, special offers, and market reports")}
               value={marketing}
               onValueChange={(val) => handleAlertTypeToggle("marketing", val)}
               disabled={updating}

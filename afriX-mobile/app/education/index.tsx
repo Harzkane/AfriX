@@ -21,145 +21,51 @@ import Markdown from "react-native-markdown-display";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
 import type { Quiz, SubmitResult } from "@/stores/types/education.types";
+import { useTranslation } from "react-i18next";
 
-const MODULES = [
+const MODULE_DEFS = [
   {
     id: "what_are_tokens",
-    title: "What are Tokens?",
-    subtitle: "Crypto Basics",
-    description: "Understand the basics of digital tokens and how they work.",
     icon: "cube-outline",
     color: "#3B82F6",
     gradientColors: ["#3B82F6", "#1D4ED8"],
-    duration: "3 min read",
     xp: 100,
-    content: `
-# What are Tokens?
-
-## Introduction
-Tokens are like digital vouchers that represent value. Think of them like mobile phone credit - you buy credit, use it, but it's not actual physical cash.
-
-## Key Concepts
-
-1.  **Digital Assets**: NT and CT are digital assets on a blockchain.
-2.  **Reference Rates**:
-    *   **1 NT** ≈ 1 Nigerian Naira
-    *   **1 CT** ≈ 1 CFA Franc
-    *   *Note*: These are designed to be easy to understand, but they are digital tokens, not government currency.
-
-## Why use Tokens?
-*   **Speed**: Send money instantly, 24/7.
-*   **Cost**: Much lower fees than traditional banks.
-*   **Global**: Works across borders without restrictions.
-
-## 💡 Did You Know?
-All transactions are secured by smart contracts on the blockchain, making them transparent and irreversible.
-    `,
   },
   {
     id: "how_agents_work",
-    title: "How Agents Work",
-    subtitle: "Deposits & Withdrawals",
-    description: "Learn how to deposit and withdraw cash using local agents.",
     icon: "people-outline",
     color: "#10B981",
     gradientColors: ["#10B981", "#047857"],
-    duration: "4 min read",
     xp: 150,
-    content: `
-# How Agents Work
-
-## Who are Agents?
-Agents are independent partners verified by AfriExchange. They act as a bridge between your physical cash and your digital tokens.
-
-## 📥 Depositing (Cash -> Tokens)
-1.  **Find**: Locate a verified agent in the app.
-2.  **Transfer**: Send them cash (Bank Transfer/Mobile Money).
-3.  **Receive**: The agent mints tokens directly to your wallet.
-
-## 📤 Withdrawing (Tokens -> Cash)
-1.  **Sell**: Choose "Withdraw" and select an agent.
-2.  **Escrow**: Your tokens are locked safely in escrow.
-3.  **Receive**: The agent sends cash to your bank account.
-4.  **Confirm**: Only release the tokens once you have the cash!
-
-## 🛡️ The Escrow Protection
-When you sell tokens, they aren't sent directly to the agent. They are held in **Escrow** (a safe middle ground). The agent only gets them *after* you confirm you received the money. This keeps you safe!
-    `,
   },
   {
     id: "understanding_value",
-    title: "Understanding Value",
-    subtitle: "Economics 101",
-    description: "How token value is maintained and guaranteed.",
     icon: "analytics-outline",
     color: "#8B5CF6",
     gradientColors: ["#8B5CF6", "#6D28D9"],
-    duration: "5 min read",
     xp: 200,
-    content: `
-# Understanding Value
-
-## Is this "Real" Money?
-Tokens are **digital representations** of value. While they aren't physical notes, they hold real value within the AfriExchange ecosystem.
-
-## The 1:1 Guarantee
-We operate on a **Full Reserve** basis.
-*   For every **1 NT** you hold, there is **1 Naira** held in our secure treasury.
-*   For every **1 CT**, there is **1 CFA**.
-
-## Transparency
-We conduct regular audits to ensure our digital tokens always match our physical reserves. We do not lend out your money; it sits safely in the vault, backing the value of your tokens 100%.
-
-## Market Rates
-While the reference rate is 1:1, market forces (supply and demand) can cause slight variations when swapping between tokens, just like in a real market!
-    `,
   },
   {
     id: "safety_security",
-    title: "Safety & Security",
-    subtitle: "Best Practices",
-    description: "Best practices to keep your account and funds safe.",
     icon: "shield-checkmark-outline",
     color: "#F59E0B",
     gradientColors: ["#F59E0B", "#B45309"],
-    duration: "4 min read",
     xp: 150,
-    content: `
-# Safety & Security
-
-## Protecting Your Account
-Your security starts with you. Here are the golden rules:
-1.  **Strong Password**: Use a unique, complex password.
-2.  **2FA**: Enable Two-Factor Authentication in Settings.
-3.  **Biometrics**: Use FaceID/TouchID for secure login.
-
-## 🚫 Common Scams to Avoid
-*   **"Support" asking for passwords**: Real support will NEVER ask for your password or PIN.
-*   **Fake Websites**: Always check you are on the official app.
-*   **Too Good To Be True**: Avoid offers promising to "double your money".
-
-## Transaction Safety
-*   **Verify Recipient**: Transactions are irreversible. Always double-check the email or wallet address.
-*   **Escrow is King**: Never send tokens directly to an agent for a withdrawal without using the official "Withdraw" flow which uses Escrow.
-
-## Lost Phone?
-Don't panic! Your tokens are on the blockchain, not your phone. Log in from another device and freeze your account immediately.
-    `,
   },
 ];
 
-const LEVEL_THRESHOLDS = [0, 100, 300, 600, 1000];
-const BADGES = [
-  { id: 1, name: "Novice Pioneer", icon: "ribbon", color: "#6B7280", gradient: ["#9CA3AF", "#4B5563"], threshold: 0 },
-  { id: 2, name: "Smart Learner", icon: "school", color: "#3B82F6", gradient: ["#60A5FA", "#2563EB"], threshold: 100 },
-  { id: 3, name: "DeFi Practitioner", icon: "trophy", color: "#F59E0B", gradient: ["#FBBF24", "#D97706"], threshold: 300 },
-  { id: 4, name: "Master Trader", icon: "medal", color: "#8B5CF6", gradient: ["#A78BFA", "#7C3AED"], threshold: 600 },
+const BADGE_DEFS = [
+  { id: 1, icon: "ribbon", color: "#6B7280", gradient: ["#9CA3AF", "#4B5563"], threshold: 0 },
+  { id: 2, icon: "school", color: "#3B82F6", gradient: ["#60A5FA", "#2563EB"], threshold: 100 },
+  { id: 3, icon: "trophy", color: "#F59E0B", gradient: ["#FBBF24", "#D97706"], threshold: 300 },
+  { id: 4, icon: "medal", color: "#8B5CF6", gradient: ["#A78BFA", "#7C3AED"], threshold: 600 },
 ];
 
+const LEVEL_THRESHOLDS = [0, 100, 300, 600, 1000];
 const MAX_ATTEMPTS = 5;
 
 export default function EducationScreen() {
+  const { t } = useTranslation();
   const router = useRouter();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
@@ -176,6 +82,22 @@ export default function EducationScreen() {
     getQuiz,
     submitQuiz,
   } = useEducationStore();
+
+  // Build translated MODULES array
+  const MODULES = useMemo(() => MODULE_DEFS.map((def) => ({
+    ...def,
+    title: t(`education.modules.${def.id}.title`),
+    subtitle: t(`education.modules.${def.id}.subtitle`),
+    description: t(`education.modules.${def.id}.description`),
+    duration: t(`education.modules.${def.id}.duration`),
+    content: t(`education.modules.${def.id}.content`),
+  })), [t]);
+
+  // Build translated BADGES array
+  const BADGES = useMemo(() => BADGE_DEFS.map((def) => ({
+    ...def,
+    name: t(`education.badges.${def.id}.name`),
+  })), [t]);
 
   const [selectedModule, setSelectedModule] = useState<typeof MODULES[0] | null>(null);
   const [modalStep, setModalStep] = useState<"content" | "quiz" | "result">("content");
@@ -228,7 +150,7 @@ export default function EducationScreen() {
       (acc, curr) => acc + curr.xp,
       0
     );
-  }, [completedModules]);
+  }, [completedModules, MODULES]);
 
   const currentLevel = useMemo(() => {
     return LEVEL_THRESHOLDS.findIndex((t) => totalXP < t) === -1
@@ -275,15 +197,15 @@ export default function EducationScreen() {
       setSelectedAnswers(q.questions.map(() => -1));
       setModalStep("quiz");
     } catch (e: any) {
-      const msg = e.message || "Failed to load quiz";
+      const msg = e.message || t("education.err_load_quiz", "Failed to load quiz");
       setQuizError(msg);
       if (msg.toLowerCase().includes("max attempts")) {
         Alert.alert(
-          "No attempts left",
-          "You've used all attempts for this module. Contact support if you need a reset."
+          t("education.no_attempts_title", "No attempts left"),
+          t("education.no_attempts_desc", "You've used all attempts for this module. Contact support if you need a reset.")
         );
       } else {
-        Alert.alert("Error", msg);
+        Alert.alert(t("education.err_title", "Error"), msg);
       }
     } finally {
       setQuizLoading(false);
@@ -294,7 +216,10 @@ export default function EducationScreen() {
     if (!selectedModule || !quiz) return;
     const hasEmpty = selectedAnswers.some((a) => a === -1);
     if (hasEmpty) {
-      Alert.alert("Answer all questions", "Please select an answer for every question.");
+      Alert.alert(
+        t("education.answer_all_title", "Answer all questions"),
+        t("education.answer_all_desc", "Please select an answer for every question.")
+      );
       return;
     }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -312,15 +237,15 @@ export default function EducationScreen() {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       }
     } catch (e: any) {
-      const msg = e.message || "Submit failed";
+      const msg = e.message || t("education.err_submit_failed", "Submit failed");
       setQuizError(msg);
       if (msg.toLowerCase().includes("max attempts")) {
         Alert.alert(
-          "No attempts left",
-          "You've used all attempts for this module. Contact support if you need a reset."
+          t("education.no_attempts_title", "No attempts left"),
+          t("education.no_attempts_desc", "You've used all attempts for this module. Contact support if you need a reset.")
         );
       } else {
-        Alert.alert("Error", msg);
+        Alert.alert(t("education.err_title", "Error"), msg);
       }
     } finally {
       setQuizLoading(false);
@@ -380,10 +305,10 @@ export default function EducationScreen() {
               <Ionicons name="arrow-back" size={22} color={theme.text} />
             </TouchableOpacity>
             <View style={{ flex: 1 }}>
-              <Text style={[styles.headerTitle, { color: theme.text }]}>Education Hub</Text>
+              <Text style={[styles.headerTitle, { color: theme.text }]}>{t("education.header_title", "Education Hub")}</Text>
               <Animated.View style={{ opacity: subtitleOpacity, maxHeight: subtitleMaxHeight, marginTop: subtitleMargin, overflow: "hidden" }}>
                 <Text style={[styles.headerSubtitle, { color: theme.muted }]}>
-                  Learn safety protocols &amp; DeFi basics.
+                  {t("education.header_subtitle", "Learn safety protocols & DeFi basics.")}
                 </Text>
               </Animated.View>
             </View>
@@ -423,7 +348,7 @@ export default function EducationScreen() {
               />
               <View style={styles.innerProgressContent}>
                 <Text style={styles.lvlNumber}>{currentLevel}</Text>
-                <Text style={styles.lvlText}>LEVEL</Text>
+                <Text style={styles.lvlText}>{t("education.level", "LEVEL")}</Text>
               </View>
             </View>
           </View>
@@ -448,7 +373,7 @@ export default function EducationScreen() {
             <View style={styles.nextLevelGoalRow}>
               <Ionicons name="sparkles" size={12} color="#FBBF24" />
               <Text style={styles.nextLevelGoalText}>
-                {Math.max(0, Math.round(nextLevelXP - totalXP))} XP remaining for next level
+                {t("education.xp_remaining", "{{xp}} XP remaining for next level", { xp: Math.max(0, Math.round(nextLevelXP - totalXP)) })}
               </Text>
             </View>
           </View>
@@ -466,7 +391,7 @@ export default function EducationScreen() {
           >
             <Ionicons name="book" size={16} color={activeTab === "lessons" ? theme.accent : theme.muted} />
             <Text style={[styles.tabBtnText, { color: activeTab === "lessons" ? theme.text : theme.muted }]}>
-              Lessons
+              {t("education.tab_lessons", "Lessons")}
             </Text>
           </TouchableOpacity>
 
@@ -480,7 +405,7 @@ export default function EducationScreen() {
           >
             <Ionicons name="trophy" size={16} color={activeTab === "achievements" ? theme.accent : theme.muted} />
             <Text style={[styles.tabBtnText, { color: activeTab === "achievements" ? theme.text : theme.muted }]}>
-              Achievements
+              {t("education.tab_achievements", "Achievements")}
             </Text>
           </TouchableOpacity>
         </View>
@@ -489,8 +414,8 @@ export default function EducationScreen() {
         {activeTab === "lessons" && (
           <View>
             <View style={styles.sectionHeaderWrap}>
-              <Text style={[styles.sectionHeadingTitle, { color: theme.text }]}>Learning Paths</Text>
-              <Text style={[styles.sectionCountBadge, { color: theme.muted }]}>{MODULES.length} modules</Text>
+              <Text style={[styles.sectionHeadingTitle, { color: theme.text }]}>{t("education.learning_paths", "Learning Paths")}</Text>
+              <Text style={[styles.sectionCountBadge, { color: theme.muted }]}>{t("education.module_count", "{{count}} modules", { count: MODULES.length })}</Text>
             </View>
 
             {MODULES.map((module, idx) => {
@@ -568,8 +493,8 @@ export default function EducationScreen() {
         {activeTab === "achievements" && (
           <View>
             <View style={styles.sectionHeaderWrap}>
-              <Text style={[styles.sectionHeadingTitle, { color: theme.text }]}>Badges Progress</Text>
-              <Text style={[styles.sectionCountBadge, { color: theme.muted }]}>{BADGES.filter(b => totalXP >= b.threshold).length} unlocked</Text>
+              <Text style={[styles.sectionHeadingTitle, { color: theme.text }]}>{t("education.badges_progress", "Badges Progress")}</Text>
+              <Text style={[styles.sectionCountBadge, { color: theme.muted }]}>{t("education.badges_unlocked", "{{count}} unlocked", { count: BADGES.filter(b => totalXP >= b.threshold).length })}</Text>
             </View>
 
             {BADGES.map((badge) => {
@@ -599,12 +524,12 @@ export default function EducationScreen() {
                       <Text style={[styles.badgeTitleText, { color: theme.text }]}>{badge.name}</Text>
                       {isUnlocked && (
                         <View style={[styles.unlockedBadge, { backgroundColor: theme.accentSoft }]}>
-                          <Text style={[styles.unlockedBadgeText, { color: theme.accent }]}>Active</Text>
+                          <Text style={[styles.unlockedBadgeText, { color: theme.accent }]}>{t("education.badge_active", "Active")}</Text>
                         </View>
                       )}
                     </View>
                     <Text style={[styles.badgeThresholdText, { color: theme.muted }]}>
-                      {isUnlocked ? "Unlocked & earned" : `Requires ${badge.threshold} total XP`}
+                      {isUnlocked ? t("education.badge_unlocked", "Unlocked & earned") : t("education.badge_requires_xp", "Requires {{xp}} total XP", { xp: badge.threshold })}
                     </Text>
                   </View>
 
@@ -653,7 +578,7 @@ export default function EducationScreen() {
                 />
               </TouchableOpacity>
               <Text style={[styles.modalHeaderTitle, { color: theme.text }]} numberOfLines={1}>
-                {modalStep === "quiz" ? "Quiz Challenge" : selectedModule.title}
+                {modalStep === "quiz" ? t("education.quiz_challenge", "Quiz Challenge") : selectedModule.title}
               </Text>
               <View style={{ width: 36 }} />
             </View>
@@ -694,7 +619,7 @@ export default function EducationScreen() {
                   <View style={[styles.resultBadge, { backgroundColor: theme.accentSoft, borderColor: theme.accentBorder }]}>
                     <Ionicons name="checkmark-circle" size={18} color={theme.accent} />
                     <Text style={[styles.resultBadgeText, { color: theme.accent }]}>
-                      Completed {moduleProgress?.score != null ? `• Score: ${moduleProgress.score}%` : ""}
+                      {t("education.completed", "Completed")} {moduleProgress?.score != null ? `• ${t("education.score", "Score")}: ${moduleProgress.score}%` : ""}
                     </Text>
                   </View>
                 )}
@@ -703,7 +628,7 @@ export default function EducationScreen() {
                   <View style={[styles.warningBlock, { backgroundColor: theme.redSoft, borderColor: theme.red }]}>
                     <Ionicons name="alert-circle-outline" size={16} color={theme.red} />
                     <Text style={[styles.warningBlockText, { color: theme.red }]}>
-                      No attempts left. Please contact support to reset this module.
+                      {t("education.no_attempts_inline", "No attempts left. Please contact support to reset this module.")}
                     </Text>
                   </View>
                 )}
@@ -723,12 +648,12 @@ export default function EducationScreen() {
                   {quizLoading ? (
                     <ActivityIndicator color="#FFFFFF" size="small" />
                   ) : isCompleted ? (
-                    <Text style={styles.primaryBtnText}>Back to Hub</Text>
+                    <Text style={styles.primaryBtnText}>{t("education.btn_back_to_hub", "Back to Hub")}</Text>
                   ) : maxAttemptsReached ? (
-                    <Text style={styles.primaryBtnText}>Max Attempts Reached</Text>
+                    <Text style={styles.primaryBtnText}>{t("education.btn_max_attempts", "Max Attempts Reached")}</Text>
                   ) : (
                     <>
-                      <Text style={styles.primaryBtnText}>Begin Quiz Challenge</Text>
+                      <Text style={styles.primaryBtnText}>{t("education.btn_begin_quiz", "Begin Quiz Challenge")}</Text>
                       <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />
                     </>
                   )}
@@ -743,7 +668,7 @@ export default function EducationScreen() {
               <ScrollView contentContainerStyle={styles.modalScroll} showsVerticalScrollIndicator={false}>
                 <View style={styles.quizProgressHeader}>
                   <Text style={[styles.quizProgressCountText, { color: theme.muted }]}>
-                    Question {selectedAnswers.filter(a => a !== -1).length} of {quiz.questions.length}
+                    {t("education.question_of", "Question {{current}} of {{total}}", { current: selectedAnswers.filter(a => a !== -1).length, total: quiz.questions.length })}
                   </Text>
                   <View style={[styles.quizProgressTrack, { backgroundColor: isDark ? "#172436" : "#E2E8F0" }]}>
                     <View
@@ -813,7 +738,7 @@ export default function EducationScreen() {
                     <ActivityIndicator color="#FFFFFF" size="small" />
                   ) : (
                     <>
-                      <Text style={styles.primaryBtnText}>Submit Answers</Text>
+                      <Text style={styles.primaryBtnText}>{t("education.btn_submit_answers", "Submit Answers")}</Text>
                       <Ionicons name="checkmark-circle" size={18} color="#FFFFFF" />
                     </>
                   )}
@@ -832,15 +757,15 @@ export default function EducationScreen() {
                       <LinearGradient colors={["#10B981", "#059669"]} style={styles.successRing}>
                         <Ionicons name="trophy" size={44} color="#FFFFFF" />
                       </LinearGradient>
-                      <Text style={[styles.successTitle, { color: theme.text }]}>Quiz Passed!</Text>
+                      <Text style={[styles.successTitle, { color: theme.text }]}>{t("education.quiz_passed", "Quiz Passed!")}</Text>
                       <Text style={[styles.successSubtitle, { color: theme.muted }]}>
-                        Excellent work! You have successfully mastered this path.
+                        {t("education.quiz_passed_sub", "Excellent work! You have successfully mastered this path.")}
                       </Text>
                     </View>
 
                     <View style={[styles.rewardResultCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
                       <View style={styles.rewardResultHeader}>
-                        <Text style={[styles.rewardEyebrow, { color: theme.accent }]}>REWARD CLAIMED</Text>
+                        <Text style={[styles.rewardEyebrow, { color: theme.accent }]}>{t("education.reward_claimed", "REWARD CLAIMED")}</Text>
                         <View style={[styles.rewardXpPill, { backgroundColor: theme.amberSoft, borderColor: theme.amberBorder }]}>
                           <Ionicons name="flash" size={12} color={theme.amber} />
                           <Text style={[styles.rewardXpText, { color: theme.amber }]}>+{selectedModule.xp} XP</Text>
@@ -851,7 +776,7 @@ export default function EducationScreen() {
                     </View>
 
                     <View style={[styles.scoreCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
-                      <Text style={[styles.scoreLabel, { color: theme.muted }]}>ACCURACY</Text>
+                      <Text style={[styles.scoreLabel, { color: theme.muted }]}>{t("education.accuracy", "ACCURACY")}</Text>
                       <Text style={[styles.scoreValue, { color: theme.accent }]}>
                         {submitResult.score}% <Text style={{ fontSize: 16, color: theme.muted }}>({submitResult.correct}/{submitResult.total})</Text>
                       </Text>
@@ -862,7 +787,7 @@ export default function EducationScreen() {
                       onPress={handleCloseModal}
                       activeOpacity={0.85}
                     >
-                      <Text style={styles.primaryBtnText}>Continue Journey</Text>
+                      <Text style={styles.primaryBtnText}>{t("education.btn_continue", "Continue Journey")}</Text>
                     </TouchableOpacity>
                   </ScrollView>
                 ) : (
@@ -871,25 +796,25 @@ export default function EducationScreen() {
                       <LinearGradient colors={[theme.red, "#B91C1C"]} style={styles.successRing}>
                         <Ionicons name="close-circle-outline" size={48} color="#FFFFFF" />
                       </LinearGradient>
-                      <Text style={[styles.successTitle, { color: theme.text }]}>Keep Learning</Text>
+                      <Text style={[styles.successTitle, { color: theme.text }]}>{t("education.quiz_failed", "Keep Learning")}</Text>
                       <Text style={[styles.successSubtitle, { color: theme.muted }]}>
-                        Review the guide once more and try again to score at least {quiz?.passingScore || 80}%.
+                        {t("education.quiz_failed_sub", "Review the guide once more and try again to score at least {{score}}%.", { score: quiz?.passingScore || 80 })}
                       </Text>
                     </View>
 
                     <View style={[styles.scoreCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
-                      <Text style={[styles.scoreLabel, { color: theme.muted }]}>ACCURACY</Text>
+                      <Text style={[styles.scoreLabel, { color: theme.muted }]}>{t("education.accuracy", "ACCURACY")}</Text>
                       <Text style={[styles.scoreValue, { color: theme.red }]}>
                         {submitResult.score}% <Text style={{ fontSize: 16, color: theme.muted }}>({submitResult.correct}/{submitResult.total})</Text>
                       </Text>
                     </View>
 
                     <View style={[styles.lessonOverviewCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
-                      <Text style={[styles.overviewEyebrow, { color: theme.red }]}>FEEDBACK</Text>
+                      <Text style={[styles.overviewEyebrow, { color: theme.red }]}>{t("education.feedback", "FEEDBACK")}</Text>
                       <Text style={[styles.overviewText, { color: theme.muted }]}>{submitResult.message}</Text>
                       {submitResult.attempts_left != null && (
                         <Text style={[styles.attemptsLeftText, { color: theme.amber }]}>
-                          Attempts remaining: {submitResult.attempts_left} / {MAX_ATTEMPTS}
+                          {t("education.attempts_remaining", "Attempts remaining: {{left}} / {{max}}", { left: submitResult.attempts_left, max: MAX_ATTEMPTS })}
                         </Text>
                       )}
                     </View>
@@ -904,7 +829,7 @@ export default function EducationScreen() {
                         <ActivityIndicator color="#FFFFFF" size="small" />
                       ) : (
                         <>
-                          <Text style={styles.primaryBtnText}>Retry Challenge Now</Text>
+                          <Text style={styles.primaryBtnText}>{t("education.btn_retry", "Retry Challenge Now")}</Text>
                           <Ionicons name="refresh" size={18} color="#FFFFFF" />
                         </>
                       )}
@@ -915,7 +840,7 @@ export default function EducationScreen() {
                       onPress={handleCloseModal}
                       activeOpacity={0.8}
                     >
-                      <Text style={[styles.cancelBtnText, { color: theme.muted }]}>Return to Lessons</Text>
+                      <Text style={[styles.cancelBtnText, { color: theme.muted }]}>{t("education.btn_return", "Return to Lessons")}</Text>
                     </TouchableOpacity>
                   </ScrollView>
                 )}

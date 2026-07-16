@@ -5,10 +5,24 @@ import { Link } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+import { useTranslation } from "react-i18next";
+import { useSettingsStore } from "@/stores";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function WelcomeScreen() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
+  const { t } = useTranslation();
+  const { language, setLanguage } = useSettingsStore();
+  const insets = useSafeAreaInsets();
+  const currentLang = language || "en";
+
+  const theme = {
+    card: isDark ? "rgba(16, 25, 36, 0.85)" : "#FFFFFF",
+    border: isDark ? "#1E2E42" : "#E2E8F0",
+    accent: "#00B14F",
+    text: isDark ? "#F8FAFC" : "#0F172A",
+  };
 
   const handlePress = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -26,6 +40,20 @@ export default function WelcomeScreen() {
       <View style={[styles.glowOrb1, { backgroundColor: isDark ? "rgba(0, 177, 79, 0.15)" : "rgba(0, 177, 79, 0.08)" }]} />
       <View style={[styles.glowOrb2, { backgroundColor: isDark ? "rgba(59, 130, 246, 0.12)" : "rgba(59, 130, 246, 0.06)" }]} />
 
+      {/* Floating Language Switcher */}
+      <View style={[styles.floatingLangContainer, { top: insets.top + 8 }]}>
+        <TouchableOpacity
+          onPress={() => setLanguage(currentLang === "en" ? "fr" : "en")}
+          style={[styles.floatingLangBtn, { backgroundColor: theme.card, borderColor: theme.border }]}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="language-outline" size={16} color={theme.accent} />
+          <Text style={[styles.floatingLangText, { color: theme.text }]}>
+            {currentLang === "en" ? "FR" : "EN"}
+          </Text>
+        </TouchableOpacity>
+      </View>
+
       <View style={styles.inner}>
         {/* Logo Section */}
         <View style={styles.logoSection}>
@@ -39,7 +67,7 @@ export default function WelcomeScreen() {
             Afri<Text style={{ color: "#00B14F" }}>X</Text>
           </Text>
           <Text style={[styles.subtitle, { color: isDark ? "#94A3B8" : "#475569" }]}>
-            Your premium gate to digital asset exchanges and fast local transfers.
+            {t("auth.welcome.tagline")}
           </Text>
         </View>
 
@@ -53,7 +81,7 @@ export default function WelcomeScreen() {
                 end={{ x: 1, y: 0 }}
                 style={styles.btnGradient}
               >
-                <Text style={styles.primaryBtnText}>Get Started</Text>
+                <Text style={styles.primaryBtnText}>{t("auth.welcome.get_started")}</Text>
                 <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />
               </LinearGradient>
             </TouchableOpacity>
@@ -65,14 +93,14 @@ export default function WelcomeScreen() {
               onPress={handlePress}
               activeOpacity={0.85}
             >
-              <Text style={[styles.secondaryBtnText, { color: isDark ? "#F8FAFC" : "#0F172A" }]}>Sign In</Text>
+              <Text style={[styles.secondaryBtnText, { color: isDark ? "#F8FAFC" : "#0F172A" }]}>{t("auth.welcome.sign_in")}</Text>
               <Ionicons name="log-in-outline" size={18} color={isDark ? "#F8FAFC" : "#0F172A"} />
             </TouchableOpacity>
           </Link>
         </View>
 
         <Text style={[styles.footerText, { color: isDark ? "#475569" : "#94A3B8" }]}>
-          Empowering Africa, one instant transfer at a time.
+          {t("auth.welcome.footer")}
         </Text>
       </View>
     </View>
@@ -183,5 +211,29 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     textTransform: "uppercase",
     letterSpacing: 0.8,
+  },
+  floatingLangContainer: {
+    position: "absolute",
+    right: 20,
+    zIndex: 100,
+  },
+  floatingLangBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  floatingLangText: {
+    fontSize: 12,
+    fontWeight: "800",
+    letterSpacing: 0.5,
   },
 });

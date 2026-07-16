@@ -19,9 +19,11 @@ import * as LocalAuthentication from "expo-local-authentication";
 import { useTransferStore, useWalletStore } from "@/stores";
 import { LinearGradient } from "expo-linear-gradient";
 import { formatAmount } from "@/utils/format";
+import { useTranslation } from "react-i18next";
 
 export default function ConfirmTransferScreen() {
   const router = useRouter();
+  const { t } = useTranslation();
   const [authenticating, setAuthenticating] = useState(false);
 
   const {
@@ -87,9 +89,9 @@ export default function ConfirmTransferScreen() {
       }
 
       const result = await LocalAuthentication.authenticateAsync({
-        promptMessage: "Confirm token transfer",
-        fallbackLabel: "Use Passcode",
-        cancelLabel: "Cancel",
+        promptMessage: t("send_tokens.confirm.prompt_biometric", "Confirm token transfer"),
+        fallbackLabel: t("send_tokens.confirm.btn_fallback_passcode", "Use Passcode"),
+        cancelLabel: t("send_tokens.confirm.btn_cancel", "Cancel"),
         disableDeviceFallback: false,
       });
 
@@ -113,9 +115,9 @@ export default function ConfirmTransferScreen() {
     } catch (e: any) {
       setAuthenticating(false);
       Alert.alert(
-        "Transfer Failed",
-        e.response?.data?.message || e.message || "Please try again",
-        [{ text: "OK" }]
+        t("send_tokens.confirm.err_failed_title", "Transfer Failed"),
+        e.response?.data?.message || e.message || t("send_tokens.confirm.err_failed_fallback", "Please try again"),
+        [{ text: t("common.ok", "OK") }]
       );
     }
   };
@@ -138,10 +140,10 @@ export default function ConfirmTransferScreen() {
               <Ionicons name="arrow-back" size={22} color={theme.text} />
             </TouchableOpacity>
             <View style={styles.headerText}>
-              <Text style={[styles.headerTitle, { color: theme.text }]}>Review Transfer</Text>
+              <Text style={[styles.headerTitle, { color: theme.text }]}>{t("send_tokens.confirm.header_title", "Review Transfer")}</Text>
               <Animated.View style={{ opacity: subtitleOpacity, maxHeight: subtitleMaxHeight, marginTop: subtitleMargin, overflow: "hidden" }}>
                 <Text style={[styles.headerSubtitle, { color: theme.muted }]}>
-                  Double-check everything before confirming.
+                  {t("send_tokens.confirm.header_subtitle", "Double-check everything before confirming.")}
                 </Text>
               </Animated.View>
             </View>
@@ -165,10 +167,10 @@ export default function ConfirmTransferScreen() {
         />
 
         <View style={[styles.introCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
-          <Text style={[styles.introEyebrow, { color: theme.accent }]}>CONFIRMATION</Text>
-          <Text style={[styles.introTitle, { color: theme.text }]}>Confirm Your Transfer</Text>
+          <Text style={[styles.introEyebrow, { color: theme.accent }]}>{t("send_tokens.confirm.intro_eyebrow", "CONFIRMATION")}</Text>
+          <Text style={[styles.introTitle, { color: theme.text }]}>{t("send_tokens.confirm.intro_title", "Confirm Your Transfer")}</Text>
           <Text style={[styles.introSubtitle, { color: theme.muted }]}>
-            Review details of the recipient and amounts carefully before executing this transaction.
+            {t("send_tokens.confirm.intro_desc", "Review details of the recipient and amounts carefully before executing this transaction.")}
           </Text>
         </View>
 
@@ -178,7 +180,7 @@ export default function ConfirmTransferScreen() {
             colors={isDark ? ["rgba(0,177,79,0.08)", "rgba(14,23,38,0)"] : ["rgba(0,177,79,0.05)", "rgba(255,255,255,0)"]}
             style={StyleSheet.absoluteFill}
           />
-          <Text style={[styles.summaryLabel, { color: theme.muted }]}>Total Debit</Text>
+          <Text style={[styles.summaryLabel, { color: theme.muted }]}>{t("send_tokens.confirm.label_total_debit", "Total Debit")}</Text>
           <View style={styles.amountContainer}>
             <Text style={[styles.summaryAmount, { color: theme.text }]}>{parseFloat(amount).toLocaleString()}</Text>
             <Text style={[styles.tokenTag, { color: theme.accent }]}>{tokenType}</Text>
@@ -192,7 +194,7 @@ export default function ConfirmTransferScreen() {
               <Ionicons name="person-outline" size={18} color={theme.accent} />
             </View>
             <View style={styles.detailTextContainer}>
-              <Text style={[styles.detailLabel, { color: theme.muted }]}>Recipient Email</Text>
+              <Text style={[styles.detailLabel, { color: theme.muted }]}>{t("send_tokens.confirm.label_recipient_email", "Recipient Email")}</Text>
               <Text style={[styles.detailValue, { color: theme.text }]} numberOfLines={1}>
                 {recipientEmail}
               </Text>
@@ -205,7 +207,7 @@ export default function ConfirmTransferScreen() {
               <Ionicons name="wallet-outline" size={18} color={theme.accent} />
             </View>
             <View style={styles.detailTextContainer}>
-              <Text style={[styles.detailLabel, { color: theme.muted }]}>Token Type</Text>
+              <Text style={[styles.detailLabel, { color: theme.muted }]}>{t("send_tokens.confirm.label_token_type", "Token Type")}</Text>
               <Text style={[styles.detailValue, { color: theme.text }]}>{tokenType}</Text>
             </View>
           </View>
@@ -216,7 +218,7 @@ export default function ConfirmTransferScreen() {
               <Ionicons name="cash-outline" size={18} color={theme.accent} />
             </View>
             <View style={styles.detailTextContainer}>
-              <Text style={[styles.detailLabel, { color: theme.muted }]}>Transfer Amount</Text>
+              <Text style={[styles.detailLabel, { color: theme.muted }]}>{t("send_tokens.confirm.label_transfer_amount", "Transfer Amount")}</Text>
               <Text style={[styles.detailValue, { color: theme.text }]}>
                 {formatAmount(amountNum, tokenType)} {tokenType}
               </Text>
@@ -229,7 +231,7 @@ export default function ConfirmTransferScreen() {
               <Ionicons name="swap-horizontal-outline" size={18} color={theme.accent} />
             </View>
             <View style={styles.detailTextContainer}>
-              <Text style={[styles.detailLabel, { color: theme.muted }]}>Network Fee (0.5%)</Text>
+              <Text style={[styles.detailLabel, { color: theme.muted }]}>{t("send_tokens.confirm.label_network_fee", "Network Fee (0.5%)")}</Text>
               <Text style={[styles.detailValue, { color: theme.text }]}>
                 {formatAmount(fee, tokenType)} {tokenType}
               </Text>
@@ -243,7 +245,7 @@ export default function ConfirmTransferScreen() {
                 <Ionicons name="document-text-outline" size={18} color={theme.accent} />
               </View>
               <View style={styles.detailTextContainer}>
-                <Text style={[styles.detailLabel, { color: theme.muted }]}>Note</Text>
+                <Text style={[styles.detailLabel, { color: theme.muted }]}>{t("send_tokens.confirm.label_note", "Note")}</Text>
                 <Text style={[styles.detailValue, { color: theme.text, fontWeight: "500" }]}>{note}</Text>
               </View>
             </View>
@@ -256,9 +258,9 @@ export default function ConfirmTransferScreen() {
             <Ionicons name="shield-checkmark" size={24} color={theme.accent} />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={[styles.securityTitle, { color: isDark ? "#4ADE80" : "#166534" }]}>Secure Settlement</Text>
+            <Text style={[styles.securityTitle, { color: isDark ? "#4ADE80" : "#166534" }]}>{t("send_tokens.confirm.security_title", "Secure Settlement")}</Text>
             <Text style={[styles.securityTextContent, { color: isDark ? "#86EFAC" : "#15803D" }]}>
-              This transaction is signed, encrypted, and settled instantly on-chain. It cannot be reversed once broadcasted.
+              {t("send_tokens.confirm.security_desc", "This transaction is signed, encrypted, and settled instantly on-chain. It cannot be reversed once broadcasted.")}
             </Text>
           </View>
         </View>
@@ -282,7 +284,7 @@ export default function ConfirmTransferScreen() {
             <ActivityIndicator color="#FFFFFF" />
           ) : (
             <>
-              <Text style={styles.confirmBtnText}>Confirm Transfer</Text>
+              <Text style={styles.confirmBtnText}>{t("send_tokens.confirm.btn_confirm", "Confirm Transfer")}</Text>
               <Ionicons name="flash" size={18} color="#FFFFFF" />
             </>
           )}

@@ -18,9 +18,11 @@ import { Ionicons } from "@expo/vector-icons";
 import * as SecureStore from "expo-secure-store";
 import * as LocalAuthentication from "expo-local-authentication";
 import * as Haptics from "expo-haptics";
-import { useAuthStore } from "@/stores";
+import { useAuthStore, useSettingsStore } from "@/stores";
 import { Link, useRouter } from "expo-router";
 import { debugAuth } from "@/utils/debugAuth";
+import { useTranslation } from "react-i18next";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const BIOMETRIC_LOGIN_KEY = "biometric_login_enabled";
 
@@ -28,6 +30,10 @@ export default function LoginScreen() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
   const router = useRouter();
+  const { t } = useTranslation();
+  const { language, setLanguage } = useSettingsStore();
+  const insets = useSafeAreaInsets();
+  const currentLang = language || "en";
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -116,6 +122,20 @@ export default function LoginScreen() {
       />
       <View style={[styles.glowOrb1, { backgroundColor: isDark ? "rgba(0, 177, 79, 0.12)" : "rgba(0, 177, 79, 0.06)" }]} />
 
+      {/* Floating Language Switcher */}
+      <View style={[styles.floatingLangContainer, { top: insets.top + 8 }]}>
+        <TouchableOpacity
+          onPress={() => setLanguage(currentLang === "en" ? "fr" : "en")}
+          style={[styles.floatingLangBtn, { backgroundColor: theme.card, borderColor: theme.border }]}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="language-outline" size={16} color={theme.accent} />
+          <Text style={[styles.floatingLangText, { color: theme.text }]}>
+            {currentLang === "en" ? "FR" : "EN"}
+          </Text>
+        </TouchableOpacity>
+      </View>
+
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -133,8 +153,8 @@ export default function LoginScreen() {
             >
               <Ionicons name="swap-horizontal" size={32} color="#FFFFFF" />
             </LinearGradient>
-            <Text style={[styles.welcomeText, { color: theme.text }]}>Welcome Back</Text>
-            <Text style={[styles.subtitle, { color: theme.muted }]}>Sign in to access your secure wallet</Text>
+            <Text style={[styles.welcomeText, { color: theme.text }]}>{t("auth.login.title")}</Text>
+            <Text style={[styles.subtitle, { color: theme.muted }]}>{t("auth.login.subtitle")}</Text>
           </View>
 
           {/* Biometrics */}
@@ -151,7 +171,7 @@ export default function LoginScreen() {
                 <>
                   <Ionicons name="finger-print" size={20} color={theme.accent} style={{ marginRight: 8 }} />
                   <Text style={[styles.biometricButtonText, { color: theme.accent }]}>
-                    Unlock with {biometricLabel}
+                    {t("auth.login.unlock_biometrics", { biometricLabel })}
                   </Text>
                 </>
               )}
@@ -162,7 +182,7 @@ export default function LoginScreen() {
           <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
             {/* Email Field */}
             <View style={styles.inputGroup}>
-              <Text style={[styles.inputLabel, { color: theme.muted }]}>Email Address</Text>
+              <Text style={[styles.inputLabel, { color: theme.muted }]}>{t("auth.login.email_label")}</Text>
               <View style={[styles.inputRow, { backgroundColor: theme.inputBg, borderColor: theme.border }]}>
                 <View style={styles.inputIconBox}>
                   <Ionicons name="mail-outline" size={18} color={theme.muted} />
@@ -171,7 +191,7 @@ export default function LoginScreen() {
                   style={[styles.textInput, { color: theme.text }]}
                   value={email}
                   onChangeText={setEmail}
-                  placeholder="name@example.com"
+                  placeholder={t("auth.login.email_placeholder")}
                   placeholderTextColor={theme.placeholder}
                   keyboardType="email-address"
                   autoCapitalize="none"
@@ -182,7 +202,7 @@ export default function LoginScreen() {
 
             {/* Password Field */}
             <View style={styles.inputGroup}>
-              <Text style={[styles.inputLabel, { color: theme.muted }]}>Password</Text>
+              <Text style={[styles.inputLabel, { color: theme.muted }]}>{t("auth.login.password_label")}</Text>
               <View style={[styles.inputRow, { backgroundColor: theme.inputBg, borderColor: theme.border }]}>
                 <View style={styles.inputIconBox}>
                   <Ionicons name="lock-closed-outline" size={18} color={theme.muted} />
@@ -191,7 +211,7 @@ export default function LoginScreen() {
                   style={[styles.textInput, { color: theme.text }]}
                   value={password}
                   onChangeText={setPassword}
-                  placeholder="••••••••"
+                  placeholder={t("auth.login.password_placeholder")}
                   placeholderTextColor={theme.placeholder}
                   secureTextEntry={!showPassword}
                   autoCapitalize="none"
@@ -234,7 +254,7 @@ export default function LoginScreen() {
                   <ActivityIndicator color="#FFFFFF" size="small" />
                 ) : (
                   <>
-                    <Text style={styles.loginBtnText}>Sign In</Text>
+                    <Text style={styles.loginBtnText}>{t("auth.login.sign_in_btn")}</Text>
                     <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />
                   </>
                 )}
@@ -243,7 +263,7 @@ export default function LoginScreen() {
 
             <Link href="/(auth)/forgot-password" asChild>
               <TouchableOpacity style={styles.forgotBtn}>
-                <Text style={[styles.forgotBtnText, { color: theme.accent }]}>Forgot Password?</Text>
+                <Text style={[styles.forgotBtnText, { color: theme.accent }]}>{t("auth.login.forgot_password")}</Text>
               </TouchableOpacity>
             </Link>
           </View>
@@ -253,16 +273,16 @@ export default function LoginScreen() {
             <Link href="/(auth)/resend-verification" asChild>
               <TouchableOpacity style={styles.linkButton}>
                 <Text style={[styles.linkButtonText, { color: theme.muted }]}>
-                  Resend Verification Email
+                  {t("auth.login.resend_verification")}
                 </Text>
               </TouchableOpacity>
             </Link>
 
             <View style={styles.registerRow}>
-              <Text style={[styles.registerText, { color: theme.muted }]}>Don&apos;t have an account? </Text>
+              <Text style={[styles.registerText, { color: theme.muted }]}>{t("auth.login.no_account")}</Text>
               <Link href="/(auth)/register" asChild>
                 <TouchableOpacity>
-                  <Text style={[styles.registerLink, { color: theme.accent }]}>Register</Text>
+                  <Text style={[styles.registerLink, { color: theme.accent }]}>{t("auth.login.register_link")}</Text>
                 </TouchableOpacity>
               </Link>
             </View>
@@ -443,5 +463,29 @@ const styles = StyleSheet.create({
   registerLink: {
     fontSize: 14,
     fontWeight: "800",
+  },
+  floatingLangContainer: {
+    position: "absolute",
+    right: 20,
+    zIndex: 100,
+  },
+  floatingLangBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  floatingLangText: {
+    fontSize: 12,
+    fontWeight: "800",
+    letterSpacing: 0.5,
   },
 });

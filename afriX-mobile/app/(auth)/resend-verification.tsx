@@ -14,11 +14,13 @@ import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuthStore } from "@/stores";
 import * as Haptics from "expo-haptics";
+import { useTranslation } from "react-i18next";
 
 export default function ResendVerificationScreen() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
   const router = useRouter();
+  const { t } = useTranslation();
 
   const [email, setEmail] = useState("");
   const [success, setSuccess] = useState(false);
@@ -62,9 +64,9 @@ export default function ResendVerificationScreen() {
             <LinearGradient colors={["#00B14F", "#10B981"]} style={styles.logoCircle}>
               <Ionicons name="checkmark-circle-outline" size={34} color="#FFFFFF" />
             </LinearGradient>
-            <Text style={[styles.welcomeText, { color: theme.text }]}>Email Sent!</Text>
+            <Text style={[styles.welcomeText, { color: theme.text }]}>{t("auth.resend_verification.success_title", "Email Sent!")}</Text>
             <Text style={[styles.subtitle, { color: theme.muted }]}>
-              A new verification email has been sent to {email}
+              {t("auth.resend_verification.success_subtitle", `A new verification email has been sent to ${email}`, { email })}
             </Text>
           </View>
 
@@ -72,7 +74,7 @@ export default function ResendVerificationScreen() {
             <View style={[styles.successBanner, { backgroundColor: isDark ? "rgba(0, 177, 79, 0.12)" : "#EAF8EF" }]}>
               <Ionicons name="mail-open-outline" size={22} color={theme.accent} />
               <Text style={[styles.successBannerText, { color: theme.accent }]}>
-                Check your inbox and click the verification link to activate your account.
+                {t("auth.resend_verification.success_body", "Check your inbox and click the verification link to activate your account.")}
               </Text>
             </View>
 
@@ -87,7 +89,7 @@ export default function ResendVerificationScreen() {
                 end={{ x: 1, y: 0 }}
                 style={styles.submitBtnGradient}
               >
-                <Text style={styles.submitBtnText}>Back to Login</Text>
+                <Text style={styles.submitBtnText}>{t("auth.resend_verification.back_to_login")}</Text>
                 <Ionicons name="log-in-outline" size={18} color="#FFFFFF" />
               </LinearGradient>
             </TouchableOpacity>
@@ -119,14 +121,14 @@ export default function ResendVerificationScreen() {
           <LinearGradient colors={["#00B14F", "#10B981"]} style={styles.logoCircle}>
             <Ionicons name="refresh-circle-outline" size={34} color="#FFFFFF" />
           </LinearGradient>
-          <Text style={[styles.welcomeText, { color: theme.text }]}>Resend Verification</Text>
-          <Text style={[styles.subtitle, { color: theme.muted }]}>Enter your email and we'll resend your verification link</Text>
+          <Text style={[styles.welcomeText, { color: theme.text }]}>{t("auth.resend_verification.title")}</Text>
+          <Text style={[styles.subtitle, { color: theme.muted }]}>{t("auth.resend_verification.subtitle")}</Text>
         </View>
 
         {/* Form Card */}
         <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
           <View style={styles.inputGroup}>
-            <Text style={[styles.inputLabel, { color: theme.muted }]}>Email Address</Text>
+            <Text style={[styles.inputLabel, { color: theme.muted }]}>{t("auth.login.email_label")}</Text>
             <View style={[styles.inputRow, { backgroundColor: theme.inputBg, borderColor: theme.border }]}>
               <View style={styles.inputIconBox}>
                 <Ionicons name="mail-outline" size={18} color={theme.muted} />
@@ -135,7 +137,7 @@ export default function ResendVerificationScreen() {
                 style={[styles.textInput, { color: theme.text }]}
                 value={email}
                 onChangeText={setEmail}
-                placeholder="name@example.com"
+                placeholder={t("auth.login.email_placeholder")}
                 placeholderTextColor={theme.placeholder}
                 keyboardType="email-address"
                 autoCapitalize="none"
@@ -160,7 +162,7 @@ export default function ResendVerificationScreen() {
                 <ActivityIndicator color="#FFFFFF" size="small" />
               ) : (
                 <>
-                  <Text style={styles.submitBtnText}>Resend Email</Text>
+                  <Text style={styles.submitBtnText}>{t("auth.resend_verification.btn_resend")}</Text>
                   <Ionicons name="paper-plane-outline" size={18} color="#FFFFFF" />
                 </>
               )}

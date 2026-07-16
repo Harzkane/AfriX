@@ -3,6 +3,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { View, StyleSheet } from "react-native";
 import { Text } from "react-native-paper";
 import { Ionicons } from "@expo/vector-icons";
+import { useTranslation } from "react-i18next";
 
 interface TimerProps {
   expiresAt: string;
@@ -13,6 +14,7 @@ export const TimerComponent: React.FC<TimerProps> = ({
   expiresAt,
   onExpire,
 }) => {
+  const { t } = useTranslation();
   const [timeLeft, setTimeLeft] = useState<string>("");
   const [isExpired, setIsExpired] = useState(false);
   const onExpireFiredRef = useRef(false);
@@ -29,7 +31,7 @@ export const TimerComponent: React.FC<TimerProps> = ({
 
       if (diff <= 0) {
         setIsExpired(true);
-        setTimeLeft("Expired");
+        setTimeLeft(t("components.timer.expired", "Expired"));
         if (!onExpireFiredRef.current && onExpireRef.current) {
           onExpireFiredRef.current = true;
           onExpireRef.current();
@@ -49,7 +51,7 @@ export const TimerComponent: React.FC<TimerProps> = ({
       if (shouldStop) clearInterval(interval);
     }, 1000);
     return () => clearInterval(interval);
-  }, [expiresAt]);
+  }, [expiresAt, t]);
 
   return (
     <View style={[styles.container, isExpired && styles.expired]}>
@@ -59,7 +61,9 @@ export const TimerComponent: React.FC<TimerProps> = ({
         color={isExpired ? "#FF4444" : "#FFB800"}
       />
       <Text style={[styles.text, isExpired && styles.expiredText]}>
-        {isExpired ? "Request Expired" : `Time left: ${timeLeft}`}
+        {isExpired
+          ? t("components.timer.request_expired", "Request Expired")
+          : t("components.timer.time_left", "Time left: {{time}}", { time: timeLeft })}
       </Text>
     </View>
   );

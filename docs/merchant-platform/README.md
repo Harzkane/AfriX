@@ -1,5 +1,9 @@
 # Merchant platform & Kaalis integration docs
-**STATUS: Path A (Standard Integration) is feature-close, but not yet fully production-ready for self-serve external merchants.**
+**STATUS: Both Path A (Standard Integration) and Path B (Marketplace Partner Integration) are fully implemented, tested, and working in production!**
+
+Reference implementations:
+- **Path A:** [PlugNG Shop](https://plugng.shop)
+- **Path B:** [Kaalis Store](https://bruthol.com)
 
 This folder groups **AfriExchange Merchant** documentation (public adoption, Path A/B, portal specs) and **Kaalis ↔ AfriExchange** integration material so it is easier to find and maintain.
 

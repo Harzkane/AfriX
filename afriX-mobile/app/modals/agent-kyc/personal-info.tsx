@@ -5,6 +5,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { formatDate } from "@/utils/format";
 import { LinearGradient } from "expo-linear-gradient";
+import { useTranslation } from "react-i18next";
 
 import {
     View,
@@ -21,6 +22,7 @@ import {
 
 export default function PersonalInfoScreen() {
     const router = useRouter();
+    const { t } = useTranslation();
     const colorScheme = useColorScheme();
     const isDark = colorScheme === "dark";
 
@@ -49,18 +51,18 @@ export default function PersonalInfoScreen() {
     const [selectionType, setSelectionType] = useState<"idType" | "nationality" | null>(null);
 
     const idTypes = [
-        { value: "passport", label: "Passport" },
-        { value: "drivers_license", label: "Driver's License" },
-        { value: "national_id", label: "National ID Card" },
+        { value: "passport", label: t("agent.kyc.personal_info.id_passport", "Passport") },
+        { value: "drivers_license", label: t("agent.kyc.personal_info.id_drivers_license", "Driver's License") },
+        { value: "national_id", label: t("agent.kyc.personal_info.id_national_id", "National ID Card") },
     ];
 
     const countries = [
-        { code: "NG", name: "Nigeria" },
-        { code: "BJ", name: "Benin" },
-        { code: "TG", name: "Togo" },
-        { code: "CI", name: "Côte d'Ivoire" },
-        { code: "GH", name: "Ghana" },
-        { code: "SN", name: "Senegal" },
+        { code: "NG", name: t("agent.kyc.personal_info.country_ng", "Nigeria") },
+        { code: "BJ", name: t("agent.kyc.personal_info.country_bj", "Benin") },
+        { code: "TG", name: t("agent.kyc.personal_info.country_tg", "Togo") },
+        { code: "CI", name: t("agent.kyc.personal_info.country_ci", "Côte d'Ivoire") },
+        { code: "GH", name: t("agent.kyc.personal_info.country_gh", "Ghana") },
+        { code: "SN", name: t("agent.kyc.personal_info.country_sn", "Senegal") },
     ];
 
     const openSelection = (type: "idType" | "nationality") => {
@@ -82,13 +84,13 @@ export default function PersonalInfoScreen() {
 
     const validate = (): boolean => {
         const newErrors: { [key: string]: string } = {};
-        if (!fullName.trim()) newErrors.fullName = "Full legal name is required";
-        else if (fullName.trim().length < 3) newErrors.fullName = "Name must be at least 3 characters";
+        if (!fullName.trim()) newErrors.fullName = t("agent.kyc.personal_info.err_name_required", "Full legal name is required");
+        else if (fullName.trim().length < 3) newErrors.fullName = t("agent.kyc.personal_info.err_name_short", "Name must be at least 3 characters");
         const age = new Date().getFullYear() - dateOfBirth.getFullYear();
-        if (age < 18) newErrors.dateOfBirth = "You must be at least 18 years old";
-        if (!idNumber.trim()) newErrors.idNumber = "ID number is required";
-        if (!address.trim()) newErrors.address = "Residential address is required";
-        else if (address.trim().length < 10) newErrors.address = "Please provide a complete address";
+        if (age < 18) newErrors.dateOfBirth = t("agent.kyc.personal_info.err_age_min", "You must be at least 18 years old");
+        if (!idNumber.trim()) newErrors.idNumber = t("agent.kyc.personal_info.err_id_required", "ID number is required");
+        if (!address.trim()) newErrors.address = t("agent.kyc.personal_info.err_address_required", "Residential address is required");
+        else if (address.trim().length < 10) newErrors.address = t("agent.kyc.personal_info.err_address_short", "Please provide a complete address");
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
     };
@@ -110,9 +112,9 @@ export default function PersonalInfoScreen() {
     };
 
     const progressSteps = [
-        { label: "Register", done: true },
-        { label: "KYC", done: false, active: true },
-        { label: "Deposit", done: false },
+        { label: t("agent.kyc.personal_info.step_register", "Register"), done: true },
+        { label: t("agent.kyc.personal_info.step_kyc", "KYC"), done: false, active: true },
+        { label: t("agent.kyc.personal_info.step_deposit", "Deposit"), done: false },
     ];
 
     const fields = [
@@ -150,7 +152,9 @@ export default function PersonalInfoScreen() {
 
     const renderModal = () => {
         const data = selectionType === "idType" ? idTypes : countries;
-        const title = selectionType === "idType" ? "Select ID Type" : "Select Nationality";
+        const title = selectionType === "idType"
+            ? t("agent.kyc.personal_info.modal_select_id", "Select ID Type")
+            : t("agent.kyc.personal_info.modal_select_nationality", "Select Nationality");
         return (
             <Modal visible={modalVisible} transparent animationType="slide" onRequestClose={() => setModalVisible(false)}>
                 <View style={styles.modalOverlay}>
@@ -203,7 +207,7 @@ export default function PersonalInfoScreen() {
                 >
                     <Ionicons name="arrow-back" size={20} color={theme.text} />
                 </TouchableOpacity>
-                <Text style={[styles.headerTitle, { color: theme.text }]}>Personal Information</Text>
+                <Text style={[styles.headerTitle, { color: theme.text }]}>{t("agent.kyc.personal_info.header_title", "Personal Information")}</Text>
                 <View style={{ width: 42 }} />
             </View>
 
@@ -248,10 +252,10 @@ export default function PersonalInfoScreen() {
                     <View style={styles.heroIconCircle}>
                         <Ionicons name="person" size={26} color="#00B14F" />
                     </View>
-                    <Text style={styles.heroEyebrow}>KYC · STEP 1 OF 2</Text>
-                    <Text style={styles.heroTitle}>Your Details</Text>
+                    <Text style={styles.heroEyebrow}>{t("agent.kyc.personal_info.hero_eyebrow", "KYC · STEP 1 OF 2")}</Text>
+                    <Text style={styles.heroTitle}>{t("agent.kyc.personal_info.hero_title", "Your Details")}</Text>
                     <Text style={styles.heroSubtitle}>
-                        Please provide your information exactly as it appears on your official ID document.
+                        {t("agent.kyc.personal_info.hero_subtitle", "Please provide your information exactly as it appears on your official ID document.")}
                     </Text>
                 </LinearGradient>
 
@@ -260,14 +264,14 @@ export default function PersonalInfoScreen() {
 
                     {/* Full Name */}
                     <View style={styles.fieldGroup}>
-                        <Text style={[styles.fieldLabel, { color: theme.muted }]}>FULL LEGAL NAME *</Text>
+                        <Text style={[styles.fieldLabel, { color: theme.muted }]}>{t("agent.kyc.personal_info.label_full_name", "FULL LEGAL NAME *")}</Text>
                         <View style={[styles.inputWrapper, { backgroundColor: theme.inputBg, borderColor: errors.fullName ? theme.danger : theme.border }]}>
                             <View style={[styles.fieldIconBox, { backgroundColor: theme.accentSoft, marginRight: 10 }]}>
                                 <Ionicons name="person-outline" size={15} color={theme.accent} />
                             </View>
                             <TextInput
                                 style={[styles.textInput, { color: theme.text }]}
-                                placeholder="John Doe Smith"
+                                placeholder={t("agent.kyc.personal_info.placeholder_full_name", "John Doe Smith")}
                                 placeholderTextColor={theme.muted}
                                 value={fullName}
                                 onChangeText={(t) => { setFullName(t); if (errors.fullName) setErrors({ ...errors, fullName: "" }); }}
@@ -281,7 +285,7 @@ export default function PersonalInfoScreen() {
 
                     {/* Date of Birth */}
                     <View style={styles.fieldGroup}>
-                        <Text style={[styles.fieldLabel, { color: theme.muted }]}>DATE OF BIRTH *</Text>
+                        <Text style={[styles.fieldLabel, { color: theme.muted }]}>{t("agent.kyc.personal_info.label_dob", "DATE OF BIRTH *")}</Text>
                         <TouchableOpacity
                             style={[styles.selectField, { backgroundColor: theme.inputBg, borderColor: errors.dateOfBirth ? theme.danger : theme.border }]}
                             onPress={() => setShowDatePicker(true)}
@@ -311,7 +315,7 @@ export default function PersonalInfoScreen() {
 
                     {/* ID Type */}
                     <View style={styles.fieldGroup}>
-                        <Text style={[styles.fieldLabel, { color: theme.muted }]}>ID DOCUMENT TYPE *</Text>
+                        <Text style={[styles.fieldLabel, { color: theme.muted }]}>{t("agent.kyc.personal_info.label_id_type", "ID DOCUMENT TYPE *")}</Text>
                         <TouchableOpacity
                             style={[styles.selectField, { backgroundColor: theme.inputBg, borderColor: theme.border }]}
                             onPress={() => openSelection("idType")}
@@ -333,14 +337,14 @@ export default function PersonalInfoScreen() {
 
                     {/* ID Number */}
                     <View style={styles.fieldGroup}>
-                        <Text style={[styles.fieldLabel, { color: theme.muted }]}>ID DOCUMENT NUMBER *</Text>
+                        <Text style={[styles.fieldLabel, { color: theme.muted }]}>{t("agent.kyc.personal_info.label_id_number", "ID DOCUMENT NUMBER *")}</Text>
                         <View style={[styles.inputWrapper, { backgroundColor: theme.inputBg, borderColor: errors.idNumber ? theme.danger : theme.border }]}>
                             <View style={[styles.fieldIconBox, { backgroundColor: theme.accentSoft, marginRight: 10 }]}>
                                 <Ionicons name="barcode-outline" size={15} color={theme.accent} />
                             </View>
                             <TextInput
                                 style={[styles.textInput, { color: theme.text }]}
-                                placeholder="A12345678"
+                                placeholder={t("agent.kyc.personal_info.placeholder_id_number", "A12345678")}
                                 placeholderTextColor={theme.muted}
                                 value={idNumber}
                                 onChangeText={(t) => { setIdNumber(t); if (errors.idNumber) setErrors({ ...errors, idNumber: "" }); }}
@@ -354,7 +358,7 @@ export default function PersonalInfoScreen() {
 
                     {/* Nationality */}
                     <View style={styles.fieldGroup}>
-                        <Text style={[styles.fieldLabel, { color: theme.muted }]}>NATIONALITY *</Text>
+                        <Text style={[styles.fieldLabel, { color: theme.muted }]}>{t("agent.kyc.personal_info.label_nationality", "NATIONALITY *")}</Text>
                         <TouchableOpacity
                             style={[styles.selectField, { backgroundColor: theme.inputBg, borderColor: theme.border }]}
                             onPress={() => openSelection("nationality")}
@@ -376,14 +380,14 @@ export default function PersonalInfoScreen() {
 
                     {/* Address */}
                     <View style={styles.fieldGroup}>
-                        <Text style={[styles.fieldLabel, { color: theme.muted }]}>RESIDENTIAL ADDRESS *</Text>
+                        <Text style={[styles.fieldLabel, { color: theme.muted }]}>{t("agent.kyc.personal_info.label_address", "RESIDENTIAL ADDRESS *")}</Text>
                         <View style={[styles.inputWrapper, styles.textAreaWrapper, { backgroundColor: theme.inputBg, borderColor: errors.address ? theme.danger : theme.border }]}>
                             <View style={[styles.fieldIconBox, { backgroundColor: theme.accentSoft, marginRight: 10, alignSelf: "flex-start", marginTop: 2 }]}>
                                 <Ionicons name="location-outline" size={15} color={theme.accent} />
                             </View>
                             <TextInput
                                 style={[styles.textInput, styles.textArea, { color: theme.text }]}
-                                placeholder="123 Main Street, City, State"
+                                placeholder={t("agent.kyc.personal_info.placeholder_address", "123 Main Street, City, State")}
                                 placeholderTextColor={theme.muted}
                                 value={address}
                                 onChangeText={(t) => { setAddress(t); if (errors.address) setErrors({ ...errors, address: "" }); }}
@@ -405,7 +409,7 @@ export default function PersonalInfoScreen() {
                     onPress={handleContinue}
                     activeOpacity={0.85}
                 >
-                    <Text style={styles.continueBtnText}>Continue to Documents</Text>
+                    <Text style={styles.continueBtnText}>{t("agent.kyc.personal_info.btn_continue", "Continue to Documents")}</Text>
                     <Ionicons name="arrow-forward" size={20} color="#FFF" />
                 </TouchableOpacity>
             </View>

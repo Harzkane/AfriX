@@ -19,6 +19,7 @@ import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 import { formatDate } from "@/utils/format";
 import { useTranslation } from "react-i18next";
 import { getCurrencyByCountryCode } from "@/constants/countries";
+import Constants from "expo-constants";
 
 export default function ProfileScreen() {
   const { user, logout } = useAuthStore();
@@ -409,7 +410,7 @@ export default function ProfileScreen() {
             <Text style={[styles.logoutButtonText, { color: theme.danger }]}>{t("profile.logout")}</Text>
           </TouchableOpacity>
 
-          <Text style={[styles.versionText, { color: theme.muted }]}>{t("profile.version")} 1.1.0</Text>
+          <Text style={[styles.versionText, { color: theme.muted }]}>{t("profile.version")} {Constants.expoConfig?.version || "1.3.0"}</Text>
           <View style={styles.bottomSpacer} />
         </View>
       </ScrollView>

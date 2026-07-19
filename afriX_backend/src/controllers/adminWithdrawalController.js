@@ -35,8 +35,8 @@ const adminWithdrawalController = {
 
     // Calculate withdrawable info for each request
     const enrichedRequests = requests.map((req) => {
-      const outstanding = req.agent.total_minted - req.agent.total_burned;
-      const maxWithdraw = req.agent.deposit_usd - outstanding;
+      const outstanding = Math.max(0, req.agent.total_minted - req.agent.total_burned);
+      const maxWithdraw = Math.max(0, req.agent.deposit_usd - outstanding);
 
       return {
         ...req.toJSON(),
@@ -64,8 +64,8 @@ const adminWithdrawalController = {
       throw new ApiError("Invalid request", 400);
 
     // Double-check withdrawal is safe
-    const outstanding = request.agent.total_minted - request.agent.total_burned;
-    const maxWithdraw = request.agent.deposit_usd - outstanding;
+    const outstanding = Math.max(0, request.agent.total_minted - request.agent.total_burned);
+    const maxWithdraw = Math.max(0, request.agent.deposit_usd - outstanding);
 
     if (request.amount_usd > maxWithdraw) {
       throw new ApiError(
@@ -116,8 +116,13 @@ const adminWithdrawalController = {
       throw new ApiError("Request not approved", 400);
 
     // VERIFY WITHDRAWAL TRANSACTION ON BLOCKCHAIN
-    const provider = new ethers.JsonRpcProvider(POLYGON_RPC);
-    const receipt = await provider.getTransactionReceipt(tx_hash);
+    let receipt;
+    try {
+      const provider = new ethers.JsonRpcProvider(POLYGON_RPC);
+      receipt = await provider.getTransactionReceipt(tx_hash);
+    } catch (err) {
+      throw new ApiError(`Blockchain verification failed: ${err.message}`, 400);
+    }
 
     if (!receipt) {
       throw new ApiError("Transaction not found on blockchain", 400);
@@ -192,8 +197,8 @@ const adminWithdrawalController = {
     const totalMinted = agent ? parseFloat(agent.total_minted) : 0;
     const totalBurned = agent ? parseFloat(agent.total_burned) : 0;
     const depositUsd = agent ? parseFloat(agent.deposit_usd) : 0;
-    const outstanding = totalMinted - totalBurned;
-    const maxWithdraw = depositUsd - outstanding;
+    const outstanding = Math.max(0, totalMinted - totalBurned);
+    const maxWithdraw = Math.max(0, depositUsd - outstanding);
 
     res.json({
       success: true,
@@ -229,13 +234,31 @@ const adminWithdrawalController = {
         {
           model: Agent,
           as: "agent",
-          attributes: ["id", "user_id", "withdrawal_address"],
+          attributes: [
+            "id",
+            "user_id",
+            "withdrawal_address",
+            "deposit_usd",
+            "total_minted",
+            "total_burned",
+          ],
         },
       ],
       order: [["created_at", "DESC"]],
     });
 
-    res.json({ success: true, data: requests });
+    // Enrich with outstanding/max_withdrawable (same shape as listPending)
+    const enriched = requests.map((r) => {
+      const json = r.toJSON();
+      if (json.agent) {
+        const outstanding = Math.max(0, json.agent.total_minted - json.agent.total_burned);
+        const maxWithdraw = Math.max(0, json.agent.deposit_usd - outstanding);
+        return { ...json, outstanding_tokens: outstanding, max_withdrawable: maxWithdraw, is_safe: json.amount_usd <= maxWithdraw };
+      }
+      return json;
+    });
+
+    res.json({ success: true, data: enriched });
   },
   /**
    * REJECT WITHDRAWAL

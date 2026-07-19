@@ -199,18 +199,29 @@ export default function AgentDashboard() {
                 {/* ─── Quick Insight Pills ─── */}
                 <View style={styles.insightRow}>
                     {[
-                        { icon: "time-outline", iconBg: theme.amberLight, iconColor: theme.amber, label: t("agent.dashboard.pending", "Pending"), value: String(pendingRequestsCount) },
-                        { icon: "analytics-outline", iconBg: theme.blueLight, iconColor: theme.blue, label: t("agent.dashboard.net_activity", "Net Activity"), value: `${formatAmount(totalMintedUsdt - totalBurnedUsdt, "USDT")} USDT` },
-                        { icon: "star", iconBg: isDark ? "rgba(245,158,11,0.12)" : "#FFFBEB", iconColor: "#F59E0B", label: t("agent.dashboard.rating", "Rating"), value: dashboardData?.agent?.rating || "5.0" },
-                    ].map((item) => (
-                        <View key={item.label} style={[styles.insightCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
-                            <View style={[styles.insightIconBox, { backgroundColor: item.iconBg }]}>
-                                <Ionicons name={item.icon as any} size={16} color={item.iconColor} />
+                        { icon: "time-outline", iconBg: theme.amberLight, iconColor: theme.amber, label: t("agent.dashboard.pending", "Pending"), value: String(pendingRequestsCount), onPress: () => router.push({ pathname: "/agent/requests", params: { tab: "mint" } } as any) },
+                        { icon: "analytics-outline", iconBg: theme.blueLight, iconColor: theme.blue, label: t("agent.dashboard.net_activity", "Net Activity"), value: `${formatAmount(totalMintedUsdt - totalBurnedUsdt, "USDT")} USDT`, onPress: undefined },
+                        { icon: "star", iconBg: isDark ? "rgba(245,158,11,0.12)" : "#FFFBEB", iconColor: "#F59E0B", label: t("agent.dashboard.rating", "Rating"), value: dashboardData?.agent?.rating || "5.0", onPress: undefined },
+                    ].map((item) => {
+                        const cardContent = (
+                            <>
+                                <View style={[styles.insightIconBox, { backgroundColor: item.iconBg }]}>
+                                    <Ionicons name={item.icon as any} size={16} color={item.iconColor} />
+                                </View>
+                                <Text style={[styles.insightLabel, { color: theme.muted }]}>{item.label}</Text>
+                                <Text style={[styles.insightValue, { color: theme.text }]} numberOfLines={1} ellipsizeMode="tail">{item.value}</Text>
+                            </>
+                        );
+                        return item.onPress ? (
+                            <TouchableOpacity key={item.label} style={[styles.insightCard, { backgroundColor: theme.card, borderColor: theme.border }]} onPress={item.onPress} activeOpacity={0.75}>
+                                {cardContent}
+                            </TouchableOpacity>
+                        ) : (
+                            <View key={item.label} style={[styles.insightCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                                {cardContent}
                             </View>
-                            <Text style={[styles.insightLabel, { color: theme.muted }]}>{item.label}</Text>
-                            <Text style={[styles.insightValue, { color: theme.text }]} numberOfLines={1} ellipsizeMode="tail">{item.value}</Text>
-                        </View>
-                    ))}
+                        );
+                    })}
                 </View>
 
                 {/* ─── Quick Actions ─── */}
@@ -240,7 +251,14 @@ export default function AgentDashboard() {
                                         <Ionicons name={action.icon as any} size={20} color={action.iconColor} />
                                     </View>
                                     <View style={styles.actionTextWrap}>
-                                        <Text style={[styles.actionLabel, { color: theme.text }]}>{action.label}</Text>
+                                        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                                            <Text style={[styles.actionLabel, { color: theme.text }]}>{action.label}</Text>
+                                            {action.label === t("agent.dashboard.action_review", "Review Requests") && pendingRequestsCount > 0 && (
+                                                <View style={[styles.actionBadge, { backgroundColor: theme.amber }]}>
+                                                    <Text style={styles.actionBadgeText}>{pendingRequestsCount}</Text>
+                                                </View>
+                                            )}
+                                        </View>
                                         <Text style={[styles.actionSub, { color: theme.muted }]}>{action.sub}</Text>
                                     </View>
                                     <Ionicons name="chevron-forward" size={16} color={theme.muted} />
@@ -739,6 +757,15 @@ const styles = StyleSheet.create({
     actionTextWrap: { flex: 1 },
     actionLabel: { fontSize: 15, fontWeight: "700", marginBottom: 2 },
     actionSub: { fontSize: 12, fontWeight: "500", lineHeight: 17 },
+    actionBadge: {
+        paddingHorizontal: 7,
+        paddingVertical: 2,
+        borderRadius: 999,
+        minWidth: 20,
+        alignItems: "center",
+        justifyContent: "center",
+    },
+    actionBadgeText: { fontSize: 11, fontWeight: "800", color: "#FFFFFF" },
 
     // ── Float Row ──
     floatRow: {

@@ -1,5 +1,5 @@
 admin@gmail.com
-Password123!
+password123
 
 npx expo start
 

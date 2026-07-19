@@ -78,9 +78,10 @@ export const useAgentStore = create<AgentState>((set, get) => ({
       const { data } = await apiClient.get(API_ENDPOINTS.AGENTS.PROFILE);
       const agentData = data.data;
 
-      set({
+      set((state) => ({
         stats: {
-          pending_requests: 0, // Backend needs to return this count
+          // Preserve pending_requests already set by fetchPendingRequests (race-condition safe)
+          pending_requests: state.stats?.pending_requests ?? 0,
           total_earnings: agentData.financial_summary?.total_earnings || 0,
           total_minted: agentData.total_minted || 0,
           total_burned: agentData.total_burned || 0,
@@ -89,7 +90,7 @@ export const useAgentStore = create<AgentState>((set, get) => ({
         },
         agentStatus: agentData.status, // Update agent status
         loading: false,
-      });
+      }));
     } catch (err: any) {
       // If 403, it means user is not an agent yet - this is expected for new users
       if (err.response?.status === 403) {

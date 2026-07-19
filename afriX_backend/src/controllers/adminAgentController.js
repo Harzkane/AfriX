@@ -53,7 +53,7 @@ const adminAgentController = {
       const enrichedAgents = await Promise.all(
         agents.map(async (agent) => {
           const totals = await getAgentMintBurnTotals(agent.id);
-          const outstandingUsdt = totals.totalMintedUsdt - totals.totalBurnedUsdt;
+          const outstandingUsdt = Math.max(0, totals.totalMintedUsdt - totals.totalBurnedUsdt);
           const depositUsd = parseFloat(agent.deposit_usd) || 0;
           const maxWithdraw = Math.max(0, depositUsd - outstandingUsdt);
           const utilization =
@@ -133,7 +133,7 @@ const adminAgentController = {
       }
 
       const totals = await getAgentMintBurnTotals(agent.id);
-      const outstandingUsdt = totals.totalMintedUsdt - totals.totalBurnedUsdt;
+      const outstandingUsdt = Math.max(0, totals.totalMintedUsdt - totals.totalBurnedUsdt);
       const depositUsd = parseFloat(agent.deposit_usd) || 0;
       const maxWithdraw = Math.max(0, depositUsd - outstandingUsdt);
       const utilization =

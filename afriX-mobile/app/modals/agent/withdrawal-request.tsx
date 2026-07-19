@@ -110,6 +110,11 @@ export default function WithdrawalRequest() {
       return sum + (isNaN(value) ? 0 : value);
     }, 0);
 
+  // True when there's already a pending withdrawal — block new submissions
+  const hasPendingRequest = (withdrawalRequests || []).some(
+    (r) => r.status === "pending"
+  );
+
   const maxWithdrawable = Math.max(0, baseMaxWithdrawable - pendingReserved);
   const safeMaxWithdrawable = floorToCurrency(maxWithdrawable);
 
@@ -175,6 +180,14 @@ export default function WithdrawalRequest() {
   };
 
   const handleSubmit = () => {
+    if (hasPendingRequest) {
+      Alert.alert(
+        t("agent.modals.withdrawal_request.err_pending_title", "Pending Request Exists"),
+        t("agent.modals.withdrawal_request.err_pending_desc", "You already have a pending withdrawal request. Please wait for it to be processed before submitting a new one.")
+      );
+      return;
+    }
+
     if (!validateAmount(displayAmount)) {
       return;
     }
@@ -221,7 +234,7 @@ export default function WithdrawalRequest() {
     );
   };
 
-  const isFormValid = amount.trim().length > 0 && !error && !loading;
+  const isFormValid = amount.trim().length > 0 && !error && !loading && !hasPendingRequest;
 
   return (
     <View style={[styles.container, { backgroundColor: theme.bg }]}>
@@ -263,6 +276,21 @@ export default function WithdrawalRequest() {
               {t("agent.modals.withdrawal_request.summary_desc", "Review your live withdrawal capacity, choose an amount, and submit a payout request to your saved wallet.")}
             </Text>
           </LinearGradient>
+
+          {/* Pending request warning banner */}
+          {hasPendingRequest && (
+            <View style={[styles.pendingBanner, { backgroundColor: theme.amberLight, borderColor: theme.amber }]}>
+              <Ionicons name="time-outline" size={18} color={theme.amber} />
+              <View style={{ flex: 1, marginLeft: 8 }}>
+                <Text style={[styles.pendingBannerTitle, { color: theme.amber }]}>
+                  {t("agent.modals.withdrawal_request.banner_pending_title", "Pending Request Active")}
+                </Text>
+                <Text style={[styles.pendingBannerText, { color: theme.amber }]}>
+                  {t("agent.modals.withdrawal_request.banner_pending_desc", "You have a pending withdrawal request. New requests are blocked until it is processed.")}
+                </Text>
+              </View>
+            </View>
+          )}
 
           {/* Financial Summary card */}
           <Text style={[styles.sectionLabel, { color: theme.muted }]}>
@@ -660,6 +688,24 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: "center",
     justifyContent: "center",
+  },
+  pendingBanner: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    padding: 14,
+    borderRadius: 18,
+    borderWidth: 1,
+    marginBottom: 16,
+  },
+  pendingBannerTitle: {
+    fontSize: 13,
+    fontWeight: "800",
+    marginBottom: 3,
+  },
+  pendingBannerText: {
+    fontSize: 12,
+    fontWeight: "500",
+    lineHeight: 17,
   },
   infoBox: {
     flexDirection: "row",

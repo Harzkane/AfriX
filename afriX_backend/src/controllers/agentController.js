@@ -175,7 +175,7 @@ const agentController = {
       const agent = req.agent; // From requireAgent middleware
 
       const totals = await getAgentMintBurnTotals(agent.id);
-      const outstandingUsdt = totals.totalMintedUsdt - totals.totalBurnedUsdt;
+      const outstandingUsdt = Math.max(0, totals.totalMintedUsdt - totals.totalBurnedUsdt);
       const maxWithdraw = Math.max(0, agent.deposit_usd - outstandingUsdt);
 
       // Get review count
@@ -452,7 +452,7 @@ const agentController = {
     try {
       const agent = req.agent;
       const totals = await getAgentMintBurnTotals(agent.id);
-      const outstandingUsdt = totals.totalMintedUsdt - totals.totalBurnedUsdt;
+      const outstandingUsdt = Math.max(0, totals.totalMintedUsdt - totals.totalBurnedUsdt);
       const maxWithdraw = Math.max(0, agent.deposit_usd - outstandingUsdt);
 
       // Get recent transactions (mint/burn)

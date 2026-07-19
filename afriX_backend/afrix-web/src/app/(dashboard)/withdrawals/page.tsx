@@ -354,7 +354,11 @@ export default function WithdrawalsPage() {
                             <div className="p-3 bg-muted rounded-md text-sm">
                                 <div className="flex justify-between mb-1">
                                     <span>Agent Deposit:</span>
-                                    <span className="font-mono">${actionDialog.request.agent?.deposit_usd.toLocaleString()}</span>
+                                    <span className="font-mono">
+                                        {actionDialog.request.agent?.deposit_usd != null
+                                            ? `$${Number(actionDialog.request.agent.deposit_usd).toLocaleString()}`
+                                            : 'N/A'}
+                                    </span>
                                 </div>
                                 <div className="flex justify-between font-bold">
                                     <span>Withdrawal Amount:</span>

@@ -11,7 +11,18 @@ const {
   BURN_REQUEST_STATUS,
   DISPUTE_STATUS,
   AGENT_CONFIG,
+  EXCHANGE_RATES,
 } = require("../config/constants");
+
+function tokenAmountToUsdt(amount, tokenType) {
+  const rate =
+    tokenType === "NT"
+      ? EXCHANGE_RATES.NT_TO_USDT
+      : tokenType === "CT"
+        ? EXCHANGE_RATES.CT_TO_USDT
+        : 1;
+  return parseFloat(amount) * (rate || 0);
+}
 
 const THIRTY_MINUTES = 30 * 60 * 1000;
 // After proof is submitted, give agent time to approve (e.g. 24h) so user doesn't see "Request Expired" while waiting
@@ -245,9 +256,12 @@ const requestController = {
       // ✅ GAP 3 FIX: Enforce per-transaction limit set by the agent's deposit tier.
       // Prevents users from submitting amounts that exceed what the agent can
       // realistically back with their security deposit for dispute recovery.
+      // IMPORTANT: max_transaction_limit is stored in USDT, so we must convert
+      // the raw token amount to its USDT equivalent before comparing.
+      const amountUsdtMint = tokenAmountToUsdt(amount, token_type);
       if (
         agent.max_transaction_limit != null &&
-        parseFloat(amount) > parseFloat(agent.max_transaction_limit)
+        amountUsdtMint > parseFloat(agent.max_transaction_limit)
       ) {
         throw new ApiError(
           `Amount exceeds this agent's transaction limit of $${parseFloat(agent.max_transaction_limit).toFixed(2)} USDT equivalent`,
@@ -579,9 +593,12 @@ const requestController = {
       // but we still cap by max_transaction_limit so a single agent can't be hit
       // with a burn that dwarfs their deposit_usd (making dispute penalties meaningless).
       // Note: NO capacity check here — burns are how agents recover capacity.
+      // IMPORTANT: max_transaction_limit is stored in USDT, so we must convert
+      // the raw token amount to its USDT equivalent before comparing.
+      const amountUsdtBurn = tokenAmountToUsdt(amount, token_type);
       if (
         agent.max_transaction_limit != null &&
-        parseFloat(amount) > parseFloat(agent.max_transaction_limit)
+        amountUsdtBurn > parseFloat(agent.max_transaction_limit)
       ) {
         throw new ApiError(
           `Amount exceeds this agent's transaction limit of $${parseFloat(agent.max_transaction_limit).toFixed(2)} USDT equivalent`,

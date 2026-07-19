@@ -10,6 +10,7 @@ const {
   MINT_REQUEST_STATUS,
   BURN_REQUEST_STATUS,
   DISPUTE_STATUS,
+  AGENT_CONFIG,
 } = require("../config/constants");
 
 const THIRTY_MINUTES = 30 * 60 * 1000;
@@ -237,6 +238,19 @@ const requestController = {
       if (agent.user_id === userId) {
         throw new ApiError(
           "Agents cannot create mint requests to themselves. Please select a different agent.",
+          400
+        );
+      }
+
+      // ✅ GAP 3 FIX: Enforce per-transaction limit set by the agent's deposit tier.
+      // Prevents users from submitting amounts that exceed what the agent can
+      // realistically back with their security deposit for dispute recovery.
+      if (
+        agent.max_transaction_limit != null &&
+        parseFloat(amount) > parseFloat(agent.max_transaction_limit)
+      ) {
+        throw new ApiError(
+          `Amount exceeds this agent's transaction limit of $${parseFloat(agent.max_transaction_limit).toFixed(2)} USDT equivalent`,
           400
         );
       }
@@ -556,6 +570,21 @@ const requestController = {
       if (agent.user_id === userId) {
         throw new ApiError(
           "Agents cannot create burn requests to themselves. Please select a different agent.",
+          400
+        );
+      }
+
+      // ✅ GAP 3 FIX: Enforce per-transaction limit for burns.
+      // Burns don't require capacity (agents are receiving tokens, not issuing them),
+      // but we still cap by max_transaction_limit so a single agent can't be hit
+      // with a burn that dwarfs their deposit_usd (making dispute penalties meaningless).
+      // Note: NO capacity check here — burns are how agents recover capacity.
+      if (
+        agent.max_transaction_limit != null &&
+        parseFloat(amount) > parseFloat(agent.max_transaction_limit)
+      ) {
+        throw new ApiError(
+          `Amount exceeds this agent's transaction limit of $${parseFloat(agent.max_transaction_limit).toFixed(2)} USDT equivalent`,
           400
         );
       }

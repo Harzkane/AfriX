@@ -92,6 +92,12 @@ Agent.init(
       comment: "Amount of USDT-backed tokens the agent can mint/burn",
     },
 
+    capacity_last_used_at: {
+      type: DataTypes.DATE,
+      allowNull: true,
+      comment: "Last time this agent served a mint/burn transaction >= $10 USD. Used for fairness-queue routing (NULL = never used = highest priority).",
+    },
+
     total_minted: {
       type: DataTypes.FLOAT,
       defaultValue: 0,

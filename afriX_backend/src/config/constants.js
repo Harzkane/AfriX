@@ -279,6 +279,7 @@ const AGENT_CONFIG = {
     parseInt(process.env.AGENT_RATE_DEVIATION_PERCENT) || 5,
   MAX_PENDING_EXCHANGES: 10,
   RESPONSE_TIME_LIMIT_MINUTES: 15,
+  MIN_ROUTING_TX_LIMIT_USD: 10, // Minimum transaction size in USD to reset fairness queue timestamp
 };
 
 // ============================================

@@ -1,11 +1,36 @@
 // File: src/controllers/adminWithdrawalController.js
 const { ethers } = require("ethers"); // ← ADD THIS
-const { WITHDRAWAL_STATUS } = require("../config/constants");
+const { WITHDRAWAL_STATUS, EXCHANGE_RATES } = require("../config/constants");
 const { POLYGON_RPC } = require("../config/treasury"); // ← ADD THIS
 const { WithdrawalRequest, Agent } = require("../models");
 const { deliver } = require("../services/notificationService");
 const { ApiError } = require("../utils/errors");
 const { Op } = require("sequelize");
+
+function tokenAmountToUsdt(amount, tokenType) {
+  const rate =
+    tokenType === "NT"
+      ? EXCHANGE_RATES.NT_TO_USDT
+      : tokenType === "CT"
+        ? EXCHANGE_RATES.CT_TO_USDT
+        : 1;
+  return parseFloat(amount) * (rate || 0);
+}
+
+function getAgentTokenSymbol(currency) {
+  if (currency === "NGN") return "NT";
+  if (currency === "XOF") return "CT";
+  return "USDT";
+}
+
+function getOutstandingUsdt(agent) {
+  if (!agent) return 0;
+  const totalMinted = parseFloat(agent.total_minted) || 0;
+  const totalBurned = parseFloat(agent.total_burned) || 0;
+  const outstandingTokens = Math.max(0, totalMinted - totalBurned);
+  const tokenSymbol = getAgentTokenSymbol(agent.currency);
+  return tokenAmountToUsdt(outstandingTokens, tokenSymbol);
+}
 
 const adminWithdrawalController = {
   /**
@@ -27,6 +52,7 @@ const adminWithdrawalController = {
             "deposit_usd",
             "total_minted",
             "total_burned",
+            "currency",
           ],
         },
       ],
@@ -35,7 +61,7 @@ const adminWithdrawalController = {
 
     // Calculate withdrawable info for each request
     const enrichedRequests = requests.map((req) => {
-      const outstanding = Math.max(0, req.agent.total_minted - req.agent.total_burned);
+      const outstanding = getOutstandingUsdt(req.agent);
       const maxWithdraw = Math.max(0, req.agent.deposit_usd - outstanding);
 
       return {
@@ -64,7 +90,7 @@ const adminWithdrawalController = {
       throw new ApiError("Invalid request", 400);
 
     // Double-check withdrawal is safe
-    const outstanding = Math.max(0, request.agent.total_minted - request.agent.total_burned);
+    const outstanding = getOutstandingUsdt(request.agent);
     const maxWithdraw = Math.max(0, request.agent.deposit_usd - outstanding);
 
     if (request.amount_usd > maxWithdraw) {
@@ -145,6 +171,9 @@ const adminWithdrawalController = {
     if (agent.deposit_usd < 0) agent.deposit_usd = 0;
     if (agent.available_capacity < 0) agent.available_capacity = 0;
 
+    // ✅ Sync max_transaction_limit on withdrawal payouts
+    agent.max_transaction_limit = agent.deposit_usd;
+
     await agent.save();
 
     // Update withdrawal request
@@ -184,6 +213,7 @@ const adminWithdrawalController = {
             "available_capacity",
             "tier",
             "rating",
+            "currency",
           ],
         },
       ],
@@ -194,11 +224,8 @@ const adminWithdrawalController = {
     }
 
     const agent = request.agent;
-    const totalMinted = agent ? parseFloat(agent.total_minted) : 0;
-    const totalBurned = agent ? parseFloat(agent.total_burned) : 0;
-    const depositUsd = agent ? parseFloat(agent.deposit_usd) : 0;
-    const outstanding = Math.max(0, totalMinted - totalBurned);
-    const maxWithdraw = Math.max(0, depositUsd - outstanding);
+    const outstanding = getOutstandingUsdt(agent);
+    const maxWithdraw = agent ? Math.max(0, parseFloat(agent.deposit_usd) - outstanding) : 0;
 
     res.json({
       success: true,
@@ -241,6 +268,7 @@ const adminWithdrawalController = {
             "deposit_usd",
             "total_minted",
             "total_burned",
+            "currency",
           ],
         },
       ],
@@ -251,7 +279,7 @@ const adminWithdrawalController = {
     const enriched = requests.map((r) => {
       const json = r.toJSON();
       if (json.agent) {
-        const outstanding = Math.max(0, json.agent.total_minted - json.agent.total_burned);
+        const outstanding = getOutstandingUsdt(json.agent);
         const maxWithdraw = Math.max(0, json.agent.deposit_usd - outstanding);
         return { ...json, outstanding_tokens: outstanding, max_withdrawable: maxWithdraw, is_safe: json.amount_usd <= maxWithdraw };
       }

@@ -61,3 +61,15 @@ brew services restart postgresql@14
 ```
 
 Would you like me to go ahead and run this to get your database back online?
+
+
+
+Let's say the user has 150,000 NT (100 USDT) in their wallet, which they got by paying an agent to mint it for them — this mint decreased that agent's available_capacity by 100 USDT (their deposit_usd/security itself never changes on mint).
+
+Now, with time, the user wants to burn that 100 USDT with a different agent. That agent's available_capacity increases from whatever it was to +100 USDT — but their deposit_usd (real security deposit) stays exactly where it was. Capacity can rise above the security deposit, but it's not "capacity plus security" — it's just capacity growing past the deposit number, as a permission to mint, not extra collateral.
+
+So: any mint is real fiat moving from user to agent, and it decreases that agent's available_capacity. Any burn is real fiat moving from agent to user, and it increases that agent's available_capacity — but neither action ever changes deposit_usddirectly (that only moves on actual deposit or withdrawal, or an admin penalty).
+
+An agent is only eligible to process a mint or burn if their available_capacity is ≥ the amount requested — this applies to both directions, not just minting.
+
+So the token in circulation always represents real fiat that's still locked somewhere on the platform — specifically, in the deposit_usd of whichever agent(s) currently have outstanding > 0 (i.e., have minted more than they've burned). That locked deposit is what the circulating token supply is backed by.

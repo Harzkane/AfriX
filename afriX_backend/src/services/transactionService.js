@@ -14,6 +14,7 @@ const {
   TRANSACTION_STATUS,
   MINT_REQUEST_STATUS,
   EXCHANGE_RATES,
+  AGENT_CONFIG,
 } = require("../config/constants");
 const { ApiError } = require("../utils/errors");
 const { generateTransactionReference } = require("../utils/helpers");
@@ -285,6 +286,12 @@ const transactionService = {
       }
 
       await userWallet.save({ transaction: innerT });
+
+      // ✅ Anti-gaming: Only update fairness-queue timestamp for meaningful transactions
+      if (amountUsdt >= AGENT_CONFIG.MIN_ROUTING_TX_LIMIT_USD) {
+        agent.capacity_last_used_at = new Date();
+      }
+
       await agent.save({ transaction: innerT });
 
       // ✅ NEW: Record commission in transaction fee

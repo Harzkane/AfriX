@@ -2,7 +2,7 @@
   "expo": {
     "name": "AfriX – Digital Commerce",
     "slug": "afriX",
-    "version": "1.3.0",
+    "version": "1.3.1",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "afrix",
@@ -11,7 +11,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.nexgentech.afrix",
-      "buildNumber": "4",
+      "buildNumber": "5",
       "infoPlist": {
         "LSApplicationQueriesSchemes": [
           "whatsapp"
@@ -23,7 +23,7 @@
     },
     "android": {
       "package": "com.nexgentech.afrix",
-      "versionCode": 5,
+      "versionCode": 6,
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",

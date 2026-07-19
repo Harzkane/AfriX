@@ -160,6 +160,12 @@ const escrowService = {
           agent.available_capacity = (parseFloat(agent.available_capacity) || 0) + amountUsdt;
           agent.total_burned = (parseFloat(agent.total_burned) || 0) + parseFloat(escrow.amount);
 
+          // ✅ Anti-gaming: Only update fairness-queue timestamp for meaningful transactions
+          const { AGENT_CONFIG } = require("../config/constants");
+          if (amountUsdt >= AGENT_CONFIG.MIN_ROUTING_TX_LIMIT_USD) {
+            agent.capacity_last_used_at = new Date();
+          }
+
           // ✅ ADDED: Commission Logic
           const commissionRate = agent.commission_rate || 0.01;
           const commissionToken = parseFloat(escrow.amount) * commissionRate;

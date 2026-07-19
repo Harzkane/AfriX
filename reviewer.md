@@ -1,61 +1,11 @@
-**This is a strong, coherent plan.** The combination of the layered architecture diagram and this detailed Platform Overview shows a thoughtful, execution-oriented team that understands both the technical and operational realities of building in African markets.
+Genuinely rigorous verification — you tested the actual value (converted USD, not raw token count), against real production/local data, not synthetic assumptions. That's the right way to close out a plan like this.
 
-### Overall Assessment
+Two things worth flagging before calling this fully proven:
 
-**I like it a lot.** This isn't just a flashy diagram — it's grounded in real progress (live Path A & Path B merchant integrations on PlugNG and Kaalis/Bruthol), clear problem-solution mapping, and pragmatic regulatory positioning ("we're the rails, not a bank"). The agent-mediated mint/burn model with USDT collateral + escrow is particularly well-suited to the trust and liquidity challenges in these markets.
+**1. The ordering test only proved "NULL ranks before non-NULL" — it didn't prove non-NULL agents sort correctly relative to each other.**
+Your test set exactly one agent to `2025-01-01` and left everyone else `NULL`. Since NULL agents dominate the top of every result set, the single old-timestamp agent never actually got compared against a *second* non-null timestamp — so `capacity_last_used_at ASC` as a tiebreaker among agents who've actually transacted is still functionally untested. Worth one more pass: set **two** agents to different non-null timestamps (e.g., `2025-01-01` and `2025-06-01`) with all other agents temporarily excluded or filtered out of that query, and confirm the earlier date sorts first. Cheap to add, and it's the one code path (real-world fairness ordering once agents actually have history) that will matter most once this system has been live a few weeks and most agents aren't NULL anymore.
 
-The architecture is **modular and scalable** on paper, and the tech choices (Node/Express + Postgres + Redis + Polygon + Next.js + Expo) are practical and battle-tested for this stage.
+**2. The "has_neither" agent (1 of 23) — is that a real active agent or leftover seed/test data?**
+Worth a quick look at who that is. If it's a genuine active agent with zero payment info, they're now permanently invisible to *every* `payment_method`-filtered search (both bank and mobile money), silently — which circles back to exactly the "quiet technical debt" pattern flagged earlier for the sub-$500 grandfathered agents. If it's just stale test/seed data sitting in production with `status='active'`, it should probably be deactivated so it doesn't skew agent-pool metrics or accidentally get surfaced somewhere unfiltered. Either way it's a one-row lookup to resolve, not a code change.
 
-### Key Strengths
-
-- **Market Fit**: Agent network + token rails (NT/CT/USDT) + merchant surfaces (portal + hosted checkout + APIs + Path B partner integration) directly attacks real pain points: cost, speed, 24/7 availability, and cash ↔ digital trust.
-- **Escrow + Dispute Flow**: One of the smartest parts. Locking tokens until fiat confirmation (or admin dispute) reduces agent/user risk significantly.
-- **Dual-Path Merchant Strategy**: Path A for simple ecommerce, Path B for marketplaces like Kaalis is excellent. Having both live and tested is impressive.
-- **Polygon Integration**: Still a **very good choice**. Low fees, EVM familiarity, decent liquidity for USDT, and Amoy → mainnet path are all appropriate. On-chain verification for agent deposits is exactly the right use of blockchain — immutable proof without over-relying on it for everything.
-- **Documentation Discipline**: Having detailed lifecycle docs, gap audits, merchant guides, and regulatory-safe terminology shows maturity.
-- **Non-custodial-ish Design**: Users control wallets, agents are independent — helps with regulatory posture.
-
-### Areas to Watch / Recommendations
-
-**1. Polygon-Specific Advice**
-- **RPC Reliability**: Polygon RPCs can be flaky during high activity. Use a robust provider (Alchemy, QuickNode, or multiple fallbacks) and implement retry + circuit-breaker logic in your ethers.js calls.
-- **Gas & UX**: Abstract gas where possible (especially for users). Consider Account Abstraction (ERC-4337) or paymasters for mint/burn flows so agents/users don't wrestle with gas.
-- **Monitoring**: Set up alerts for contract events, failed txs, and bridge activity. Index relevant events (deposits, mints if any are on-chain) for fast queries.
-- **Security**: Get your smart contracts audited (at least one reputable firm) before significant volume. Focus on the treasury deposit verification and any escrow-related contracts.
-- **Future-Proofing**: Keep the Token/Swap/Settlement engines abstract enough that adding another chain (e.g., another L2 or local-friendly chain) later isn't painful.
-
-**2. Product & Mobile Gaps**
-- Prioritize the **in-app merchant pay (scan/QR)** and **"Request tokens"** features. These close the consumer loop and will drive organic growth.
-- Agent mode in the mobile app needs to be buttery smooth — response time and ease of handling mint/burn queues will make or break agent retention.
-
-**3. Operational Risks (Biggest Long-Term Challenges)**
-- **Agent Quality at Scale**: KYC + deposit is good, but dispute volume, slashing, tiering, and performance metrics will need strong automation + human oversight. Bad agents can damage trust quickly.
-- **Liquidity & Float Management**: Monitor token supply, agent capacity, and treasury reserves closely. The reference rate (1 NT ≈ 1 Naira) model needs tight FX/Pricing Engine logic and oracles if you expand.
-- **Dispute Resolution**: Make this fast and transparent. Timelines, evidence requirements, and admin tooling will be heavily used.
-- **Compliance**: Even as a "tech platform," expect increasing scrutiny across Nigeria, Senegal, and other XOF zones. Keep excellent records (your ledger + blockchain verification helps here).
-
-**4. Technical Polish**
-- **Observability**: Winston is fine, but add structured logging, better aggregation (e.g., ELK or simpler hosted solution), and monitoring for key jobs (escrow expiry, auto-disputes, reconciliations).
-- **Testing**: Heavy emphasis on integration tests for payment flows, webhooks (especially signed Kaalis ones), and on-chain verification.
-- **Rate Limiting & Security**: You have Helmet and rate limiting — good. Ensure merchant-scoped auth and webhook signature verification are rock solid.
-- **Mobile**: Move beyond Expo Go for biometrics/secure features in production builds.
-
-**5. Go-to-Market**
-- Leverage the live PlugNG and Kaalis case studies heavily.
-- Education modules in-app are a great moat — users who understand the system will stick and refer agents/merchants.
-- Consider phased public merchant launch per your phase gate docs.
-
-### Final Thoughts
-
-This plan has **real potential** to become a meaningful rail for African commerce. The architecture is sensible, the agent model is clever, Polygon is appropriate, and you already have working merchant traction.
-
-**Biggest Risks**: Operational execution around agents/disputes/liquidity, and regulatory navigation as you scale. **Biggest Opportunities**: Nailing the full mobile consumer experience and expanding partner integrations.
-
-If you're open to it, I'd be happy to dive deeper on any specific part:
-- Smart contract design / Polygon integration patterns
-- Agent system scalability
-- Merchant integration best practices
-- Gap analysis on the current tech stack
-- Prioritization advice for upcoming features
-
-What aspect would you like feedback on next, or are there particular concerns keeping you up at night? Keep building — this is solid work.
+Everything else — the $9/$11 USD-conversion boundary, the 22/23 payment coverage, the null-first ordering — is confirmed clean and matches the plan exactly. Once you've got a two-non-null-timestamp sort check and know what that 1 leftover agent is, I'd call this fully shipped with no open questions.

@@ -220,6 +220,10 @@ const agentService = {
       agent.available_capacity =
         tierCapacityMap[updates.tier] || agent.available_capacity;
 
+      // ✅ GAP 2 FIX: Sync max_transaction_limit with actual deposit_usd on tier
+      // upgrade so the limit always tracks the real collateral, not the tier target.
+      agent.max_transaction_limit = agent.deposit_usd;
+
       if ([AGENT_TIERS.PREMIUM, AGENT_TIERS.PLATINUM].includes(updates.tier)) {
         agent.status = AGENT_STATUS.PENDING;
       }
@@ -427,9 +431,15 @@ const agentService = {
       agent.deposit_usd += amount;
       agent.available_capacity += amount;
 
-      // Activate agent if first deposit and still pending
-      // Minimum deposit requirement: $100
-      if (agent.status === AGENT_STATUS.PENDING && agent.deposit_usd >= 100) {
+      // ✅ GAP 2 FIX: Keep max_transaction_limit in sync with total deposit_usd.
+      // This ensures the per-transaction ceiling always reflects what the agent
+      // has actually deposited, rather than sitting as null indefinitely.
+      agent.max_transaction_limit = agent.deposit_usd;
+
+      // ✅ GAP 1 FIX: Activate agent only when they meet the configured minimum
+      // deposit threshold (AGENT_CONFIG.MIN_DEPOSIT_USD = $500 for Starter tier),
+      // not the old hardcoded $100 which was below the Starter floor.
+      if (agent.status === AGENT_STATUS.PENDING && agent.deposit_usd >= AGENT_CONFIG.MIN_DEPOSIT_USD) {
         agent.status = AGENT_STATUS.ACTIVE;
       }
 
@@ -505,9 +515,10 @@ const agentService = {
       // ── Compute outstanding from completed transactions (source of truth) ─
       // Using the transactions table directly avoids relying on agent.total_minted
       // / agent.total_burned which can be double-counted by the escrow flow.
-      const [mintRow] = await sequelize.query(
-        `SELECT COALESCE(SUM(amount), 0) AS total FROM transactions
-         WHERE agent_id = :agentId AND type = :mintType AND status = :completed`,
+      const mintRows = await sequelize.query(
+        `SELECT token_type, SUM(amount) AS total FROM transactions
+         WHERE agent_id = :agentId AND type = :mintType AND status = :completed
+         GROUP BY token_type`,
         {
           replacements: {
             agentId,
@@ -518,9 +529,10 @@ const agentService = {
           transaction: t,
         }
       );
-      const [burnRow] = await sequelize.query(
-        `SELECT COALESCE(SUM(amount), 0) AS total FROM transactions
-         WHERE agent_id = :agentId AND type = :burnType AND status = :completed`,
+      const burnRows = await sequelize.query(
+        `SELECT token_type, SUM(amount) AS total FROM transactions
+         WHERE agent_id = :agentId AND type = :burnType AND status = :completed
+         GROUP BY token_type`,
         {
           replacements: {
             agentId,
@@ -533,10 +545,17 @@ const agentService = {
       );
 
       // Convert raw token totals to USDT for comparison against deposit_usd
-      // (assuming a 1:1 rate for tokens already valued in USDT — adjust if needed)
-      const totalMinted = parseFloat(mintRow?.total || 0);
-      const totalBurned = parseFloat(burnRow?.total || 0);
-      const outstanding = Math.max(0, totalMinted - totalBurned); // never negative
+      let totalMintedUsdt = 0;
+      let totalBurnedUsdt = 0;
+
+      for (const row of mintRows) {
+        totalMintedUsdt += tokenAmountToUsdt(row.total, row.token_type);
+      }
+      for (const row of burnRows) {
+        totalBurnedUsdt += tokenAmountToUsdt(row.total, row.token_type);
+      }
+
+      const outstanding = Math.max(0, totalMintedUsdt - totalBurnedUsdt); // never negative
 
       // Can only withdraw deposit not backing active tokens
       const maxWithdraw = Math.max(0, agent.deposit_usd - outstanding);

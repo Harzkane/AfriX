@@ -559,20 +559,80 @@ const agentController = {
    */
   async listActiveAgents(req, res, next) {
     try {
-      const { country, sort } = req.query;
+      const { country, sort, amount, transaction_type, token_type, payment_method } = req.query;
 
+      const { Op, literal } = require("sequelize");
+
+      // Sorting strategy:
+      // - 'capacity': Fairness-by-wait-time queue. Capacity is an eligibility *filter*, not a ranking factor.
+      //               NULL = never transacted = highest priority (new/idle agents get first shot).
+      //               Uses portable null-ordering: `capacity_last_used_at IS NOT NULL ASC` puts NULLs first.
+      // - 'fastest':  Sort by response time ascending, then rating DESC.
+      // - default:    Sort by rating DESC, then response time ASC.
       const order =
         sort === "capacity"
-          ? [["available_capacity", "DESC"], ["rating", "DESC"]]
+          ? [[literal('capacity_last_used_at IS NOT NULL'), 'ASC'], ["capacity_last_used_at", "ASC"], ["rating", "DESC"]]
           : sort === "fastest"
             ? [["response_time_minutes", "ASC"], ["rating", "DESC"]]
             : [["rating", "DESC"], ["response_time_minutes", "ASC"]];
 
+      const where = {
+        status: AGENT_STATUS.ACTIVE,
+        ...(country && { country }),
+      };
+
+      // ✅ Dynamic matching filter (Gap 3 frontend parity check)
+      if (amount) {
+        const amt = parseFloat(amount);
+        const tokenType = token_type || "USDT";
+        const rate =
+          tokenType === "NT"
+            ? EXCHANGE_RATES.NT_TO_USDT
+            : tokenType === "CT"
+              ? EXCHANGE_RATES.CT_TO_USDT
+              : 1;
+        const amountUsdt = amt * (rate || 0);
+
+        if (transaction_type === "mint") {
+          // Gating for mint:
+          // 1. Must have enough available capacity in USD
+          // 2. Transaction limit (in USD/USDT equivalent) must be >= amountUsdt
+          where.available_capacity = { [Op.gte]: amountUsdt };
+          where[Op.and] = [
+            {
+              [Op.or]: [
+                { max_transaction_limit: null },
+                { max_transaction_limit: { [Op.gte]: amountUsdt } }
+              ]
+            }
+          ];
+        } else if (transaction_type === "burn") {
+          // Gating for burn:
+          // 1. Transaction limit (in USD/USDT equivalent) must be >= amountUsdt
+          // Note: NO available_capacity gating for burns (asymmetric design — burns are recovery)
+          where[Op.and] = [
+            {
+              [Op.or]: [
+                { max_transaction_limit: null },
+                { max_transaction_limit: { [Op.gte]: amountUsdt } }
+              ]
+            }
+          ];
+        }
+      }
+
+      // ✅ Payment method hard filter (must be applied BEFORE ranking, not blended into score)
+      // An agent who cannot settle on the user's network should not appear at all.
+      if (payment_method === "bank_transfer") {
+        where.bank_name = { [Op.ne]: null };
+        where.account_number = { [Op.ne]: null };
+      } else if (payment_method === "mobile_money") {
+        where.mobile_money_provider = { [Op.ne]: null };
+        where.mobile_money_number = { [Op.ne]: null };
+      }
+
       const agents = await Agent.findAll({
-        where: {
-          status: AGENT_STATUS.ACTIVE,
-          ...(country && { country }),
-        },
+        where,
         include: [
           {
             model: User,
@@ -604,6 +664,7 @@ const agentController = {
           "mobile_money_number",
           "total_minted",
           "total_burned",
+          "capacity_last_used_at",
         ],
         order,
       });

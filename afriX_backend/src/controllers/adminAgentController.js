@@ -12,13 +12,37 @@ const adminAgentController = {
    */
   listAgents: async (req, res) => {
     try {
-      const { status, verified, country, tier, limit = 50, offset = 0 } = req.query;
+      const { status, verified, country, tier, below_tier_minimum, limit = 50, offset = 0 } = req.query;
       const where = {};
 
       if (status) where.status = status;
       if (verified !== undefined) where.is_verified = verified === "true";
       if (country) where.country = country;
       if (tier) where.tier = tier;
+
+      // ✅ Reviewer feedback implementation:
+      // Filter for active agents who are grandfathered or below their tier's minimum deposit floor.
+      if (below_tier_minimum === "true") {
+        const { AGENT_CONFIG, AGENT_TIERS } = require("../config/constants");
+        where[Op.or] = [
+          {
+            tier: AGENT_TIERS.STARTER,
+            deposit_usd: { [Op.lt]: AGENT_CONFIG.MIN_DEPOSIT_USD }
+          },
+          {
+            tier: AGENT_TIERS.STANDARD,
+            deposit_usd: { [Op.lt]: AGENT_CONFIG.RECOMMENDED_DEPOSIT_USD }
+          },
+          {
+            tier: AGENT_TIERS.PREMIUM,
+            deposit_usd: { [Op.lt]: AGENT_CONFIG.PREMIUM_DEPOSIT_USD }
+          },
+          {
+            tier: AGENT_TIERS.PLATINUM,
+            deposit_usd: { [Op.lt]: AGENT_CONFIG.PREMIUM_DEPOSIT_USD * 2 }
+          }
+        ];
+      }
 
       const limitNum = Math.min(parseInt(limit, 10) || 50, 100);
       const offsetNum = parseInt(offset, 10) || 0;

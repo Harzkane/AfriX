@@ -116,20 +116,52 @@ export const AgentCard: React.FC<AgentCardProps> = ({
     .toUpperCase()
     .substring(0, 2) || "AG";
 
+function limitToLocal(
+  limitUsdt: number | null,
+  tokenType: string,
+  rates: { USDT_TO_NT: number; USDT_TO_CT: number }
+): number | null {
+  if (limitUsdt == null) return null;
+  if (tokenType === "NT") {
+    const rate = rates?.USDT_TO_NT;
+    if (!rate || rate <= 0) return null;
+    return limitUsdt * rate;
+  }
+  if (tokenType === "CT") {
+    const rate = rates?.USDT_TO_CT;
+    if (!rate || rate <= 0) return null;
+    return limitUsdt * rate;
+  }
+  return limitUsdt;
+}
+
   const capacity = Number(agent.available_capacity) || 0;
   const maxLimitStored = agent.max_transaction_limit != null ? Number(agent.max_transaction_limit) : null;
   const maxTradeUnit = tokenType === "NT" || tokenType === "CT" ? tokenType : agent.country === "NG" ? "NT" : "CT";
+  
   const capacityInLocal = capacityToLocal(capacity, maxTradeUnit, exchangeRates);
-  const effectiveMaxTrade = capacityInLocal != null ? capacityInLocal : maxLimitStored;
+  const maxLimitInLocal = limitToLocal(maxLimitStored, maxTradeUnit, exchangeRates);
+  
+  // The effective max trade in local tokens is the smaller of local capacity and local transaction limit
+  const effectiveMaxTrade =
+    capacityInLocal != null && maxLimitInLocal != null
+      ? Math.min(capacityInLocal, maxLimitInLocal)
+      : capacityInLocal != null
+        ? capacityInLocal
+        : maxLimitInLocal;
+
   const userAmountUsdt =
     userAmount != null && userAmount > 0
       ? toUsdt(userAmount, tokenType, exchangeRates)
       : null;
+
   const canHandleCapacity =
     userAmountUsdt == null ? true : capacity >= userAmountUsdt;
+
+  // Compare USDT equivalent of user amount against the agent's USDT limit
   const canHandleMax =
-    (effectiveMaxTrade == null || userAmount == null || userAmount <= 0 || effectiveMaxTrade >= userAmount) &&
-    (maxLimitStored == null || userAmount == null || userAmount <= 0 || maxLimitStored >= userAmount);
+    userAmountUsdt == null || maxLimitStored == null ? true : maxLimitStored >= userAmountUsdt;
+
   const canHandleAmount =
     userAmount != null &&
     userAmount > 0 &&

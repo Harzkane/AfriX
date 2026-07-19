@@ -10,8 +10,16 @@ const treasuryAddress = (!rawAddress ||
   ? fallbackAddress 
   : rawAddress.trim();
 
+const rawRpc = process.env.POLYGON_RPC_URL;
+const fallbackRpc = "https://polygon-amoy.drpc.org";
+const polygonRpc = (!rawRpc || 
+  rawRpc.trim() === "" || 
+  rawRpc.includes("rpc-amoy.polygon.technology"))
+  ? fallbackRpc
+  : rawRpc.trim();
+
 module.exports = {
   TREASURY_ADDRESS: treasuryAddress,
-  POLYGON_RPC: process.env.POLYGON_RPC_URL,
+  POLYGON_RPC: polygonRpc,
   USDT_CONTRACT: "0x7c26C161F7b3b1b975489DA1a1672a9D9178a16e", // Amoy Testnet USDT
 };

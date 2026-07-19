@@ -347,25 +347,17 @@ const transactionService = {
       );
 
       const amountNum = parseFloat(amount);
-      const amountUsdt = tokenAmountToUsdt(amount, token_type);
 
+      // Only deduct from user wallet balance here — the burn is still PENDING (in escrow).
+      // Do NOT increment agent.total_burned yet; that happens in escrowService.finalizeBurn()
+      // when the burn is confirmed. Incrementing here AND in finalizeBurn causes double-counting
+      // which makes outstanding_tokens go negative and breaks the withdrawal limit calculation.
       userWallet.balance -= amountNum;
-      agent.available_capacity += amountUsdt;
-      agent.total_burned += amountNum;
-
-      // Commission in token, convert to USDT for total_earnings
-      const commissionRate = agent.commission_rate || 0.01;
-      const commissionToken = amountNum * commissionRate;
-      const commissionUsdt = tokenAmountToUsdt(commissionToken, token_type);
-      agent.total_earnings = (parseFloat(agent.total_earnings) || 0) + commissionUsdt;
 
       await userWallet.save({ transaction: innerT });
-      await agent.save({ transaction: innerT });
 
-      // ✅ NEW: Record commission in transaction fee
-      tx.fee = commissionToken;
-
-      tx.status = TRANSACTION_STATUS.COMPLETED;
+      // Commission is recorded in finalizeBurn() when the escrow is confirmed.
+      // The transaction stays PENDING until finalizeBurn completes it.
       await tx.save({ transaction: innerT });
 
       return tx;

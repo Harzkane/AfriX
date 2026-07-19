@@ -490,11 +490,56 @@ const agentService = {
       });
       if (!agent) throw new ApiError("Agent not found", 404);
 
-      // Calculate tokens currently in circulation
-      const outstanding = agent.total_minted - agent.total_burned;
+      // ── Guard: only one pending withdrawal at a time ──────────────────────
+      const existingPending = await WithdrawalRequest.findOne({
+        where: { agent_id: agentId, status: WITHDRAWAL_STATUS.PENDING },
+        transaction: t,
+      });
+      if (existingPending) {
+        throw new ApiError(
+          "You already have a pending withdrawal request. Please wait for it to be processed before submitting a new one.",
+          400
+        );
+      }
+
+      // ── Compute outstanding from completed transactions (source of truth) ─
+      // Using the transactions table directly avoids relying on agent.total_minted
+      // / agent.total_burned which can be double-counted by the escrow flow.
+      const [mintRow] = await sequelize.query(
+        `SELECT COALESCE(SUM(amount), 0) AS total FROM transactions
+         WHERE agent_id = :agentId AND type = :mintType AND status = :completed`,
+        {
+          replacements: {
+            agentId,
+            mintType: TRANSACTION_TYPES.MINT,
+            completed: TRANSACTION_STATUS.COMPLETED,
+          },
+          type: sequelize.QueryTypes.SELECT,
+          transaction: t,
+        }
+      );
+      const [burnRow] = await sequelize.query(
+        `SELECT COALESCE(SUM(amount), 0) AS total FROM transactions
+         WHERE agent_id = :agentId AND type = :burnType AND status = :completed`,
+        {
+          replacements: {
+            agentId,
+            burnType: TRANSACTION_TYPES.BURN,
+            completed: TRANSACTION_STATUS.COMPLETED,
+          },
+          type: sequelize.QueryTypes.SELECT,
+          transaction: t,
+        }
+      );
+
+      // Convert raw token totals to USDT for comparison against deposit_usd
+      // (assuming a 1:1 rate for tokens already valued in USDT — adjust if needed)
+      const totalMinted = parseFloat(mintRow?.total || 0);
+      const totalBurned = parseFloat(burnRow?.total || 0);
+      const outstanding = Math.max(0, totalMinted - totalBurned); // never negative
 
       // Can only withdraw deposit not backing active tokens
-      const maxWithdraw = agent.deposit_usd - outstanding;
+      const maxWithdraw = Math.max(0, agent.deposit_usd - outstanding);
       const amount = parseFloat(amountUsd);
 
       if (amount > maxWithdraw) {

@@ -87,6 +87,8 @@ export const useAgentStore = create<AgentState>((set, get) => ({
           total_burned: agentData.total_burned || 0,
           total_reviews: agentData.total_reviews || 0,
           available_capacity: agentData.available_capacity || 0,
+          // Persist withdrawal_address from agent profile — user object never contains this field
+          withdrawal_address: agentData.withdrawal_address || state.stats?.withdrawal_address || null,
         },
         agentStatus: agentData.status, // Update agent status
         loading: false,

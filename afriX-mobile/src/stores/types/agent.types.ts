@@ -7,6 +7,7 @@ export interface AgentStats {
     total_burned: number;
     total_reviews?: number;
     available_capacity: number;
+    withdrawal_address?: string | null;
 }
 
 export interface AgentRequest {

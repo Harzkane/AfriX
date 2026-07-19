@@ -28,6 +28,7 @@ export default function WithdrawalRequest() {
   const { user } = useAuthStore();
   const {
     dashboardData,
+    stats,
     createWithdrawalRequest,
     loading,
     withdrawalRequests,
@@ -118,7 +119,13 @@ export default function WithdrawalRequest() {
   const maxWithdrawable = Math.max(0, baseMaxWithdrawable - pendingReserved);
   const safeMaxWithdrawable = floorToCurrency(maxWithdrawable);
 
-  const withdrawalAddress = (user as any)?.withdrawal_address || "Not set";
+  // withdrawal_address lives on the Agent model — not the User model.
+  // stats is populated from GET /agents/profile (fetchAgentStats) on every app load.
+  // Fallback to user for within-session updates (e.g. just saved in edit-bank-details).
+  const withdrawalAddress =
+    stats?.withdrawal_address ||
+    (user as any)?.withdrawal_address ||
+    "Not set";
 
   const copyAddress = () => {
     if (withdrawalAddress && withdrawalAddress !== "Not set") {

@@ -36,7 +36,7 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <div className="h-screen w-full overflow-hidden">
+          <div className="min-h-screen w-full overflow-y-auto">
             {children}
           </div>
           <Toaster position="top-right" richColors />

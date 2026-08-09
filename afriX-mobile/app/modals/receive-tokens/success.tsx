@@ -44,6 +44,7 @@ export default function ReceiveSuccessScreen() {
   };
 
   const { amount, tokenType, fromEmail, senderName, country, city, timestamp } = params;
+  const amountVal = Array.isArray(amount) ? amount[0] : (amount || "0");
 
   const formattedDate = timestamp ? formatDate(timestamp as string, true) : "N/A";
   const location = [city, country].filter(Boolean).join(", ") || t("receive_tokens.success.receipt_value_location_unknown", "Unknown Location");
@@ -118,9 +119,9 @@ export default function ReceiveSuccessScreen() {
         "receive_tokens.success.share_receipt_message",
         "🎉 Payment Received on AfriExchange!\n\n• Amount: {{amount}} {{tokenType}}\n• From: {{from}}\n• Date: {{date}}\n• Location: {{location}}\n\nVerified by AfriExchange Network.",
         {
-          amount: formatAmount((amount as string) || "0", tokenType),
-          tokenType,
-          from: senderName || fromEmail || t("receive_tokens.success.share_receipt_user_fallback", "AfriExchange User"),
+          amount: formatAmount(amountVal, tokenType as string),
+          tokenType: tokenType as string,
+          from: (senderName as string) || (fromEmail as string) || t("receive_tokens.success.share_receipt_user_fallback", "AfriExchange User"),
           date: formattedDate,
           location,
         }
@@ -131,7 +132,7 @@ export default function ReceiveSuccessScreen() {
         title: t("receive_tokens.success.share_receipt_title", "AfriExchange Receipt"),
       });
     } catch (e) {
-      console.error("Share error:", e);
+      console.error("Share receipt error:", e);
     }
   };
 
@@ -210,7 +211,7 @@ export default function ReceiveSuccessScreen() {
           {/* Hero Amount */}
           <Text style={[styles.amountTitle, { color: theme.muted }]}>{t("receive_tokens.success.amount_received_title", "Amount Received")}</Text>
           <Text style={[styles.amountText, { color: theme.accent }]}>
-            +{formatAmount((amount as string) || "0", tokenType)}{" "}
+            +{formatAmount(amountVal, tokenType as string)}{" "}
             <Text style={[styles.tokenLabel, { color: theme.text }]}>{tokenType}</Text>
           </Text>
 

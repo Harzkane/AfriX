@@ -317,6 +317,8 @@ export default function ProfileScreen() {
               <Text style={[styles.statValue, { color: theme.text }]}>{new Date(user.created_at).getFullYear()}</Text>
               <Text style={[styles.statLabel, { color: theme.muted }]}>{t("profile.joined")}</Text>
             </View>
+          </View>
+
           {/* VERIFICATION & DAILY LIMITS CARD */}
           <Text style={[styles.sectionHeading, { color: theme.muted }]}>
             {t("profile.section_verification_limits", "VERIFICATION & DAILY LIMITS")}

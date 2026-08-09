@@ -29,9 +29,25 @@ async function list(req, res, next) {
       where: { user_id: userId, is_read: false },
     });
 
+    const formattedRows = rows.map((r) => {
+      const plain = r.toJSON();
+      if (plain.message) {
+        plain.message = plain.message.replace(/\b(\d+\.\d+)\b/g, (m) => {
+          const num = parseFloat(m);
+          return isNaN(num)
+            ? m
+            : num.toLocaleString("en-US", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              });
+        });
+      }
+      return plain;
+    });
+
     res.json({
       success: true,
-      data: rows,
+      data: formattedRows,
       unreadCount,
       pagination: {
         page,

@@ -634,7 +634,7 @@ const resetPassword = async (req, res) => {
     user.password_hash = new_password; // Will be hashed by beforeUpdate hook
     user.password_reset_token = null;
     user.password_reset_expires = null;
-    
+
     // Automatically verify email upon successful password reset (since they accessed the link in their email)
     user.email_verified = true;
     user.updateVerificationLevel();
@@ -1047,6 +1047,16 @@ const validate2FA = async (req, res) => {
           expires_in: "24h",
         },
       },
+    });
+  } catch (error) {
+    console.error("Validate 2FA error:", error);
+    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
+      success: false,
+      message: "Validation failed",
+    });
+  }
+};
+
 /**
  * Send Phone OTP
  * POST /api/v1/auth/send-phone-otp

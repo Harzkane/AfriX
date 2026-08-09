@@ -4,6 +4,7 @@ const express = require("express");
 const cors = require("cors");
 const helmet = require("helmet");
 const morgan = require("morgan");
+const { rateLimit } = require("express-rate-limit");
 require("dotenv").config();
 
 // Import routes
@@ -36,8 +37,21 @@ const app = express();
 app.use(helmet()); // Security headers
 
 // CORS configuration
+// Fail-closed: if CORS_ORIGIN is not set, no origin is allowed.
+// Set CORS_ORIGIN in your .env / Render env vars (comma-separated for multiple origins).
+const allowedOrigins = (process.env.CORS_ORIGIN || "")
+  .split(",")
+  .map((o) => o.trim())
+  .filter(Boolean);
+
+if (allowedOrigins.length === 0 && process.env.NODE_ENV === "production") {
+  console.warn(
+    "[WARN] CORS_ORIGIN is not set in production. All cross-origin requests will be blocked. Set CORS_ORIGIN in your environment variables."
+  );
+}
+
 const corsOptions = {
-  origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(",") : "*",
+  origin: allowedOrigins.length > 0 ? allowedOrigins : false,
   credentials: process.env.CORS_CREDENTIALS === "true",
   optionsSuccessStatus: 200,
 };
@@ -57,6 +71,22 @@ if (process.env.NODE_ENV === "development") {
 } else {
   app.use(morgan("combined"));
 }
+
+// ============================================
+// GLOBAL RATE LIMITER
+// ============================================
+// Protects all API routes from DDoS and enumeration attacks.
+// Auth routes have stricter per-route limiters applied on top of this.
+app.use(
+  "/api/",
+  rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 300,                  // 300 requests per window per IP across all API routes
+    message: { success: false, message: "Too many requests from this IP, please slow down." },
+    standardHeaders: true,
+    legacyHeaders: false,
+  })
+);
 
 // ============================================
 // INPUT SANITIZATION

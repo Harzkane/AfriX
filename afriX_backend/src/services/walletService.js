@@ -30,7 +30,7 @@ async function encryptPrivateKey(privateKey) {
     let encrypted = cipher.update(privateKey, "utf8", "hex");
     encrypted += cipher.final("hex");
     const result = `${iv.toString("hex")}:${encrypted}`;
-    console.log("Encrypted private key:", result);
+    // Never log the encrypted key — even encrypted values should stay out of logs.
     return result;
   } catch (error) {
     console.error("Error in encryptPrivateKey:", error.message);
@@ -40,19 +40,20 @@ async function encryptPrivateKey(privateKey) {
 
 const walletService = {
   async getOrCreateWallet(userId, token_type, t = null) {
-    console.log("getOrCreateWallet called with:", { userId, token_type });
+    if (process.env.NODE_ENV === "development") {
+      console.log("getOrCreateWallet called with:", { userId, token_type });
+    }
     let wallet = await Wallet.findOne({
       where: { user_id: userId, token_type },
       transaction: t,
     });
     if (!wallet) {
       const ethWallet = ethers.Wallet.createRandom();
-      console.log("Generated wallet:", { address: ethWallet.address });
+      if (process.env.NODE_ENV === "development") {
+        console.log("Generated wallet address:", ethWallet.address);
+      }
+      // Private key is encrypted before storage — never log it, even encrypted.
       const encryptedPrivateKey = await encryptPrivateKey(ethWallet.privateKey);
-      console.log(
-        "Creating wallet with encrypted_private_key:",
-        encryptedPrivateKey
-      );
       wallet = await Wallet.create(
         {
           user_id: userId,
@@ -63,7 +64,9 @@ const walletService = {
         },
         { transaction: t }
       );
-      console.log("Wallet created:", wallet.toJSON());
+      if (process.env.NODE_ENV === "development") {
+        console.log("Wallet created for user:", userId, "token:", token_type);
+      }
     }
     return wallet;
   },

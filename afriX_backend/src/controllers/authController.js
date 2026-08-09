@@ -56,9 +56,15 @@ const registerAdmin = async (req, res) => {
     const { email, password, full_name, country_code, language, admin_secret } =
       req.body;
 
-    // Validate admin secret (set this in your .env file)
-    const ADMIN_REGISTRATION_SECRET =
-      process.env.ADMIN_REGISTRATION_SECRET || "your-super-secret-key";
+    // ADMIN_REGISTRATION_SECRET must be set in env — no fallback allowed.
+    // If missing, fail loudly rather than silently accepting a predictable secret.
+    const ADMIN_REGISTRATION_SECRET = process.env.ADMIN_REGISTRATION_SECRET;
+    if (!ADMIN_REGISTRATION_SECRET) {
+      return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
+        success: false,
+        message: "Admin registration is not configured on this server.",
+      });
+    }
 
     if (admin_secret !== ADMIN_REGISTRATION_SECRET) {
       return res.status(HTTP_STATUS.FORBIDDEN).json({

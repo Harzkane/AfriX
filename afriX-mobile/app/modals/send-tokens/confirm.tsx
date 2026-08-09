@@ -114,11 +114,28 @@ export default function ConfirmTransferScreen() {
       router.replace("/modals/send-tokens/success");
     } catch (e: any) {
       setAuthenticating(false);
-      Alert.alert(
-        t("send_tokens.confirm.err_failed_title", "Transfer Failed"),
-        e.response?.data?.message || e.message || t("send_tokens.confirm.err_failed_fallback", "Please try again"),
-        [{ text: t("common.ok", "OK") }]
-      );
+      const serverMsg = e.response?.data?.message || e.message || t("send_tokens.confirm.err_failed_fallback", "Please try again");
+      const isLimitErr = serverMsg.toLowerCase().includes("limit");
+
+      if (isLimitErr) {
+        Alert.alert(
+          t("send_tokens.confirm.err_limit_title", "Transaction Limit Reached"),
+          serverMsg,
+          [
+            { text: t("common.cancel", "Cancel"), style: "cancel" },
+            {
+              text: t("send_tokens.confirm.btn_upgrade_verification", "Upgrade Verification"),
+              onPress: () => router.push("/(tabs)/profile"),
+            },
+          ]
+        );
+      } else {
+        Alert.alert(
+          t("send_tokens.confirm.err_failed_title", "Transfer Failed"),
+          serverMsg,
+          [{ text: t("common.ok", "OK") }]
+        );
+      }
     }
   };
 

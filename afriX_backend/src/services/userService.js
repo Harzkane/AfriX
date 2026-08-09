@@ -81,7 +81,7 @@ async function checkTransactionLimits(userId, amount, tokenType) {
   // Check per-transaction limit
   if (perTxLimitUsdt > 0 && requestedUsdt > perTxLimitUsdt) {
     throw new ApiError(
-      `Amount exceeds your per-transaction limit of $${perTxLimitUsdt} USDT for your verification level. Upgrade verification to increase limits.`,
+      `Amount exceeds your per-transaction limit of $${perTxLimitUsdt} USDT for your verification level. Reduce amount or upgrade profile verification for higher limits.`,
       400
     );
   }
@@ -103,7 +103,7 @@ async function checkTransactionLimits(userId, amount, tokenType) {
       status: { [Op.notIn]: ["cancelled", "rejected", "expired"] },
       created_at: { [Op.gte]: twentyFourHoursAgo },
     },
-    attributes: ["amount", "token_type"],
+    attributes: ["amount", "token_type", "created_at"],
   });
 
   // Calculate sum of burns in last 24h
@@ -113,7 +113,7 @@ async function checkTransactionLimits(userId, amount, tokenType) {
       status: { [Op.notIn]: ["cancelled", "rejected", "expired"] },
       created_at: { [Op.gte]: twentyFourHoursAgo },
     },
-    attributes: ["amount", "token_type"],
+    attributes: ["amount", "token_type", "created_at"],
   });
 
   // Calculate sum of transfers in last 24h
@@ -124,7 +124,7 @@ async function checkTransactionLimits(userId, amount, tokenType) {
       status: { [Op.notIn]: ["failed", "cancelled"] },
       created_at: { [Op.gte]: twentyFourHoursAgo },
     },
-    attributes: ["amount", "token_type"],
+    attributes: ["amount", "token_type", "created_at"],
   });
 
   let sumPast24hUsdt = 0;
@@ -140,8 +140,30 @@ async function checkTransactionLimits(userId, amount, tokenType) {
 
   if (sumPast24hUsdt + requestedUsdt > dailyLimitUsdt) {
     const remainingUsdt = Math.max(0, dailyLimitUsdt - sumPast24hUsdt);
+
+    // Calculate time until oldest transaction falls out of 24h window
+    const allDates = [
+      ...mints.map((m) => m.created_at),
+      ...burns.map((b) => b.created_at),
+      ...transfers.map((t) => t.created_at),
+    ].sort((a, b) => new Date(a).getTime() - new Date(b).getTime());
+
+    let resetTimeMsg = "";
+    if (allDates.length > 0) {
+      const earliestTime = new Date(allDates[0]).getTime();
+      const resetTimeMs = earliestTime + 24 * 60 * 60 * 1000;
+      const diffMs = resetTimeMs - Date.now();
+      if (diffMs > 0) {
+        const totalMins = Math.ceil(diffMs / (60 * 1000));
+        const hrs = Math.floor(totalMins / 60);
+        const mins = totalMins % 60;
+        const timeStr = hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`;
+        resetTimeMsg = ` Limit resets in ${timeStr}.`;
+      }
+    }
+
     throw new ApiError(
-      `Daily transaction limit of $${dailyLimitUsdt} USDT reached for your verification level. Remaining today: $${remainingUsdt.toFixed(2)} USDT. Complete profile verification to upgrade your daily limit.`,
+      `Daily limit of $${dailyLimitUsdt} USDT reached (remaining today: $${remainingUsdt.toFixed(2)} USDT).${resetTimeMsg} Upgrade profile verification to increase your daily limit immediately.`,
       400
     );
   }

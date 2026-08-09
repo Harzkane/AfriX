@@ -58,10 +58,21 @@ const corsOptions = {
 app.use(cors(corsOptions));
 
 // ============================================
+// REQUEST CORRELATION ID
+// ============================================
+app.use((req, res, next) => {
+  const requestId = req.headers["x-request-id"] || require("crypto").randomUUID();
+  req.id = requestId;
+  res.setHeader("X-Request-ID", requestId);
+  next();
+});
+
+// ============================================
 // BODY PARSING MIDDLEWARE
 // ============================================
-app.use(express.json({ limit: "10mb" }));
-app.use(express.urlencoded({ extended: true, limit: "10mb" }));
+// Standard JSON limit set to 500kb to protect memory while allowing payment proof base64 uploads
+app.use(express.json({ limit: "500kb" }));
+app.use(express.urlencoded({ extended: true, limit: "500kb" }));
 
 // ============================================
 // LOGGING MIDDLEWARE

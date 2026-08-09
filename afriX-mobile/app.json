@@ -11,6 +11,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.nexgentech.afrix",
+      "googleServicesFile": "./GoogleService-Info-7.plist",
       "buildNumber": "6",
       "infoPlist": {
         "LSApplicationQueriesSchemes": [
@@ -23,6 +24,7 @@
     },
     "android": {
       "package": "com.nexgentech.afrix",
+      "googleServicesFile": "./google-services.json",
       "versionCode": 7,
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",

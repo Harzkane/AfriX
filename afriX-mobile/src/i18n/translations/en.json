@@ -268,6 +268,7 @@
     "welcome_back_user": "Welcome back,",
     "verification_limits": "Verification & Limits",
     "daily_limit": "Daily limit",
+    "per_tx_limit": "Per transfer",
     "status": "Status",
     "email_confirmed": "Email confirmed",
     "action_needed": "Action needed",

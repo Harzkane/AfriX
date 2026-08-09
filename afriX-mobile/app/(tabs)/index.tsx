@@ -234,6 +234,7 @@ export default function DashboardScreen() {
     0: {
       label: "Unverified",
       dailyLimit: "$0/day",
+      perTxLimit: "$0/tx",
       nextStep: "Verify your email to start trading",
       icon: "mail-open-outline" as const,
       tone: "warning" as const,
@@ -241,6 +242,7 @@ export default function DashboardScreen() {
     1: {
       label: "Email Verified",
       dailyLimit: "$100/day",
+      perTxLimit: "$50/tx",
       nextStep: "Add more profile verification to unlock higher limits",
       icon: "checkmark-circle-outline" as const,
       tone: "success" as const,
@@ -248,6 +250,7 @@ export default function DashboardScreen() {
     2: {
       label: "Phone Verified",
       dailyLimit: "$500/day",
+      perTxLimit: "$200/tx",
       nextStep: "Complete ID verification for the highest limits",
       icon: "call-outline" as const,
       tone: "info" as const,
@@ -255,6 +258,7 @@ export default function DashboardScreen() {
     3: {
       label: "ID Verified",
       dailyLimit: "$2,000/day",
+      perTxLimit: "$1,000/tx",
       nextStep: "You have access to the highest standard limits",
       icon: "shield-checkmark-outline" as const,
       tone: "success" as const,
@@ -724,6 +728,11 @@ export default function DashboardScreen() {
               <View style={styles.verificationMetric}>
                 <Text style={[styles.verificationMetricLabel, { color: colors.textMuted }]}>{t("home.daily_limit", "Daily limit")}</Text>
                 <Text style={[styles.verificationMetricValue, { color: colors.text }]}>{currentVerification.dailyLimit}</Text>
+              </View>
+              <View style={[styles.verificationDivider, { backgroundColor: colors.border }]} />
+              <View style={styles.verificationMetric}>
+                <Text style={[styles.verificationMetricLabel, { color: colors.textMuted }]}>{t("home.per_tx_limit", "Per transfer")}</Text>
+                <Text style={[styles.verificationMetricValue, { color: colors.text }]}>{currentVerification.perTxLimit}</Text>
               </View>
               <View style={[styles.verificationDivider, { backgroundColor: colors.border }]} />
               <View style={styles.verificationMetric}>

@@ -32,8 +32,9 @@ async function list(req, res, next) {
     const formattedRows = rows.map((r) => {
       const plain = r.toJSON();
       if (plain.message) {
-        plain.message = plain.message.replace(/\b(\d+\.\d+)\b/g, (m) => {
-          const num = parseFloat(m);
+        plain.message = plain.message.replace(/[\d,]+\.\d+/g, (m) => {
+          const raw = m.replace(/,/g, "");
+          const num = parseFloat(raw);
           return isNaN(num)
             ? m
             : num.toLocaleString("en-US", {

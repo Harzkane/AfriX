@@ -13,6 +13,9 @@
       "bundleIdentifier": "com.nexgentech.afrix",
       "googleServicesFile": "./GoogleService-Info-7.plist",
       "buildNumber": "6",
+      "entitlements": {
+        "aps-environment": "development"
+      },
       "infoPlist": {
         "LSApplicationQueriesSchemes": [
           "whatsapp"
@@ -84,7 +87,8 @@
         {
           "icon": "./assets/images/icon.png",
           "color": "#00B14F",
-          "sounds": []
+          "sounds": [],
+          "mode": "development"
         }
       ]
     ],

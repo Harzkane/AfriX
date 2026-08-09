@@ -68,21 +68,23 @@ export default function SendTokensScreen() {
 
   const wallet = getWalletByType(tokenType);
 
-  const validateEmail = (email: string) => {
+  const validateRecipient = (input: string) => {
+    const trimmed = input.trim();
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
+    const ethAddressRegex = /^0x[a-fA-F0-9]{40}$/;
+    return emailRegex.test(trimmed) || ethAddressRegex.test(trimmed);
   };
 
   const handleContinue = () => {
     if (!email.trim()) {
-      setEmailError(t("send_tokens.index.err_enter_email", "Please enter recipient's email"));
+      setEmailError(t("send_tokens.index.err_enter_email", "Please enter recipient's email or wallet address"));
       return;
     }
-    if (!validateEmail(email)) {
-      setEmailError(t("send_tokens.index.err_invalid_email", "Please enter a valid email address"));
+    if (!validateRecipient(email)) {
+      setEmailError(t("send_tokens.index.err_invalid_email", "Please enter a valid email or 0x wallet address"));
       return;
     }
-    setRecipient(email);
+    setRecipient(email.trim());
     router.push("/modals/send-tokens/amount");
   };
 
@@ -91,7 +93,7 @@ export default function SendTokensScreen() {
     router.back();
   };
 
-  const isFormValid = email.trim() && validateEmail(email) && !emailError;
+  const isFormValid = email.trim() && validateRecipient(email) && !emailError;
 
   return (
     <KeyboardAvoidingView
@@ -212,26 +214,26 @@ export default function SendTokensScreen() {
           {/* RECIPIENT INPUT */}
           <Text style={[styles.sectionLabel, { color: theme.muted }]}>{t("send_tokens.index.recipient_details", "Recipient Details")}</Text>
           <View style={[styles.formCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
-            <Text style={[styles.inputLabel, { color: theme.text }]}>{t("send_tokens.index.recipient_email_label", "Recipient's Email Address")}</Text>
+            <Text style={[styles.inputLabel, { color: theme.text }]}>{t("send_tokens.index.recipient_email_label", "Recipient's Email or Wallet Address")}</Text>
             <View style={[styles.inputWrapper, { backgroundColor: theme.inputBg, borderColor: theme.border }, !!emailError && { borderColor: "#EF4444" }]}>
-              <Ionicons name="mail-outline" size={20} color={theme.placeholder} style={styles.inputIcon} />
+              <Ionicons name="person-outline" size={20} color={theme.placeholder} style={styles.inputIcon} />
               <TextInput
                 style={[styles.input, { color: theme.text }]}
-                placeholder={t("send_tokens.index.recipient_email_placeholder", "user@example.com")}
+                placeholder={t("send_tokens.index.recipient_email_placeholder", "user@example.com or 0x...")}
                 placeholderTextColor={theme.placeholder}
                 value={email}
                 onChangeText={(text) => {
                   setEmail(text);
                   setEmailError("");
                 }}
-                keyboardType="email-address"
+                keyboardType="default"
                 autoCapitalize="none"
                 autoCorrect={false}
               />
             </View>
             {!!emailError && <Text style={styles.errorText}>{emailError}</Text>}
             <Text style={[styles.inputHint, { color: theme.muted }]}>
-              {t("send_tokens.index.input_hint", "Type the recipient's AfriToken account email address.")}
+              {t("send_tokens.index.input_hint", "Enter recipient's registered email or 0x wallet address.")}
             </Text>
 
             {/* OR DIVIDER */}

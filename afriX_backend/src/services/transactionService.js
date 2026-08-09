@@ -20,6 +20,7 @@ const { ApiError } = require("../utils/errors");
 const { generateTransactionReference } = require("../utils/helpers");
 const walletService = require("./walletService");
 const platformService = require("./platformService");
+const { deliver } = require("./notificationService");
 
 /** Convert token amount to USDT using exchange rates (capacity and earnings are in USDT). */
 function tokenAmountToUsdt(amount, tokenType) {
@@ -96,6 +97,18 @@ const transactionService = {
       tx.status = TRANSACTION_STATUS.COMPLETED;
       await tx.save({ transaction: t });
 
+      return tx;
+    }).then(async (tx) => {
+      // Notify receiver about incoming transfer (fire-and-forget, outside DB tx)
+      try {
+        await deliver(receiverId, "TRANSFER_RECEIVED", {
+          title: "Transfer Received",
+          message: `You received ${tx.amount} ${tx.token_type} tokens.`,
+          data: { transaction_id: String(tx.id), reference: tx.reference },
+        });
+      } catch (e) {
+        console.error("TRANSFER_RECEIVED notify failed:", e.message);
+      }
       return tx;
     });
   },

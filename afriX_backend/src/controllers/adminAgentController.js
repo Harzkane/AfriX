@@ -4,6 +4,7 @@ const { AGENT_STATUS, EXCHANGE_RATES } = require("../config/constants");
 const { ApiError } = require("../utils/errors");
 const { Op } = require("sequelize");
 const { getAgentMintBurnTotals } = require("./agentController");
+const { deliver } = require("../services/notificationService");
 
 const adminAgentController = {
   /**
@@ -233,6 +234,13 @@ const adminAgentController = {
       agent.is_verified = true;
       await agent.save();
 
+      // Notify agent that KYC was approved
+      deliver(agent.user_id, "KYC_APPROVED", {
+        title: "KYC Approved ✅",
+        message: "Congratulations! Your identity verification has been approved. You can now operate as a verified AfriX agent.",
+        data: { agent_id: String(agent.id) },
+      }).catch((e) => console.error("KYC_APPROVED notify failed:", e.message));
+
       res.status(200).json({
         success: true,
         message: "Agent KYC approved successfully",
@@ -293,6 +301,13 @@ const adminAgentController = {
       // Update agent verification status
       agent.is_verified = false;
       await agent.save();
+
+      // Notify agent that KYC was rejected
+      deliver(agent.user_id, "KYC_REJECTED", {
+        title: "KYC Not Approved",
+        message: `Your identity verification was not approved. Reason: ${reason}. Please review and resubmit your documents.`,
+        data: { agent_id: String(agent.id), reason },
+      }).catch((e) => console.error("KYC_REJECTED notify failed:", e.message));
 
       res.status(200).json({
         success: true,

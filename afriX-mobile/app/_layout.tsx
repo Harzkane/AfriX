@@ -60,10 +60,17 @@ export default function RootLayout() {
 
     if (hasRegisteredPushToken.current) return;
     hasRegisteredPushToken.current = true;
-    registerPushTokenIfNeeded().catch((error) => {
-      console.error("Push registration failed:", error);
-      hasRegisteredPushToken.current = false;
-    });
+    registerPushTokenIfNeeded()
+      .then((result) => {
+        if (!result.registered) {
+          console.warn("Push registration was not completed:", result.reason);
+          hasRegisteredPushToken.current = false;
+        }
+      })
+      .catch((error) => {
+        console.error("Push registration failed:", error);
+        hasRegisteredPushToken.current = false;
+      });
   }, [isReady, isAuthenticated, user?.id]);
 
   // Step 2: Safe redirect ONCE

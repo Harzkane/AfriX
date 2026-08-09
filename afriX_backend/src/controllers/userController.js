@@ -204,8 +204,9 @@ const userController = {
       if (!fcm_token) throw new ApiError("FCM token required", 400);
 
       await User.update({ fcm_token }, { where: { id: req.user.id } });
+      await deleteCache(`user:${req.user.id}`).catch(() => {});
 
-      res.json({ success: true, message: "FCM token saved" });
+      res.json({ success: true, message: "FCM token saved", data: { fcm_token } });
     } catch (error) {
       next(error);
     }

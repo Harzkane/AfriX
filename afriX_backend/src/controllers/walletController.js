@@ -54,17 +54,18 @@ const walletController = {
    */
   async transfer(req, res, next) {
     try {
-      const { to_email, amount, token_type, description } = req.body;
+      const { to_email, to_address, recipient, amount, token_type, description } = req.body;
+      const targetRecipient = recipient || to_email || to_address;
 
-      if (!to_email || !amount || !token_type)
+      if (!targetRecipient || !amount || !token_type)
         throw new ApiError(
-          "to_email, amount, and token_type are required",
+          "Recipient (email or wallet address), amount, and token_type are required",
           400
         );
 
       const result = await walletService.transfer({
         fromUserId: req.user.id,
-        toUserEmail: to_email,
+        toRecipient: targetRecipient,
         amount: parseFloat(amount),
         token_type,
         metadata: { description },

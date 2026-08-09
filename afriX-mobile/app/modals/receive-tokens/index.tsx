@@ -97,14 +97,8 @@ export default function ReceiveTokensScreen() {
 
   const handleShare = async () => {
     try {
-      const walletAddressInfo = walletAddress
-        ? t("receive_tokens.index.wallet_address_prefix", "Wallet Address: {{address}}", { address: walletAddress })
-        : "";
-      const message = t(
-        "receive_tokens.index.share_message",
-        "Send me {{tokenType}} tokens on AfriExchange!\n\nMy email: {{email}}\n{{walletAddressInfo}}",
-        { tokenType, email: userEmail, walletAddressInfo }
-      );
+      const addressLine = walletAddress ? `• Wallet Address: ${walletAddress}\n` : "";
+      const message = `💰 Send me ${tokenType} on AfriExchange!\n\nUse either credential below to send tokens:\n• Email: ${userEmail}\n${addressLine}\nOpen AfriExchange ➔ Send Tokens to complete the transfer.`;
       await Share.share({
         message,
         title: t("receive_tokens.index.share_title", "Receive AfriExchange Tokens"),

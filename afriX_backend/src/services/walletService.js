@@ -157,16 +157,27 @@ const walletService = {
   async transfer({
     fromUserId,
     toUserEmail,
+    toRecipient,
     amount,
     token_type,
     metadata = {},
   }) {
-    if (!fromUserId || !toUserEmail)
+    const recipientIdentifier = (toRecipient || toUserEmail || "").trim();
+    if (!fromUserId || !recipientIdentifier)
       throw new ApiError("Sender and recipient required", 400);
     if (amount <= 0) throw new ApiError("Invalid transfer amount", 400);
 
-    const recipient = await User.findOne({ where: { email: toUserEmail } });
-    if (!recipient) throw new ApiError("Recipient not found", 404);
+    let recipient = await User.findOne({ where: { email: recipientIdentifier.toLowerCase() } });
+    if (!recipient && recipientIdentifier.toLowerCase().startsWith("0x")) {
+      const targetWallet = await Wallet.findOne({
+        where: { blockchain_address: recipientIdentifier },
+      });
+      if (targetWallet) {
+        recipient = await User.findByPk(targetWallet.user_id);
+      }
+    }
+
+    if (!recipient) throw new ApiError("Recipient not found. Check the email or wallet address.", 404);
     if (recipient.id === fromUserId)
       throw new ApiError("Cannot send to self", 400);
 

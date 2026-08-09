@@ -13,9 +13,6 @@
       "bundleIdentifier": "com.nexgentech.afrix",
       "googleServicesFile": "./GoogleService-Info-7.plist",
       "buildNumber": "6",
-      "entitlements": {
-        "aps-environment": "development"
-      },
       "infoPlist": {
         "LSApplicationQueriesSchemes": [
           "whatsapp"

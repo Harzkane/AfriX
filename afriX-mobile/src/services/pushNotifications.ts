@@ -41,7 +41,18 @@ export async function registerPushTokenIfNeeded(): Promise<PushTokenRegistration
     return { registered: false, reason: "permission_denied" };
   }
 
-  const token = await Notifications.getDevicePushTokenAsync();
+  let token: Notifications.DevicePushToken | null = null;
+  try {
+    token = await Notifications.getDevicePushTokenAsync();
+  } catch (error: any) {
+    const errorMsg = error?.message || String(error);
+    console.warn("Failed to get device push token:", errorMsg);
+    if (errorMsg.includes("aps-environment")) {
+      return { registered: false, reason: "aps_entitlement_missing" };
+    }
+    return { registered: false, reason: "token_fetch_failed" };
+  }
+
   if (!token?.data) {
     console.log("📱 No device push token (simulator or Expo Go may not support push)");
     return { registered: false, reason: "no_device_token" };

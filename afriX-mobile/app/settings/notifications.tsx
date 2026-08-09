@@ -210,17 +210,24 @@ export default function NotificationScreen() {
       setSendingTestPush(true);
       const registration = await registerPushTokenIfNeeded();
       if (!registration.registered) {
+        let msg = t(
+          "settings.notifications.push_token_missing",
+          "We could not register this device for push notifications yet. Please reopen the app and try again."
+        );
+        if (registration.reason === "permission_denied") {
+          msg = t(
+            "settings.notifications.push_permission_required",
+            "Please allow push notifications in your system settings first, then try again."
+          );
+        } else if (registration.reason === "aps_entitlement_missing") {
+          msg = t(
+            "settings.notifications.push_aps_missing",
+            "Push notifications entitlement (aps-environment) is missing from this iOS build. Please re-install/rebuild the app with push entitlement enabled."
+          );
+        }
         Alert.alert(
           t("settings.notifications.test_push_error_title", "Push not ready"),
-          registration.reason === "permission_denied"
-            ? t(
-                "settings.notifications.push_permission_required",
-                "Please allow push notifications first, then try again."
-              )
-            : t(
-                "settings.notifications.push_token_missing",
-                "We could not register this device for push notifications yet. Please reopen the app and try again."
-              )
+          msg
         );
         return;
       }

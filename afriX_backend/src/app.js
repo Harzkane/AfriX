@@ -193,13 +193,16 @@ app.use((err, req, res, next) => {
     });
   }
 
-  // Generic error response
-  res.status(err.status || 500).json({
+  // Determine status code (default to 500 for unhandled exceptions)
+  const statusCode = err.status && err.status >= 400 && err.status < 600 ? err.status : 500;
+  const isClientError = statusCode < 500;
+
+  // Return specific message for client/operational errors (4xx), hide stack/internal details for server errors (5xx) in production
+  res.status(statusCode).json({
     success: false,
-    message:
-      process.env.NODE_ENV === "development"
-        ? err.message
-        : "Internal server error",
+    message: isClientError || process.env.NODE_ENV === "development"
+      ? err.message || "An error occurred"
+      : "Internal server error",
     ...(process.env.NODE_ENV === "development" && { stack: err.stack }),
   });
 });

@@ -5,6 +5,7 @@ const walletService = require("../services/walletService");
 const { ApiError } = require("../utils/errors");
 const { Op } = require("sequelize");
 const bcrypt = require("bcryptjs");
+const { deliver } = require("../services/notificationService");
 
 const adminUserController = {
   /**
@@ -442,6 +443,77 @@ const adminUserController = {
       });
     } catch (error) {
       console.error("Verify email error:", error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  },
+
+  /**
+   * Verify user phone number (manual admin verification)
+   * POST /api/v1/admin/users/:id/verify-phone
+   */
+  verifyPhone: async (req, res) => {
+    try {
+      const { id } = req.params;
+      const user = await User.findByPk(id);
+
+      if (!user) {
+        return res.status(404).json({ success: false, error: "User not found" });
+      }
+
+      user.phone_verified = true;
+      user.updateVerificationLevel();
+      await user.save();
+
+      res.status(200).json({
+        success: true,
+        message: "Phone number verified successfully (Level 2 unlocked - $500/day)",
+        data: {
+          user_id: user.id,
+          phone_verified: user.phone_verified,
+          verification_level: user.verification_level,
+        },
+      });
+    } catch (error) {
+      console.error("Verify phone error:", error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  },
+
+  /**
+   * Approve user identity / KYC status (manual admin verification)
+   * POST /api/v1/admin/users/:id/verify-identity
+   */
+  verifyIdentity: async (req, res) => {
+    try {
+      const { id } = req.params;
+      const user = await User.findByPk(id);
+
+      if (!user) {
+        return res.status(404).json({ success: false, error: "User not found" });
+      }
+
+      user.identity_verified = true;
+      user.updateVerificationLevel();
+      await user.save();
+
+      // Send notification to user
+      deliver(user.id, "KYC_APPROVED", {
+        title: "Identity Verified ✅",
+        message: "Your identity verification (KYC) has been approved! Level 3 limits ($2,000/day) are now unlocked.",
+        data: { user_id: String(user.id) },
+      }).catch((e) => console.error("KYC notification error:", e.message));
+
+      res.status(200).json({
+        success: true,
+        message: "Identity / KYC verified successfully (Level 3 unlocked - $2,000/day)",
+        data: {
+          user_id: user.id,
+          identity_verified: user.identity_verified,
+          verification_level: user.verification_level,
+        },
+      });
+    } catch (error) {
+      console.error("Verify identity error:", error);
       res.status(500).json({ success: false, error: error.message });
     }
   },

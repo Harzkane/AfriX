@@ -347,6 +347,28 @@ router.post(
 );
 
 /**
+ * Verify user phone number (Level 2)
+ * POST /api/v1/admin/users/:id/verify-phone
+ */
+router.post(
+  "/users/:id/verify-phone",
+  authenticate,
+  authorizeAdmin,
+  adminUserController.verifyPhone
+);
+
+/**
+ * Approve user identity / KYC (Level 3)
+ * POST /api/v1/admin/users/:id/verify-identity
+ */
+router.post(
+  "/users/:id/verify-identity",
+  authenticate,
+  authorizeAdmin,
+  adminUserController.verifyIdentity
+);
+
+/**
  * Reset user password
  * POST /api/v1/admin/users/:id/reset-password
  * Body: { new_password: string }

@@ -234,6 +234,14 @@ const adminAgentController = {
       agent.is_verified = true;
       await agent.save();
 
+      // Sync identity_verified and verification_level on User (Level 3 - $2,000/day)
+      const user = await User.findByPk(agent.user_id);
+      if (user) {
+        user.identity_verified = true;
+        user.updateVerificationLevel();
+        await user.save();
+      }
+
       // Notify agent that KYC was approved
       deliver(agent.user_id, "KYC_APPROVED", {
         title: "KYC Approved ✅",

@@ -2,11 +2,21 @@
 
 const jwt = require("jsonwebtoken");
 
-const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key-change-this";
-const JWT_REFRESH_SECRET =
-  process.env.JWT_REFRESH_SECRET || "your-refresh-secret-key";
+// ─── Startup guard: crash immediately if required secrets are missing ───────
+// This prevents the app from silently running with a predictable JWT secret,
+// which would allow attackers to forge authentication tokens.
+if (!process.env.JWT_SECRET) {
+  throw new Error("[FATAL] JWT_SECRET environment variable is not set. Set it in your .env or Render dashboard before starting the server.");
+}
+if (!process.env.JWT_REFRESH_SECRET) {
+  throw new Error("[FATAL] JWT_REFRESH_SECRET environment variable is not set. Set it in your .env or Render dashboard before starting the server.");
+}
+
+const JWT_SECRET = process.env.JWT_SECRET;
+const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET;
 const JWT_EXPIRE = process.env.JWT_EXPIRE || "24h";
 const JWT_REFRESH_EXPIRE = process.env.JWT_REFRESH_EXPIRE || "30d";
+
 
 /**
  * Generate access token

@@ -2,6 +2,7 @@
 
 const express = require("express");
 const router = express.Router();
+const { rateLimit } = require("express-rate-limit");
 const authController = require("../controllers/authController");
 const { authenticate } = require("../middleware/auth");
 const {
@@ -9,55 +10,91 @@ const {
   validateLogin,
 } = require("../middleware/validation");
 
+// ─────────────────────────────────────────────
+// RATE LIMITERS
+// ─────────────────────────────────────────────
+
+/** Strict limiter for login — prevents brute-force / credential stuffing */
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,  // 15 minutes
+  max: 10,                    // 10 attempts per window per IP
+  message: { success: false, message: "Too many login attempts. Please try again in 15 minutes." },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+/** General limiter for public auth endpoints (register, verify, forgot password) */
+const authLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,  // 1 hour
+  max: 20,                    // 20 requests per hour per IP
+  message: { success: false, message: "Too many requests. Please try again later." },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+/** Strict limiter for password reset / 2FA — prevents OTP enumeration */
+const sensitiveAuthLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,  // 1 hour
+  max: 5,                     // Only 5 attempts per hour per IP
+  message: { success: false, message: "Too many attempts. Please try again in an hour." },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// ─────────────────────────────────────────────
+// ROUTES
+// ─────────────────────────────────────────────
 
 /**
  * @route   POST /api/v1/auth/register
  * @desc    Register new user profile
  * @access  Public
-*/
-router.post("/register", validateRegistration, authController.register);
+ */
+router.post("/register", authLimiter, validateRegistration, authController.register);
 
 /**
  * @route   POST /api/v1/auth/register-admin
- * @desc    Register admin user (protected by secret)
- * @access  Public (but requires secret)
+ * @desc    Register admin user (protected by ADMIN_REGISTRATION_SECRET env var)
+ * @access  DISABLED in production — comment back in only to seed the first admin,
+ *          then comment out again and redeploy immediately.
+ *          Never leave this route open in a live environment.
  */
-router.post("/register-admin", validateRegistration, authController.registerAdmin);
+// router.post("/register-admin", validateRegistration, authController.registerAdmin);
 
 /**
  * @route   POST /api/v1/auth/login
  * @desc    Login user
  * @access  Public
  */
-router.post("/login", validateLogin, authController.login);
+router.post("/login", loginLimiter, validateLogin, authController.login);
 
 /**
  * @route   POST /api/v1/auth/verify-email
  * @desc    Verify email with token
  * @access  Public
  */
-router.post("/verify-email", authController.verifyEmail);
+router.post("/verify-email", authLimiter, authController.verifyEmail);
 
 /**
  * @route   POST /api/v1/auth/resend-verification
  * @desc    Resend email verification
  * @access  Public
  */
-router.post("/resend-verification", authController.resendVerification);
+router.post("/resend-verification", authLimiter, authController.resendVerification);
 
 /**
  * @route   POST /api/v1/auth/forgot-password
  * @desc    Request password reset
  * @access  Public
  */
-router.post("/forgot-password", authController.forgotPassword);
+router.post("/forgot-password", sensitiveAuthLimiter, authController.forgotPassword);
 
 /**
  * @route   POST /api/v1/auth/reset-password
  * @desc    Reset password with token
  * @access  Public
  */
-router.post("/reset-password", authController.resetPassword);
+router.post("/reset-password", sensitiveAuthLimiter, authController.resetPassword);
 
 /**
  * @route   POST /api/v1/auth/change-password
@@ -103,9 +140,9 @@ router.post("/2fa/disable", authenticate, authController.disable2FA);
 
 /**
  * @route   POST /api/v1/auth/2fa/validate
- * @desc    Validate 2FA during login
+ * @desc    Validate 2FA during login (uses short-lived temp_token)
  * @access  Public (with temp token)
  */
-router.post("/2fa/validate", authController.validate2FA);
+router.post("/2fa/validate", sensitiveAuthLimiter, authController.validate2FA);
 
 module.exports = router;

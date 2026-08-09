@@ -22,8 +22,6 @@ import { useAuthStore, useWalletStore } from "@/stores";
 import { useTranslation } from "react-i18next";
 
 const TOKENS = ["NT", "CT", "USDT"] as const;
-const TOKEN_LABELS: Record<string, string> = { NT: "Naira Token", CT: "CFA Token", USDT: "Tether" };
-const TOKEN_SUBTITLES: Record<string, string> = { NT: "Domestic", CT: "Regional", USDT: "Reserve" };
 
 export default function ReceiveTokensScreen() {
   const router = useRouter();

@@ -210,6 +210,19 @@ export default function NotificationInboxScreen() {
   const subtitleMaxHeight = scrollY.interpolate({ inputRange: [0, 50], outputRange: [80, 0], extrapolate: "clamp" });
   const subtitleMargin = scrollY.interpolate({ inputRange: [0, 50], outputRange: [4, 0], extrapolate: "clamp" });
 
+  const formatNotificationMessage = (msg: string | null): string => {
+    if (!msg) return "";
+    return msg.replace(/\b(\d+\.\d+)\b/g, (m) => {
+      const num = parseFloat(m);
+      return isNaN(num)
+        ? m
+        : num.toLocaleString("en-US", {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          });
+    });
+  };
+
   const renderItem = ({ item }: { item: NotificationItem }) => {
     const accent = getNotificationAccent(item.type);
 
@@ -244,7 +257,7 @@ export default function NotificationInboxScreen() {
 
           {item.message ? (
             <Text style={[styles.itemMessage, { color: theme.muted }]} numberOfLines={2}>
-              {item.message}
+              {formatNotificationMessage(item.message)}
             </Text>
           ) : null}
 
@@ -407,7 +420,7 @@ export default function NotificationInboxScreen() {
 
                 <View style={[styles.sheetMessageCard, { backgroundColor: isDark ? "#111C2B" : "#F8FAFC", borderColor: theme.border }]}>
                   <Text style={[styles.sheetMessage, { color: theme.text }]}>
-                    {selectedNotification.message || t("settings.notifications_inbox.no_message", "No additional message content for this notification.")}
+                    {selectedNotification.message ? formatNotificationMessage(selectedNotification.message) : t("settings.notifications_inbox.no_message", "No additional message content for this notification.")}
                   </Text>
                 </View>
 

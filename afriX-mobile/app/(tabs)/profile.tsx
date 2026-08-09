@@ -317,6 +317,104 @@ export default function ProfileScreen() {
               <Text style={[styles.statValue, { color: theme.text }]}>{new Date(user.created_at).getFullYear()}</Text>
               <Text style={[styles.statLabel, { color: theme.muted }]}>{t("profile.joined")}</Text>
             </View>
+          {/* VERIFICATION & DAILY LIMITS CARD */}
+          <Text style={[styles.sectionHeading, { color: theme.muted }]}>
+            {t("profile.section_verification_limits", "VERIFICATION & DAILY LIMITS")}
+          </Text>
+          <View style={[styles.menuListCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+            {/* LEVEL 1: EMAIL */}
+            <View style={styles.tierRow}>
+              <View style={[styles.tierIconBox, { backgroundColor: user.email_verified ? theme.accentSoft : theme.warningSoft }]}>
+                <Ionicons
+                  name={user.email_verified ? "checkmark-circle" : "mail-open-outline"}
+                  size={20}
+                  color={user.email_verified ? theme.accent : theme.warning}
+                />
+              </View>
+              <View style={styles.tierInfo}>
+                <View style={styles.tierTitleRow}>
+                  <Text style={[styles.tierTitle, { color: theme.text }]}>{t("profile.tier1_title", "Level 1: Email Verified")}</Text>
+                  <Text style={[styles.tierLimitPill, { color: theme.accent }]}>$100/day</Text>
+                </View>
+                <Text style={[styles.tierSub, { color: theme.muted }]}>
+                  {user.email_verified
+                    ? t("profile.tier1_status_ok", "Email confirmed ({{email}})", { email: user.email })
+                    : t("profile.tier1_status_action", "Verify email to unlock $100/day limit ($50/tx)")}
+                </Text>
+              </View>
+              {!user.email_verified && (
+                <TouchableOpacity
+                  style={[styles.tierBtn, { backgroundColor: theme.warning }]}
+                  onPress={() => router.push("/(auth)/resend-verification")}
+                >
+                  <Text style={styles.tierBtnText}>{t("profile.btn_verify", "Verify")}</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+
+            <View style={[styles.menuDivider, { backgroundColor: theme.border }]} />
+
+            {/* LEVEL 2: PHONE */}
+            <View style={styles.tierRow}>
+              <View style={[styles.tierIconBox, { backgroundColor: user.phone_verified ? theme.accentSoft : theme.blueSoft }]}>
+                <Ionicons
+                  name={user.phone_verified ? "checkmark-circle" : "call-outline"}
+                  size={20}
+                  color={user.phone_verified ? theme.accent : theme.blue}
+                />
+              </View>
+              <View style={styles.tierInfo}>
+                <View style={styles.tierTitleRow}>
+                  <Text style={[styles.tierTitle, { color: theme.text }]}>{t("profile.tier2_title", "Level 2: Phone Verified")}</Text>
+                  <Text style={[styles.tierLimitPill, { color: theme.blue }]}>$500/day</Text>
+                </View>
+                <Text style={[styles.tierSub, { color: theme.muted }]}>
+                  {user.phone_verified
+                    ? t("profile.tier2_status_ok", "Phone confirmed ({{phone}})", { phone: user.phone_number || "" })
+                    : t("profile.tier2_status_action", "Verify phone to unlock $500/day limit ($200/tx)")}
+                </Text>
+              </View>
+              {!user.phone_verified && (
+                <TouchableOpacity
+                  style={[styles.tierBtn, { backgroundColor: theme.blue }]}
+                  onPress={() => router.push("/settings/security")}
+                >
+                  <Text style={styles.tierBtnText}>{t("profile.btn_verify", "Verify")}</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+
+            <View style={[styles.menuDivider, { backgroundColor: theme.border }]} />
+
+            {/* LEVEL 3: IDENTITY / KYC */}
+            <View style={styles.tierRow}>
+              <View style={[styles.tierIconBox, { backgroundColor: user.identity_verified ? theme.accentSoft : theme.purpleSoft }]}>
+                <Ionicons
+                  name={user.identity_verified ? "shield-checkmark" : "id-card-outline"}
+                  size={20}
+                  color={user.identity_verified ? theme.accent : theme.purple}
+                />
+              </View>
+              <View style={styles.tierInfo}>
+                <View style={styles.tierTitleRow}>
+                  <Text style={[styles.tierTitle, { color: theme.text }]}>{t("profile.tier3_title", "Level 3: ID Verified (KYC)")}</Text>
+                  <Text style={[styles.tierLimitPill, { color: theme.purple }]}>$2,000/day</Text>
+                </View>
+                <Text style={[styles.tierSub, { color: theme.muted }]}>
+                  {user.identity_verified
+                    ? t("profile.tier3_status_ok", "Government ID verified")
+                    : t("profile.tier3_status_action", "Verify ID to unlock $2,000/day limit ($1,000/tx)")}
+                </Text>
+              </View>
+              {!user.identity_verified && (
+                <TouchableOpacity
+                  style={[styles.tierBtn, { backgroundColor: theme.purple }]}
+                  onPress={() => router.push("/modals/agent-kyc/status")}
+                >
+                  <Text style={styles.tierBtnText}>{t("profile.btn_verify", "Verify")}</Text>
+                </TouchableOpacity>
+              )}
+            </View>
           </View>
 
           {/* Settings Section */}
@@ -743,5 +841,50 @@ const styles = StyleSheet.create({
   },
   activeLangText: {
     color: "#FFFFFF",
+  },
+  tierRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 16,
+    gap: 12,
+  },
+  tierIconBox: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  tierInfo: {
+    flex: 1,
+  },
+  tierTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 4,
+  },
+  tierTitle: {
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  tierLimitPill: {
+    fontSize: 12,
+    fontWeight: "800",
+  },
+  tierSub: {
+    fontSize: 12,
+    fontWeight: "500",
+    lineHeight: 16,
+  },
+  tierBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 10,
+  },
+  tierBtnText: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "800",
   },
 });

@@ -17,6 +17,7 @@ import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useTransferStore, useWalletStore } from "@/stores";
+import { formatAmount } from "@/utils/format";
 import { useTranslation } from "react-i18next";
 
 const TOKENS = ["NT", "CT", "USDT"] as const;
@@ -202,10 +203,7 @@ export default function SendTokensScreen() {
                 <Text style={[styles.balanceLabel, { color: theme.muted }]}>{t("send_tokens.index.available_balance", "Available Balance")}</Text>
               </View>
               <Text style={[styles.balanceAmount, { color: theme.text }]}>
-                {parseFloat(wallet.available_balance).toLocaleString(undefined, {
-                  minimumFractionDigits: 2,
-                  maximumFractionDigits: 2,
-                })}{" "}
+                {formatAmount(wallet.available_balance, tokenType)}{" "}
                 <Text style={{ fontSize: 18, color: theme.accent }}>{tokenType}</Text>
               </Text>
             </View>

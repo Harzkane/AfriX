@@ -23,7 +23,7 @@ import { useBurnStore } from "@/stores/slices/burnSlice";
 import { BurnRequestStatus } from "@/stores/types/burn.types";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
-import { formatDate } from "@/utils/format";
+import { formatDate, formatAmount } from "@/utils/format";
 import apiClient from "@/services/apiClient";
 import { useTranslation } from "react-i18next";
 
@@ -320,7 +320,7 @@ export default function SellTokensStatusScreen() {
             </View>
           </View>
           <Text style={[styles.heroAmount, { color: theme.text }]}>
-            {parseFloat(currentRequest.amount).toLocaleString()}{" "}
+            {formatAmount(currentRequest.amount, currentRequest.token_type)}{" "}
             <Text style={[styles.heroToken, { color: theme.muted }]}>{currentRequest.token_type}</Text>
           </Text>
           <Text style={[styles.heroDate, { color: theme.muted }]}>

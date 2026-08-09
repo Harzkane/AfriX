@@ -16,6 +16,7 @@ import { useBurnStore } from "@/stores/slices/burnSlice";
 import type { BankAccount } from "@/stores/types/burn.types";
 import { LinearGradient } from "expo-linear-gradient";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { formatAmount } from "@/utils/format";
 import { useTranslation } from "react-i18next";
 
 export default function ConfirmSellScreen() {
@@ -177,7 +178,7 @@ export default function ConfirmSellScreen() {
           />
           <Text style={[styles.summaryLabel, { color: theme.muted }]}>{t("sell_tokens.total_sell_label", "Total to Sell")}</Text>
           <View style={styles.amountContainer}>
-            <Text style={[styles.summaryAmount, { color: theme.text }]}>{parseFloat(amount as string || "0").toLocaleString()}</Text>
+            <Text style={[styles.summaryAmount, { color: theme.text }]}>{formatAmount(amount as string || "0", tokenType as string)}</Text>
             <Text style={[styles.tokenTag, { color: theme.accent }]}>{tokenType}</Text>
           </View>
 

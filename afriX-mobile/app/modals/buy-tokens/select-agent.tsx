@@ -7,6 +7,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useAgentStore, useAuthStore } from "@/stores";
 import { AgentCard } from "@/components/ui/AgentCard";
 import { Ionicons } from "@expo/vector-icons";
+import { formatAmount } from "@/utils/format";
 import { useTranslation } from "react-i18next";
 
 type SortOption = "rating" | "fastest" | "capacity";
@@ -128,7 +129,7 @@ export default function SelectAgentScreen() {
               }}>
                 <Text style={[styles.headerSubtitle, { color: theme.muted }]}>
                   {t("buy_tokens.select_agent.header_subtitle", "Choose a trusted agent to buy {{amount}} {{tokenType}}", {
-                    amount: parseFloat(amount || "0").toLocaleString(),
+                    amount: formatAmount(amount || "0", tokenType),
                     tokenType: tokenType || "tokens"
                   })}
                 </Text>

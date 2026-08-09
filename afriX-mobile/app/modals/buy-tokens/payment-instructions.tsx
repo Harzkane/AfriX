@@ -16,7 +16,7 @@ import { useMintRequestStore, useAgentStore, useWalletStore } from "@/stores";
 import * as Clipboard from "expo-clipboard";
 import { Ionicons } from "@expo/vector-icons";
 import apiClient from "@/services/apiClient";
-import { formatAmountOrCompact } from "@/utils/format";
+import { formatAmountOrCompact, formatAmount } from "@/utils/format";
 import { LinearGradient } from "expo-linear-gradient";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
@@ -219,7 +219,7 @@ export default function PaymentInstructionsScreen() {
               <Text style={[styles.amountLabel, { color: theme.muted }]}>{t("buy_tokens.payment_instructions.amount_label", "SEND EXACTLY")}</Text>
               <Text style={[styles.amountText, { color: theme.accent }]}>
                 {tokenType === "NT" ? "₦" : "XOF "}
-                {parseFloat(amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                {formatAmount(amount, tokenType)}
               </Text>
               <View style={[styles.tokenTag, { backgroundColor: theme.accentSoft }]}>
                 <Text style={[styles.tokenTagText, { color: theme.accent }]}>

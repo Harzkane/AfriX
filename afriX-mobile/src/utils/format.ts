@@ -1,13 +1,13 @@
 export type TokenType = "NT" | "CT" | "USDT";
 
-/** NT and CT = 0 decimals (whole numbers only), USDT = 2 decimal places */
+/** All wallet tokens now display and accept up to 2 decimal places. */
 function getMaxDecimals(tokenType?: TokenType): number {
-    return tokenType === "USDT" ? 2 : 0;
+    return 2;
 }
 
 /**
  * Parse user input for amount: strip commas, allow only digits and one decimal point.
- * NT/CT: integers only. USDT: up to 2 decimal places.
+ * NT/CT/USDT: up to 2 decimal places.
  * Returns raw string for state (e.g. "1234567.89" or "1234567").
  */
 export function parseAmountInput(text: string, tokenType?: TokenType): string {
@@ -27,7 +27,7 @@ export function parseAmountInput(text: string, tokenType?: TokenType): string {
 
 /**
  * Format raw amount string for display in an input (thousand separators).
- * NT/CT: no decimals. USDT: up to 2 decimal places.
+ * NT/CT/USDT: up to 2 decimal places.
  */
 export function formatAmountForInput(raw: string, tokenType?: TokenType): string {
     if (!raw || raw === ".") return "";
@@ -46,13 +46,12 @@ export function formatAmountForInput(raw: string, tokenType?: TokenType): string
     return withCommas;
 }
 
-/** Format raw amount for display with correct decimals (NT/CT whole, USDT 2 dp) */
+/** Format raw amount for display with correct decimals. */
 export function formatRawAmount(raw: string, tokenType?: TokenType): string {
     const maxDecimals = getMaxDecimals(tokenType);
     const num = parseFloat(raw);
-    if (isNaN(num)) return "0";
-    if (maxDecimals === 0) return Math.floor(num).toString();
-    return num.toFixed(2);
+    if (isNaN(num)) return "0.00";
+    return num.toFixed(maxDecimals);
 }
 
 /** Clamp parsed amount string to max balance; returns raw string with correct decimals. */
@@ -62,9 +61,9 @@ export function clampAmountToMax(
     tokenType?: TokenType
 ): string {
     const num = parseFloat(parsedValue) || 0;
-    const max = tokenType === "USDT" ? maxBalance : Math.floor(maxBalance);
+    const max = maxBalance;
     if (num <= max) return parsedValue;
-    return tokenType === "USDT" ? max.toFixed(2) : Math.min(max, Math.floor(num)).toString();
+    return max.toFixed(getMaxDecimals(tokenType));
 }
 
 /**
@@ -73,7 +72,7 @@ export function clampAmountToMax(
  */
 export function formatCompactAmount(value: number | string): string {
     const num = typeof value === "string" ? parseFloat(value) : value;
-    if (isNaN(num) || num < 0) return "0";
+    if (isNaN(num) || num < 0) return "0.00";
     const abs = Math.abs(num);
     if (abs >= 1_000_000_000) {
         const b = abs / 1_000_000_000;
@@ -96,25 +95,19 @@ export function formatCompactAmount(value: number | string): string {
  */
 export function formatAmountOrCompact(value: number | string, unit?: string): string {
     const num = typeof value === "string" ? parseFloat(value) : value;
-    if (isNaN(num) || num < 0) return unit ? "0 " + unit : "0";
+    if (isNaN(num) || num < 0) return unit ? "0.00 " + unit : "0.00";
     const formatted =
-        num >= 1_000_000 ? formatCompactAmount(num) : num.toLocaleString("en-US", { maximumFractionDigits: 0 });
+        num >= 1_000_000
+            ? formatCompactAmount(num)
+            : num.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     return unit ? `${formatted} ${unit}` : formatted;
 }
 
 export const formatAmount = (amount: string | number, currency: string = "USDT") => {
     const numAmount = typeof amount === "string" ? parseFloat(amount) : amount;
 
-    if (isNaN(numAmount)) return "0";
+    if (isNaN(numAmount)) return "0.00";
 
-    // NT and CT should be whole numbers
-    if (currency === "NT" || currency === "CT") {
-        return numAmount.toLocaleString("en-US", {
-            maximumFractionDigits: 0,
-        });
-    }
-
-    // USDT and others (default) should be 2 decimal places
     return numAmount.toLocaleString("en-US", {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,

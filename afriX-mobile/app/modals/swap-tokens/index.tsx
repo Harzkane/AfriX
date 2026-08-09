@@ -18,7 +18,7 @@ import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSwapStore, useWalletStore } from "@/stores";
-import { parseAmountInput, formatAmountForInput, clampAmountToMax } from "@/utils/format";
+import { parseAmountInput, formatAmountForInput, clampAmountToMax, formatAmount } from "@/utils/format";
 import * as Haptics from "expo-haptics";
 import { useTranslation } from "react-i18next";
 
@@ -90,9 +90,7 @@ export default function SwapTokensScreen() {
 
   const handleSetMax = () => {
     if (fromWallet) {
-      const raw = fromToken === "USDT"
-        ? availableBalance.toFixed(2)
-        : Math.floor(availableBalance).toString();
+      const raw = availableBalance.toFixed(2);
       setAmount(raw);
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
@@ -238,7 +236,7 @@ export default function SwapTokensScreen() {
                   value={formatAmountForInput(amount, fromToken)}
                   onChangeText={handleAmountChange}
                   keyboardType="numeric"
-                  placeholder={fromToken === "USDT" ? t("swap_tokens.index.placeholder_amount_usdt", "0.00") : t("swap_tokens.index.placeholder_amount", "0")}
+                  placeholder={t("swap_tokens.index.placeholder_amount_usdt", "0.00")}
                   placeholderTextColor={theme.placeholder}
                 />
                 <TouchableOpacity
@@ -252,7 +250,7 @@ export default function SwapTokensScreen() {
               {fromWallet && (
                 <Text style={[styles.balanceHint, { color: theme.muted }]}>
                   {t("swap_tokens.index.available_balance", "Available: {{balance}} {{token}}", {
-                    balance: availableBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+                    balance: formatAmount(availableBalance, fromToken),
                     token: fromToken
                   })}
                 </Text>
@@ -285,10 +283,7 @@ export default function SwapTokensScreen() {
                   <ActivityIndicator size="small" color={theme.accent} />
                 ) : (
                   <Text style={[styles.receiveValue, { color: theme.accent }]}>
-                    {parseFloat(estimatedReceive).toLocaleString(undefined, {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2,
-                    })}{" "}
+                    {formatAmount(estimatedReceive, toToken)}{" "}
                     {toToken}
                   </Text>
                 )}
@@ -296,7 +291,7 @@ export default function SwapTokensScreen() {
               {toWallet && (
                 <Text style={[styles.balanceHint, { color: theme.muted }]}>
                   {t("swap_tokens.index.current_balance", "Current balance: {{balance}} {{token}}", {
-                    balance: parseFloat(toWallet.available_balance).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+                    balance: formatAmount(toWallet.available_balance, toToken),
                     token: toToken
                   })}
                 </Text>

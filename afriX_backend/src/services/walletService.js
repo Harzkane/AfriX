@@ -359,7 +359,7 @@ const walletService = {
       try {
         await deliver(userId, "SWAP_COMPLETED", {
           title: "Swap Completed",
-          message: `Your swap of ${result.transaction.amount} ${fromToken} → ${result.receivedAmount.toFixed(2)} ${toToken} was completed successfully.`,
+          message: `Your swap of ${Number(result.transaction.amount).toFixed(2)} ${fromToken} → ${result.receivedAmount.toFixed(2)} ${toToken} was completed successfully.`,
           data: {
             transaction_id: String(result.transaction.id),
             reference: result.transaction.reference,

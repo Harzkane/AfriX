@@ -103,7 +103,7 @@ const transactionService = {
       try {
         await deliver(receiverId, "TRANSFER_RECEIVED", {
           title: "Transfer Received",
-          message: `You received ${tx.amount} ${tx.token_type} tokens.`,
+          message: `You received ${Number(tx.amount).toFixed(2)} ${tx.token_type} tokens.`,
           data: { transaction_id: String(tx.id), reference: tx.reference },
         });
       } catch (e) {

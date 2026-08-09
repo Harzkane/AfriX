@@ -312,7 +312,7 @@ const requestController = {
       if (agent) {
         await deliver(agent.user_id, "NEW_MINT_REQUEST", {
           title: "New Mint Request",
-          message: `User uploaded payment proof for ${request.amount} ${request.token_type}`,
+          message: `User uploaded payment proof for ${Number(request.amount).toFixed(2)} ${request.token_type}`,
           data: { requestId: request.id, amount: request.amount, token_type: request.token_type },
         });
       } else {
@@ -458,7 +458,7 @@ const requestController = {
 
       await deliver(mintRequest.user_id, "TOKENS_MINTED", {
         title: "Tokens Minted!",
-        message: `Your ${mintRequest.amount} ${mintRequest.token_type} tokens have been minted`,
+        message: `Your ${Number(mintRequest.amount).toFixed(2)} ${mintRequest.token_type} tokens have been minted`,
         data: { requestId: mintRequest.id, transactionId: result?.id, amount: mintRequest.amount, token_type: mintRequest.token_type },
       });
 
@@ -516,7 +516,7 @@ const requestController = {
 
       await deliver(mintRequest.user_id, "MINT_REJECTED", {
         title: "Mint Request Rejected",
-        message: `Your mint request was rejected: ${reason}`,
+        message: `Your mint request for ${Number(mintRequest.amount).toFixed(2)} ${mintRequest.token_type} was rejected. Reason: ${reason}`,
         data: { requestId: mintRequest.id, reason },
       });
 
@@ -637,7 +637,7 @@ const requestController = {
       if (agentForNotif) {
         await deliver(agentForNotif.user_id, "NEW_BURN_REQUEST", {
           title: "New Burn Request",
-          message: `User wants to sell ${request.amount} ${request.token_type}`,
+          message: `New burn request for ${Number(request.amount).toFixed(2)} ${request.token_type}`,
           data: { requestId: request.id, amount: request.amount, token_type: request.token_type },
         });
       }
@@ -696,7 +696,7 @@ const requestController = {
 
       await deliver(burnRequest.user_id, "BURN_REJECTED", {
         title: "Burn Request Rejected",
-        message: `Your burn request was rejected and tokens refunded. Reason: ${reason}`,
+        message: `Your burn request for ${Number(burnRequest.amount).toFixed(2)} ${burnRequest.token_type} was rejected and tokens refunded. Reason: ${reason}`,
         data: { requestId: burnRequest.id, reason },
       });
 

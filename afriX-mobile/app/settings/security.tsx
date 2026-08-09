@@ -82,6 +82,60 @@ export default function SecurityScreen() {
   const [secret, setSecret] = useState("");
   const [loading, setLoading] = useState(false);
 
+  // Phone verification state
+  const [showPhoneModal, setShowPhoneModal] = useState(false);
+  const [phoneNumber, setPhoneNumber] = useState(user?.phone_number || "");
+  const [phoneOtp, setPhoneOtp] = useState("");
+  const [otpSent, setOtpSent] = useState(false);
+  const [phoneLoading, setPhoneLoading] = useState(false);
+
+  const handleSendPhoneOtp = async () => {
+    if (!phoneNumber.trim() || phoneNumber.trim().length < 8) {
+      Alert.alert(t("settings.security.err_title", "Error"), t("settings.security.err_valid_phone", "Please enter a valid phone number with country code"));
+      return;
+    }
+    try {
+      setPhoneLoading(true);
+      const res = await apiClient.post("/auth/send-phone-otp", { phone_number: phoneNumber.trim() });
+      if (res.data.success) {
+        setOtpSent(true);
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        const demoInfo = res.data.otp_demo ? ` (Demo Code: ${res.data.otp_demo})` : "";
+        Alert.alert(t("settings.security.otp_sent_title", "Code Sent"), `${res.data.message}${demoInfo}`);
+      }
+    } catch (err: any) {
+      Alert.alert(t("settings.security.err_title", "Error"), err.response?.data?.message || t("settings.security.err_send_phone", "Failed to send verification code"));
+    } finally {
+      setPhoneLoading(false);
+    }
+  };
+
+  const handleVerifyPhoneOtp = async () => {
+    if (!phoneOtp || phoneOtp.trim().length !== 6) {
+      Alert.alert(t("settings.security.err_title", "Error"), t("settings.security.err_valid_otp", "Please enter the 6-digit verification code"));
+      return;
+    }
+    try {
+      setPhoneLoading(true);
+      const res = await apiClient.post("/auth/verify-phone-otp", { otp: phoneOtp.trim() });
+      if (res.data.success && res.data.data) {
+        if (user) setUser({ ...user, ...res.data.data, phone_verified: true, verification_level: 2 });
+        setShowPhoneModal(false);
+        setPhoneOtp("");
+        setOtpSent(false);
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        Alert.alert(
+          t("settings.security.success_title", "Success"),
+          t("settings.security.phone_verified_success", "Phone number verified! Level 2 limits ($500/day) are now active.")
+        );
+      }
+    } catch (err: any) {
+      Alert.alert(t("settings.security.err_title", "Error"), err.response?.data?.message || t("settings.security.err_verify_phone", "Invalid or expired verification code"));
+    } finally {
+      setPhoneLoading(false);
+    }
+  };
+
   useEffect(() => {
     SecureStore.getItemAsync(BIOMETRIC_LOGIN_KEY).then((v) => {
       setBiometricsEnabled(v === "true");
@@ -354,6 +408,23 @@ export default function SecurityScreen() {
           </View>
         )}
 
+        {/* ── Phone & Profile Verification ── */}
+        <Text style={[styles.sectionLabel, { color: theme.muted }]}>{t("settings.security.section_verification", "Phone Verification")}</Text>
+        <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
+          <LinkRow
+            icon="call-outline"
+            iconColor={user?.phone_verified ? theme.accent : theme.blue}
+            iconBg={user?.phone_verified ? theme.accentSoft : theme.blueSoft}
+            title={t("settings.security.phone_title", "Phone Number Verification")}
+            subtitle={
+              user?.phone_verified
+                ? t("settings.security.phone_verified_sub", "Verified: {{phone}}", { phone: user?.phone_number || "" })
+                : t("settings.security.phone_unverified_sub", "Verify phone to unlock Level 2 ($500/day limit)")
+            }
+            onPress={() => setShowPhoneModal(true)}
+          />
+        </View>
+
         {/* ── Password ── */}
         <Text style={[styles.sectionLabel, { color: theme.muted }]}>{t("settings.security.section_password", "Password")}</Text>
         <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
@@ -567,6 +638,112 @@ export default function SecurityScreen() {
                 : <Text style={styles.primaryBtnText}>{t("settings.security.btn_disable_2fa", "Disable 2FA")}</Text>
               }
             </TouchableOpacity>
+          </ScrollView>
+        </View>
+      </Modal>
+
+      {/* ── Phone Verification Modal ── */}
+      <Modal visible={showPhoneModal} animationType="slide" presentationStyle="pageSheet">
+        <View style={[styles.modalContainer, { backgroundColor: theme.modalBg }]}>
+          <SafeAreaView edges={["top"]} style={{ paddingHorizontal: 16 }}>
+            <View style={styles.modalHeaderRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.modalTitle, { color: theme.text }]}>
+                  {user?.phone_verified
+                    ? t("settings.security.phone_verified_modal_title", "Phone Number Verified")
+                    : t("settings.security.phone_modal_title", "Verify Phone Number")}
+                </Text>
+                <Text style={[styles.modalSubtitle, { color: theme.muted }]}>
+                  {user?.phone_verified
+                    ? t("settings.security.phone_verified_modal_sub", "Your phone number is confirmed for Level 2 ($500/day limit).")
+                    : t("settings.security.phone_modal_sub", "Enter your mobile number to receive a 6-digit verification code.")}
+                </Text>
+              </View>
+              <TouchableOpacity
+                style={[styles.modalCloseBtn, { backgroundColor: isDark ? "#111C2B" : "#F1F5F9", borderColor: theme.border }]}
+                onPress={() => {
+                  setShowPhoneModal(false);
+                  setOtpSent(false);
+                  setPhoneOtp("");
+                }}
+              >
+                <Ionicons name="close" size={20} color={theme.text} />
+              </TouchableOpacity>
+            </View>
+          </SafeAreaView>
+
+          <ScrollView contentContainerStyle={styles.modalContent} showsVerticalScrollIndicator={false}>
+            {user?.phone_verified ? (
+              <View style={[styles.infoBanner, { backgroundColor: theme.accentSoft, borderColor: theme.accentBorder, marginTop: 12 }]}>
+                <View style={[styles.infoBannerIcon, { backgroundColor: theme.accent + "30" }]}>
+                  <Ionicons name="checkmark-circle" size={20} color={theme.accent} />
+                </View>
+                <Text style={[styles.infoBannerText, { color: isDark ? "#6EE7B7" : "#065F46" }]}>
+                  Phone number {user?.phone_number || ""} is fully verified. Level 2 ($500/day limit) is active!
+                </Text>
+              </View>
+            ) : (
+              <>
+                <Text style={[styles.inputLabel, { color: theme.text }]}>Mobile Phone Number</Text>
+                <TextInput
+                  style={[styles.formInput, { color: theme.text, backgroundColor: theme.inputBg, borderColor: theme.border }]}
+                  placeholder="+234 801 234 5678"
+                  placeholderTextColor={theme.placeholder}
+                  value={phoneNumber}
+                  onChangeText={setPhoneNumber}
+                  keyboardType="phone-pad"
+                  editable={!otpSent && !phoneLoading}
+                />
+
+                {!otpSent ? (
+                  <TouchableOpacity
+                    style={[styles.primaryBtn, { backgroundColor: theme.blue }, phoneLoading && { opacity: 0.5 }]}
+                    onPress={handleSendPhoneOtp}
+                    disabled={phoneLoading}
+                    activeOpacity={0.85}
+                  >
+                    {phoneLoading ? (
+                      <ActivityIndicator color="#FFF" />
+                    ) : (
+                      <Text style={styles.primaryBtnText}>Send Verification Code</Text>
+                    )}
+                  </TouchableOpacity>
+                ) : (
+                  <>
+                    <Text style={[styles.inputLabel, { color: theme.text, marginTop: 16 }]}>6-Digit Verification Code</Text>
+                    <TextInput
+                      style={[styles.otpInput, { color: theme.text, backgroundColor: theme.inputBg, borderColor: theme.border }]}
+                      placeholder="123456"
+                      placeholderTextColor={theme.placeholder}
+                      value={phoneOtp}
+                      onChangeText={setPhoneOtp}
+                      keyboardType="number-pad"
+                      maxLength={6}
+                    />
+
+                    <TouchableOpacity
+                      style={[styles.primaryBtn, { backgroundColor: theme.accent }, phoneLoading && { opacity: 0.5 }]}
+                      onPress={handleVerifyPhoneOtp}
+                      disabled={phoneLoading}
+                      activeOpacity={0.85}
+                    >
+                      {phoneLoading ? (
+                        <ActivityIndicator color="#FFF" />
+                      ) : (
+                        <Text style={styles.primaryBtnText}>Verify Code & Unlock Level 2</Text>
+                      )}
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={{ marginTop: 16, alignItems: "center" }}
+                      onPress={() => setOtpSent(false)}
+                    >
+                      <Text style={{ fontSize: 13, color: theme.accent, fontWeight: "700" }}>Resend Code / Change Phone Number</Text>
+                    </TouchableOpacity>
+                  </>
+                )}
+              </>
+            )}
           </ScrollView>
         </View>
       </Modal>

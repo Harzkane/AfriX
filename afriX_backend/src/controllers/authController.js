@@ -1047,13 +1047,101 @@ const validate2FA = async (req, res) => {
           expires_in: "24h",
         },
       },
-    });
+/**
+ * Send Phone OTP
+ * POST /api/v1/auth/send-phone-otp
+ */
+const sendPhoneOtp = async (req, res) => {
+  try {
+    const { phone_number } = req.body;
+    if (!phone_number) {
+      return res.status(HTTP_STATUS.BAD_REQUEST).json({
+        success: false,
+        message: "Phone number is required",
+      });
+    }
 
+    const user = await User.findByPk(req.user.id);
+    if (!user) {
+      return res.status(HTTP_STATUS.NOT_FOUND).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+
+    user.phone_number = phone_number.trim();
+    user.email_verification_token = `PHONE_OTP:${otpCode}`;
+    user.email_verification_expires = new Date(Date.now() + 10 * 60 * 1000);
+    await user.save();
+
+    console.log(`📱 [PHONE OTP] Sent to ${phone_number}: Code = ${otpCode}`);
+
+    res.status(HTTP_STATUS.OK).json({
+      success: true,
+      message: "Verification code sent to your phone number",
+      ...(process.env.NODE_ENV === "development" && { otp_demo: otpCode }),
+    });
   } catch (error) {
-    console.error("Validate 2FA error:", error);
+    console.error("Send phone OTP error:", error);
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
       success: false,
-      message: "Validation failed",
+      message: "Failed to send phone verification code",
+    });
+  }
+};
+
+/**
+ * Verify Phone OTP
+ * POST /api/v1/auth/verify-phone-otp
+ */
+const verifyPhoneOtp = async (req, res) => {
+  try {
+    const { otp } = req.body;
+    if (!otp) {
+      return res.status(HTTP_STATUS.BAD_REQUEST).json({
+        success: false,
+        message: "Verification code is required",
+      });
+    }
+
+    const user = await User.findByPk(req.user.id);
+    if (!user) {
+      return res.status(HTTP_STATUS.NOT_FOUND).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    const savedOtp = user.email_verification_token?.replace("PHONE_OTP:", "");
+    const isExpired = user.email_verification_expires && new Date(user.email_verification_expires) < new Date();
+
+    if (!user.email_verification_token?.startsWith("PHONE_OTP:") || savedOtp !== otp.trim() || isExpired) {
+      return res.status(HTTP_STATUS.BAD_REQUEST).json({
+        success: false,
+        message: "Invalid or expired phone verification code",
+      });
+    }
+
+    user.phone_verified = true;
+    user.email_verification_token = null;
+    user.email_verification_expires = null;
+    user.updateVerificationLevel();
+    await user.save();
+
+    await deleteCache(`user:${user.id}`);
+
+    res.status(HTTP_STATUS.OK).json({
+      success: true,
+      message: "Phone number verified successfully! Level 2 limits unlocked ($500/day).",
+      data: user.toSafeObject(),
+    });
+  } catch (error) {
+    console.error("Verify phone OTP error:", error);
+    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
+      success: false,
+      message: "Failed to verify phone code",
     });
   }
 };
@@ -1072,5 +1160,7 @@ module.exports = {
   setup2FA,
   verify2FA,
   disable2FA,
-  validate2FA
+  validate2FA,
+  sendPhoneOtp,
+  verifyPhoneOtp,
 };

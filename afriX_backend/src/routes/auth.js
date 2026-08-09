@@ -148,4 +148,18 @@ router.post("/2fa/disable", authenticate, authController.disable2FA);
  */
 router.post("/2fa/validate", sensitiveAuthLimiter, authController.validate2FA);
 
+/**
+ * @route   POST /api/v1/auth/send-phone-otp
+ * @desc    Send OTP to user phone number for Level 2 verification
+ * @access  Private
+ */
+router.post("/send-phone-otp", authenticate, authController.sendPhoneOtp);
+
+/**
+ * @route   POST /api/v1/auth/verify-phone-otp
+ * @desc    Verify OTP to unlock Level 2 ($500/day limit)
+ * @access  Private
+ */
+router.post("/verify-phone-otp", authenticate, authController.verifyPhoneOtp);
+
 module.exports = router;

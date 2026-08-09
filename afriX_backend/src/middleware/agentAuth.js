@@ -5,23 +5,21 @@ const { AGENT_STATUS } = require("../config/constants");
 
 const requireAgent = async (req, res, next) => {
   try {
-    const agent = await Agent.findOne({
+    let agent = await Agent.findOne({
       where: { user_id: req.user.id },
     });
 
+    // If agent profile does not exist yet, auto-create a pending agent profile for KYC
     if (!agent) {
-      throw new ApiError(
-        "Agent profile not found. Please register as an agent first.",
-        403
-      );
+      agent = await Agent.create({
+        user_id: req.user.id,
+        status: "pending",
+        tier: "Starter",
+        deposit_usd: 0,
+        available_capacity: 0,
+        is_verified: false,
+      });
     }
-
-    //  if (agent.status !== AGENT_STATUS.ACTIVE) {
-    //   throw new ApiError(`Agent not active. Status: ${agent.status}`, 403);
-    // }
-
-    // Status check removed to allow PENDING/UNDER_REVIEW agents to access profile/KYC
-    // Individual services (mint/burn) should enforce ACTIVE status where needed
 
     req.agent = agent; // Attach for use in controllers
     next();

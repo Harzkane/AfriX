@@ -21,6 +21,7 @@ const loginLimiter = rateLimit({
   message: { success: false, message: "Too many login attempts. Please try again in 15 minutes." },
   standardHeaders: true,
   legacyHeaders: false,
+  skip: () => process.env.NODE_ENV === "development",
 });
 
 /** General limiter for public auth endpoints (register, verify, forgot password) */
@@ -30,6 +31,7 @@ const authLimiter = rateLimit({
   message: { success: false, message: "Too many requests. Please try again later." },
   standardHeaders: true,
   legacyHeaders: false,
+  skip: () => process.env.NODE_ENV === "development",
 });
 
 /** Strict limiter for password reset / 2FA — prevents OTP enumeration */
@@ -39,6 +41,7 @@ const sensitiveAuthLimiter = rateLimit({
   message: { success: false, message: "Too many attempts. Please try again in an hour." },
   standardHeaders: true,
   legacyHeaders: false,
+  skip: () => process.env.NODE_ENV === "development",
 });
 
 // ─────────────────────────────────────────────

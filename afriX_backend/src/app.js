@@ -96,6 +96,7 @@ app.use(
     message: { success: false, message: "Too many requests from this IP, please slow down." },
     standardHeaders: true,
     legacyHeaders: false,
+    skip: () => process.env.NODE_ENV === "development", // Bypass during local dev testing
   })
 );
 

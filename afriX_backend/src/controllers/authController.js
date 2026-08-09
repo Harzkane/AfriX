@@ -15,6 +15,7 @@ const { setCache, getCache, deleteCache } = require("../utils/cache");
 const { sequelize } = require("../config/database");
 const walletService = require("../services/walletService");
 const { TOKEN_TYPES } = require("../config/constants");
+const { deliver } = require("../services/notificationService");
 
 // Cache helpers that work with or without Redis
 // const setCache = async (key, value, ttl) => {
@@ -397,6 +398,13 @@ const login = async (req, res) => {
         },
       },
     });
+
+    // Fire security notification (fire-and-forget — after response is sent)
+    deliver(user.id, "SECURITY_LOGIN", {
+      title: "New Login Detected",
+      message: `A new login to your AfriX account was detected. If this wasn't you, secure your account immediately.`,
+      data: { ip: req.ip || "", timestamp: new Date().toISOString() },
+    }).catch((e) => console.error("SECURITY_LOGIN notify failed:", e.message));
   } catch (error) {
     console.error("Login error:", error);
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
@@ -680,6 +688,14 @@ const changePassword = async (req, res) => {
     user.password_hash = new_password; // beforeUpdate will hash
     await user.save();
     await deleteCache(`user:${user.id}`);
+
+    // Fire security notification
+    deliver(user.id, "SECURITY_PASSWORD", {
+      title: "Password Changed",
+      message: "Your AfriX account password was just changed. If this wasn't you, contact support immediately.",
+      data: { timestamp: new Date().toISOString() },
+    }).catch((e) => console.error("SECURITY_PASSWORD notify failed:", e.message));
+
     return res.status(HTTP_STATUS.OK).json({
       success: true,
       message: "Password updated successfully",
@@ -867,6 +883,13 @@ const verify2FA = async (req, res) => {
     // Clear cache
     await deleteCache(`user:${userId}`);
 
+    // Fire security notification
+    deliver(userId, "SECURITY_2FA_CHANGED", {
+      title: "Two-Factor Authentication Enabled",
+      message: "2FA has been enabled on your AfriX account. Your account is now more secure.",
+      data: { action: "enabled", timestamp: new Date().toISOString() },
+    }).catch((e) => console.error("SECURITY_2FA_CHANGED notify failed:", e.message));
+
     res.status(HTTP_STATUS.OK).json({
       success: true,
       message: "2FA enabled successfully",
@@ -922,6 +945,13 @@ const disable2FA = async (req, res) => {
 
     // Clear cache
     await deleteCache(`user:${userId}`);
+
+    // Fire security notification
+    deliver(userId, "SECURITY_2FA_CHANGED", {
+      title: "Two-Factor Authentication Disabled",
+      message: "2FA has been disabled on your AfriX account. Re-enable it any time from Security Settings.",
+      data: { action: "disabled", timestamp: new Date().toISOString() },
+    }).catch((e) => console.error("SECURITY_2FA_CHANGED notify failed:", e.message));
 
     res.status(HTTP_STATUS.OK).json({
       success: true,

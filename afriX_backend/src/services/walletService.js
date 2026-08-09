@@ -11,6 +11,7 @@ const { ApiError } = require("../utils/errors");
 const { generateTransactionReference } = require("../utils/helpers");
 const { ethers } = require("ethers");
 const crypto = require("crypto");
+const { deliver } = require("./notificationService");
 
 async function encryptPrivateKey(privateKey) {
   try {
@@ -350,6 +351,24 @@ const walletService = {
         receivedAmount: receiveAmount,
         fee: swapFee,
       };
+    }).then(async (result) => {
+      // Notify user of completed swap (fire-and-forget, outside DB tx)
+      try {
+        await deliver(userId, "SWAP_COMPLETED", {
+          title: "Swap Completed",
+          message: `Your swap of ${result.transaction.amount} ${fromToken} → ${result.receivedAmount.toFixed(2)} ${toToken} was completed successfully.`,
+          data: {
+            transaction_id: String(result.transaction.id),
+            reference: result.transaction.reference,
+            from_token: fromToken,
+            to_token: toToken,
+            received_amount: String(result.receivedAmount.toFixed(2)),
+          },
+        });
+      } catch (e) {
+        console.error("SWAP_COMPLETED notify failed:", e.message);
+      }
+      return result;
     });
   },
 };

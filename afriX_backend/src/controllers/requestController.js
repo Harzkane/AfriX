@@ -237,6 +237,10 @@ const requestController = {
       const { agent_id, amount, token_type } = req.body;
       const userId = req.user.id;
 
+      // ENFORCE DAILY TRANSACTION LIMITS
+      const userService = require("../services/userService");
+      await userService.checkTransactionLimits(userId, amount, token_type);
+
       // ENFORCE EDUCATION
       await educationService.enforceEducation(userId, "mint");
 
@@ -571,6 +575,10 @@ const requestController = {
     try {
       const { agent_id, amount, token_type, bank_account } = req.body;
       const userId = req.user.id;
+
+      // ENFORCE DAILY TRANSACTION LIMITS
+      const userService = require("../services/userService");
+      await userService.checkTransactionLimits(userId, amount, token_type);
 
       // ENFORCE EDUCATION
       await educationService.enforceEducation(userId, "burn");

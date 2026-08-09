@@ -167,6 +167,10 @@ const walletService = {
       throw new ApiError("Sender and recipient required", 400);
     if (amount <= 0) throw new ApiError("Invalid transfer amount", 400);
 
+    // ENFORCE DAILY AND PER-TRANSACTION LIMITS
+    const userService = require("./userService");
+    await userService.checkTransactionLimits(fromUserId, amount, token_type);
+
     let recipient = await User.findOne({ where: { email: recipientIdentifier.toLowerCase() } });
     if (!recipient && recipientIdentifier.toLowerCase().startsWith("0x")) {
       const targetWallet = await Wallet.findOne({

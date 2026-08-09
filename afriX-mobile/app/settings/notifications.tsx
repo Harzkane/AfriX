@@ -18,6 +18,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useAuthStore } from "@/stores";
 import apiClient from "@/services/apiClient";
+import { registerPushTokenIfNeeded } from "@/services/pushNotifications";
 import * as Haptics from "expo-haptics";
 
 import { useTranslation } from "react-i18next";
@@ -207,6 +208,23 @@ export default function NotificationScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     try {
       setSendingTestPush(true);
+      const registration = await registerPushTokenIfNeeded();
+      if (!registration.registered) {
+        Alert.alert(
+          t("settings.notifications.test_push_error_title", "Push not ready"),
+          registration.reason === "permission_denied"
+            ? t(
+                "settings.notifications.push_permission_required",
+                "Please allow push notifications first, then try again."
+              )
+            : t(
+                "settings.notifications.push_token_missing",
+                "We could not register this device for push notifications yet. Please reopen the app and try again."
+              )
+        );
+        return;
+      }
+
       const { data } = await apiClient.post("/notifications/test-push");
       Alert.alert(
         t("settings.notifications.test_push_success_title", "Test sent"),

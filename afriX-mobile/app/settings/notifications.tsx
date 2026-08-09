@@ -10,6 +10,7 @@ import {
   useColorScheme,
   Animated,
   Text,
+  Alert,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -78,6 +79,7 @@ export default function NotificationScreen() {
 
   const [updating, setUpdating] = useState(false);
   const [loadingSettings, setLoadingSettings] = useState(true);
+  const [sendingTestPush, setSendingTestPush] = useState(false);
 
   const [pushEnabled, setPushEnabled] = useState(user?.push_notifications_enabled ?? true);
   const [emailEnabled, setEmailEnabled] = useState(user?.email_notifications_enabled ?? true);
@@ -201,6 +203,30 @@ export default function NotificationScreen() {
     }
   };
 
+  const handleSendTestPush = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    try {
+      setSendingTestPush(true);
+      const { data } = await apiClient.post("/notifications/test-push");
+      Alert.alert(
+        t("settings.notifications.test_push_success_title", "Test sent"),
+        t("settings.notifications.test_push_success_desc", "If push is configured correctly, you should see the notification on this device now.")
+      );
+      return data;
+    } catch (error: any) {
+      const message =
+        error?.response?.data?.message ||
+        error?.message ||
+        t("settings.notifications.test_push_error_desc", "We couldn't send a test push. Make sure push notifications are enabled and the device token is registered.");
+      Alert.alert(
+        t("settings.notifications.test_push_error_title", "Test failed"),
+        message
+      );
+    } finally {
+      setSendingTestPush(false);
+    }
+  };
+
   const SettingRow = ({
     icon, iconColor, iconBg, title, subtitle, value, onValueChange, disabled,
   }: {
@@ -306,6 +332,30 @@ export default function NotificationScreen() {
             disabled={updating}
           />
         </View>
+
+        <TouchableOpacity
+          style={[
+            styles.testPushButton,
+            { backgroundColor: theme.accent },
+            (!pushEnabled || updating || sendingTestPush || loadingSettings) && styles.testPushButtonDisabled,
+          ]}
+          onPress={handleSendTestPush}
+          disabled={!pushEnabled || updating || sendingTestPush || loadingSettings}
+          activeOpacity={0.85}
+        >
+          {sendingTestPush ? (
+            <ActivityIndicator size="small" color="#FFFFFF" />
+          ) : (
+            <Ionicons name="send" size={18} color="#FFFFFF" />
+          )}
+          <Text style={styles.testPushButtonText}>
+            {t("settings.notifications.btn_test_push", "Send test push")}
+          </Text>
+        </TouchableOpacity>
+
+        <Text style={[styles.testPushHint, { color: theme.muted }]}>
+          {t("settings.notifications.test_push_hint", "This sends a one-off push to your current device so you can verify APNs/FCM, app registration, and the notification alert UI.")}
+        </Text>
 
         {/* SMS status alert/coming soon banner */}
         <View style={[styles.smsComingSoonCard, { backgroundColor: theme.amberSoft, borderColor: theme.amberBorder }]}>
@@ -462,4 +512,27 @@ const styles = StyleSheet.create({
   smsBadgeText: { fontSize: 10, fontWeight: "800", textTransform: "uppercase" },
   smsDesc: { fontSize: 13, lineHeight: 19, fontWeight: "500" },
   loadingText: { fontSize: 13, fontWeight: "600", marginTop: 8 },
+  testPushButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    paddingVertical: 14,
+    borderRadius: 16,
+    marginBottom: 10,
+  },
+  testPushButtonDisabled: {
+    opacity: 0.55,
+  },
+  testPushButtonText: {
+    color: "#FFFFFF",
+    fontSize: 15,
+    fontWeight: "800",
+  },
+  testPushHint: {
+    fontSize: 12,
+    lineHeight: 18,
+    marginBottom: 20,
+    marginHorizontal: 4,
+  },
 });

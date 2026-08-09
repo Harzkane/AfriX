@@ -182,7 +182,7 @@ export default function ConfirmTransferScreen() {
           />
           <Text style={[styles.summaryLabel, { color: theme.muted }]}>{t("send_tokens.confirm.label_total_debit", "Total Debit")}</Text>
           <View style={styles.amountContainer}>
-            <Text style={[styles.summaryAmount, { color: theme.text }]}>{parseFloat(amount).toLocaleString()}</Text>
+            <Text style={[styles.summaryAmount, { color: theme.text }]}>{formatAmount(amountNum, tokenType)}</Text>
             <Text style={[styles.tokenTag, { color: theme.accent }]}>{tokenType}</Text>
           </View>
 

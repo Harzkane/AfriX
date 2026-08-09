@@ -16,7 +16,7 @@ import { useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
-import { formatDate } from "@/utils/format";
+import { formatDate, formatAmount } from "@/utils/format";
 import { useTranslation } from "react-i18next";
 
 export default function ReceiveSuccessScreen() {
@@ -118,10 +118,7 @@ export default function ReceiveSuccessScreen() {
         "receive_tokens.success.share_receipt_message",
         "🎉 Payment Received on AfriExchange!\n\n• Amount: {{amount}} {{tokenType}}\n• From: {{from}}\n• Date: {{date}}\n• Location: {{location}}\n\nVerified by AfriExchange Network.",
         {
-          amount: parseFloat((amount as string) || "0").toLocaleString(undefined, {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2,
-          }),
+          amount: formatAmount((amount as string) || "0", tokenType),
           tokenType,
           from: senderName || fromEmail || t("receive_tokens.success.share_receipt_user_fallback", "AfriExchange User"),
           date: formattedDate,
@@ -213,10 +210,7 @@ export default function ReceiveSuccessScreen() {
           {/* Hero Amount */}
           <Text style={[styles.amountTitle, { color: theme.muted }]}>{t("receive_tokens.success.amount_received_title", "Amount Received")}</Text>
           <Text style={[styles.amountText, { color: theme.accent }]}>
-            +{parseFloat((amount as string) || "0").toLocaleString(undefined, {
-              minimumFractionDigits: 2,
-              maximumFractionDigits: 2,
-            })}{" "}
+            +{formatAmount((amount as string) || "0", tokenType)}{" "}
             <Text style={[styles.tokenLabel, { color: theme.text }]}>{tokenType}</Text>
           </Text>
 
@@ -536,4 +530,3 @@ const styles = StyleSheet.create({
     fontWeight: "800",
   },
 });
-

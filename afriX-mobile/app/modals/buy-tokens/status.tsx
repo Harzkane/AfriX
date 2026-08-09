@@ -24,7 +24,7 @@ import { TimerComponent } from "@/components/ui/TimerComponent";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
-import { formatDate } from "@/utils/format";
+import { formatDate, formatAmount } from "@/utils/format";
 import apiClient from "@/services/apiClient";
 import { useTranslation } from "react-i18next";
 
@@ -300,7 +300,7 @@ export default function MintStatusScreen() {
             </View>
           </View>
           <Text style={[styles.heroAmount, { color: theme.text }]}>
-            {parseFloat(currentRequest.amount).toLocaleString()}{" "}
+            {formatAmount(currentRequest.amount, currentRequest.token_type)}{" "}
             <Text style={[styles.heroToken, { color: theme.muted }]}>{currentRequest.token_type}</Text>
           </Text>
           <Text style={[styles.heroDate, { color: theme.muted }]}>
@@ -397,7 +397,7 @@ export default function MintStatusScreen() {
               <Text style={[styles.messageTitle, { color: theme.text }]}>{t("buy_tokens.status.msg_success_title", "Successfully Minted!")}</Text>
               <Text style={[styles.messageText, { color: theme.muted }]}>
                 {t("buy_tokens.status.msg_success_desc", "{{amount}} {{tokenType}} tokens are now in your wallet.", {
-                  amount: parseFloat(currentRequest.amount).toLocaleString(),
+                  amount: formatAmount(currentRequest.amount, currentRequest.token_type),
                   tokenType: currentRequest.token_type
                 })}
               </Text>

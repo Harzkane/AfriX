@@ -14,7 +14,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import apiClient from "@/services/apiClient";
 import { useAuthStore } from "@/stores";
-import { formatDate } from "@/utils/format";
+import { formatDate, formatAmount } from "@/utils/format";
 import { useTranslation } from "react-i18next";
 
 const FROM_ACTIVITY = "activity";
@@ -290,7 +290,7 @@ export default function UserTransactionDetailScreen() {
                             </Text>
                             <Text style={[styles.amountValue, { color: theme.text }]}>
                                 {showAmountAsOut ? "-" : "+"}
-                                {amountValue.toLocaleString()} {tx.token_type || ""}
+                                {formatAmount(amountValue, tx.token_type || "")} {tx.token_type || ""}
                             </Text>
                         </View>
                         <View style={[styles.heroDateChip, { backgroundColor: theme.surface, borderColor: theme.border }]}>
@@ -393,11 +393,7 @@ export default function UserTransactionDetailScreen() {
                                         {feeLabel}
                                     </Text>
                                     <Text style={[styles.infoStripValue, { color: theme.text }]}>
-                                        {feeAmount.toLocaleString(undefined, {
-                                            minimumFractionDigits: 2,
-                                            maximumFractionDigits: 2,
-                                        })}{" "}
-                                        {tx.token_type || ""}
+                                        {formatAmount(feeAmount, tx.token_type || "")} {tx.token_type || ""}
                                     </Text>
                                 </View>
                             ) : null}
@@ -414,11 +410,7 @@ export default function UserTransactionDetailScreen() {
                                             {t("transactions.recipient_received", "Recipient received")}
                                         </Text>
                                         <Text style={[styles.infoStripValue, { color: theme.text }]}>
-                                            {amountValue.toLocaleString(undefined, {
-                                                minimumFractionDigits: 2,
-                                                maximumFractionDigits: 2,
-                                            })}{" "}
-                                            {tx.token_type || ""}
+                                            {formatAmount(amountValue, tx.token_type || "")} {tx.token_type || ""}
                                         </Text>
                                     </View>
                                     <View
@@ -431,11 +423,7 @@ export default function UserTransactionDetailScreen() {
                                             {t("transactions.total_debited", "Total debited")}
                                         </Text>
                                         <Text style={[styles.infoStripValue, { color: theme.text }]}>
-                                            {(amountValue + feeAmount).toLocaleString(undefined, {
-                                                minimumFractionDigits: 2,
-                                                maximumFractionDigits: 2,
-                                            })}{" "}
-                                            {tx.token_type || ""}
+                                            {formatAmount(amountValue + feeAmount, tx.token_type || "")} {tx.token_type || ""}
                                         </Text>
                                     </View>
                                 </>
@@ -452,11 +440,7 @@ export default function UserTransactionDetailScreen() {
                                                 {t("transactions.net_swapped", "Net swapped")}
                                             </Text>
                                             <Text style={[styles.infoStripValue, { color: theme.text }]}>
-                                                {(amountValue - feeAmount).toLocaleString(undefined, {
-                                                    minimumFractionDigits: 2,
-                                                    maximumFractionDigits: 2,
-                                                })}{" "}
-                                                {tx.token_type || ""}
+                                                {formatAmount(amountValue - feeAmount, tx.token_type || "")} {tx.token_type || ""}
                                             </Text>
                                         </View>
                                     ) : null}
@@ -471,11 +455,7 @@ export default function UserTransactionDetailScreen() {
                                                 {t("transactions.you_received", "You received")}
                                             </Text>
                                             <Text style={[styles.infoStripValue, { color: theme.accent }]}>
-                                                +{receivedAmount.toLocaleString(undefined, {
-                                                    minimumFractionDigits: 2,
-                                                    maximumFractionDigits: 2,
-                                                })}{" "}
-                                                {tx.metadata?.to_token || ""}
+                                                +{formatAmount(receivedAmount, tx.metadata?.to_token || "")} {tx.metadata?.to_token || ""}
                                             </Text>
                                         </View>
                                     )}
@@ -492,16 +472,10 @@ export default function UserTransactionDetailScreen() {
                                             <Text style={[styles.infoStripLabel, { color: theme.muted }]}>
                                                 {t("transactions.net_after_fee", "Net after fee")}
                                             </Text>
-                                            <Text style={[styles.infoStripValue, { color: theme.text }]}>
-                                                {showAmountAsOut
-                                                    ? `${(amountValue - feeAmount).toLocaleString(undefined, {
-                                                          minimumFractionDigits: 2,
-                                                          maximumFractionDigits: 2,
-                                                      })} ${tx.token_type || ""}`
-                                                    : `${amountValue.toLocaleString(undefined, {
-                                                          minimumFractionDigits: 2,
-                                                          maximumFractionDigits: 2,
-                                                      })} ${tx.token_type || ""}`}
+                                                <Text style={[styles.infoStripValue, { color: theme.text }]}>
+                                                    {showAmountAsOut
+                                                    ? `${formatAmount(amountValue - feeAmount, tx.token_type || "")} ${tx.token_type || ""}`
+                                                    : `${formatAmount(amountValue, tx.token_type || "")} ${tx.token_type || ""}`}
                                             </Text>
                                         </View>
                                     ) : null}

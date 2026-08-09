@@ -87,18 +87,18 @@ export default function SendAmountScreen() {
     router.push("/modals/send-tokens/confirm");
   };
 
-  const maxByToken = tokenType === "USDT" ? availableBalance : Math.floor(availableBalance);
+  const maxByToken = availableBalance;
 
   const handleSetPreset = (preset: number) => {
     const clamped = Math.min(preset, maxByToken);
-    const raw = tokenType === "USDT" ? clamped.toFixed(2) : Math.floor(clamped).toString();
+    const raw = clamped.toFixed(2);
     setAmount(raw);
   };
 
   const handleSetMax = () => {
     if (wallet) {
       const maxAmount = Math.max(0, availableBalance - (availableBalance * 0.005));
-      const raw = tokenType === "USDT" ? maxAmount.toFixed(2) : Math.floor(maxAmount).toString();
+      const raw = maxAmount.toFixed(2);
       setAmount(raw);
     }
   };
@@ -182,9 +182,7 @@ export default function SendAmountScreen() {
             <View style={styles.amountRow}>
               <TextInput
                 style={[styles.amountInput, { color: theme.text }]}
-                placeholder={tokenType === "USDT" 
-                  ? t("send_tokens.amount.placeholder_amount_usdt", "0.00") 
-                  : t("send_tokens.amount.placeholder_amount", "0")}
+                placeholder={t("send_tokens.amount.placeholder_amount_usdt", "0.00")}
                 placeholderTextColor={theme.placeholder}
                 keyboardType="numeric"
                 value={formatAmountForInput(amount, tokenType)}

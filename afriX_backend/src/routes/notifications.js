@@ -10,6 +10,7 @@ router.use(authenticate);
 router.get("/", notificationController.list);
 router.post("/read-all", notificationController.markAllRead);
 router.post("/:id/read", notificationController.markRead);
+router.post("/test-push", notificationController.sendTestPush);
 
 // Preferences (granular)
 router.get("/settings", notificationController.getSettings);

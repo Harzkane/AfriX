@@ -19,7 +19,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import apiClient from "@/services/apiClient";
 import { API_ENDPOINTS } from "@/constants/api";
 import { useAuthStore } from "@/stores";
-import { formatDate } from "@/utils/format";
+import { formatDate, formatAmount } from "@/utils/format";
 import { useTranslation } from "react-i18next";
 
 interface Transaction {
@@ -904,7 +904,7 @@ export default function TransactionHistoryScreen() {
                           </Text>
                           <Text style={[styles.transactionAmount, { color: theme.text }]}>
                             {getAmountPrefix(tx)}
-                            {parseFloat(tx.amount).toLocaleString()} {tx.token_type}
+                            {formatAmount(tx.amount, tx.token_type)} {tx.token_type}
                           </Text>
                         </View>
                         <View style={styles.amountMeta}>
@@ -936,7 +936,7 @@ export default function TransactionHistoryScreen() {
                           {t("home.activity_received", "Received")}
                         </Text>
                         <Text style={[styles.infoStripValue, { color: theme.text }]}>
-                          {parseFloat(String(tx.metadata.received_amount)).toLocaleString()}{" "}
+                          {formatAmount(String(tx.metadata.received_amount), tx.metadata.to_token)}{" "}
                           {tx.metadata.to_token}
                         </Text>
                       </View>
@@ -953,7 +953,7 @@ export default function TransactionHistoryScreen() {
                           {tx.fee_label || t("activity.fee", "Fee")}
                         </Text>
                         <Text style={[styles.infoStripValue, { color: theme.text }]}>
-                          {String(tx.fee_amount ?? tx.fee ?? "0")} {tx.token_type}
+                          {formatAmount(String(tx.fee_amount ?? tx.fee ?? "0"), tx.token_type)} {tx.token_type}
                         </Text>
                       </View>
                     ) : null}

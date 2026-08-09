@@ -257,13 +257,13 @@ export default function BuyTokensScreen() {
             <View style={styles.summaryRow}>
               <View style={styles.summaryCol}>
                 <Text style={[styles.summaryLabel, { color: theme.muted }]}>{t("buy_tokens.index.wallet_balance", "WALLET BALANCE")}</Text>
-                <Text style={[styles.summaryVal, { color: theme.text }]}>
-                  {wallet ? parseFloat(wallet.balance).toLocaleString() : "0"} {tokenType}
+              <Text style={[styles.summaryVal, { color: theme.text }]}>
+                  {wallet ? formatAmount(wallet.balance, tokenType) : "0.00"} {tokenType}
                 </Text>
                 {wallet && (
                   <Text style={[styles.availableSubtext, { color: theme.accent }]}>
                     {t("buy_tokens.index.available_balance", "Available: {{amount}} {{tokenType}}", {
-                      amount: parseFloat(wallet.available_balance).toLocaleString(),
+                      amount: formatAmount(wallet.available_balance, tokenType),
                       tokenType
                     })}
                   </Text>

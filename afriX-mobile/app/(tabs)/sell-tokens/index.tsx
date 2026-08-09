@@ -99,12 +99,12 @@ export default function SellTokensScreen() {
 
   const handleSetPreset = (preset: number) => {
     const clamped = Math.min(preset, availableBalance);
-    const raw = tokenTypeForFormat === "USDT" ? clamped.toFixed(2) : Math.floor(clamped).toString();
+    const raw = clamped.toFixed(2);
     setAmount(raw);
   };
 
   const handleSetMax = () => {
-    const raw = tokenTypeForFormat === "USDT" ? availableBalance.toFixed(2) : Math.floor(availableBalance).toString();
+    const raw = availableBalance.toFixed(2);
     setAmount(raw);
   };
 
@@ -212,7 +212,7 @@ export default function SellTokensScreen() {
             <View style={styles.amountRow}>
               <TextInput
                 style={[styles.amountInput, { color: theme.text }]}
-                placeholder={selectedToken === "USDT" ? "0.00" : "0"}
+                placeholder="0.00"
                 placeholderTextColor={theme.placeholder}
                 keyboardType="numeric"
                 value={formatAmountForInput(amount, tokenTypeForFormat)}

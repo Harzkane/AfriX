@@ -1,7 +1,8 @@
 // File: src/controllers/notificationController.js
 const { Notification, User, UserNotificationSettings } = require("../models");
-const { getOrCreateSettings } = require("../services/notificationService");
+const { getOrCreateSettings, sendPush } = require("../services/notificationService");
 const { ApiError } = require("../utils/errors");
+const { NOTIFICATION_EVENT_TYPES } = require("../config/constants");
 
 /**
  * List notifications for current user (paginated, optional unread only).
@@ -195,10 +196,61 @@ async function updateSettings(req, res, next) {
   }
 }
 
+/**
+ * Send a one-off push notification to the current user for device testing.
+ * This is intentionally simple and bypasses granular notification preferences.
+ */
+async function sendTestPush(req, res, next) {
+  try {
+    const userId = req.user.id;
+    const user = await User.findByPk(userId, {
+      attributes: ["id", "full_name", "push_notifications_enabled", "fcm_token"],
+    });
+
+    if (!user) throw new ApiError("User not found", 404);
+    if (!user.push_notifications_enabled) {
+      throw new ApiError("Push notifications are disabled for this account", 400);
+    }
+    if (!user.fcm_token || !String(user.fcm_token).trim()) {
+      throw new ApiError("No device push token registered for this account", 400);
+    }
+
+    const title = "AfriX test notification";
+    const message = "If you received this, push notifications are working.";
+    const data = {
+      kind: "test_push",
+      created_by: "notification-settings-button",
+      user_id: userId,
+    };
+
+    const notification = await Notification.create({
+      user_id: userId,
+      type: NOTIFICATION_EVENT_TYPES.SECURITY_LOGIN,
+      title,
+      message,
+      data,
+    });
+
+    await sendPush(userId, title, message, data);
+    await notification.update({ push_sent_at: new Date() });
+
+    res.json({
+      success: true,
+      message: "Test push sent",
+      data: {
+        notificationId: notification.id,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
 module.exports = {
   list,
   markRead,
   markAllRead,
   getSettings,
   updateSettings,
+  sendTestPush,
 };

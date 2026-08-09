@@ -9,6 +9,7 @@ import { useAuthStore, useSettingsStore } from "@/stores";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useIncomingTransferListener } from "@/hooks/useIncomingTransferListener";
+import { registerPushTokenIfNeeded } from "@/services/pushNotifications";
 import "@/i18n";
 
 // ─── Global Font Scaling Fix ────────────────────────────────────────────────
@@ -30,6 +31,7 @@ export default function RootLayout() {
   const [isReady, setIsReady] = useState(false);
   const [appLocked, setAppLocked] = useState(false);
   const hasRedirected = useRef(false);
+  const hasRegisteredPushToken = useRef(false);
   const appStateRef = useRef<AppStateStatus>(AppState.currentState);
 
   // Global incoming transfer listener
@@ -48,6 +50,21 @@ export default function RootLayout() {
       initializeLanguage(user?.country_code);
     }
   }, [isReady, user?.country_code, initializeLanguage]);
+
+  // Register the device for push notifications once we know the user is authenticated.
+  useEffect(() => {
+    if (!isReady || !isAuthenticated || !user?.id) {
+      hasRegisteredPushToken.current = false;
+      return;
+    }
+
+    if (hasRegisteredPushToken.current) return;
+    hasRegisteredPushToken.current = true;
+    registerPushTokenIfNeeded().catch((error) => {
+      console.error("Push registration failed:", error);
+      hasRegisteredPushToken.current = false;
+    });
+  }, [isReady, isAuthenticated, user?.id]);
 
   // Step 2: Safe redirect ONCE
   useEffect(() => {

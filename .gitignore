@@ -12,6 +12,10 @@
 !**/eas.json
 afriX_backend/afrix-notifications-firebase-adminsdk-*.json
 **/firebase-adminsdk-*.json
+**/GoogleService-Info*.plist
+**/google-services.json
+**/*firebase-adminsdk-*.json
+**/*service-account*.json
 
 # Environment variables
 .env
@@ -92,4 +96,3 @@ android/
 # Blockchain artifacts (can be regenerated)
 blockchain/artifacts/
 blockchain/cache/
-

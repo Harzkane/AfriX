@@ -6,6 +6,8 @@ export type User = {
   country_code: string;
   role: "user" | "admin" | "agent";
   email_verified: boolean;
+  phone_verified?: boolean;
+  identity_verified?: boolean;
   verification_level: number;
   phone_number?: string;
   created_at: string;

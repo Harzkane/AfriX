@@ -212,8 +212,9 @@ export default function NotificationInboxScreen() {
 
   const formatNotificationMessage = (msg: string | null): string => {
     if (!msg) return "";
-    return msg.replace(/\b(\d+\.\d+)\b/g, (m) => {
-      const num = parseFloat(m);
+    return msg.replace(/[\d,]+\.\d+/g, (m) => {
+      const raw = m.replace(/,/g, "");
+      const num = parseFloat(raw);
       return isNaN(num)
         ? m
         : num.toLocaleString("en-US", {

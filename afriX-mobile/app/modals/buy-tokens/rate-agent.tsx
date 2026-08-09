@@ -8,8 +8,10 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  Text,
+  ActivityIndicator,
+  useColorScheme,
 } from "react-native";
-import { Text, ActivityIndicator } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -21,11 +23,29 @@ export default function RateAgentScreen() {
   const { transactionId } = useLocalSearchParams<{ transactionId: string }>();
   const router = useRouter();
   const { t } = useTranslation();
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === "dark";
+
   const { submitReview, loading } = useAgentStore();
   const { fetchWallets } = useWalletStore();
   const scrollViewRef = useRef<ScrollView | null>(null);
   const [rating, setRating] = useState(0);
   const [reviewText, setReviewText] = useState("");
+
+  const theme = {
+    background: isDark ? "#07111A" : "#F5F7FB",
+    card: isDark ? "#0E1726" : "#FFFFFF",
+    surface: isDark ? "#111C2B" : "#F8FAFC",
+    text: isDark ? "#F8FAFC" : "#0F172A",
+    muted: isDark ? "#94A3B8" : "#64748B",
+    border: isDark ? "#1E2A3A" : "#E2E8F0",
+    divider: isDark ? "#1E2A3A" : "#EEF2F7",
+    accent: "#00B14F",
+    accentSoft: isDark ? "rgba(0,177,79,0.14)" : "#EAF8EF",
+    amber: "#F59E0B",
+    amberSoft: isDark ? "rgba(245,158,11,0.12)" : "#FFFBEB",
+    amberBorder: isDark ? "rgba(245,158,11,0.25)" : "#FDE68A",
+  };
 
   const handleSkip = async () => {
     await fetchWallets();
@@ -96,26 +116,54 @@ export default function RateAgentScreen() {
       behavior={Platform.OS === "ios" ? "padding" : undefined}
       keyboardVerticalOffset={Platform.OS === "ios" ? -8 : 12}
     >
-      <View style={styles.container}>
-        <View style={styles.headerWrapper}>
-          <LinearGradient
-            colors={["#00B14F", "#008F40"]}
-            style={styles.headerGradient}
-          />
-          <SafeAreaView edges={["top"]} style={styles.headerContent}>
-            <View style={styles.header}>
-              <TouchableOpacity
-                onPress={() => router.back()}
-                style={styles.headerButton}
-                activeOpacity={0.8}
-              >
-                <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
-              </TouchableOpacity>
-              <Text style={styles.headerTitle}>{t("buy_tokens.rate_agent.header_title", "Rate Agent")}</Text>
-              <View style={styles.headerSpacer} />
+      <View style={[styles.container, { backgroundColor: theme.background }]}>
+        {/* Subtle Background Glow */}
+        <LinearGradient
+          colors={
+            isDark
+              ? ["rgba(0,177,79,0.18)", "rgba(7,17,26,0)"]
+              : ["rgba(0,177,79,0.08)", "rgba(245,247,251,0)"]
+          }
+          style={styles.backgroundGlow}
+          pointerEvents="none"
+        />
+
+        {/* Clean Modern Header */}
+        <SafeAreaView
+          edges={["top"]}
+          style={[
+            styles.headerWrapper,
+            { backgroundColor: theme.background, borderBottomColor: theme.border },
+          ]}
+        >
+          <View style={styles.header}>
+            <TouchableOpacity
+              onPress={() => router.back()}
+              style={[
+                styles.headerButton,
+                { backgroundColor: theme.card, borderColor: theme.border },
+              ]}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="arrow-back" size={22} color={theme.text} />
+            </TouchableOpacity>
+
+            <View style={styles.headerCopy}>
+              <Text style={[styles.headerTitle, { color: theme.text }]}>
+                {t("buy_tokens.rate_agent.header_title", "Rate Agent")}
+              </Text>
+              <Text style={[styles.headerSubtitle, { color: theme.muted }]}>
+                {t("buy_tokens.rate_agent.header_subtitle", "Share feedback on your transaction experience.")}
+              </Text>
             </View>
-          </SafeAreaView>
-        </View>
+
+            <TouchableOpacity onPress={handleSkip} activeOpacity={0.75}>
+              <Text style={[styles.headerSkipText, { color: theme.muted }]}>
+                {t("common.skip", "Skip")}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </SafeAreaView>
 
         <ScrollView
           ref={scrollViewRef}
@@ -125,44 +173,70 @@ export default function RateAgentScreen() {
           keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
           showsVerticalScrollIndicator={false}
         >
+          {/* Summary Hero Card */}
           <LinearGradient
-            colors={["#F7FFF9", "#FFFFFF"]}
-            style={styles.summaryCard}
+            colors={isDark ? ["#0E1726", "#111E2E"] : ["#FFFFFF", "#F4FBF7"]}
+            style={[
+              styles.heroCard,
+              { borderColor: theme.border, shadowColor: isDark ? "#000" : "#0F172A" },
+            ]}
           >
-            <View style={styles.heroIconWrap}>
-              <LinearGradient
-                colors={["#00B14F", "#059669"]}
-                style={styles.heroIcon}
-              >
-                <Ionicons name="checkmark" size={34} color="#FFFFFF" />
-              </LinearGradient>
+            <View style={styles.heroTopRow}>
+              <View style={styles.heroIconWrap}>
+                <LinearGradient
+                  colors={["#00B14F", "#059669"]}
+                  style={styles.heroIcon}
+                >
+                  <Ionicons name="checkmark" size={32} color="#FFFFFF" />
+                </LinearGradient>
+              </View>
+
+              <View style={styles.heroCopy}>
+                <Text style={[styles.summaryEyebrow, { color: theme.accent }]}>
+                  {t("buy_tokens.rate_agent.summary_eyebrow", "Transaction Complete")}
+                </Text>
+                <Text style={[styles.summaryTitle, { color: theme.text }]}>
+                  {t("buy_tokens.rate_agent.summary_title", "How was your agent experience?")}
+                </Text>
+              </View>
             </View>
 
-            <Text style={styles.summaryEyebrow}>{t("buy_tokens.rate_agent.summary_eyebrow", "Transaction Complete")}</Text>
-            <Text style={styles.summaryTitle}>{t("buy_tokens.rate_agent.summary_title", "How was your agent experience?")}</Text>
-            <Text style={styles.summaryText}>
-              {t("buy_tokens.rate_agent.summary_text", "Your feedback helps other users choose better agents and helps us maintain a more trusted marketplace.")}
+            <Text style={[styles.summaryText, { color: theme.muted }]}>
+              {t(
+                "buy_tokens.rate_agent.summary_text",
+                "Your feedback helps other users choose reliable agents and maintains a trusted marketplace."
+              )}
             </Text>
 
             <View style={styles.highlightRow}>
-              <View style={styles.highlightPill}>
-                <Ionicons name="shield-checkmark-outline" size={16} color="#059669" />
-                <Text style={styles.highlightText}>{t("buy_tokens.rate_agent.highlight_trust", "Build trust")}</Text>
+              <View style={[styles.highlightPill, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+                <Ionicons name="shield-checkmark-outline" size={16} color={theme.accent} />
+                <Text style={[styles.highlightText, { color: theme.text }]}>
+                  {t("buy_tokens.rate_agent.highlight_trust", "Build trust")}
+                </Text>
               </View>
-              <View style={styles.highlightPill}>
-                <Ionicons name="people-outline" size={16} color="#2563EB" />
-                <Text style={styles.highlightText}>{t("buy_tokens.rate_agent.highlight_users", "Help other users")}</Text>
+              <View style={[styles.highlightPill, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+                <Ionicons name="people-outline" size={16} color="#3B82F6" />
+                <Text style={[styles.highlightText, { color: theme.text }]}>
+                  {t("buy_tokens.rate_agent.highlight_users", "Help community")}
+                </Text>
               </View>
             </View>
           </LinearGradient>
 
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>{t("buy_tokens.rate_agent.rating_title", "Your Rating")}</Text>
-            <Text style={styles.cardSubtitle}>
-              {t("buy_tokens.rate_agent.rating_subtitle", "Tap a star to score the agent based on speed, communication, and overall reliability.")}
+          {/* Rating Card */}
+          <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
+            <Text style={[styles.cardTitle, { color: theme.text }]}>
+              {t("buy_tokens.rate_agent.rating_title", "Your Rating")}
+            </Text>
+            <Text style={[styles.cardSubtitle, { color: theme.muted }]}>
+              {t(
+                "buy_tokens.rate_agent.rating_subtitle",
+                "Tap a star to score the agent based on speed, communication, and reliability."
+              )}
             </Text>
 
-            <View style={styles.ratingCard}>
+            <View style={[styles.ratingCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
               <View style={styles.ratingContainer}>
                 {[1, 2, 3, 4, 5].map((star) => {
                   const active = star <= rating;
@@ -173,13 +247,14 @@ export default function RateAgentScreen() {
                       activeOpacity={0.8}
                       style={[
                         styles.starButton,
-                        active && styles.starButtonActive,
+                        { backgroundColor: theme.card, borderColor: active ? theme.amberBorder : theme.border },
+                        active && { backgroundColor: theme.amberSoft },
                       ]}
                     >
                       <Ionicons
                         name={active ? "star" : "star-outline"}
                         size={28}
-                        color={active ? "#F59E0B" : "#9CA3AF"}
+                        color={active ? theme.amber : theme.muted}
                       />
                     </TouchableOpacity>
                   );
@@ -189,7 +264,7 @@ export default function RateAgentScreen() {
               <Text
                 style={[
                   styles.ratingLabel,
-                  rating > 0 && { color: ratingMeta.color },
+                  { color: rating > 0 ? ratingMeta.color : theme.muted },
                 ]}
               >
                 {ratingMeta.label}
@@ -197,16 +272,22 @@ export default function RateAgentScreen() {
             </View>
           </View>
 
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>{t("buy_tokens.rate_agent.comment_title", "Leave a Comment")}</Text>
-            <Text style={styles.cardSubtitle}>
-              {t("buy_tokens.rate_agent.comment_subtitle", "Share anything helpful about the transaction. This is optional.")}
+          {/* Comment Card */}
+          <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
+            <Text style={[styles.cardTitle, { color: theme.text }]}>
+              {t("buy_tokens.rate_agent.comment_title", "Leave a Comment")}
+            </Text>
+            <Text style={[styles.cardSubtitle, { color: theme.muted }]}>
+              {t("buy_tokens.rate_agent.comment_subtitle", "Share details about the transaction. This is optional.")}
             </Text>
 
             <TextInput
-              style={styles.input}
+              style={[
+                styles.input,
+                { backgroundColor: theme.surface, borderColor: theme.border, color: theme.text },
+              ]}
               placeholder={t("buy_tokens.rate_agent.comment_placeholder", "Tell us more about your experience...")}
-              placeholderTextColor="#9CA3AF"
+              placeholderTextColor={theme.muted}
               multiline
               numberOfLines={5}
               value={reviewText}
@@ -220,22 +301,26 @@ export default function RateAgentScreen() {
             />
 
             <View style={styles.tipRow}>
-              <Ionicons
-                name="information-circle-outline"
-                size={16}
-                color="#6B7280"
-              />
-              <Text style={styles.tipText}>
-                {t("buy_tokens.rate_agent.tip_text", "Keep feedback specific and respectful so it stays useful for the community.")}
+              <Ionicons name="information-circle-outline" size={16} color={theme.muted} />
+              <Text style={[styles.tipText, { color: theme.muted }]}>
+                {t(
+                  "buy_tokens.rate_agent.tip_text",
+                  "Keep feedback specific and respectful so it stays useful for the community."
+                )}
               </Text>
             </View>
           </View>
 
+          {/* Actions */}
           <View style={styles.actions}>
             <TouchableOpacity
-              style={[styles.submitBtn, loading && styles.submitBtnDisabled]}
+              style={[
+                styles.submitBtn,
+                { backgroundColor: theme.accent },
+                (loading || rating === 0) && styles.submitBtnDisabled,
+              ]}
               onPress={handleSubmit}
-              disabled={loading}
+              disabled={loading || rating === 0}
               activeOpacity={0.85}
             >
               {loading ? (
@@ -243,7 +328,9 @@ export default function RateAgentScreen() {
               ) : (
                 <>
                   <Ionicons name="star" size={18} color="#FFFFFF" />
-                  <Text style={styles.submitBtnText}>{t("buy_tokens.rate_agent.btn_submit", "Submit Review")}</Text>
+                  <Text style={styles.submitBtnText}>
+                    {t("buy_tokens.rate_agent.btn_submit", "Submit Review")}
+                  </Text>
                 </>
               )}
             </TouchableOpacity>
@@ -254,7 +341,9 @@ export default function RateAgentScreen() {
               disabled={loading}
               activeOpacity={0.75}
             >
-              <Text style={styles.skipBtnText}>{t("buy_tokens.rate_agent.btn_skip", "Skip and go to dashboard")}</Text>
+              <Text style={[styles.skipBtnText, { color: theme.muted }]}>
+                {t("buy_tokens.rate_agent.btn_skip", "Skip and go to dashboard")}
+              </Text>
             </TouchableOpacity>
           </View>
         </ScrollView>
@@ -269,7 +358,7 @@ const getRatingMeta = (rating: number, t: any) => {
   if (rating === 3) return { label: t("buy_tokens.rate_agent.rating_good", "Good"), color: "#2563EB" };
   if (rating === 2) return { label: t("buy_tokens.rate_agent.rating_fair", "Fair"), color: "#D97706" };
   if (rating === 1) return { label: t("buy_tokens.rate_agent.rating_poor", "Poor"), color: "#DC2626" };
-  return { label: t("buy_tokens.rate_agent.rating_tap", "Tap to rate"), color: "#6B7280" };
+  return { label: t("buy_tokens.rate_agent.rating_tap", "Tap to rate"), color: "#94A3B8" };
 };
 
 const styles = StyleSheet.create({
@@ -278,108 +367,116 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    backgroundColor: "#F9FAFB",
   },
-  headerWrapper: {
-    zIndex: 10,
-    elevation: 8,
-    backgroundColor: "#00B14F",
-  },
-  headerGradient: {
+  backgroundGlow: {
     position: "absolute",
     top: 0,
     left: 0,
     right: 0,
-    // height: 120,
+    height: 180,
   },
-  headerContent: {
-    paddingHorizontal: 16,
+  headerWrapper: {
+    zIndex: 10,
+    borderBottomWidth: 1,
   },
   header: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    paddingBottom: 20,
-    // marginTop: 10,
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
   },
   headerButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: "rgba(255,255,255,0.2)",
     alignItems: "center",
     justifyContent: "center",
+    borderWidth: 1,
+  },
+  headerCopy: {
+    flex: 1,
+    paddingTop: 1,
   },
   headerTitle: {
     fontSize: 22,
-    fontWeight: "700",
-    color: "#FFFFFF",
+    fontWeight: "800",
     letterSpacing: -0.4,
   },
-  headerSpacer: {
-    width: 40,
+  headerSubtitle: {
+    marginTop: 2,
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: "500",
+  },
+  headerSkipText: {
+    fontSize: 14,
+    fontWeight: "700",
   },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
-    padding: 16,
-    paddingTop: 50,
-    paddingBottom: 40,
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    paddingBottom: 36,
+    gap: 16,
   },
-  summaryCard: {
-    borderRadius: 24,
+  heroCard: {
+    borderRadius: 28,
     padding: 20,
-    marginTop: -34,
-    marginBottom: 16,
     borderWidth: 1,
-    borderColor: "#E6F4EA",
+    overflow: "hidden",
+    shadowOffset: {
+      width: 0,
+      height: 12,
+    },
+    shadowOpacity: 0.08,
+    shadowRadius: 24,
+    elevation: 3,
+  },
+  heroTopRow: {
+    flexDirection: "row",
     alignItems: "center",
+    gap: 14,
   },
   heroIconWrap: {
-    marginBottom: 16,
+    flexShrink: 0,
   },
   heroIcon: {
-    width: 76,
-    height: 76,
-    borderRadius: 38,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#00B14F",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.2,
-    shadowRadius: 14,
-    elevation: 6,
+  },
+  heroCopy: {
+    flex: 1,
   },
   summaryEyebrow: {
     fontSize: 11,
     fontWeight: "800",
-    color: "#00B14F",
     textTransform: "uppercase",
-    letterSpacing: 0.5,
-    marginBottom: 6,
+    letterSpacing: 0.8,
+    marginBottom: 4,
   },
   summaryTitle: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: "800",
-    color: "#111827",
     letterSpacing: -0.5,
-    textAlign: "center",
+    lineHeight: 26,
   },
   summaryText: {
     fontSize: 14,
-    lineHeight: 22,
-    color: "#6B7280",
+    lineHeight: 21,
     fontWeight: "500",
-    marginTop: 8,
-    textAlign: "center",
+    marginTop: 12,
   },
   highlightRow: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 10,
-    justifyContent: "center",
-    marginTop: 16,
+    marginTop: 14,
   },
   highlightPill: {
     flexDirection: "row",
@@ -388,40 +485,32 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 999,
-    backgroundColor: "#FFFFFF",
     borderWidth: 1,
-    borderColor: "#E5E7EB",
   },
   highlightText: {
     fontSize: 12,
-    fontWeight: "600",
-    color: "#344054",
+    fontWeight: "700",
   },
   card: {
-    backgroundColor: "#FFFFFF",
     borderRadius: 24,
     padding: 18,
-    marginBottom: 16,
     borderWidth: 1,
-    borderColor: "#EAF0F5",
   },
   cardTitle: {
     fontSize: 18,
-    fontWeight: "700",
-    color: "#111827",
-    marginBottom: 6,
+    fontWeight: "800",
+    letterSpacing: -0.4,
+    marginBottom: 4,
   },
   cardSubtitle: {
-    fontSize: 14,
-    lineHeight: 21,
-    color: "#6B7280",
+    fontSize: 13,
+    lineHeight: 19,
+    fontWeight: "500",
     marginBottom: 16,
   },
   ratingCard: {
-    backgroundColor: "#FBFCFD",
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: "#EEF2F7",
     paddingVertical: 18,
     paddingHorizontal: 12,
     alignItems: "center",
@@ -438,29 +527,20 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#FFFFFF",
     borderWidth: 1,
-    borderColor: "#E5E7EB",
-  },
-  starButtonActive: {
-    backgroundColor: "#FFF7E8",
-    borderColor: "#FCD34D",
   },
   ratingLabel: {
-    marginTop: 16,
-    fontSize: 17,
-    fontWeight: "700",
-    color: "#6B7280",
+    marginTop: 14,
+    fontSize: 16,
+    fontWeight: "800",
   },
   input: {
-    backgroundColor: "#FBFCFD",
     borderWidth: 1,
-    borderColor: "#E5E7EB",
     borderRadius: 16,
     padding: 16,
     fontSize: 15,
-    color: "#111827",
-    minHeight: 140,
+    minHeight: 120,
+    fontWeight: "500",
   },
   tipRow: {
     flexDirection: "row",
@@ -470,29 +550,28 @@ const styles = StyleSheet.create({
   },
   tipText: {
     flex: 1,
-    fontSize: 13,
-    lineHeight: 19,
-    color: "#6B7280",
+    fontSize: 12,
+    lineHeight: 18,
+    fontWeight: "500",
   },
   actions: {
+    gap: 12,
     marginTop: 4,
-    gap: 14,
   },
   submitBtn: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    backgroundColor: "#00B14F",
-    paddingVertical: 16,
-    borderRadius: 16,
+    height: 56,
+    borderRadius: 18,
   },
   submitBtnDisabled: {
-    backgroundColor: "#86EFAC",
+    opacity: 0.5,
   },
   submitBtnText: {
     fontSize: 16,
-    fontWeight: "700",
+    fontWeight: "800",
     color: "#FFFFFF",
   },
   skipBtn: {
@@ -500,8 +579,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   skipBtnText: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: "#6B7280",
+    fontSize: 14,
+    fontWeight: "700",
   },
 });

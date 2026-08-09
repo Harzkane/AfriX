@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "60850449643",
+    "project_id": "afritoken-46193",
+    "storage_bucket": "afritoken-46193.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:60850449643:android:a73ac93c21f8efae1162ae",
+        "android_client_info": {
+          "package_name": "com.harzkane.frontend"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBAgmTRunV89JyO8oHbHAd6m9er22cQcuk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:60850449643:android:bc55ad8fa2b401241162ae",
+        "android_client_info": {
+          "package_name": "com.nexgentech.afrix"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBAgmTRunV89JyO8oHbHAd6m9er22cQcuk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

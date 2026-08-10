@@ -211,6 +211,22 @@ const userController = {
       next(error);
     }
   },
+
+  /**
+   * GET /api/v1/users/limits
+   * Get user's daily and per-transaction limits and remaining capacity today.
+   */
+  async getLimits(req, res, next) {
+    try {
+      const limits = await userService.getUserLimitSummary(req.user.id);
+      res.json({
+        success: true,
+        data: limits,
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
 };
 
 module.exports = userController;

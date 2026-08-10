@@ -171,7 +171,66 @@ async function checkTransactionLimits(userId, amount, tokenType) {
   return true;
 }
 
+/**
+ * Get user's current transaction limits and remaining daily capacity
+ * @param {string} userId
+ */
+async function getUserLimitSummary(userId) {
+  const user = await User.findByPk(userId);
+  if (!user) throw new ApiError("User not found", 404);
+
+  const verificationLevel = user.verification_level ?? VERIFICATION_LEVELS.NONE;
+  const dailyLimitUsdt = TRANSACTION_LIMITS.DAILY[verificationLevel] ?? 0;
+  const perTxLimitUsdt = TRANSACTION_LIMITS.PER_TRANSACTION[verificationLevel] ?? 0;
+
+  const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+  const mints = await MintRequest.findAll({
+    where: {
+      user_id: userId,
+      status: { [Op.notIn]: ["cancelled", "rejected", "expired"] },
+      created_at: { [Op.gte]: twentyFourHoursAgo },
+    },
+    attributes: ["amount", "token_type"],
+  });
+
+  const burns = await BurnRequest.findAll({
+    where: {
+      user_id: userId,
+      status: { [Op.notIn]: ["cancelled", "rejected", "expired"] },
+      created_at: { [Op.gte]: twentyFourHoursAgo },
+    },
+    attributes: ["amount", "token_type"],
+  });
+
+  const transfers = await Transaction.findAll({
+    where: {
+      from_user_id: userId,
+      type: "transfer",
+      status: { [Op.notIn]: ["failed", "cancelled"] },
+      created_at: { [Op.gte]: twentyFourHoursAgo },
+    },
+    attributes: ["amount", "token_type"],
+  });
+
+  let used24hUsdt = 0;
+  mints.forEach((m) => { used24hUsdt += tokenAmountToUsdt(m.amount, m.token_type); });
+  burns.forEach((b) => { used24hUsdt += tokenAmountToUsdt(b.amount, b.token_type); });
+  transfers.forEach((t) => { used24hUsdt += tokenAmountToUsdt(t.amount, t.token_type); });
+
+  const remaining24hUsdt = Math.max(0, dailyLimitUsdt - used24hUsdt);
+
+  return {
+    verification_level: verificationLevel,
+    daily_limit_usd: dailyLimitUsdt,
+    per_tx_limit_usd: perTxLimitUsdt,
+    used_24h_usd: parseFloat(used24hUsdt.toFixed(2)),
+    remaining_24h_usd: parseFloat(remaining24hUsdt.toFixed(2)),
+  };
+}
+
 module.exports = {
   findAgents,
   checkTransactionLimits,
+  getUserLimitSummary,
 };

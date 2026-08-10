@@ -20,6 +20,7 @@ import { formatDate } from "@/utils/format";
 import { useTranslation } from "react-i18next";
 import { getCurrencyByCountryCode } from "@/constants/countries";
 import Constants from "expo-constants";
+import apiClient from "@/services/apiClient";
 
 export default function ProfileScreen() {
   const { user, logout } = useAuthStore();
@@ -81,6 +82,13 @@ export default function ProfileScreen() {
     extrapolate: "clamp",
   });
 
+  const [userLimits, setUserLimits] = useState<{
+    daily_limit_usd: number;
+    per_tx_limit_usd: number;
+    used_24h_usd: number;
+    remaining_24h_usd: number;
+  } | null>(null);
+
   useEffect(() => {
     if (user) {
       fetchAgentStats();
@@ -89,7 +97,17 @@ export default function ProfileScreen() {
 
   useFocusEffect(
     React.useCallback(() => {
-      if (user) fetchUnreadCount();
+      if (user) {
+        fetchUnreadCount();
+        apiClient
+          .get("/users/limits")
+          .then((res: any) => {
+            if (res.data?.success && res.data?.data) {
+              setUserLimits(res.data.data);
+            }
+          })
+          .catch(() => {});
+      }
     }, [user, fetchUnreadCount])
   );
 
@@ -251,7 +269,7 @@ export default function ProfileScreen() {
                 </View>
               </LinearGradient>
             </TouchableOpacity>
-          ) : agentStatus ? (
+          ) : (agentStatus === "pending" || agentStatus === "under_review" || (typeof agentStatus === "object" && ((agentStatus as any)?.status === "pending" || (agentStatus as any)?.status === "under_review"))) ? (
             <TouchableOpacity
               onPress={() => router.push("/modals/agent-kyc/status")}
               activeOpacity={0.85}
@@ -324,6 +342,36 @@ export default function ProfileScreen() {
             {t("profile.section_verification_limits", "VERIFICATION & DAILY LIMITS")}
           </Text>
           <View style={[styles.menuListCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+            {/* DAILY REMAINING LIMIT PROGRESS BANNER */}
+            {userLimits && userLimits.daily_limit_usd > 0 && (
+              <>
+                <View style={[styles.limitsProgressCard, { backgroundColor: isDark ? "#111C2B" : "#F8FAFC", borderColor: theme.border }]}>
+                  <View style={styles.limitsProgressHeader}>
+                    <Text style={[styles.limitsProgressTitle, { color: theme.text }]}>Today's Remaining Limit</Text>
+                    <Text style={[styles.limitsProgressValue, { color: theme.accent }]}>
+                      ${userLimits.remaining_24h_usd.toLocaleString("en-US", { minimumFractionDigits: 2 })} remaining
+                    </Text>
+                  </View>
+                  <View style={[styles.limitsProgressBarBg, { backgroundColor: isDark ? "#1E2A3A" : "#E2E8F0" }]}>
+                    <View
+                      style={[
+                        styles.limitsProgressBarFill,
+                        {
+                          backgroundColor: theme.accent,
+                          width: `${Math.min(100, (userLimits.used_24h_usd / userLimits.daily_limit_usd) * 100)}%`,
+                        },
+                      ]}
+                    />
+                  </View>
+                  <View style={styles.limitsProgressFooter}>
+                    <Text style={[styles.limitsProgressSub, { color: theme.muted }]}>
+                      Used ${userLimits.used_24h_usd.toFixed(2)} of ${userLimits.daily_limit_usd.toLocaleString()} daily limit
+                    </Text>
+                  </View>
+                </View>
+                <View style={[styles.menuDivider, { backgroundColor: theme.border }]} />
+              </>
+            )}
             {/* LEVEL 1: EMAIL */}
             <View style={styles.tierRow}>
               <View style={[styles.tierIconBox, { backgroundColor: user.email_verified ? theme.accentSoft : theme.warningSoft }]}>
@@ -888,5 +936,44 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 12,
     fontWeight: "800",
+  },
+  limitsProgressCard: {
+    padding: 16,
+    borderRadius: 16,
+    borderWidth: 1,
+    margin: 12,
+  },
+  limitsProgressHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  limitsProgressTitle: {
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  limitsProgressValue: {
+    fontSize: 13,
+    fontWeight: "800",
+  },
+  limitsProgressBarBg: {
+    height: 8,
+    borderRadius: 4,
+    overflow: "hidden",
+    marginBottom: 8,
+  },
+  limitsProgressBarFill: {
+    height: "100%",
+    borderRadius: 4,
+  },
+  limitsProgressFooter: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  limitsProgressSub: {
+    fontSize: 11,
+    fontWeight: "500",
   },
 });

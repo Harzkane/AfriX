@@ -28,6 +28,9 @@ router.get("/balances", userController.getBalances);
 // Get activity summary (totals, counts)
 router.get("/summary", userController.getSummary);
 
+// Get user daily and per-transaction limits and remaining capacity
+router.get("/limits", userController.getLimits);
+
 // Get merchant profile (if user is a merchant)
 router.get("/merchant", userController.getMerchantProfile);
 

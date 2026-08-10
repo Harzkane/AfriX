@@ -14,6 +14,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { useTranslation } from "react-i18next";
 import { useAgentStore } from "@/stores/slices/agentSlice";
+import { useAuthStore } from "@/stores";
 import { formatDate } from "@/utils/format";
 
 type KycStatus = "not_submitted" | "under_review" | "approved" | "rejected";
@@ -25,6 +26,8 @@ export default function KycStatusScreen() {
   const isDark = colorScheme === "dark";
   const params = useLocalSearchParams();
   const fromAgentProfile = params?.from === "agent-profile";
+  const { user } = useAuthStore();
+  const isAgent = user?.role === "agent" || fromAgentProfile;
   const { checkKycStatus } = useAgentStore();
   const [status, setStatus] = useState<KycStatus>("not_submitted");
   const [loading, setLoading] = useState(true);
@@ -102,7 +105,9 @@ export default function KycStatusScreen() {
           soft: theme.accentSoft,
           gradientColors: ["#7C3AED", "#3B82F6"] as [string, string],
           title: t("agent.kyc.status.approved_title", "KYC Approved!"),
-          description: t("agent.kyc.status.approved_desc", "Congratulations! Your identity verification is successful. Please complete the setup with your security deposit."),
+          description: isAgent
+            ? t("agent.kyc.status.approved_desc", "Congratulations! Your identity verification is successful. Please complete the setup with your security deposit.")
+            : t("agent.kyc.status.approved_user_desc", "Congratulations! Your Level 3 identity verification is successful. Your Level 3 daily limits ($2,000/day | $1,000/tx) are now active."),
           showTimeline: false,
         };
       case "rejected":
@@ -261,14 +266,25 @@ export default function KycStatusScreen() {
           </TouchableOpacity>
         )}
         {status === "approved" && (
-          <TouchableOpacity
-            style={[styles.primaryCTA, { backgroundColor: theme.accent, shadowColor: theme.accent }]}
-            onPress={() => router.push("/modals/agent-deposit")}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.primaryCTAText}>{t("agent.kyc.status.btn_deposit", "Make Security Deposit")}</Text>
-            <Ionicons name="arrow-forward" size={18} color="#FFF" />
-          </TouchableOpacity>
+          isAgent ? (
+            <TouchableOpacity
+              style={[styles.primaryCTA, { backgroundColor: theme.accent, shadowColor: theme.accent }]}
+              onPress={() => router.push("/modals/agent-deposit")}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.primaryCTAText}>{t("agent.kyc.status.btn_deposit", "Make Security Deposit")}</Text>
+              <Ionicons name="arrow-forward" size={18} color="#FFF" />
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              style={[styles.primaryCTA, { backgroundColor: theme.accent, shadowColor: theme.accent }]}
+              onPress={() => router.push("/(tabs)/profile")}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.primaryCTAText}>{t("agent.kyc.status.btn_view_profile", "Return to Profile")}</Text>
+              <Ionicons name="checkmark-circle" size={18} color="#FFF" />
+            </TouchableOpacity>
+          )
         )}
         {status === "rejected" && (
           <TouchableOpacity

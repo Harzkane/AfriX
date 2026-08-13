@@ -11,6 +11,7 @@ import {
   TextInput,
   Alert,
   useColorScheme,
+  Image,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -162,9 +163,11 @@ export default function VerifyScreen() {
 
             {/* Brand header */}
             <View style={styles.brandSection}>
-              <LinearGradient colors={["#00B14F", "#10B981"]} style={styles.logoCircle}>
-                <Ionicons name="mail-open-outline" size={32} color="#FFFFFF" />
-              </LinearGradient>
+              <Image
+                source={require("../../assets/images/splash-icon.png")}
+                style={styles.logoCircle}
+                resizeMode="contain"
+              />
               <Text style={[styles.welcomeText, { color: theme.text }]}>{t("auth.verify.title")}</Text>
               <Text style={[styles.subtitle, { color: theme.muted }]}>
                 {t("auth.verify.subtitle", { email })}

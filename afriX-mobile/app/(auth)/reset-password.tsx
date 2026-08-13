@@ -9,6 +9,7 @@ import {
   TextInput as RNTextInput,
   useColorScheme,
   Alert,
+  Image,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter, useLocalSearchParams } from "expo-router";
@@ -92,9 +93,11 @@ export default function ResetPasswordScreen() {
             <Ionicons name="arrow-back" size={20} color={theme.text} />
           </TouchableOpacity>
 
-          <LinearGradient colors={["#00B14F", "#10B981"]} style={styles.logoCircle}>
-            <Ionicons name="shield-checkmark-outline" size={32} color="#FFFFFF" />
-          </LinearGradient>
+          <Image
+            source={require("../../assets/images/splash-icon.png")}
+            style={styles.logoCircle}
+            resizeMode="contain"
+          />
           <Text style={[styles.welcomeText, { color: theme.text }]}>{t("auth.reset_password.title")}</Text>
           <Text style={[styles.subtitle, { color: theme.muted }]}>{t("auth.reset_password.subtitle")}</Text>
         </View>

@@ -1,6 +1,6 @@
 // app/(auth)/check-email.tsx
 import React from "react";
-import { View, StyleSheet, Text, TouchableOpacity, useColorScheme } from "react-native";
+import { View, StyleSheet, Text, TouchableOpacity, useColorScheme, Image } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -16,11 +16,11 @@ export default function CheckEmailScreen() {
 
   const theme = {
     background: isDark ? "#080E14" : "#F4F7FC",
-    card: isDark ? "rgba(16, 25, 36, 0.85)" : "#FFFFFF",
+    card: isDark ? "#101924" : "#FFFFFF",
     text: isDark ? "#F8FAFC" : "#0F172A",
     muted: isDark ? "#94A3B8" : "#64748B",
     border: isDark ? "#1E2E42" : "#E2E8F0",
-    accent: "#00B14F",
+    primary: "#00B14F",
   };
 
   const handleBackToLogin = () => {
@@ -40,12 +40,11 @@ export default function CheckEmailScreen() {
       <View style={styles.inner}>
         {/* Brand header */}
         <View style={styles.brandSection}>
-          <LinearGradient
-            colors={["#00B14F", "#10B981"]}
+          <Image
+            source={require("../../assets/images/splash-icon.png")}
             style={styles.logoCircle}
-          >
-            <Ionicons name="mail-open-outline" size={34} color="#FFFFFF" />
-          </LinearGradient>
+            resizeMode="contain"
+          />
           <Text style={[styles.welcomeText, { color: theme.text }]}>{t("auth.check_email.title")}</Text>
           <Text style={[styles.subtitle, { color: theme.muted }]}>{t("auth.check_email.subtitle")}</Text>
         </View>

@@ -1,4 +1,12 @@
+const { withEntitlementsPlist } = require("@expo/config-plugins");
 const { expo: baseConfig } = require("./app.json");
+
+const removeApsPlugin = (config) => {
+  return withEntitlementsPlist(config, (config) => {
+    delete config.modResults["aps-environment"];
+    return config;
+  });
+};
 
 module.exports = ({ config }) => {
   const androidGoogleServicesFile =
@@ -6,7 +14,7 @@ module.exports = ({ config }) => {
   const iosGoogleServicesFile =
     process.env.GOOGLE_SERVICES_PLIST ?? "./GoogleService-Info-7.plist";
 
-  return {
+  const finalConfig = {
     ...baseConfig,
     ...config,
     ios: {
@@ -20,4 +28,6 @@ module.exports = ({ config }) => {
       googleServicesFile: androidGoogleServicesFile,
     },
   };
+
+  return removeApsPlugin(finalConfig);
 };

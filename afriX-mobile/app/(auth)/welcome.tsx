@@ -1,6 +1,6 @@
 // app/(auth)/welcome.tsx
 import React from "react";
-import { View, Text, StyleSheet, TouchableOpacity, useColorScheme } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, useColorScheme, Image } from "react-native";
 import { Link } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
@@ -40,8 +40,8 @@ export default function WelcomeScreen() {
       <View style={[styles.glowOrb1, { backgroundColor: isDark ? "rgba(0, 177, 79, 0.15)" : "rgba(0, 177, 79, 0.08)" }]} />
       <View style={[styles.glowOrb2, { backgroundColor: isDark ? "rgba(59, 130, 246, 0.12)" : "rgba(59, 130, 246, 0.06)" }]} />
 
-      {/* Floating Language Switcher */}
-      <View style={[styles.floatingLangContainer, { top: insets.top + 8 }]}>
+      {/* Header Controls */}
+      <View style={[styles.floatingLangContainer, { top: insets.top + 12 }]}>
         <TouchableOpacity
           onPress={() => setLanguage(currentLang === "en" ? "fr" : "en")}
           style={[styles.floatingLangBtn, { backgroundColor: theme.card, borderColor: theme.border }]}
@@ -57,12 +57,11 @@ export default function WelcomeScreen() {
       <View style={styles.inner}>
         {/* Logo Section */}
         <View style={styles.logoSection}>
-          <LinearGradient
-            colors={["#00B14F", "#10B981"]}
+          <Image
+            source={require("../../assets/images/splash-icon.png")}
             style={styles.logoCircle}
-          >
-            <Ionicons name="swap-horizontal" size={38} color="#FFFFFF" />
-          </LinearGradient>
+            resizeMode="contain"
+          />
           <Text style={[styles.title, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
             Afri<Text style={{ color: "#00B14F" }}>X</Text>
           </Text>

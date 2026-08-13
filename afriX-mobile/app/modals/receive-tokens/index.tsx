@@ -1,3 +1,4 @@
+// app/modals/receive-tokens/index.tsx
 import React, { useState, useRef } from "react";
 import {
   View,
@@ -22,11 +23,18 @@ import { useAuthStore, useWalletStore } from "@/stores";
 import { useTranslation } from "react-i18next";
 
 const TOKENS = ["NT", "CT", "USDT"] as const;
+type TokenType = typeof TOKENS[number];
+
+const TOKEN_DETAILS: Record<TokenType, { label: string; subtitle: string }> = {
+  NT: { label: "Naira Token", subtitle: "DOMESTIC" },
+  CT: { label: "CFA Token", subtitle: "REGIONAL" },
+  USDT: { label: "Tether", subtitle: "RESERVE" },
+};
 
 export default function ReceiveTokensScreen() {
   const router = useRouter();
   const { t } = useTranslation();
-  const [tokenType, setTokenType] = useState<"NT" | "CT" | "USDT">("NT");
+  const [tokenType, setTokenType] = useState<TokenType>("NT");
 
   const { user } = useAuthStore();
   const { getWalletByType } = useWalletStore();
@@ -46,6 +54,7 @@ export default function ReceiveTokensScreen() {
     border: isDark ? "#1E2A3A" : "#E2E8F0",
     accent: "#00B14F",
     accentSoft: isDark ? "rgba(0,177,79,0.14)" : "#EAF8EF",
+    accentBorder: isDark ? "rgba(0,177,79,0.3)" : "#BBF7D0",
     blue: "#3B82F6",
     blueSoft: isDark ? "rgba(59,130,246,0.12)" : "#EFF6FF",
     blueBorder: isDark ? "rgba(59,130,246,0.25)" : "#DBEAFE",
@@ -129,7 +138,9 @@ export default function ReceiveTokensScreen() {
               <Ionicons name="arrow-back" size={22} color={theme.text} />
             </TouchableOpacity>
             <View style={styles.headerText}>
-              <Text style={[styles.headerTitle, { color: theme.text }]}>{t("receive_tokens.index.header_title", "Receive Tokens")}</Text>
+              <Text style={[styles.headerTitle, { color: theme.text }]}>
+                {t("receive_tokens.index.header_title", "Receive Tokens")}
+              </Text>
               <Animated.View style={{ opacity: subtitleOpacity, maxHeight: subtitleMaxHeight, marginTop: subtitleMargin, overflow: "hidden" }}>
                 <Text style={[styles.headerSubtitle, { color: theme.muted }]}>
                   {t("receive_tokens.index.header_subtitle", "Share your credentials to receive payments.")}
@@ -155,20 +166,37 @@ export default function ReceiveTokensScreen() {
           pointerEvents="none"
         />
 
-        {/* INTRO CARD */}
-        <View style={[styles.introCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
-          <Text style={[styles.introEyebrow, { color: theme.accent }]}>{t("receive_tokens.index.method_eyebrow", "RECEIVE METHOD")}</Text>
-          <Text style={[styles.introTitle, { color: theme.text }]}>{t("receive_tokens.index.method_title", "Share receive details")}</Text>
-          <Text style={[styles.introSubtitle, { color: theme.muted }]}>
-            {t("receive_tokens.index.method_desc", "Senders can scan your QR code or enter your registered account email to transfer tokens directly to your wallet.")}
-          </Text>
+        {/* RECEIVE METHOD Banner Card */}
+        <View style={[styles.bannerCard, { backgroundColor: theme.card, borderColor: theme.accentBorder }]}>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.bannerEyebrow, { color: theme.accent }]}>
+              {t("receive_tokens.index.method_eyebrow", "RECEIVE METHOD")}
+            </Text>
+            <Text style={[styles.bannerTitle, { color: theme.text }]}>
+              {t("receive_tokens.index.method_title", "Share receive details")}
+            </Text>
+            <Text style={[styles.bannerSubtitle, { color: theme.muted }]}>
+              {t("receive_tokens.index.method_desc", "Senders can scan your QR code or enter your registered account email to transfer tokens directly to your wallet.")}
+            </Text>
+          </View>
+          {/* Graphic Badge */}
+          <View style={[styles.graphicBox, { backgroundColor: theme.accentSoft }]}>
+            <Ionicons name="qr-code-outline" size={28} color={theme.accent} />
+            <View style={[styles.userBadge, { backgroundColor: theme.accent }]}>
+              <Ionicons name="person" size={10} color="#FFF" />
+            </View>
+          </View>
         </View>
 
-        {/* TOKEN SELECTION */}
-        <Text style={[styles.sectionLabel, { color: theme.muted }]}>{t("receive_tokens.index.select_token", "Select Token Type")}</Text>
+        {/* SELECT TOKEN TYPE Section */}
+        <Text style={[styles.sectionLabel, { color: theme.muted }]}>
+          {t("receive_tokens.index.select_token", "SELECT TOKEN TYPE")}
+        </Text>
+
         <View style={styles.tokenGrid}>
           {TOKENS.map((token) => {
             const isSelected = tokenType === token;
+            const details = TOKEN_DETAILS[token];
             return (
               <TouchableOpacity
                 key={token}
@@ -177,98 +205,126 @@ export default function ReceiveTokensScreen() {
                   { backgroundColor: theme.card, borderColor: theme.border },
                   isSelected && { borderColor: theme.accent, backgroundColor: theme.accentSoft },
                 ]}
-                onPress={() => setTokenType(token)}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setTokenType(token);
+                }}
                 activeOpacity={0.8}
               >
                 {isSelected && (
-                  <View style={[styles.tokenCheck, { backgroundColor: theme.accent }]}>
+                  <View style={[styles.tokenCheckBadge, { backgroundColor: theme.accent }]}>
                     <Ionicons name="checkmark" size={10} color="#FFF" />
                   </View>
                 )}
                 <Text style={[styles.tokenCardSub, { color: isSelected ? theme.accent : theme.muted }]}>
-                  {token === "NT"
-                    ? t("receive_tokens.index.token_subtitle_nt", "Domestic")
-                    : token === "CT"
-                    ? t("receive_tokens.index.token_subtitle_ct", "Regional")
-                    : t("receive_tokens.index.token_subtitle_usdt", "Reserve")}
+                  {details.subtitle}
                 </Text>
                 <Text style={[styles.tokenCardLabel, { color: isSelected ? theme.accent : theme.text }]}>
                   {token}
                 </Text>
-                <Text style={[styles.tokenCardName, { color: isSelected ? theme.accent + "AA" : theme.muted }]}>
-                  {token === "NT"
-                    ? t("receive_tokens.index.token_label_nt", "Naira Token")
-                    : token === "CT"
-                    ? t("receive_tokens.index.token_label_ct", "CFA Token")
-                    : t("receive_tokens.index.token_label_usdt", "Tether")}
+                <Text style={[styles.tokenCardName, { color: isSelected ? theme.accent + "CC" : theme.muted }]}>
+                  {details.label}
                 </Text>
               </TouchableOpacity>
             );
           })}
         </View>
 
-        {/* QR CODE CARD */}
-        <View style={[styles.qrCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
-          <View style={styles.qrWrapper}>
-            <QRCode value={qrData} size={200} backgroundColor="#FFFFFF" />
-          </View>
-          <Text style={[styles.qrLabel, { color: theme.text }]}>
-            {t("receive_tokens.index.scan_to_send", "Scan to Send {{tokenType}}", { tokenType })}
-          </Text>
-        </View>
+        {/* Main Combined Receive Card (QR + Credentials + Help Info) */}
+        <View style={[styles.mainReceiveCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+          {/* QR Code Container with Scanner Brackets */}
+          <View style={styles.qrSection}>
+            <View style={styles.qrFrameWrapper}>
+              {/* Corner Bracket Accents */}
+              <View style={[styles.corner, styles.cornerTL, { borderColor: theme.accent }]} />
+              <View style={[styles.corner, styles.cornerTR, { borderColor: theme.accent }]} />
+              <View style={[styles.corner, styles.cornerBL, { borderColor: theme.accent }]} />
+              <View style={[styles.corner, styles.cornerBR, { borderColor: theme.accent }]} />
 
-        {/* ACCOUNT EMAIL CARD */}
-        <View style={[styles.addressCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
-          <View style={styles.addressHeader}>
-            <Ionicons name="mail" size={18} color={theme.accent} />
-            <Text style={[styles.addressLabel, { color: theme.text }]}>{t("receive_tokens.index.email_header", "Your Account Email")}</Text>
-          </View>
-          <TouchableOpacity style={[styles.addressRow, { backgroundColor: theme.inputBg, borderColor: theme.border }]} onPress={handleCopyEmail} activeOpacity={0.75}>
-            <Text style={[styles.addressText, { color: theme.text }]} numberOfLines={1}>
-              {userEmail}
-            </Text>
-            <Ionicons name="copy-outline" size={18} color={theme.accent} />
-          </TouchableOpacity>
-        </View>
-
-        {/* BLOCKCHAIN WALLET CARD */}
-        {!!walletAddress && (
-          <View style={[styles.addressCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
-            <View style={styles.addressHeader}>
-              <Ionicons name="wallet" size={18} color={theme.accent} />
-              <Text style={[styles.addressLabel, { color: theme.text }]}>{t("receive_tokens.index.blockchain_header", "On-Chain Address")}</Text>
+              <View style={styles.qrInnerBox}>
+                <QRCode value={qrData} size={180} backgroundColor="#FFFFFF" />
+              </View>
             </View>
-            <TouchableOpacity style={[styles.addressRow, { backgroundColor: theme.inputBg, borderColor: theme.border }]} onPress={handleCopyAddress} activeOpacity={0.75}>
-              <Text style={[styles.addressText, { color: theme.text }]} numberOfLines={1}>
-                {walletAddress}
+
+            {/* Scan Subtext */}
+            <View style={styles.scanSubRow}>
+              <Ionicons name="scan-outline" size={16} color={theme.accent} />
+              <Text style={[styles.scanTitle, { color: theme.text }]}>
+                {t("receive_tokens.index.scan_to_send", "Scan to Send {{tokenType}}", { tokenType })}
               </Text>
+            </View>
+            <Text style={[styles.scanDesc, { color: theme.muted }]}>
+              {t("receive_tokens.index.scan_subdesc", "Share this QR code with the sender.")}
+            </Text>
+          </View>
+
+          {/* Account Email Field */}
+          <View style={[styles.credentialField, { backgroundColor: theme.inputBg, borderColor: theme.border }]}>
+            <View style={[styles.fieldIconBox, { backgroundColor: theme.accentSoft }]}>
+              <Ionicons name="mail" size={16} color={theme.accent} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.fieldLabel, { color: theme.muted }]}>
+                {t("receive_tokens.index.email_header", "Your Account Email")}
+              </Text>
+              <Text style={[styles.fieldValue, { color: theme.text }]} numberOfLines={1}>
+                {userEmail || "user@afriexchange.com"}
+              </Text>
+            </View>
+            <TouchableOpacity onPress={handleCopyEmail} style={styles.copyBtn} activeOpacity={0.7}>
               <Ionicons name="copy-outline" size={18} color={theme.accent} />
             </TouchableOpacity>
           </View>
-        )}
 
-        {/* TIP CARD */}
-        <View style={[styles.tipCard, { backgroundColor: theme.blueSoft, borderColor: theme.blueBorder }]}>
-          <View style={[styles.tipIconBox, { backgroundColor: theme.blue + "25" }]}>
-            <Ionicons name="information-circle-outline" size={18} color={theme.blue} />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.tipTitle, { color: isDark ? "#93C5FD" : "#1E40AF" }]}>{t("receive_tokens.index.tip_title", "How to Receive")}</Text>
-            <Text style={[styles.tipDesc, { color: isDark ? "#BFDBFE" : "#1E3A8A" }]}>
-              {t("receive_tokens.index.tip_desc", "Show this QR code to the sender. Senders can also complete transfers using your AfriExchange account email.")}
-            </Text>
+          {/* On-Chain Address Field */}
+          {!!walletAddress && (
+            <View style={[styles.credentialField, { backgroundColor: theme.inputBg, borderColor: theme.border }]}>
+              <View style={[styles.fieldIconBox, { backgroundColor: theme.accentSoft }]}>
+                <Ionicons name="wallet" size={16} color={theme.accent} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.fieldLabel, { color: theme.muted }]}>
+                  {t("receive_tokens.index.blockchain_header", "On-Chain Address")}
+                </Text>
+                <Text style={[styles.fieldValueAddress, { color: theme.text }]} numberOfLines={1}>
+                  {walletAddress}
+                </Text>
+              </View>
+              <TouchableOpacity onPress={handleCopyAddress} style={styles.copyBtn} activeOpacity={0.7}>
+                <Ionicons name="copy-outline" size={18} color={theme.accent} />
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {/* How to Receive Info Box */}
+          <View style={[styles.helpBox, { backgroundColor: theme.blueSoft, borderColor: theme.blueBorder }]}>
+            <View style={[styles.helpIconBox, { backgroundColor: theme.blue + "22" }]}>
+              <Ionicons name="information-circle-outline" size={18} color={theme.blue} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.helpTitle, { color: isDark ? "#93C5FD" : "#1E40AF" }]}>
+                {t("receive_tokens.index.tip_title", "How to Receive")}
+              </Text>
+              <Text style={[styles.helpDesc, { color: isDark ? "#BFDBFE" : "#1E3A8A" }]}>
+                {t("receive_tokens.index.tip_desc", "Show this QR code to the sender. Senders can also complete transfers using your AfriExchange account email.")}
+              </Text>
+            </View>
           </View>
         </View>
 
-        {/* BUTTON ACTION ROW */}
-        <View style={styles.actionRow}>
-          <TouchableOpacity style={[styles.shareBtn, { backgroundColor: theme.accent }]} onPress={handleShare} activeOpacity={0.85}>
-            <Ionicons name="share-outline" size={18} color="#FFF" />
-            <Text style={styles.shareBtnText}>{t("receive_tokens.index.btn_share", "Share Details")}</Text>
-          </TouchableOpacity>
-        </View>
+        {/* Primary CTA Button */}
+        <TouchableOpacity
+          style={[styles.shareBtn, { backgroundColor: theme.accent }]}
+          onPress={handleShare}
+          activeOpacity={0.85}
+        >
+          <Ionicons name="share-outline" size={20} color="#FFF" />
+          <Text style={styles.shareBtnText}>
+            {t("receive_tokens.index.btn_share", "Share Details")}
+          </Text>
+        </TouchableOpacity>
 
-        <View style={{ height: 40 }} />
+        <View style={{ height: 30 }} />
       </Animated.ScrollView>
     </View>
   );
@@ -304,28 +360,52 @@ const styles = StyleSheet.create({
     top: 0, left: 0, right: 0,
     height: 200,
   },
-  introCard: {
-    borderRadius: 24,
-    padding: 20,
-    marginBottom: 16,
+
+  bannerCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderRadius: 22,
     borderWidth: 1,
+    padding: 16,
+    marginBottom: 16,
+    gap: 12,
   },
-  introEyebrow: {
-    fontSize: 11,
+  bannerEyebrow: {
+    fontSize: 10,
     fontWeight: "800",
-    letterSpacing: 0.5,
-    marginBottom: 8,
+    letterSpacing: 0.8,
+    marginBottom: 2,
   },
-  introTitle: {
-    fontSize: 22,
+  bannerTitle: {
+    fontSize: 18,
     fontWeight: "800",
-    marginBottom: 8,
+    marginBottom: 4,
     letterSpacing: -0.4,
   },
-  introSubtitle: {
-    fontSize: 14,
-    lineHeight: 21,
+  bannerSubtitle: {
+    fontSize: 12,
+    lineHeight: 17,
+    fontWeight: "500",
   },
+  graphicBox: {
+    width: 52,
+    height: 52,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    position: "relative",
+  },
+  userBadge: {
+    position: "absolute",
+    bottom: -2, right: -2,
+    width: 18, height: 18,
+    borderRadius: 9,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1.5,
+    borderColor: "#07111A",
+  },
+
   sectionLabel: {
     fontSize: 11,
     fontWeight: "800",
@@ -347,7 +427,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     position: "relative",
   },
-  tokenCheck: {
+  tokenCheckBadge: {
     position: "absolute",
     top: 8, right: 8,
     width: 18, height: 18,
@@ -358,84 +438,113 @@ const styles = StyleSheet.create({
   tokenCardSub: { fontSize: 9, fontWeight: "800", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 4 },
   tokenCardLabel: { fontSize: 18, fontWeight: "900", letterSpacing: -0.5, marginBottom: 2 },
   tokenCardName: { fontSize: 10, fontWeight: "600", textAlign: "center" },
-  qrCard: {
-    borderRadius: 28,
+
+  mainReceiveCard: {
+    borderRadius: 24,
     borderWidth: 1,
-    padding: 24,
-    alignItems: "center",
-    marginBottom: 16,
+    padding: 18,
+    marginBottom: 20,
+    gap: 14,
   },
-  qrWrapper: {
-    padding: 14,
-    borderRadius: 20,
+  qrSection: {
+    alignItems: "center",
+    paddingVertical: 8,
+  },
+  qrFrameWrapper: {
+    padding: 18,
+    position: "relative",
+    marginBottom: 14,
+  },
+  qrInnerBox: {
+    padding: 12,
+    borderRadius: 16,
     backgroundColor: "#FFFFFF",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
+    shadowOpacity: 0.08,
     shadowRadius: 10,
     elevation: 3,
-    marginBottom: 16,
   },
-  qrLabel: {
+  corner: {
+    position: "absolute",
+    width: 18,
+    height: 18,
+  },
+  cornerTL: { top: 4, left: 4, borderTopWidth: 2.5, borderLeftWidth: 2.5, borderTopLeftRadius: 6 },
+  cornerTR: { top: 4, right: 4, borderTopWidth: 2.5, borderRightWidth: 2.5, borderTopRightRadius: 6 },
+  cornerBL: { bottom: 4, left: 4, borderBottomWidth: 2.5, borderLeftWidth: 2.5, borderBottomLeftRadius: 6 },
+  cornerBR: { bottom: 4, right: 4, borderBottomWidth: 2.5, borderRightWidth: 2.5, borderBottomRightRadius: 6 },
+
+  scanSubRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginBottom: 2,
+  },
+  scanTitle: {
     fontSize: 15,
     fontWeight: "800",
   },
-  addressCard: {
-    borderRadius: 22,
-    borderWidth: 1,
-    padding: 16,
-    marginBottom: 14,
+  scanDesc: {
+    fontSize: 12,
+    fontWeight: "500",
   },
-  addressHeader: {
+
+  credentialField: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-    marginBottom: 12,
-  },
-  addressLabel: {
-    fontSize: 13,
-    fontWeight: "800",
-  },
-  addressRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
+    borderRadius: 16,
     borderWidth: 1,
-    borderRadius: 14,
     paddingHorizontal: 14,
     paddingVertical: 12,
+    gap: 12,
   },
-  addressText: {
+  fieldIconBox: {
+    width: 34, height: 34,
+    borderRadius: 12,
+    alignItems: "center", justifyContent: "center",
+  },
+  fieldLabel: {
+    fontSize: 10,
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+    marginBottom: 2,
+  },
+  fieldValue: {
     fontSize: 14,
+    fontWeight: "700",
+  },
+  fieldValueAddress: {
+    fontSize: 13,
     fontWeight: "600",
     fontFamily: Platform.OS === "ios" ? "Courier" : "monospace",
-    flex: 1,
   },
-  tipCard: {
+  copyBtn: {
+    padding: 6,
+  },
+
+  helpBox: {
     flexDirection: "row",
     gap: 12,
     padding: 14,
-    borderRadius: 20,
+    borderRadius: 18,
     borderWidth: 1,
-    marginBottom: 20,
+    marginTop: 2,
   },
-  tipIconBox: {
-    width: 38,
-    height: 38,
+  helpIconBox: {
+    width: 36, height: 36,
     borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: "center", justifyContent: "center",
     flexShrink: 0,
   },
-  tipTitle: { fontSize: 14, fontWeight: "800", marginBottom: 4 },
-  tipDesc: { fontSize: 13, lineHeight: 19, fontWeight: "500" },
-  actionRow: {
-    gap: 12,
-  },
+  helpTitle: { fontSize: 13, fontWeight: "800", marginBottom: 2 },
+  helpDesc: { fontSize: 12, lineHeight: 17, fontWeight: "500" },
+
   shareBtn: {
     flexDirection: "row",
-    height: 58,
-    borderRadius: 20,
+    height: 56,
+    borderRadius: 18,
     alignItems: "center",
     justifyContent: "center",
     gap: 8,

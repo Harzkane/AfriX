@@ -12,6 +12,7 @@ import {
   ActivityIndicator,
   TextInput as RNTextInput,
   useColorScheme,
+  Image,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Link } from "expo-router";
@@ -100,12 +101,11 @@ export default function RegisterScreen() {
         >
           {/* Brand header */}
           <View style={styles.brandSection}>
-            <LinearGradient
-              colors={["#00B14F", "#10B981"]}
+            <Image
+              source={require("../../assets/images/splash-icon.png")}
               style={styles.logoCircle}
-            >
-              <Ionicons name="person-add-outline" size={32} color="#FFFFFF" />
-            </LinearGradient>
+              resizeMode="contain"
+            />
             <Text style={[styles.welcomeText, { color: theme.text }]}>{t("auth.register.title")}</Text>
             <Text style={[styles.subtitle, { color: theme.muted }]}>{t("auth.register.subtitle")}</Text>
           </View>

@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   TextInput as RNTextInput,
   useColorScheme,
+  Image,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
@@ -61,9 +62,11 @@ export default function ResendVerificationScreen() {
 
         <View style={styles.inner}>
           <View style={styles.brandSection}>
-            <LinearGradient colors={["#00B14F", "#10B981"]} style={styles.logoCircle}>
-              <Ionicons name="checkmark-circle-outline" size={34} color="#FFFFFF" />
-            </LinearGradient>
+            <Image
+              source={require("../../assets/images/splash-icon.png")}
+              style={styles.logoCircle}
+              resizeMode="contain"
+            />
             <Text style={[styles.welcomeText, { color: theme.text }]}>{t("auth.resend_verification.success_title", "Email Sent!")}</Text>
             <Text style={[styles.subtitle, { color: theme.muted }]}>
               {t("auth.resend_verification.success_subtitle", `A new verification email has been sent to ${email}`, { email })}
@@ -118,9 +121,11 @@ export default function ResendVerificationScreen() {
             <Ionicons name="arrow-back" size={20} color={theme.text} />
           </TouchableOpacity>
 
-          <LinearGradient colors={["#00B14F", "#10B981"]} style={styles.logoCircle}>
-            <Ionicons name="refresh-circle-outline" size={34} color="#FFFFFF" />
-          </LinearGradient>
+          <Image
+            source={require("../../assets/images/splash-icon.png")}
+            style={styles.logoCircle}
+            resizeMode="contain"
+          />
           <Text style={[styles.welcomeText, { color: theme.text }]}>{t("auth.resend_verification.title")}</Text>
           <Text style={[styles.subtitle, { color: theme.muted }]}>{t("auth.resend_verification.subtitle")}</Text>
         </View>

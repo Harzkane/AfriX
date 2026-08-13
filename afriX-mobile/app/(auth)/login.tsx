@@ -11,6 +11,7 @@ import {
   ActivityIndicator,
   TextInput as RNTextInput,
   useColorScheme,
+  Image,
 } from "react-native";
 import { HelperText } from "react-native-paper";
 import { LinearGradient } from "expo-linear-gradient";
@@ -147,12 +148,11 @@ export default function LoginScreen() {
         >
           {/* Brand header */}
           <View style={styles.brandSection}>
-            <LinearGradient
-              colors={["#00B14F", "#10B981"]}
+            <Image
+              source={require("../../assets/images/splash-icon.png")}
               style={styles.logoCircle}
-            >
-              <Ionicons name="swap-horizontal" size={32} color="#FFFFFF" />
-            </LinearGradient>
+              resizeMode="contain"
+            />
             <Text style={[styles.welcomeText, { color: theme.text }]}>{t("auth.login.title")}</Text>
             <Text style={[styles.subtitle, { color: theme.muted }]}>{t("auth.login.subtitle")}</Text>
           </View>

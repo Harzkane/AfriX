@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   TextInput as RNTextInput,
   useColorScheme,
+  Image,
 } from "react-native";
 import { HelperText } from "react-native-paper";
 import { LinearGradient } from "expo-linear-gradient";
@@ -103,12 +104,11 @@ export default function ForgotPasswordScreen() {
             <Ionicons name="arrow-back" size={20} color={theme.text} />
           </TouchableOpacity>
           
-          <LinearGradient
-            colors={["#00B14F", "#10B981"]}
+          <Image
+            source={require("../../assets/images/splash-icon.png")}
             style={styles.logoCircle}
-          >
-            <Ionicons name="key-outline" size={32} color="#FFFFFF" />
-          </LinearGradient>
+            resizeMode="contain"
+          />
           <Text style={[styles.welcomeText, { color: theme.text }]}>{t("auth.forgot_password.title")}</Text>
           <Text style={[styles.subtitle, { color: theme.muted }]}>{t("auth.forgot_password.subtitle")}</Text>
         </View>

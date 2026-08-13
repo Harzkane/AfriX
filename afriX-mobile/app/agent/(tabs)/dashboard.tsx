@@ -7,6 +7,7 @@ import {
     TouchableOpacity,
     RefreshControl,
     useColorScheme,
+    Image,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -116,6 +117,11 @@ export default function AgentDashboard() {
             <SafeAreaView edges={["top"]} style={[styles.headerContainer, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
                 <View style={styles.headerRow}>
                     <View style={styles.headerLeft}>
+                        <Image
+                            source={require("../../../assets/images/splash-icon.png")}
+                            style={styles.headerLogoImage}
+                            resizeMode="contain"
+                        />
                         <Text style={[styles.logoText, { color: theme.text }]}>
                             Afri<Text style={{ color: "#00B14F" }}>X</Text> <Text style={{ color: theme.accent, fontSize: 16 }}>{t("agent.dashboard.agent_label", "Agent")}</Text>
                         </Text>
@@ -571,7 +577,14 @@ const styles = StyleSheet.create({
         alignItems: "center",
     },
     headerLeft: {
-        justifyContent: "center",
+        flexDirection: "row",
+        alignItems: "center",
+    },
+    headerLogoImage: {
+        width: 32,
+        height: 32,
+        marginRight: 8,
+        borderRadius: 16,
     },
     logoText: {
         fontSize: 24,

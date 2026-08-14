@@ -190,17 +190,6 @@ export default function TransferSuccessScreen() {
         {/* Action Buttons */}
         <View style={styles.buttonContainer}>
           <TouchableOpacity
-            style={[styles.doneBtn, { backgroundColor: theme.accent }]}
-            onPress={handleDone}
-            activeOpacity={0.85}
-          >
-            <Ionicons name="checkmark-circle-outline" size={20} color="#FFF" />
-            <Text style={styles.doneBtnText}>
-              {t("send_tokens.success.btn_done", "Done")}
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
             style={[styles.sendAgainBtn, { borderColor: theme.border, backgroundColor: theme.card }]}
             onPress={handleSendAgain}
             activeOpacity={0.8}
@@ -209,6 +198,15 @@ export default function TransferSuccessScreen() {
             <Text style={[styles.sendAgainBtnText, { color: theme.text }]}>
               {t("send_tokens.success.btn_send_again", "Send Again")}
             </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.doneBtn, { backgroundColor: theme.accent }]}
+            onPress={handleDone}
+            activeOpacity={0.85}
+          >
+            <Ionicons name="checkmark-circle-outline" size={20} color="#FFF" />
+            <Text style={styles.doneBtnText}>{t("send_tokens.success.btn_done", "Done")}</Text>
           </TouchableOpacity>
         </View>
 
@@ -334,9 +332,11 @@ const styles = StyleSheet.create({
 
   buttonContainer: {
     width: "100%",
+    flexDirection: "row",
     gap: 12,
   },
   doneBtn: {
+    flex: 1,
     flexDirection: "row",
     height: 56,
     borderRadius: 18,
@@ -347,8 +347,9 @@ const styles = StyleSheet.create({
   doneBtnText: { color: "#FFF", fontSize: 16, fontWeight: "800" },
 
   sendAgainBtn: {
+    flex: 1,
     flexDirection: "row",
-    height: 54,
+    height: 56,
     borderRadius: 18,
     borderWidth: 1,
     alignItems: "center",

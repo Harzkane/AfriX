@@ -40,7 +40,7 @@ export default function SendAmountScreen() {
     recipientEmail,
   } = useTransferStore();
 
-  const { getWalletByType } = useWalletStore();
+  const { getWalletByType, exchangeRates } = useWalletStore();
   const wallet = getWalletByType(tokenType);
 
   const [tokenModalVisible, setTokenModalVisible] = useState(false);
@@ -235,7 +235,7 @@ export default function SendAmountScreen() {
                   numberOfLines={1}
                 />
                 <Text style={[styles.usdEstimateText, { color: theme.muted }]}>
-                  {formatUsdEquivalent(amountNum, tokenType)}
+                  {formatUsdEquivalent(amountNum, tokenType, exchangeRates)}
                 </Text>
               </View>
 

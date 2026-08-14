@@ -1,3 +1,4 @@
+// app/(tabs)/sell-tokens/index.tsx
 import React, { useRef, useState, useEffect } from "react";
 import {
   View,
@@ -22,11 +23,11 @@ import {
   clampAmountToMax,
   formatAmount,
 } from "@/utils/format";
+import * as Haptics from "expo-haptics";
 import { useTranslation } from "react-i18next";
+import TokenSelectModal, { TokenType, TOKEN_CONFIG } from "@/components/ui/TokenSelectModal";
 
-const TOKENS = ["NT", "CT", "USDT"];
-const TOKEN_LABELS: Record<string, string> = { NT: "Naira Token", CT: "CFA Token", USDT: "Tether" };
-const TOKEN_SUBTITLES: Record<string, string> = { NT: "Domestic", CT: "Regional", USDT: "Reserve" };
+const TOKENS: TokenType[] = ["NT", "CT", "USDT"];
 const PRESET_AMOUNTS = [1000, 5000, 10000, 20000, 50000];
 
 export default function SellTokensScreen() {
@@ -35,7 +36,8 @@ export default function SellTokensScreen() {
   const { wallets } = useWalletStore();
   const scrollViewRef = useRef<ScrollView | null>(null);
   const [amount, setAmount] = useState("");
-  const [selectedToken, setSelectedToken] = useState("NT");
+  const [selectedToken, setSelectedToken] = useState<TokenType>("NT");
+  const [tokenModalVisible, setTokenModalVisible] = useState(false);
   const { t } = useTranslation();
 
   const colorScheme = useColorScheme();
@@ -62,6 +64,7 @@ export default function SellTokensScreen() {
     border: isDark ? "#1E2A3A" : "#E2E8F0",
     accent: "#00B14F",
     accentSoft: isDark ? "rgba(0,177,79,0.14)" : "#EAF8EF",
+    accentBorder: isDark ? "rgba(0,177,79,0.3)" : "#BBF7D0",
     warning: "#F59E0B",
     warningSoft: isDark ? "rgba(245,158,11,0.12)" : "#FFFBEB",
     warningBorder: isDark ? "rgba(245,158,11,0.3)" : "#FEF3C7",
@@ -81,19 +84,21 @@ export default function SellTokensScreen() {
   };
 
   const availableBalance = getAvailableBalance(selectedToken);
-  const tokenTypeForFormat = selectedToken as "NT" | "CT" | "USDT";
   const amountNum = parseFloat(amount) || 0;
   const hasInsufficientBalance = amountNum > availableBalance;
 
+  // Balance usage percentage
+  const balancePercentage = availableBalance > 0 ? Math.min(100, Math.round((amountNum / availableBalance) * 100)) : 0;
+
   useEffect(() => {
     if (amount && amountNum > availableBalance) {
-      setAmount(clampAmountToMax(amount, availableBalance, tokenTypeForFormat));
+      setAmount(clampAmountToMax(amount, availableBalance, selectedToken));
     }
   }, [selectedToken]);
 
   const handleAmountChange = (text: string) => {
-    const parsed = parseAmountInput(text, tokenTypeForFormat);
-    const clamped = clampAmountToMax(parsed, availableBalance, tokenTypeForFormat);
+    const parsed = parseAmountInput(text, selectedToken);
+    const clamped = clampAmountToMax(parsed, availableBalance, selectedToken);
     setAmount(clamped);
   };
 
@@ -101,15 +106,18 @@ export default function SellTokensScreen() {
     const clamped = Math.min(preset, availableBalance);
     const raw = clamped.toFixed(2);
     setAmount(raw);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
   const handleSetMax = () => {
     const raw = availableBalance.toFixed(2);
     setAmount(raw);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
   const handleContinue = () => {
     if (!amount || amountNum <= 0 || hasInsufficientBalance) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     if (preSelectedAgentId && preSelectedAgentName) {
       router.push({
         pathname: "/(tabs)/sell-tokens/bank-details",
@@ -123,7 +131,7 @@ export default function SellTokensScreen() {
   const isValid = !!(amount && amountNum > 0 && !hasInsufficientBalance);
 
   return (
-    <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "padding"} style={{ flex: 1 }} keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 72}>
+    <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }} keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 72}>
       <View style={[styles.container, { backgroundColor: theme.background }]}>
         {/* Collapsible Header */}
         <Animated.View
@@ -140,7 +148,9 @@ export default function SellTokensScreen() {
                 <Ionicons name="arrow-back" size={22} color={theme.text} />
               </TouchableOpacity>
               <View style={styles.headerText}>
-                <Text style={[styles.headerTitle, { color: theme.text }]}>{t("activity.btn_sell", "Sell Tokens")}</Text>
+                <Text style={[styles.headerTitle, { color: theme.text }]}>
+                  {t("activity.btn_sell", "Sell Tokens")}
+                </Text>
                 <Animated.View style={{ opacity: subtitleOpacity, maxHeight: subtitleMaxHeight, marginTop: subtitleMargin, overflow: "hidden" }}>
                   <Text style={[styles.headerSubtitle, { color: theme.muted }]}>
                     {t("sell_tokens.index_subtitle", "Redeem your tokens via an agent for cash payout.")}
@@ -168,11 +178,14 @@ export default function SellTokensScreen() {
             pointerEvents="none"
           />
 
-          {/* TOKEN SELECTOR */}
-          <Text style={[styles.sectionLabel, { color: theme.muted }]}>{t("sell_tokens.select_token_label", "Select Token to Sell")}</Text>
+          {/* SELECT TOKEN TO SELL Section */}
+          <Text style={[styles.sectionLabel, { color: theme.muted }]}>
+            {t("sell_tokens.select_token_label", "SELECT TOKEN TO SELL")}
+          </Text>
           <View style={styles.tokenGrid}>
             {TOKENS.map((token) => {
               const isSelected = selectedToken === token;
+              const config = TOKEN_CONFIG[token];
               return (
                 <TouchableOpacity
                   key={token}
@@ -181,7 +194,10 @@ export default function SellTokensScreen() {
                     { backgroundColor: theme.card, borderColor: theme.border },
                     isSelected && { borderColor: theme.accent, backgroundColor: theme.accentSoft },
                   ]}
-                  onPress={() => setSelectedToken(token)}
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    setSelectedToken(token);
+                  }}
                   activeOpacity={0.8}
                 >
                   {isSelected && (
@@ -190,46 +206,68 @@ export default function SellTokensScreen() {
                     </View>
                   )}
                   <Text style={[styles.tokenCardSub, { color: isSelected ? theme.accent : theme.muted }]}>
-                    {t("tokens." + token.toLowerCase() + "_subtitle", TOKEN_SUBTITLES[token])}
+                    {config.subtitle.toUpperCase()}
                   </Text>
                   <Text style={[styles.tokenCardLabel, { color: isSelected ? theme.accent : theme.text }]}>
                     {token}
                   </Text>
-                  <Text style={[styles.tokenCardName, { color: isSelected ? theme.accent + "AA" : theme.muted }]}>
-                    {t("tokens." + token.toLowerCase() + "_label", TOKEN_LABELS[token])}
+                  <Text style={[styles.tokenCardName, { color: isSelected ? theme.accent + "CC" : theme.muted }]}>
+                    {config.name}
                   </Text>
                 </TouchableOpacity>
               );
             })}
           </View>
 
-          {/* AMOUNT INPUT */}
+          {/* AMOUNT TO SELL Card */}
           <View style={[styles.amountCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
-            <LinearGradient
-              colors={isDark ? ["rgba(0,177,79,0.06)", "rgba(14,23,38,0)"] : ["rgba(0,177,79,0.04)", "rgba(255,255,255,0)"]}
-              style={StyleSheet.absoluteFill}
-            />
-            <View style={styles.amountRow}>
+            <View style={styles.amountHeaderRow}>
+              <Text style={[styles.amountEyebrow, { color: theme.muted }]}>
+                {t("sell_tokens.amount_eyebrow", "AMOUNT TO SELL")}
+              </Text>
+
+              {/* Token Selector Pill */}
+              <TouchableOpacity
+                style={[styles.tokenPill, { backgroundColor: theme.inputBg, borderColor: theme.border }]}
+                onPress={() => setTokenModalVisible(true)}
+                activeOpacity={0.8}
+              >
+                <Text style={[styles.tokenPillText, { color: theme.text }]}>{selectedToken}</Text>
+                <Ionicons name="chevron-down" size={14} color={theme.muted} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.amountInputRow}>
               <TextInput
                 style={[styles.amountInput, { color: theme.text }]}
                 placeholder="0.00"
                 placeholderTextColor={theme.placeholder}
                 keyboardType="numeric"
-                value={formatAmountForInput(amount, tokenTypeForFormat)}
+                value={formatAmountForInput(amount, selectedToken)}
                 onChangeText={handleAmountChange}
+                numberOfLines={1}
               />
-              <Text style={[styles.amountSuffix, { color: theme.muted }]}>{selectedToken}</Text>
             </View>
 
             <View style={[styles.amountDivider, { backgroundColor: theme.border }]} />
 
-            <View style={styles.balanceRow}>
-              <View style={styles.balanceLeft}>
-                <Ionicons name="wallet-outline" size={14} color={theme.muted} />
-                <Text style={[styles.balanceLabel, { color: theme.muted }]}>{t("sell_tokens.available_label", "Available")}</Text>
+            {/* Available Balance Progress Track */}
+            <View style={styles.balanceContainer}>
+              <View style={styles.balanceHeaderRow}>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                  <Ionicons name="wallet-outline" size={14} color={theme.muted} />
+                  <Text style={[styles.balanceLabel, { color: theme.muted }]}>{t("sell_tokens.available_label", "Available Balance")}</Text>
+                </View>
+                <Text style={[styles.balanceValueText, { color: theme.accent }]}>
+                  {formatAmount(availableBalance, selectedToken)} {selectedToken}
+                </Text>
               </View>
-              <Text style={[styles.balanceValue, { color: amountNum > 0 && !hasInsufficientBalance ? theme.accent : theme.muted }]}>
-                {formatAmount(availableBalance, selectedToken)} {selectedToken}
+              {/* Progress Track */}
+              <View style={[styles.progressTrack, { backgroundColor: theme.inputBg }]}>
+                <View style={[styles.progressFill, { backgroundColor: theme.accent, width: `${balancePercentage}%` }]} />
+              </View>
+              <Text style={[styles.progressSubtext, { color: theme.muted }]}>
+                {balancePercentage}% of balance
               </Text>
             </View>
 
@@ -241,18 +279,20 @@ export default function SellTokensScreen() {
             )}
           </View>
 
-          {/* INFO BOX */}
-          <View style={[styles.infoBox, { backgroundColor: theme.blueSoft, borderColor: theme.blueBorder }]}>
-            <View style={[styles.infoIconBox, { backgroundColor: theme.blue + "25" }]}>
+          {/* Escrow Notice Box */}
+          <View style={[styles.escrowCard, { backgroundColor: theme.blueSoft, borderColor: theme.blueBorder }]}>
+            <View style={[styles.infoIconBox, { backgroundColor: theme.blue + "22" }]}>
               <Ionicons name="shield-checkmark-outline" size={18} color={theme.blue} />
             </View>
-            <Text style={[styles.infoText, { color: isDark ? "#93C5FD" : "#1E40AF" }]}>
+            <Text style={[styles.escrowText, { color: isDark ? "#BFDBFE" : "#1E3A8A" }]}>
               {t("sell_tokens.escrow_hint", "Tokens are held in escrow until the agent confirms payment to your account.")}
             </Text>
           </View>
 
-          {/* QUICK AMOUNTS */}
-          <Text style={[styles.sectionLabel, { color: theme.muted }]}>{t("sell_tokens.quick_amounts_label", "Quick Amounts")}</Text>
+          {/* QUICK AMOUNTS Section */}
+          <Text style={[styles.sectionLabel, { color: theme.muted }]}>
+            {t("sell_tokens.quick_amounts_label", "QUICK AMOUNTS")}
+          </Text>
           <View style={styles.presetsRow}>
             {PRESET_AMOUNTS.map((preset) => {
               const isActive = amountNum === preset;
@@ -265,9 +305,9 @@ export default function SellTokensScreen() {
                     isActive && { backgroundColor: theme.accentSoft, borderColor: theme.accent },
                   ]}
                   onPress={() => handleSetPreset(preset)}
-                  activeOpacity={0.7}
+                  activeOpacity={0.8}
                 >
-                  <Text style={[styles.presetChipText, { color: isActive ? theme.accent : theme.muted }]}>
+                  <Text style={[styles.presetChipText, { color: isActive ? theme.accent : theme.text }]}>
                     {preset.toLocaleString()}
                   </Text>
                 </TouchableOpacity>
@@ -276,13 +316,46 @@ export default function SellTokensScreen() {
             <TouchableOpacity
               style={[styles.presetChip, { backgroundColor: theme.blueSoft, borderColor: theme.blueBorder }]}
               onPress={handleSetMax}
-              activeOpacity={0.7}
+              activeOpacity={0.8}
             >
               <Text style={[styles.presetChipText, { color: theme.blue, fontWeight: "800" }]}>{t("sell_tokens.btn_max", "MAX")}</Text>
             </TouchableOpacity>
           </View>
 
-          {/* CONTINUE INSIDE SCROLL */}
+          {/* How it works Card Container */}
+          <View style={[styles.howItWorksCard, { backgroundColor: theme.card, borderColor: theme.accentBorder }]}>
+            <View style={[styles.graphicBox, { backgroundColor: theme.accentSoft }]}>
+              <Ionicons name="person" size={20} color={theme.accent} />
+              <View style={[styles.storeBadge, { backgroundColor: theme.accent }]}>
+                <Ionicons name="storefront" size={10} color="#FFF" />
+              </View>
+            </View>
+            <View style={{ flex: 1, gap: 6 }}>
+              <Text style={[styles.howTitle, { color: theme.accent }]}>
+                {t("sell_tokens.how_it_works_title", "How it works")}
+              </Text>
+              <View style={styles.bulletRow}>
+                <Ionicons name="checkmark-circle" size={14} color={theme.accent} />
+                <Text style={[styles.bulletText, { color: theme.muted }]}>
+                  {t("sell_tokens.how_step_1", "Select the token and amount to sell.")}
+                </Text>
+              </View>
+              <View style={styles.bulletRow}>
+                <Ionicons name="checkmark-circle" size={14} color={theme.accent} />
+                <Text style={[styles.bulletText, { color: theme.muted }]}>
+                  {t("sell_tokens.how_step_2", "Choose an agent to complete the transaction.")}
+                </Text>
+              </View>
+              <View style={styles.bulletRow}>
+                <Ionicons name="checkmark-circle" size={14} color={theme.accent} />
+                <Text style={[styles.bulletText, { color: theme.muted }]}>
+                  {t("sell_tokens.how_step_3", "Receive your cash once payment is confirmed.")}
+                </Text>
+              </View>
+            </View>
+          </View>
+
+          {/* CONTINUE BUTTON */}
           <TouchableOpacity
             style={[styles.continueBtn, { backgroundColor: theme.accent }, !isValid && styles.continueBtnDisabled]}
             onPress={handleContinue}
@@ -290,13 +363,30 @@ export default function SellTokensScreen() {
             activeOpacity={0.85}
           >
             <Text style={styles.continueBtnText}>
-              {preSelectedAgentId ? t("sell_tokens.btn_continue_payment", "Continue to Payment Details") : t("sell_tokens.btn_continue_agent", "Continue to Agent Selection")}
+              {preSelectedAgentId
+                ? t("sell_tokens.btn_continue_payment", "Continue to Payment Details")
+                : t("sell_tokens.btn_continue_agent", "Continue to Agent Selection")}
             </Text>
             <Ionicons name="arrow-forward" size={18} color="#FFF" />
           </TouchableOpacity>
 
-          <View style={{ height: 40 }} />
+          {/* Trust Footer */}
+          <View style={styles.trustFooter}>
+            <Ionicons name="lock-closed-outline" size={12} color={theme.muted} />
+            <Text style={[styles.trustText, { color: theme.muted }]}>Secure • Fast • Trusted</Text>
+          </View>
+
+          <View style={{ height: 30 }} />
         </Animated.ScrollView>
+
+        {/* Token Selection Modal */}
+        <TokenSelectModal
+          visible={tokenModalVisible}
+          onClose={() => setTokenModalVisible(false)}
+          selectedToken={selectedToken}
+          onSelectToken={(token: TokenType) => setSelectedToken(token)}
+          title="Select Token to Sell"
+        />
       </View>
     </KeyboardAvoidingView>
   );
@@ -332,6 +422,7 @@ const styles = StyleSheet.create({
     top: 0, left: 0, right: 0,
     height: 200,
   },
+
   sectionLabel: {
     fontSize: 11,
     fontWeight: "800",
@@ -364,34 +455,42 @@ const styles = StyleSheet.create({
   tokenCardSub: { fontSize: 9, fontWeight: "800", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 4 },
   tokenCardLabel: { fontSize: 18, fontWeight: "900", letterSpacing: -0.5, marginBottom: 2 },
   tokenCardName: { fontSize: 10, fontWeight: "600", textAlign: "center" },
+
   amountCard: {
-    borderRadius: 28,
+    borderRadius: 24,
     borderWidth: 1,
-    padding: 20,
+    padding: 18,
     marginBottom: 14,
-    overflow: "hidden",
   },
-  amountRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 16,
+  amountHeaderRow: {
+    flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 10,
+  },
+  amountEyebrow: { fontSize: 10, fontWeight: "800", letterSpacing: 0.8 },
+  tokenPill: {
+    flexDirection: "row", alignItems: "center", gap: 6,
+    paddingHorizontal: 12, paddingVertical: 6, borderRadius: 14, borderWidth: 1,
+  },
+  tokenPillText: { fontSize: 13, fontWeight: "800" },
+
+  amountInputRow: {
+    marginBottom: 12,
   },
   amountInput: {
-    flex: 1,
-    fontSize: 44,
+    fontSize: 32,
     fontWeight: "900",
-    letterSpacing: -1,
+    letterSpacing: -0.5,
+    padding: 0,
   },
-  amountSuffix: { fontSize: 22, fontWeight: "700", marginLeft: 8 },
   amountDivider: { height: 1, marginBottom: 12 },
-  balanceRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  balanceLeft: { flexDirection: "row", alignItems: "center", gap: 5 },
-  balanceLabel: { fontSize: 13, fontWeight: "600" },
-  balanceValue: { fontSize: 13, fontWeight: "800" },
+
+  balanceContainer: { gap: 6 },
+  balanceHeaderRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  balanceLabel: { fontSize: 12, fontWeight: "600" },
+  balanceValueText: { fontSize: 12, fontWeight: "800" },
+  progressTrack: { height: 6, borderRadius: 3, overflow: "hidden", marginVertical: 4 },
+  progressFill: { height: "100%", borderRadius: 3 },
+  progressSubtext: { fontSize: 11, fontWeight: "500" },
+
   insufficientBadge: {
     flexDirection: "row",
     alignItems: "center",
@@ -404,43 +503,76 @@ const styles = StyleSheet.create({
     alignSelf: "flex-start",
   },
   insufficientText: { fontSize: 12, fontWeight: "700", color: "#EF4444" },
-  infoBox: {
+
+  escrowCard: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
-    padding: 12,
-    borderRadius: 16,
+    gap: 12,
+    padding: 14,
+    borderRadius: 18,
     borderWidth: 1,
     marginBottom: 20,
   },
   infoIconBox: {
     width: 36, height: 36,
-    borderRadius: 10,
+    borderRadius: 12,
     alignItems: "center", justifyContent: "center",
     flexShrink: 0,
   },
-  infoText: { flex: 1, fontSize: 13, fontWeight: "600", lineHeight: 18 },
+  escrowText: { flex: 1, fontSize: 12, lineHeight: 17, fontWeight: "500" },
+
   presetsRow: {
     flexDirection: "row",
-    flexWrap: "wrap",
     gap: 8,
-    marginBottom: 28,
+    marginBottom: 20,
   },
   presetChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 9,
-    borderRadius: 12,
+    flex: 1,
+    height: 42,
+    borderRadius: 14,
     borderWidth: 1.5,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  presetChipText: { fontSize: 13, fontWeight: "700" },
+  presetChipText: { fontSize: 13, fontWeight: "800" },
+
+  howItWorksCard: {
+    flexDirection: "row",
+    borderRadius: 22,
+    borderWidth: 1,
+    padding: 16,
+    marginBottom: 20,
+    gap: 14,
+    alignItems: "center",
+  },
+  graphicBox: {
+    width: 48, height: 48, borderRadius: 18,
+    alignItems: "center", justifyContent: "center",
+    position: "relative",
+  },
+  storeBadge: {
+    position: "absolute", bottom: -2, right: -2,
+    width: 18, height: 18, borderRadius: 9,
+    alignItems: "center", justifyContent: "center",
+    borderWidth: 1.5, borderColor: "#07111A",
+  },
+  howTitle: { fontSize: 14, fontWeight: "800" },
+  bulletRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+  bulletText: { fontSize: 12, fontWeight: "500", flex: 1 },
+
   continueBtn: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    height: 58,
-    borderRadius: 20,
+    height: 56,
+    borderRadius: 18,
   },
   continueBtnDisabled: { opacity: 0.4 },
   continueBtnText: { color: "#FFF", fontSize: 16, fontWeight: "800" },
+
+  trustFooter: {
+    flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, marginTop: 14,
+  },
+  trustText: { fontSize: 12, fontWeight: "500" },
 });

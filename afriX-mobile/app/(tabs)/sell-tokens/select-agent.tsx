@@ -1,3 +1,4 @@
+// app/(tabs)/sell-tokens/select-agent.tsx
 import React, { useEffect, useState, useRef } from "react";
 import {
   View,
@@ -7,6 +8,7 @@ import {
   ActivityIndicator,
   useColorScheme,
   Animated,
+  ScrollView,
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
@@ -15,18 +17,21 @@ import { Ionicons } from "@expo/vector-icons";
 import apiClient from "@/services/apiClient";
 import { API_ENDPOINTS } from "@/constants/api";
 import { useAuthStore } from "@/stores";
-import { AgentCard } from "@/components/ui/AgentCard";
+import { AgentCard, Agent } from "@/components/ui/AgentCard";
+import { formatAmount } from "@/utils/format";
+import * as Haptics from "expo-haptics";
 import { useTranslation } from "react-i18next";
 
-type SortOption = "rating" | "fastest" | "capacity";
+type SortOption = "capacity" | "rating" | "fastest";
 
 export default function SelectAgentScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ amount?: string; tokenType?: string }>();
   const { user } = useAuthStore();
-  const [agents, setAgents] = useState<any[]>([]);
+  const [agents, setAgents] = useState<Agent[]>([]);
   const [loading, setLoading] = useState(true);
-  const [sort, setSort] = useState<SortOption>("rating");
+  const [sort, setSort] = useState<SortOption>("capacity");
+  const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
   const { t } = useTranslation();
 
   const colorScheme = useColorScheme();
@@ -44,6 +49,10 @@ export default function SelectAgentScreen() {
     border: isDark ? "#1E2A3A" : "#E2E8F0",
     accent: "#00B14F",
     accentSoft: isDark ? "rgba(0,177,79,0.14)" : "#EAF8EF",
+    accentBorder: isDark ? "rgba(0,177,79,0.3)" : "#BBF7D0",
+    blue: "#3B82F6",
+    blueSoft: isDark ? "rgba(59,130,246,0.12)" : "#EFF6FF",
+    blueBorder: isDark ? "rgba(59,130,246,0.3)" : "#BFDBFE",
   };
 
   const handleHeaderLayout = (e: any) => {
@@ -55,8 +64,9 @@ export default function SelectAgentScreen() {
   const subtitleMaxHeight = scrollY.interpolate({ inputRange: [0, 50], outputRange: [80, 0], extrapolate: "clamp" });
   const subtitleMargin = scrollY.interpolate({ inputRange: [0, 50], outputRange: [4, 0], extrapolate: "clamp" });
 
-  const userAmount = params.amount ? parseFloat(params.amount) : undefined;
+  const userAmount = params.amount ? parseFloat(params.amount) : 10000;
   const tokenType = (params.tokenType as string) || "NT";
+  const fiatCurrency = tokenType === "CT" ? "XOF" : tokenType === "USDT" ? "USD" : "NGN";
 
   useEffect(() => {
     fetchAgents();
@@ -69,7 +79,11 @@ export default function SelectAgentScreen() {
       let url = `${API_ENDPOINTS.AGENTS.LIST}?country=${countryCode}`;
       if (sort && sort !== "rating") url += `&sort=${sort}`;
       const { data } = await apiClient.get(url);
-      setAgents(data.data || []);
+      const fetchedAgents = data.data || [];
+      setAgents(fetchedAgents);
+      if (fetchedAgents.length > 0 && !selectedAgentId) {
+        setSelectedAgentId(fetchedAgents[0].id);
+      }
     } catch (error) {
       console.error("Failed to fetch agents:", error);
     } finally {
@@ -77,12 +91,22 @@ export default function SelectAgentScreen() {
     }
   };
 
-  const handleSelectAgent = (agent: any) => {
+  const handleSelectAgent = (agent: Agent) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setSelectedAgentId(agent.id);
+  };
+
+  const handleContinue = () => {
+    const selectedAgent = agents.find((a) => a.id === selectedAgentId) || agents[0];
+    if (!selectedAgent) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     router.push({
       pathname: "/(tabs)/sell-tokens/bank-details",
-      params: { ...params, agentId: agent.id, agentName: agent.full_name },
+      params: { ...params, agentId: selectedAgent.id, agentName: selectedAgent.full_name },
     });
   };
+
+  const selectedAgentObj = agents.find((a) => a.id === selectedAgentId);
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
@@ -94,9 +118,6 @@ export default function SelectAgentScreen() {
           {
             backgroundColor: theme.background,
             borderBottomColor: theme.border,
-            position: "absolute",
-            top: 0, left: 0, right: 0,
-            zIndex: 10,
           },
         ]}
       >
@@ -110,12 +131,12 @@ export default function SelectAgentScreen() {
               <Ionicons name="arrow-back" size={22} color={theme.text} />
             </TouchableOpacity>
             <View style={styles.headerText}>
-              <Text style={[styles.headerTitle, { color: theme.text }]}>{t("sell_tokens.select_agent_title", "Select Agent")}</Text>
+              <Text style={[styles.headerTitle, { color: theme.text }]}>
+                {t("sell_tokens.select_agent_title", "Select Agent")}
+              </Text>
               <Animated.View style={{ opacity: subtitleOpacity, maxHeight: subtitleMaxHeight, marginTop: subtitleMargin, overflow: "hidden" }}>
                 <Text style={[styles.headerSubtitle, { color: theme.muted }]}>
-                  {userAmount != null && userAmount > 0
-                    ? t("sell_tokens.select_agent_subtitle_amount", "Sell {{amount}} {{tokenType}} — choose an agent", { amount: userAmount.toLocaleString(undefined, { maximumFractionDigits: 2 }), tokenType })
-                    : t("sell_tokens.select_agent_subtitle_default", "Choose an agent to sell your tokens")}
+                  {t("sell_tokens.select_agent_subtitle_default", "Choose a trusted agent to complete your cash payout.")}
                 </Text>
               </Animated.View>
             </View>
@@ -124,105 +145,198 @@ export default function SelectAgentScreen() {
         </SafeAreaView>
       </Animated.View>
 
-      {loading ? (
-        <View style={[styles.loadingContainer, { backgroundColor: theme.background }]}>
-          <View style={[styles.loadingCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
-            <ActivityIndicator size="large" color={theme.accent} />
-            <Text style={[styles.loadingText, { color: theme.muted }]}>{t("sell_tokens.finding_agents", "Finding available agents...")}</Text>
-          </View>
-        </View>
-      ) : (
-        <Animated.ScrollView
-          style={{ flex: 1 }}
-          contentContainerStyle={[styles.content, { paddingTop: headerMaxHeight + 16 }]}
-          showsVerticalScrollIndicator={false}
-          onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: false })}
-          scrollEventThrottle={16}
-        >
-          {/* Ambient glow */}
-          <LinearGradient
-            colors={isDark ? ["rgba(0,177,79,0.10)", "rgba(7,17,26,0)"] : ["rgba(0,177,79,0.08)", "rgba(245,247,251,0)"]}
-            style={styles.glow}
-            pointerEvents="none"
-          />
+      <Animated.ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={[styles.content, { paddingTop: headerMaxHeight + 12 }]}
+        showsVerticalScrollIndicator={false}
+        onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: false })}
+        scrollEventThrottle={16}
+      >
+        {/* Ambient glow */}
+        <LinearGradient
+          colors={isDark ? ["rgba(0,177,79,0.10)", "rgba(7,17,26,0)"] : ["rgba(0,177,79,0.08)", "rgba(245,247,251,0)"]}
+          style={styles.glow}
+          pointerEvents="none"
+        />
 
-          <View style={[styles.summaryCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
-            <Text style={[styles.summaryEyebrow, { color: theme.accent }]}>{t("sell_tokens.agent_matching_label", "AGENT MATCHING")}</Text>
-            <Text style={[styles.summaryTitle, { color: theme.text }]}>{t("sell_tokens.pick_best_agent", "Pick the best agent for this order")}</Text>
-            <Text style={[styles.summaryText, { color: theme.muted }]}>
-              {t("sell_tokens.agent_matching_desc", "Compare agent speed, capacity, and ratings before continuing to payment instructions.")}
+        {/* Order Summary Top Banner Card */}
+        <View style={[styles.summaryCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+          <View style={styles.summaryRow}>
+            <View style={styles.summaryCol}>
+              <Text style={[styles.summaryLabel, { color: theme.muted }]}>You are selling</Text>
+              <Text style={[styles.summaryAmountText, { color: theme.text }]}>
+                {formatAmount(userAmount, tokenType)}{" "}
+                <Text style={{ color: theme.accent, fontSize: 13 }}>{tokenType}</Text>
+              </Text>
+            </View>
+
+            <View style={[styles.swapIconCircle, { backgroundColor: theme.accentSoft, borderColor: theme.accentBorder }]}>
+              <Ionicons name="swap-horizontal" size={18} color={theme.accent} />
+            </View>
+
+            <View style={[styles.summaryCol, { alignItems: "flex-end" }]}>
+              <Text style={[styles.summaryLabel, { color: theme.muted }]}>You will receive (Cash)</Text>
+              <Text style={[styles.summaryAmountText, { color: theme.text }]}>
+                {formatAmount(userAmount, tokenType)}{" "}
+                <Text style={{ color: theme.accent, fontSize: 13 }}>{fiatCurrency}</Text>
+              </Text>
+            </View>
+          </View>
+
+          {/* Sub-notice banner inside summary card */}
+          <View style={[styles.subNoticeBox, { backgroundColor: theme.cardAlt, borderColor: theme.border }]}>
+            <Ionicons name="information-circle-outline" size={15} color={theme.blue} />
+            <Text style={[styles.subNoticeText, { color: theme.muted }]}>
+              Tokens are held in escrow until the agent confirms payment.
             </Text>
           </View>
+        </View>
 
-          {/* Sort Section */}
-          <View style={styles.sortSection}>
-            <View style={styles.sortHeader}>
-              <Text style={[styles.sortEyebrow, { color: theme.accent }]}>{t("sell_tokens.sort_agents_label", "SORT AGENTS")}</Text>
-              <Text style={[styles.sortHint, { color: theme.muted }]}>{t("sell_tokens.agents_available_count", "{{count}} available", { count: agents.length })}</Text>
-            </View>
-            <View style={styles.sortRow}>
-              {(["rating", "fastest", "capacity"] as const).map((key) => {
-                const active = sort === key;
-                return (
-                  <TouchableOpacity
-                    key={key}
-                    style={[
-                      styles.sortBtn,
-                      { backgroundColor: theme.card, borderColor: theme.border },
-                      active && { backgroundColor: theme.accent, borderColor: theme.accent },
-                    ]}
-                    onPress={() => setSort(key)}
-                    activeOpacity={0.7}
-                  >
-                    <Text
-                      style={[
-                        styles.sortBtnText,
-                        { color: theme.muted },
-                        active && { color: "#FFFFFF", fontWeight: "700" },
-                      ]}
-                    >
-                      {key === "rating" ? t("sell_tokens.sort_best_rated", "Best rated") : key === "fastest" ? t("sell_tokens.sort_fastest", "Fastest") : t("sell_tokens.sort_highest_capacity", "Highest capacity")}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          </View>
+        {/* FILTER & SORT Section */}
+        <Text style={[styles.sectionLabel, { color: theme.muted }]}>FILTER & SORT</Text>
+        <View style={styles.filterRow}>
+          <TouchableOpacity
+            style={[
+              styles.filterPill,
+              { backgroundColor: theme.card, borderColor: theme.border },
+              sort === "capacity" && { backgroundColor: theme.accentSoft, borderColor: theme.accent },
+            ]}
+            onPress={() => setSort("capacity")}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="trending-up" size={14} color={sort === "capacity" ? theme.accent : theme.muted} />
+            <Text style={[styles.filterPillText, { color: sort === "capacity" ? theme.accent : theme.text }]}>
+              Highest Capacity
+            </Text>
+            <Ionicons name="chevron-down" size={12} color={sort === "capacity" ? theme.accent : theme.muted} />
+          </TouchableOpacity>
 
-          {/* List of Agents */}
-          <View style={styles.listContainer}>
-            {agents.length === 0 ? (
-              <View style={[styles.empty, { backgroundColor: theme.card, borderColor: theme.border }]}>
-                <View style={[styles.emptyIcon, { backgroundColor: theme.cardAlt }]}>
-                  <Ionicons name="people-outline" size={48} color={theme.muted} />
-                </View>
-                <Text style={[styles.emptyText, { color: theme.text }]}>{t("sell_tokens.no_agents_available", "No agents available")}</Text>
-                <Text style={[styles.emptySubtext, { color: theme.muted }]}>
-                  {t("sell_tokens.try_again_later", "Please try again later or contact support")}
-                </Text>
-              </View>
-            ) : (
-              agents.map((item) => (
-                <AgentCard
-                  key={item.id}
-                  agent={item}
-                  onSelect={handleSelectAgent}
-                  userAmount={userAmount}
-                  tokenType={tokenType}
-                />
-              ))
-            )}
+          <TouchableOpacity
+            style={[
+              styles.filterPill,
+              { backgroundColor: theme.card, borderColor: theme.border },
+              sort === "rating" && { backgroundColor: theme.accentSoft, borderColor: theme.accent },
+            ]}
+            onPress={() => setSort("rating")}
+            activeOpacity={0.8}
+          >
+            <Text style={[styles.filterPillIconText, { color: sort === "rating" ? theme.accent : theme.muted }]}>%</Text>
+            <Text style={[styles.filterPillText, { color: sort === "rating" ? theme.accent : theme.text }]}>
+              Best Rate
+            </Text>
+            <Ionicons name="chevron-down" size={12} color={sort === "rating" ? theme.accent : theme.muted} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.filterPill,
+              { backgroundColor: theme.card, borderColor: theme.border },
+              sort === "fastest" && { backgroundColor: theme.accentSoft, borderColor: theme.accent },
+            ]}
+            onPress={() => setSort("fastest")}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="flash-outline" size={14} color={sort === "fastest" ? theme.accent : theme.muted} />
+            <Text style={[styles.filterPillText, { color: sort === "fastest" ? theme.accent : theme.text }]}>
+              Fastest
+            </Text>
+            <Ionicons name="chevron-down" size={12} color={sort === "fastest" ? theme.accent : theme.muted} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.filterIconBtn, { backgroundColor: theme.card, borderColor: theme.border }]}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="options-outline" size={16} color={theme.text} />
+          </TouchableOpacity>
+        </View>
+
+        {/* Table Column Headers Row */}
+        <View style={styles.tableHeaderRow}>
+          <Text style={[styles.tableHeaderCol1, { color: theme.muted }]}>Agent</Text>
+          <Text style={[styles.tableHeaderCol2, { color: theme.muted }]}>Capacity</Text>
+          <Text style={[styles.tableHeaderCol3, { color: theme.muted }]}>Rate</Text>
+          <Text style={[styles.tableHeaderCol4, { color: theme.muted }]}>Est. time</Text>
+        </View>
+
+        {/* Agent Cards List */}
+        {loading ? (
+          <View style={[styles.loadingCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+            <ActivityIndicator size="large" color={theme.accent} />
+            <Text style={[styles.loadingText, { color: theme.muted }]}>
+              {t("sell_tokens.finding_agents", "Finding available agents...")}
+            </Text>
           </View>
-          <View style={{ height: 40 }} />
-        </Animated.ScrollView>
-      )}
+        ) : agents.length === 0 ? (
+          <View style={[styles.emptyCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+            <Ionicons name="people-outline" size={44} color={theme.muted} />
+            <Text style={[styles.emptyTitle, { color: theme.text }]}>
+              {t("sell_tokens.no_agents_available", "No agents available")}
+            </Text>
+            <Text style={[styles.emptySubtitle, { color: theme.muted }]}>
+              {t("sell_tokens.try_again_later", "Please try again later or contact support.")}
+            </Text>
+          </View>
+        ) : (
+          agents.map((agent, index) => (
+            <AgentCard
+              key={agent.id}
+              agent={agent}
+              onSelect={handleSelectAgent}
+              userAmount={userAmount}
+              tokenType={tokenType}
+              isSelected={agent.id === selectedAgentId}
+              isRecommended={index === 0}
+            />
+          ))
+        )}
+
+        {/* Security Footer Notice Banner */}
+        <View style={[styles.securityCard, { backgroundColor: theme.blueSoft, borderColor: theme.blueBorder }]}>
+          <View style={[styles.infoIconBox, { backgroundColor: theme.blue + "22" }]}>
+            <Ionicons name="shield-checkmark-outline" size={18} color={theme.blue} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.securityText, { color: isDark ? "#BFDBFE" : "#1E3A8A" }]}>
+              Only verified agents are shown. Your tokens are secure until cash payment is confirmed.
+            </Text>
+          </View>
+          <TouchableOpacity style={{ flexDirection: "row", alignItems: "center", gap: 2 }}>
+            <Text style={[styles.learnMoreText, { color: theme.blue }]}>Learn more</Text>
+            <Ionicons name="chevron-forward" size={12} color={theme.blue} />
+          </TouchableOpacity>
+        </View>
+
+        <View style={{ height: 100 }} />
+      </Animated.ScrollView>
+
+      {/* Sticky Bottom Action CTA Button */}
+      <SafeAreaView edges={["bottom"]} style={[styles.bottomBarWrapper, { backgroundColor: theme.background, borderTopColor: theme.border }]}>
+        <TouchableOpacity
+          style={[styles.continueBtn, { backgroundColor: theme.accent }, !selectedAgentObj && styles.continueBtnDisabled]}
+          onPress={handleContinue}
+          disabled={!selectedAgentObj}
+          activeOpacity={0.85}
+        >
+          <Ionicons name="shield-checkmark-outline" size={20} color="#FFF" />
+          <Text style={styles.continueBtnText}>
+            Continue with {selectedAgentObj ? selectedAgentObj.full_name : "Selected Agent"}
+          </Text>
+          <Ionicons name="arrow-forward" size={18} color="#FFF" />
+        </TouchableOpacity>
+      </SafeAreaView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  headerWrapper: { borderBottomWidth: 1 },
+  headerWrapper: {
+    position: "absolute",
+    top: 0, left: 0, right: 0,
+    zIndex: 10,
+    borderBottomWidth: 1,
+  },
   headerContent: { paddingHorizontal: 16 },
   headerRow: {
     flexDirection: "row",
@@ -231,12 +345,9 @@ const styles = StyleSheet.create({
     paddingBottom: 16,
   },
   backButton: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    borderWidth: 1,
-    alignItems: "center",
-    justifyContent: "center",
+    width: 42, height: 42,
+    borderRadius: 21, borderWidth: 1,
+    alignItems: "center", justifyContent: "center",
     marginRight: 12,
   },
   headerText: { flex: 1 },
@@ -248,97 +359,130 @@ const styles = StyleSheet.create({
     top: 0, left: 0, right: 0,
     height: 200,
   },
-  loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center", padding: 24 },
-  loadingCard: {
-    padding: 32,
-    borderRadius: 24,
-    alignItems: "center",
-    gap: 14,
-    borderWidth: 1,
-    minWidth: 220,
-  },
-  loadingText: { fontSize: 14, fontWeight: "600" },
+
   summaryCard: {
-    borderRadius: 24,
-    padding: 20,
-    marginBottom: 20,
+    borderRadius: 22,
     borderWidth: 1,
-  },
-  summaryEyebrow: {
-    fontSize: 11,
-    fontWeight: "800",
-    letterSpacing: 0.5,
-    marginBottom: 8,
-  },
-  summaryTitle: {
-    fontSize: 22,
-    fontWeight: "800",
-    marginBottom: 8,
-    letterSpacing: -0.4,
-  },
-  summaryText: {
-    fontSize: 14,
-    lineHeight: 21,
-  },
-  sortSection: {
+    padding: 16,
     marginBottom: 16,
+    gap: 12,
   },
-  sortHeader: {
+  summaryRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 10,
-    paddingHorizontal: 4,
+    justifyContent: "space-between",
   },
-  sortEyebrow: {
-    fontSize: 11,
-    fontWeight: "800",
-    letterSpacing: 0.8,
+  summaryCol: { flex: 1 },
+  summaryLabel: { fontSize: 11, fontWeight: "600", marginBottom: 2 },
+  summaryAmountText: { fontSize: 20, fontWeight: "900", letterSpacing: -0.5 },
+  swapIconCircle: {
+    width: 36, height: 36, borderRadius: 18,
+    borderWidth: 1, alignItems: "center", justifyContent: "center",
+    marginHorizontal: 8,
   },
-  sortHint: {
-    fontSize: 12,
-    fontWeight: "600",
-  },
-  sortRow: {
+
+  subNoticeBox: {
     flexDirection: "row",
+    alignItems: "center",
     gap: 8,
-  },
-  sortBtn: {
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 12,
     borderWidth: 1,
   },
-  sortBtnText: {
-    fontSize: 13,
-    fontWeight: "600",
+  subNoticeText: { fontSize: 11, fontWeight: "500", flex: 1 },
+
+  sectionLabel: {
+    fontSize: 10,
+    fontWeight: "800",
+    letterSpacing: 0.8,
+    marginBottom: 8,
   },
-  listContainer: {
-    gap: 12,
-  },
-  empty: {
+  filterRow: {
+    flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 48,
-    borderRadius: 24,
-    borderWidth: 1,
+    gap: 8,
+    marginBottom: 14,
   },
-  emptyIcon: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+  filterPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 14,
+    borderWidth: 1.5,
+  },
+  filterPillIconText: { fontSize: 12, fontWeight: "900" },
+  filterPillText: { fontSize: 12, fontWeight: "700" },
+  filterIconBtn: {
+    width: 38, height: 38, borderRadius: 14, borderWidth: 1.5,
+    alignItems: "center", justifyContent: "center", marginLeft: "auto",
+  },
+
+  tableHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 14,
+    marginBottom: 10,
+  },
+  tableHeaderCol1: { flex: 2.2, fontSize: 10, fontWeight: "700", textTransform: "uppercase" },
+  tableHeaderCol2: { flex: 2, fontSize: 10, fontWeight: "700", textTransform: "uppercase" },
+  tableHeaderCol3: { flex: 1.8, fontSize: 10, fontWeight: "700", textTransform: "uppercase" },
+  tableHeaderCol4: { flex: 1.5, fontSize: 10, fontWeight: "700", textTransform: "uppercase", textAlign: "right" },
+
+  loadingCard: {
+    padding: 30,
+    borderRadius: 20,
+    borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 16,
+    gap: 12,
   },
-  emptyText: {
-    fontSize: 18,
-    fontWeight: "800",
-    marginBottom: 6,
+  loadingText: { fontSize: 14, fontWeight: "600" },
+
+  emptyCard: {
+    padding: 30,
+    borderRadius: 20,
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
   },
-  emptySubtext: {
-    fontSize: 13,
-    textAlign: "center",
-    paddingHorizontal: 24,
-    lineHeight: 18,
+  emptyTitle: { fontSize: 16, fontWeight: "800" },
+  emptySubtitle: { fontSize: 12, fontWeight: "500", textAlign: "center" },
+
+  securityCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    padding: 14,
+    borderRadius: 18,
+    borderWidth: 1,
+    marginTop: 10,
   },
+  infoIconBox: {
+    width: 32, height: 32, borderRadius: 10,
+    alignItems: "center", justifyContent: "center", flexShrink: 0,
+  },
+  securityText: { fontSize: 11, lineHeight: 16, fontWeight: "500" },
+  learnMoreText: { fontSize: 11, fontWeight: "700" },
+
+  bottomBarWrapper: {
+    position: "absolute",
+    bottom: 0, left: 0, right: 0,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    borderTopWidth: 1,
+  },
+  continueBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    height: 56,
+    borderRadius: 18,
+  },
+  continueBtnDisabled: { opacity: 0.4 },
+  continueBtnText: { color: "#FFF", fontSize: 16, fontWeight: "800" },
 });

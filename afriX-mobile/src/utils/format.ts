@@ -145,17 +145,30 @@ export const formatTime = (dateString: string | Date) => {
 };
 
 /**
- * Format USD equivalent estimate for tokens (e.g. 10,000 NT -> ≈ $6.70 USD).
- * Exact rates matching backend constants.js:
- * 1 NT = $0.00067 USD (1 USD = 1500 NT)
- * 1 CT = $0.00177 USD (1 USD = 565 CT)
- * 1 USDT = $1.00 USD
+ * Format USD equivalent estimate for tokens (e.g. 10,000 NT -> ≈ $6.67 USD).
+ * Uses live dynamic exchange rates from useWalletStore / backend when provided,
+ * otherwise falls back to default backend constants (USDT_TO_NT: 1500, USDT_TO_CT: 565).
  */
-export function formatUsdEquivalent(amountNum: number, tokenType: TokenType = "NT"): string {
+export function formatUsdEquivalent(
+    amountNum: number,
+    tokenType: TokenType = "NT",
+    dynamicRates?: { USDT_TO_NT?: number; USDT_TO_CT?: number }
+): string {
     if (isNaN(amountNum) || amountNum <= 0) return "≈ $0.00 USD";
-    let rate = 0.00067; // NT rate (NGN_TO_USD)
-    if (tokenType === "CT") rate = 0.00177; // CT rate (XOF_TO_USD)
-    if (tokenType === "USDT") rate = 1.0;
+
+    let rate = 0.00067; // Default fallback (1 / 1500)
+    if (tokenType === "NT") {
+        rate = dynamicRates?.USDT_TO_NT && dynamicRates.USDT_TO_NT > 0
+            ? 1 / dynamicRates.USDT_TO_NT
+            : 0.00067;
+    } else if (tokenType === "CT") {
+        rate = dynamicRates?.USDT_TO_CT && dynamicRates.USDT_TO_CT > 0
+            ? 1 / dynamicRates.USDT_TO_CT
+            : 0.00177;
+    } else if (tokenType === "USDT") {
+        rate = 1.0;
+    }
+
     const usdValue = amountNum * rate;
     return `≈ $${usdValue.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD`;
 }

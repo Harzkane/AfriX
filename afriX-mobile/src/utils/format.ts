@@ -145,13 +145,16 @@ export const formatTime = (dateString: string | Date) => {
 };
 
 /**
- * Format USD equivalent estimate for tokens (e.g. 10,000 NT -> ≈ $6.80 USD).
- * Rates: 1 NT = $0.00068, 1 CT = $0.0016, 1 USDT = $1.00.
+ * Format USD equivalent estimate for tokens (e.g. 10,000 NT -> ≈ $6.70 USD).
+ * Exact rates matching backend constants.js:
+ * 1 NT = $0.00067 USD (1 USD = 1500 NT)
+ * 1 CT = $0.00177 USD (1 USD = 565 CT)
+ * 1 USDT = $1.00 USD
  */
 export function formatUsdEquivalent(amountNum: number, tokenType: TokenType = "NT"): string {
     if (isNaN(amountNum) || amountNum <= 0) return "≈ $0.00 USD";
-    let rate = 0.00068; // NT default
-    if (tokenType === "CT") rate = 0.0016;
+    let rate = 0.00067; // NT rate (NGN_TO_USD)
+    if (tokenType === "CT") rate = 0.00177; // CT rate (XOF_TO_USD)
     if (tokenType === "USDT") rate = 1.0;
     const usdValue = amountNum * rate;
     return `≈ $${usdValue.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD`;

@@ -8,7 +8,6 @@ import {
   ActivityIndicator,
   useColorScheme,
   Animated,
-  ScrollView,
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
@@ -215,22 +214,6 @@ export default function SelectAgentScreen() {
             style={[
               styles.filterPill,
               { backgroundColor: theme.card, borderColor: theme.border },
-              sort === "rating" && { backgroundColor: theme.accentSoft, borderColor: theme.accent },
-            ]}
-            onPress={() => setSort("rating")}
-            activeOpacity={0.8}
-          >
-            <Text style={[styles.filterPillIconText, { color: sort === "rating" ? theme.accent : theme.muted }]}>%</Text>
-            <Text style={[styles.filterPillText, { color: sort === "rating" ? theme.accent : theme.text }]}>
-              Best Rate
-            </Text>
-            <Ionicons name="chevron-down" size={12} color={sort === "rating" ? theme.accent : theme.muted} />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.filterPill,
-              { backgroundColor: theme.card, borderColor: theme.border },
               sort === "fastest" && { backgroundColor: theme.accentSoft, borderColor: theme.accent },
             ]}
             onPress={() => setSort("fastest")}
@@ -255,8 +238,7 @@ export default function SelectAgentScreen() {
         <View style={styles.tableHeaderRow}>
           <Text style={[styles.tableHeaderCol1, { color: theme.muted }]}>Agent</Text>
           <Text style={[styles.tableHeaderCol2, { color: theme.muted }]}>Capacity</Text>
-          <Text style={[styles.tableHeaderCol3, { color: theme.muted }]}>Rate</Text>
-          <Text style={[styles.tableHeaderCol4, { color: theme.muted }]}>Est. time</Text>
+          <Text style={[styles.tableHeaderCol3, { color: theme.muted }]}>Est. time</Text>
         </View>
 
         {/* Agent Cards List */}
@@ -301,7 +283,11 @@ export default function SelectAgentScreen() {
               Only verified agents are shown. Your tokens are secure until cash payment is confirmed.
             </Text>
           </View>
-          <TouchableOpacity style={{ flexDirection: "row", alignItems: "center", gap: 2 }}>
+          <TouchableOpacity
+            style={{ flexDirection: "row", alignItems: "center", gap: 2 }}
+            onPress={() => router.push("/help-support/faq")}
+            activeOpacity={0.8}
+          >
             <Text style={[styles.learnMoreText, { color: theme.blue }]}>Learn more</Text>
             <Ionicons name="chevron-forward" size={12} color={theme.blue} />
           </TouchableOpacity>
@@ -413,7 +399,6 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     borderWidth: 1.5,
   },
-  filterPillIconText: { fontSize: 12, fontWeight: "900" },
   filterPillText: { fontSize: 12, fontWeight: "700" },
   filterIconBtn: {
     width: 38, height: 38, borderRadius: 14, borderWidth: 1.5,
@@ -426,10 +411,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     marginBottom: 10,
   },
-  tableHeaderCol1: { flex: 2.2, fontSize: 10, fontWeight: "700", textTransform: "uppercase" },
-  tableHeaderCol2: { flex: 2, fontSize: 10, fontWeight: "700", textTransform: "uppercase" },
-  tableHeaderCol3: { flex: 1.8, fontSize: 10, fontWeight: "700", textTransform: "uppercase" },
-  tableHeaderCol4: { flex: 1.5, fontSize: 10, fontWeight: "700", textTransform: "uppercase", textAlign: "right" },
+  tableHeaderCol1: { flex: 2.8, fontSize: 10, fontWeight: "700", textTransform: "uppercase" },
+  tableHeaderCol2: { flex: 2.2, fontSize: 10, fontWeight: "700", textTransform: "uppercase" },
+  tableHeaderCol3: { flex: 1.8, fontSize: 10, fontWeight: "700", textTransform: "uppercase", textAlign: "right" },
 
   loadingCard: {
     padding: 30,

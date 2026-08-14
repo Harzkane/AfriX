@@ -102,12 +102,7 @@ export const AgentCard: React.FC<AgentCardProps> = ({
     border: isDark ? "#1E2A3A" : "#E2E8F0",
     accent: "#00B14F",
     accentSoft: isDark ? "rgba(0,177,79,0.14)" : "#EAF8EF",
-    warning: "#F59E0B",
-    warningSoft: isDark ? "rgba(245,158,11,0.12)" : "#FFFBEB",
     danger: "#EF4444",
-    dangerSoft: isDark ? "rgba(239,68,68,0.12)" : "#FEF2F2",
-    blue: "#3B82F6",
-    blueSoft: isDark ? "rgba(59,130,246,0.12)" : "#EFF6FF",
   };
 
   const initials = agent.full_name
@@ -137,19 +132,6 @@ export const AgentCard: React.FC<AgentCardProps> = ({
   const canHandleAmount = canHandleCapacity && canHandleMax;
 
   const capacityPercent = Math.min(100, Math.max(5, Math.round((capacityInLocal / 5000000) * 100))) || 75;
-
-  // Rate tag badge calculation
-  const commission = agent.commission_rate != null ? Number(agent.commission_rate) : 0;
-  const rateValue = (1 - commission).toFixed(3);
-  let rateTag = "% Best Rate";
-  let rateTagColor = theme.accent;
-  if (commission > 0.01) {
-    rateTag = "% Great Rate";
-    rateTagColor = theme.blue;
-  } else if (commission > 0.02) {
-    rateTag = "% Good Rate";
-    rateTagColor = theme.warning;
-  }
 
   const disabled = userAmount != null && userAmount > 0 && !canHandleAmount;
 
@@ -257,19 +239,8 @@ export const AgentCard: React.FC<AgentCardProps> = ({
             </Text>
           </View>
 
-          {/* Column 3: Rate */}
+          {/* Column 3: Est. Time & Action */}
           <View style={styles.col3}>
-            <Text style={[styles.rateLabel, { color: theme.muted }]}>1 {tokenType} =</Text>
-            <Text style={[styles.rateValueText, { color: theme.accent }]}>
-              {rateValue} {currencyCode}
-            </Text>
-            <View style={[styles.rateBadgePill, { backgroundColor: rateTagColor + "20", borderColor: rateTagColor + "40" }]}>
-              <Text style={[styles.rateBadgeText, { color: rateTagColor }]}>{rateTag}</Text>
-            </View>
-          </View>
-
-          {/* Column 4: Est. Time & Action */}
-          <View style={styles.col4}>
             <View style={styles.timeRow}>
               <Ionicons name="flash" size={12} color="#F59E0B" />
               <Text style={[styles.timeText, { color: theme.text }]}>
@@ -331,7 +302,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   col1: {
-    flex: 2.2,
+    flex: 2.8,
   },
   avatarRow: {
     flexDirection: "row",
@@ -390,7 +361,7 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
   col2: {
-    flex: 2,
+    flex: 2.2,
     gap: 2,
   },
   capacityValueText: {
@@ -417,30 +388,6 @@ const styles = StyleSheet.create({
   },
   col3: {
     flex: 1.8,
-    alignItems: "flex-start",
-    gap: 2,
-  },
-  rateLabel: {
-    fontSize: 10,
-    fontWeight: "600",
-  },
-  rateValueText: {
-    fontSize: 12,
-    fontWeight: "800",
-  },
-  rateBadgePill: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
-    borderWidth: 1,
-    marginTop: 2,
-  },
-  rateBadgeText: {
-    fontSize: 9,
-    fontWeight: "800",
-  },
-  col4: {
-    flex: 1.5,
     alignItems: "flex-end",
     gap: 2,
   },

@@ -19,6 +19,7 @@ import * as LocalAuthentication from "expo-local-authentication";
 import { useTransferStore, useWalletStore } from "@/stores";
 import { LinearGradient } from "expo-linear-gradient";
 import { formatAmount } from "@/utils/format";
+import * as Haptics from "expo-haptics";
 import { useTranslation } from "react-i18next";
 
 export default function ConfirmTransferScreen() {
@@ -54,14 +55,11 @@ export default function ConfirmTransferScreen() {
     border: isDark ? "#1E2A3A" : "#E2E8F0",
     accent: "#00B14F",
     accentSoft: isDark ? "rgba(0,177,79,0.14)" : "#EAF8EF",
-    warning: "#F59E0B",
-    warningSoft: isDark ? "rgba(245,158,11,0.12)" : "#FFFBEB",
-    warningBorder: isDark ? "rgba(245,158,11,0.25)" : "#FEF3C7",
-    danger: "#EF4444",
-    dangerSoft: isDark ? "rgba(239,68,68,0.12)" : "#FEF2F2",
-    dangerBorder: isDark ? "rgba(239,68,68,0.25)" : "#FEE2E2",
-    successSoft: isDark ? "rgba(0,177,79,0.12)" : "#F0FDF4",
-    successBorder: isDark ? "rgba(0,177,79,0.25)" : "#D1FAE5",
+    accentBorder: isDark ? "rgba(0,177,79,0.3)" : "#BBF7D0",
+    blue: "#3B82F6",
+    blueSoft: isDark ? "rgba(59,130,246,0.12)" : "#EFF6FF",
+    blueBorder: isDark ? "rgba(59,130,246,0.25)" : "#BFDBFE",
+    inputBg: isDark ? "#111C2B" : "#F9FAFB",
   };
 
   const handleHeaderLayout = (e: any) => {
@@ -109,6 +107,7 @@ export default function ConfirmTransferScreen() {
 
   const handleConfirm = async () => {
     try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       await executeTransfer();
       await fetchWallets();
       router.replace("/modals/send-tokens/success");
@@ -139,6 +138,16 @@ export default function ConfirmTransferScreen() {
     }
   };
 
+  const handleFeeInfoAlert = () => {
+    Alert.alert(
+      t("send_tokens.confirm.fee_info_title", "Network Fee (0.5%)"),
+      t("send_tokens.confirm.fee_info_desc", "A standard 0.5% fee is charged to cover blockchain transaction processing and validator execution."),
+      [{ text: t("common.ok", "OK") }]
+    );
+  };
+
+  const isProcessing = loading || authenticating;
+
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       {/* Collapsible Header */}
@@ -152,12 +161,14 @@ export default function ConfirmTransferScreen() {
               onPress={() => router.back()}
               style={[styles.backButton, { backgroundColor: theme.card, borderColor: theme.border }]}
               activeOpacity={0.85}
-              disabled={loading || authenticating}
+              disabled={isProcessing}
             >
               <Ionicons name="arrow-back" size={22} color={theme.text} />
             </TouchableOpacity>
             <View style={styles.headerText}>
-              <Text style={[styles.headerTitle, { color: theme.text }]}>{t("send_tokens.confirm.header_title", "Review Transfer")}</Text>
+              <Text style={[styles.headerTitle, { color: theme.text }]}>
+                {t("send_tokens.confirm.header_title", "Review Transfer")}
+              </Text>
               <Animated.View style={{ opacity: subtitleOpacity, maxHeight: subtitleMaxHeight, marginTop: subtitleMargin, overflow: "hidden" }}>
                 <Text style={[styles.headerSubtitle, { color: theme.muted }]}>
                   {t("send_tokens.confirm.header_subtitle", "Double-check everything before confirming.")}
@@ -183,131 +194,172 @@ export default function ConfirmTransferScreen() {
           pointerEvents="none"
         />
 
-        <View style={[styles.introCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
-          <Text style={[styles.introEyebrow, { color: theme.accent }]}>{t("send_tokens.confirm.intro_eyebrow", "CONFIRMATION")}</Text>
-          <Text style={[styles.introTitle, { color: theme.text }]}>{t("send_tokens.confirm.intro_title", "Confirm Your Transfer")}</Text>
-          <Text style={[styles.introSubtitle, { color: theme.muted }]}>
-            {t("send_tokens.confirm.intro_desc", "Review details of the recipient and amounts carefully before executing this transaction.")}
-          </Text>
-        </View>
-
-        {/* Details Card */}
-        <View style={[styles.detailsCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
-          <LinearGradient
-            colors={isDark ? ["rgba(0,177,79,0.08)", "rgba(14,23,38,0)"] : ["rgba(0,177,79,0.05)", "rgba(255,255,255,0)"]}
-            style={StyleSheet.absoluteFill}
-          />
-          <Text style={[styles.summaryLabel, { color: theme.muted }]}>{t("send_tokens.confirm.label_total_debit", "Total Debit")}</Text>
-          <View style={styles.amountContainer}>
-            <Text style={[styles.summaryAmount, { color: theme.text }]}>{formatAmount(amountNum, tokenType)}</Text>
-            <Text style={[styles.tokenTag, { color: theme.accent }]}>{tokenType}</Text>
+        {/* CONFIRMATION Banner Card */}
+        <View style={[styles.bannerCard, { backgroundColor: theme.card, borderColor: theme.accentBorder }]}>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.bannerEyebrow, { color: theme.accent }]}>
+              {t("send_tokens.confirm.intro_eyebrow", "CONFIRMATION")}
+            </Text>
+            <Text style={[styles.bannerTitle, { color: theme.text }]}>
+              {t("send_tokens.confirm.intro_title", "Confirm Your Transfer")}
+            </Text>
+            <Text style={[styles.bannerSubtitle, { color: theme.muted }]}>
+              {t("send_tokens.confirm.intro_desc", "Review the details below to ensure everything is correct before you confirm.")}
+            </Text>
           </View>
 
-          <View style={[styles.divider, { backgroundColor: theme.border }]} />
+          {/* Shield Badge */}
+          <View style={[styles.graphicBox, { backgroundColor: theme.accentSoft }]}>
+            <Ionicons name="shield-checkmark-outline" size={28} color={theme.accent} />
+          </View>
+        </View>
 
-          {/* Recipient Row */}
+        {/* TOTAL DEBIT Hero Card */}
+        <View style={[styles.totalDebitCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+          <Text style={[styles.debitEyebrow, { color: theme.muted }]}>
+            {t("send_tokens.confirm.label_total_debit", "TOTAL DEBIT")}
+          </Text>
+
+          <Text style={[styles.debitHeroAmount, { color: theme.text }]} numberOfLines={1}>
+            {formatAmount(amountNum, tokenType)} <Text style={{ color: theme.accent }}>{tokenType}</Text>
+          </Text>
+
+          {/* Charge Sub-badge */}
+          <View style={[styles.chargePill, { backgroundColor: theme.inputBg, borderColor: theme.border }]}>
+            <Ionicons name="lock-closed" size={12} color={theme.accent} />
+            <Text style={[styles.chargePillText, { color: theme.muted }]}>
+              You will be charged <Text style={{ color: theme.accent, fontWeight: "800" }}>{formatAmount(total, tokenType)} {tokenType}</Text>
+            </Text>
+          </View>
+        </View>
+
+        {/* Itemized Details Card */}
+        <View style={[styles.detailsCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+          {/* Recipient Email */}
           <View style={styles.detailRow}>
-            <View style={[styles.detailIconBg, { backgroundColor: theme.accentSoft }]}>
-              <Ionicons name="person-outline" size={18} color={theme.accent} />
+            <View style={[styles.detailIconBox, { backgroundColor: theme.accentSoft }]}>
+              <Ionicons name="person" size={16} color={theme.accent} />
             </View>
-            <View style={styles.detailTextContainer}>
-              <Text style={[styles.detailLabel, { color: theme.muted }]}>{t("send_tokens.confirm.label_recipient_email", "Recipient Email")}</Text>
-              <Text style={[styles.detailValue, { color: theme.text }]} numberOfLines={1}>
-                {recipientEmail}
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.detailLabel, { color: theme.muted }]}>RECIPIENT EMAIL</Text>
+              <Text style={[styles.detailValueText, { color: theme.text }]} numberOfLines={1}>
+                {recipientEmail || "user1_ng@gmail.com"}
               </Text>
             </View>
           </View>
 
-          {/* Token Row */}
+          {/* Token Type */}
           <View style={styles.detailRow}>
-            <View style={[styles.detailIconBg, { backgroundColor: theme.accentSoft }]}>
-              <Ionicons name="wallet-outline" size={18} color={theme.accent} />
+            <View style={[styles.detailIconBox, { backgroundColor: theme.accentSoft }]}>
+              <Ionicons name="wallet" size={16} color={theme.accent} />
             </View>
-            <View style={styles.detailTextContainer}>
-              <Text style={[styles.detailLabel, { color: theme.muted }]}>{t("send_tokens.confirm.label_token_type", "Token Type")}</Text>
-              <Text style={[styles.detailValue, { color: theme.text }]}>{tokenType}</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.detailLabel, { color: theme.muted }]}>TOKEN TYPE</Text>
+              <Text style={[styles.detailValueText, { color: theme.text }]}>
+                {tokenType}
+              </Text>
             </View>
           </View>
 
-          {/* Subtotal Row */}
+          {/* Transfer Amount */}
           <View style={styles.detailRow}>
-            <View style={[styles.detailIconBg, { backgroundColor: theme.accentSoft }]}>
-              <Ionicons name="cash-outline" size={18} color={theme.accent} />
+            <View style={[styles.detailIconBox, { backgroundColor: theme.accentSoft }]}>
+              <Ionicons name="cash-outline" size={16} color={theme.accent} />
             </View>
-            <View style={styles.detailTextContainer}>
-              <Text style={[styles.detailLabel, { color: theme.muted }]}>{t("send_tokens.confirm.label_transfer_amount", "Transfer Amount")}</Text>
-              <Text style={[styles.detailValue, { color: theme.text }]}>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.detailLabel, { color: theme.muted }]}>TRANSFER AMOUNT</Text>
+              <Text style={[styles.detailValueText, { color: theme.text }]}>
                 {formatAmount(amountNum, tokenType)} {tokenType}
               </Text>
             </View>
           </View>
 
-          {/* Fee Row */}
+          {/* Network Fee (0.5%) */}
           <View style={styles.detailRow}>
-            <View style={[styles.detailIconBg, { backgroundColor: theme.accentSoft }]}>
-              <Ionicons name="swap-horizontal-outline" size={18} color={theme.accent} />
+            <View style={[styles.detailIconBox, { backgroundColor: theme.accentSoft }]}>
+              <Ionicons name="swap-horizontal" size={16} color={theme.accent} />
             </View>
-            <View style={styles.detailTextContainer}>
-              <Text style={[styles.detailLabel, { color: theme.muted }]}>{t("send_tokens.confirm.label_network_fee", "Network Fee (0.5%)")}</Text>
-              <Text style={[styles.detailValue, { color: theme.text }]}>
+            <View style={{ flex: 1 }}>
+              <TouchableOpacity onPress={handleFeeInfoAlert} activeOpacity={0.7} style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                <Text style={[styles.detailLabel, { color: theme.muted }]}>NETWORK FEE (0.5%)</Text>
+                <Ionicons name="information-circle-outline" size={13} color={theme.muted} />
+              </TouchableOpacity>
+              <Text style={[styles.detailValueText, { color: theme.text }]}>
                 {formatAmount(fee, tokenType)} {tokenType}
               </Text>
             </View>
           </View>
 
-          {/* Note Row */}
+          {/* Optional Note / Message if provided */}
           {!!note && (
             <View style={styles.detailRow}>
-              <View style={[styles.detailIconBg, { backgroundColor: theme.accentSoft }]}>
-                <Ionicons name="document-text-outline" size={18} color={theme.accent} />
+              <View style={[styles.detailIconBox, { backgroundColor: theme.blueSoft }]}>
+                <Ionicons name="chatbubble-outline" size={16} color={theme.blue} />
               </View>
-              <View style={styles.detailTextContainer}>
-                <Text style={[styles.detailLabel, { color: theme.muted }]}>{t("send_tokens.confirm.label_note", "Note")}</Text>
-                <Text style={[styles.detailValue, { color: theme.text, fontWeight: "500" }]}>{note}</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.detailLabel, { color: theme.muted }]}>MESSAGE</Text>
+                <Text style={[styles.detailValueText, { color: theme.text }]}>
+                  {note}
+                </Text>
               </View>
             </View>
           )}
+
+          <View style={[styles.divider, { backgroundColor: theme.border }]} />
+
+          {/* TOTAL DEBIT */}
+          <View style={styles.totalRow}>
+            <Text style={[styles.totalRowLabel, { color: theme.muted }]}>TOTAL DEBIT</Text>
+            <Text style={[styles.totalRowValue, { color: theme.accent }]}>
+              {formatAmount(total, tokenType)} {tokenType}
+            </Text>
+          </View>
         </View>
 
-        {/* Security Info Card */}
-        <View style={[styles.securityBox, { backgroundColor: theme.successSoft, borderColor: theme.successBorder }]}>
-          <View style={[styles.securityIconBg, { backgroundColor: theme.card }]}>
-            <Ionicons name="shield-checkmark" size={24} color={theme.accent} />
+        {/* Secure Settlement Banner */}
+        <View style={[styles.securityCard, { backgroundColor: theme.accentSoft, borderColor: theme.accentBorder }]}>
+          <View style={[styles.securityIconBox, { backgroundColor: theme.accent }]}>
+            <Ionicons name="shield-checkmark" size={18} color="#FFF" />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={[styles.securityTitle, { color: isDark ? "#4ADE80" : "#166534" }]}>{t("send_tokens.confirm.security_title", "Secure Settlement")}</Text>
-            <Text style={[styles.securityTextContent, { color: isDark ? "#86EFAC" : "#15803D" }]}>
+            <Text style={[styles.securityTitle, { color: isDark ? "#4ADE80" : "#15803D" }]}>
+              {t("send_tokens.confirm.security_title", "Secure Settlement")}
+            </Text>
+            <Text style={[styles.securityDesc, { color: isDark ? "#BBF7D0" : "#166534" }]}>
               {t("send_tokens.confirm.security_desc", "This transaction is signed, encrypted, and settled instantly on-chain. It cannot be reversed once broadcasted.")}
             </Text>
           </View>
         </View>
 
-        {/* Error message card */}
-        {!!error && (
-          <View style={[styles.errorBox, { backgroundColor: theme.dangerSoft, borderColor: theme.dangerBorder }]}>
-            <Ionicons name="alert-circle" size={18} color={theme.danger} />
-            <Text style={[styles.errorText, { color: theme.danger }]}>{error}</Text>
-          </View>
-        )}
-
-        {/* ACTION BUTTONS */}
+        {/* Primary CTA Button */}
         <TouchableOpacity
-          style={[styles.confirmBtn, { backgroundColor: theme.accent }, (loading || authenticating) && styles.confirmBtnDisabled]}
+          style={[styles.confirmBtn, { backgroundColor: theme.accent }]}
           onPress={handleBiometricAuth}
-          disabled={loading || authenticating}
+          disabled={isProcessing}
           activeOpacity={0.85}
         >
-          {loading || authenticating ? (
-            <ActivityIndicator color="#FFFFFF" />
+          {isProcessing ? (
+            <ActivityIndicator color="#FFF" size="small" />
           ) : (
             <>
-              <Text style={styles.confirmBtnText}>{t("send_tokens.confirm.btn_confirm", "Confirm Transfer")}</Text>
-              <Ionicons name="flash" size={18} color="#FFFFFF" />
+              <Ionicons name="lock-closed" size={18} color="#FFF" />
+              <Text style={styles.confirmBtnText}>
+                {t("send_tokens.confirm.btn_confirm", "Confirm Transfer")}
+              </Text>
+              <Ionicons name="flash" size={16} color="#FFF" />
             </>
           )}
         </TouchableOpacity>
 
-        <View style={{ height: 40 }} />
+        {/* Footer Note */}
+        <View style={styles.footerNoteRow}>
+          <Ionicons name="information-circle-outline" size={14} color={theme.muted} />
+          <Text style={[styles.footerNoteText, { color: theme.muted }]}>
+            {t("send_tokens.confirm.footer_note", "Transfers are instant and cannot be reversed.")}
+          </Text>
+        </View>
+
+        <View style={{ height: 30 }} />
       </Animated.ScrollView>
     </View>
   );
@@ -343,146 +395,66 @@ const styles = StyleSheet.create({
     top: 0, left: 0, right: 0,
     height: 200,
   },
-  introCard: {
-    borderRadius: 24,
-    padding: 20,
-    marginBottom: 16,
-    borderWidth: 1,
-  },
-  introEyebrow: {
-    fontSize: 11,
-    fontWeight: "800",
-    letterSpacing: 0.5,
-    marginBottom: 8,
-  },
-  introTitle: {
-    fontSize: 22,
-    fontWeight: "800",
-    marginBottom: 8,
-    letterSpacing: -0.4,
-  },
-  introSubtitle: {
-    fontSize: 14,
-    lineHeight: 21,
-  },
-  detailsCard: {
-    borderRadius: 28,
-    borderWidth: 1,
-    padding: 20,
-    marginBottom: 16,
-    overflow: "hidden",
-  },
-  summaryLabel: {
-    fontSize: 12,
-    fontWeight: "700",
-    textTransform: "uppercase",
-    letterSpacing: 0.8,
-    textAlign: "center",
-    marginBottom: 8,
-  },
-  amountContainer: {
+
+  bannerCard: {
     flexDirection: "row",
-    alignItems: "baseline",
-    justifyContent: "center",
-    marginBottom: 20,
-    gap: 6,
-  },
-  summaryAmount: {
-    fontSize: 38,
-    fontWeight: "900",
-    letterSpacing: -1,
-  },
-  tokenTag: {
-    fontSize: 18,
-    fontWeight: "700",
-  },
-  divider: {
-    height: 1,
-    marginBottom: 20,
-  },
-  detailRow: {
-    flexDirection: "row",
+    alignItems: "center",
+    borderRadius: 22,
+    borderWidth: 1,
+    padding: 16,
     marginBottom: 16,
     gap: 12,
   },
-  detailIconBg: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
+  bannerEyebrow: { fontSize: 10, fontWeight: "800", letterSpacing: 0.8, marginBottom: 2 },
+  bannerTitle: { fontSize: 18, fontWeight: "800", marginBottom: 4, letterSpacing: -0.4 },
+  bannerSubtitle: { fontSize: 12, lineHeight: 17, fontWeight: "500" },
+  graphicBox: {
+    width: 52, height: 52, borderRadius: 20,
+    alignItems: "center", justifyContent: "center",
+  },
+
+  totalDebitCard: {
+    borderRadius: 24, borderWidth: 1, padding: 20, alignItems: "center", marginBottom: 16, gap: 10,
+  },
+  debitEyebrow: { fontSize: 11, fontWeight: "800", letterSpacing: 0.8 },
+  debitHeroAmount: { fontSize: 32, fontWeight: "900", letterSpacing: -0.8 },
+  chargePill: {
+    flexDirection: "row", alignItems: "center", gap: 6,
+    paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1,
+  },
+  chargePillText: { fontSize: 12, fontWeight: "600" },
+
+  detailsCard: {
+    borderRadius: 24, borderWidth: 1, padding: 18, marginBottom: 16, gap: 14,
+  },
+  detailRow: { flexDirection: "row", alignItems: "center", gap: 12 },
+  detailIconBox: {
+    width: 36, height: 36, borderRadius: 12, alignItems: "center", justifyContent: "center",
+  },
+  detailLabel: { fontSize: 10, fontWeight: "800", letterSpacing: 0.5, marginBottom: 2 },
+  detailValueText: { fontSize: 14, fontWeight: "700" },
+  divider: { height: 1, marginVertical: 4 },
+  totalRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  totalRowLabel: { fontSize: 12, fontWeight: "800", letterSpacing: 0.5 },
+  totalRowValue: { fontSize: 18, fontWeight: "900" },
+
+  securityCard: {
+    flexDirection: "row", gap: 12, padding: 14, borderRadius: 18, borderWidth: 1, marginBottom: 20,
     alignItems: "center",
-    justifyContent: "center",
   },
-  detailTextContainer: {
-    flex: 1,
+  securityIconBox: {
+    width: 36, height: 36, borderRadius: 12, alignItems: "center", justifyContent: "center", flexShrink: 0,
   },
-  detailLabel: {
-    fontSize: 11,
-    fontWeight: "700",
-    textTransform: "uppercase",
-    marginBottom: 4,
-  },
-  detailValue: {
-    fontSize: 15,
-    fontWeight: "800",
-  },
-  securityBox: {
-    flexDirection: "row",
-    padding: 16,
-    borderRadius: 22,
-    gap: 14,
-    borderWidth: 1,
-    marginBottom: 24,
-  },
-  securityIconBg: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#00B14F",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  securityTitle: {
-    fontSize: 15,
-    fontWeight: "800",
-    marginBottom: 4,
-  },
-  securityTextContent: {
-    fontSize: 13,
-    lineHeight: 19,
-    fontWeight: "500",
-  },
-  errorBox: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 14,
-    borderRadius: 16,
-    gap: 10,
-    borderWidth: 1,
-    marginBottom: 20,
-  },
-  errorText: {
-    flex: 1,
-    fontSize: 13,
-    fontWeight: "700",
-  },
+  securityTitle: { fontSize: 13, fontWeight: "800", marginBottom: 2 },
+  securityDesc: { fontSize: 12, lineHeight: 17, fontWeight: "500" },
+
   confirmBtn: {
-    height: 58,
-    borderRadius: 20,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
+    flexDirection: "row", height: 56, borderRadius: 18, alignItems: "center", justifyContent: "center", gap: 8,
   },
-  confirmBtnDisabled: {
-    opacity: 0.45,
+  confirmBtnText: { color: "#FFF", fontSize: 16, fontWeight: "800" },
+
+  footerNoteRow: {
+    flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, marginTop: 14,
   },
-  confirmBtnText: {
-    color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "800",
-  },
+  footerNoteText: { fontSize: 12, fontWeight: "500" },
 });

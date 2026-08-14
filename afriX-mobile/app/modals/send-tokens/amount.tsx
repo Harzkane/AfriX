@@ -11,14 +11,17 @@ import {
   Animated,
   TextInput,
   Text,
+  Alert,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { useTransferStore, useWalletStore } from "@/stores";
 import { LinearGradient } from "expo-linear-gradient";
-import { parseAmountInput, formatAmountForInput, clampAmountToMax, formatAmount } from "@/utils/format";
+import { useTransferStore, useWalletStore } from "@/stores";
+import { parseAmountInput, formatAmountForInput, clampAmountToMax, formatAmount, formatUsdEquivalent } from "@/utils/format";
+import * as Haptics from "expo-haptics";
 import { useTranslation } from "react-i18next";
+import TokenSelectModal, { TokenType, TOKEN_CONFIG } from "@/components/ui/TokenSelectModal";
 
 const PRESET_AMOUNTS = [1000, 5000, 10000, 20000];
 
@@ -27,6 +30,7 @@ export default function SendAmountScreen() {
   const { t } = useTranslation();
   const {
     tokenType,
+    setTokenType,
     amount,
     setAmount,
     note,
@@ -38,6 +42,8 @@ export default function SendAmountScreen() {
 
   const { getWalletByType } = useWalletStore();
   const wallet = getWalletByType(tokenType);
+
+  const [tokenModalVisible, setTokenModalVisible] = useState(false);
 
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
@@ -54,9 +60,10 @@ export default function SendAmountScreen() {
     border: isDark ? "#1E2A3A" : "#E2E8F0",
     accent: "#00B14F",
     accentSoft: isDark ? "rgba(0,177,79,0.14)" : "#EAF8EF",
-    warning: "#F59E0B",
-    warningSoft: isDark ? "rgba(245,158,11,0.12)" : "#FFFBEB",
-    warningBorder: isDark ? "rgba(245,158,11,0.25)" : "#FEF3C7",
+    accentBorder: isDark ? "rgba(0,177,79,0.3)" : "#BBF7D0",
+    amber: "#F59E0B",
+    amberSoft: isDark ? "rgba(245,158,11,0.14)" : "#FFFBEB",
+    amberBorder: isDark ? "rgba(245,158,11,0.3)" : "#FDE68A",
     placeholder: isDark ? "#475569" : "#9CA3AF",
     inputBg: isDark ? "#111C2B" : "#F9FAFB",
     blue: "#3B82F6",
@@ -75,24 +82,32 @@ export default function SendAmountScreen() {
 
   useEffect(() => {
     calculateFee();
-  }, [amount]);
+  }, [amount, tokenType]);
 
   const availableBalance = wallet ? parseFloat(wallet.available_balance) : 0;
   const amountNum = parseFloat(amount) || 0;
   const total = amountNum + fee;
   const hasInsufficientBalance = total > availableBalance;
 
+  // Percentage of available balance used
+  const balancePercentage = availableBalance > 0 ? Math.min(100, Math.round((amountNum / availableBalance) * 100)) : 0;
+
   const handleContinue = () => {
     if (!amount || amountNum <= 0 || hasInsufficientBalance) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     router.push("/modals/send-tokens/confirm");
   };
 
-  const maxByToken = availableBalance;
+  const handleEditRecipient = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    router.back();
+  };
 
   const handleSetPreset = (preset: number) => {
-    const clamped = Math.min(preset, maxByToken);
+    const clamped = Math.min(preset, availableBalance);
     const raw = clamped.toFixed(2);
     setAmount(raw);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
   const handleSetMax = () => {
@@ -100,6 +115,7 @@ export default function SendAmountScreen() {
       const maxAmount = Math.max(0, availableBalance - (availableBalance * 0.005));
       const raw = maxAmount.toFixed(2);
       setAmount(raw);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
   };
 
@@ -109,7 +125,16 @@ export default function SendAmountScreen() {
     setAmount(clamped);
   };
 
+  const handleShowFeeInfo = () => {
+    Alert.alert(
+      t("send_tokens.amount.fee_info_title", "Network Fee (0.5%)"),
+      t("send_tokens.amount.fee_info_desc", "A minimal 0.5% fee goes to network validators who process transactions instantly on the blockchain."),
+      [{ text: t("common.ok", "OK") }]
+    );
+  };
+
   const isValid = amount && amountNum > 0 && !hasInsufficientBalance;
+  const tokenConfig = TOKEN_CONFIG[tokenType];
 
   return (
     <KeyboardAvoidingView
@@ -133,7 +158,9 @@ export default function SendAmountScreen() {
                 <Ionicons name="arrow-back" size={22} color={theme.text} />
               </TouchableOpacity>
               <View style={styles.headerText}>
-                <Text style={[styles.headerTitle, { color: theme.text }]}>{t("send_tokens.amount.header_title", "Enter Amount")}</Text>
+                <Text style={[styles.headerTitle, { color: theme.text }]}>
+                  {t("send_tokens.amount.header_title", "Enter Amount")}
+                </Text>
                 <Animated.View style={{ opacity: subtitleOpacity, maxHeight: subtitleMaxHeight, marginTop: subtitleMargin, overflow: "hidden" }}>
                   <Text style={[styles.headerSubtitle, { color: theme.muted }]}>
                     {t("send_tokens.amount.header_subtitle", "Specify how many tokens you want to send.")}
@@ -155,152 +182,241 @@ export default function SendAmountScreen() {
         >
           {/* Ambient Glow */}
           <LinearGradient
-            colors={isDark ? ["rgba(0,177,79,0.10)", "rgba(0,177,79,0)"] : ["rgba(0,177,79,0.08)", "rgba(245,247,251,0)"]}
+            colors={isDark ? ["rgba(0,177,79,0.10)", "rgba(7,17,26,0)"] : ["rgba(0,177,79,0.08)", "rgba(245,247,251,0)"]}
             style={styles.glow}
             pointerEvents="none"
           />
 
-          {/* RECIPIENT MINI CARD */}
-          <View style={[styles.recipientCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
-            <View style={[styles.recipientIconRing, { backgroundColor: theme.accentSoft }]}>
+          {/* SENDING TO Banner Card */}
+          <View style={[styles.sendingToCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+            <View style={[styles.userIconCircle, { backgroundColor: theme.accentSoft }]}>
               <Ionicons name="person" size={18} color={theme.accent} />
             </View>
-            <View style={styles.recipientMeta}>
-              <Text style={[styles.recipientLabel, { color: theme.muted }]}>{t("send_tokens.amount.sending_to", "SENDING TO")}</Text>
-              <Text style={[styles.recipientEmail, { color: theme.text }]} numberOfLines={1}>
-                {recipientEmail}
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.sendingToEyebrow, { color: theme.muted }]}>
+                {t("send_tokens.amount.sending_to", "SENDING TO")}
+              </Text>
+              <Text style={[styles.sendingToEmail, { color: theme.text }]} numberOfLines={1}>
+                {recipientEmail || "user1_ng@gmail.com"}
               </Text>
             </View>
+            <TouchableOpacity onPress={handleEditRecipient} style={[styles.editBtn, { backgroundColor: theme.inputBg, borderColor: theme.border }]} activeOpacity={0.7}>
+              <Ionicons name="pencil" size={16} color={theme.accent} />
+            </TouchableOpacity>
           </View>
 
-          {/* AMOUNT INPUT CARD */}
+          {/* AMOUNT TO SEND Card */}
           <View style={[styles.amountCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
-            <LinearGradient
-              colors={isDark ? ["rgba(0,177,79,0.06)", "rgba(14,23,38,0)"] : ["rgba(0,177,79,0.04)", "rgba(255,255,255,0)"]}
-              style={StyleSheet.absoluteFill}
-            />
-            <View style={styles.amountRow}>
-              <TextInput
-                style={[styles.amountInput, { color: theme.text }]}
-                placeholder={t("send_tokens.amount.placeholder_amount_usdt", "0.00")}
-                placeholderTextColor={theme.placeholder}
-                keyboardType="numeric"
-                value={formatAmountForInput(amount, tokenType)}
-                onChangeText={handleAmountChange}
-              />
-              <Text style={[styles.amountSuffix, { color: theme.muted }]}>{tokenType}</Text>
+            <View style={styles.amountHeaderRow}>
+              <Text style={[styles.amountEyebrow, { color: theme.muted }]}>
+                {t("send_tokens.amount.amount_eyebrow", "AMOUNT TO SEND")}
+              </Text>
+
+              {/* Token Selector Pill */}
+              <TouchableOpacity
+                style={[styles.tokenPill, { backgroundColor: theme.inputBg, borderColor: theme.border }]}
+                onPress={() => setTokenModalVisible(true)}
+                activeOpacity={0.8}
+              >
+                <Text style={[styles.tokenPillText, { color: theme.text }]}>{tokenType}</Text>
+                <Ionicons name="chevron-down" size={14} color={theme.muted} />
+              </TouchableOpacity>
             </View>
 
-            <View style={[styles.amountDivider, { backgroundColor: theme.border }]} />
-
-            <View style={styles.balanceRow}>
-              <View style={styles.balanceLeft}>
-                <Ionicons name="wallet-outline" size={14} color={theme.muted} />
-                <Text style={[styles.balanceLabel, { color: theme.muted }]}>{t("send_tokens.amount.available", "Available")}</Text>
+            <View style={styles.amountInputRow}>
+              <View style={styles.inputLeftCol}>
+                <TextInput
+                  style={[styles.bigInput, { color: theme.text }]}
+                  placeholder="0.00"
+                  placeholderTextColor={theme.placeholder}
+                  keyboardType="numeric"
+                  value={formatAmountForInput(amount, tokenType)}
+                  onChangeText={handleAmountChange}
+                  numberOfLines={1}
+                />
+                <Text style={[styles.usdEstimateText, { color: theme.muted }]}>
+                  {formatUsdEquivalent(amountNum, tokenType)}
+                </Text>
               </View>
-              <Text style={[styles.balanceValue, { color: amountNum > 0 && !hasInsufficientBalance ? theme.accent : theme.muted }]}>
-                {formatAmount(availableBalance, tokenType)} {tokenType}
+
+              <TouchableOpacity
+                style={[styles.maxTagBtn, { backgroundColor: theme.blueSoft, borderColor: theme.blueBorder }]}
+                onPress={handleSetMax}
+                activeOpacity={0.8}
+              >
+                <Text style={[styles.maxTagText, { color: theme.blue }]}>
+                  {t("send_tokens.amount.btn_max", "MAX")}
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={[styles.divider, { backgroundColor: theme.border }]} />
+
+            {/* Available Balance Progress Bar */}
+            <View style={styles.balanceContainer}>
+              <View style={styles.balanceHeaderRow}>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                  <Ionicons name="wallet-outline" size={14} color={theme.muted} />
+                  <Text style={[styles.balanceLabel, { color: theme.muted }]}>Available Balance</Text>
+                </View>
+                <Text style={[styles.balanceValueText, { color: theme.accent }]}>
+                  {formatAmount(availableBalance, tokenType)} {tokenType}
+                </Text>
+              </View>
+              {/* Progress Track */}
+              <View style={[styles.progressTrack, { backgroundColor: theme.inputBg }]}>
+                <View style={[styles.progressFill, { backgroundColor: theme.accent, width: `${balancePercentage}%` }]} />
+              </View>
+              <Text style={[styles.progressSubtext, { color: theme.muted }]}>
+                {balancePercentage}% of balance
               </Text>
             </View>
           </View>
 
-          {/* QUICK PRESETS */}
-          <Text style={[styles.sectionLabel, { color: theme.muted }]}>{t("send_tokens.amount.quick_amounts", "Quick Amounts")}</Text>
+          {/* Insufficient balance warning */}
+          {hasInsufficientBalance && amountNum > 0 && (
+            <View style={[styles.warnCard, { backgroundColor: theme.amberSoft, borderColor: theme.amberBorder }]}>
+              <Ionicons name="warning-outline" size={18} color={theme.amber} />
+              <Text style={[styles.warnText, { color: isDark ? "#FCD34D" : "#92400E" }]}>
+                {t("send_tokens.amount.err_insufficient", "Insufficient balance to cover transfer amount + fee.")}
+              </Text>
+            </View>
+          )}
+
+          {/* QUICK AMOUNTS Section */}
+          <Text style={[styles.sectionLabel, { color: theme.muted }]}>
+            {t("send_tokens.amount.quick_amounts", "QUICK AMOUNTS")}
+          </Text>
           <View style={styles.presetsRow}>
             {PRESET_AMOUNTS.map((preset) => {
-              const isActive = amountNum === preset;
+              const isSelected = amountNum === preset;
               return (
                 <TouchableOpacity
                   key={preset}
                   style={[
                     styles.presetChip,
                     { backgroundColor: theme.card, borderColor: theme.border },
-                    isActive && { backgroundColor: theme.accentSoft, borderColor: theme.accent },
+                    isSelected && { borderColor: theme.accent, backgroundColor: theme.accentSoft },
                   ]}
                   onPress={() => handleSetPreset(preset)}
-                  activeOpacity={0.7}
+                  activeOpacity={0.8}
                 >
-                  <Text style={[styles.presetChipText, { color: isActive ? theme.accent : theme.muted }]}>
+                  <Text style={[styles.presetChipText, { color: isSelected ? theme.accent : theme.text }]}>
                     {preset.toLocaleString()}
                   </Text>
                 </TouchableOpacity>
               );
             })}
+            {/* MAX Chip */}
             <TouchableOpacity
-              style={[styles.presetChip, { backgroundColor: theme.blueSoft, borderColor: theme.blueBorder }]}
+              style={[
+                styles.presetChip,
+                { backgroundColor: theme.blueSoft, borderColor: theme.blueBorder },
+              ]}
               onPress={handleSetMax}
-              activeOpacity={0.7}
+              activeOpacity={0.8}
             >
-              <Text style={[styles.presetChipText, { color: theme.blue, fontWeight: "800" }]}>{t("send_tokens.amount.btn_max", "MAX")}</Text>
+              <Text style={[styles.presetChipText, { color: theme.blue }]}>MAX</Text>
             </TouchableOpacity>
           </View>
 
-          {/* FEES SUMMARY CARD */}
+          {/* TRANSACTION SUMMARY Card */}
           <View style={[styles.summaryCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
-            <Text style={[styles.summaryTitle, { color: theme.text }]}>{t("send_tokens.amount.summary_title", "Transaction Summary")}</Text>
+            <View style={styles.summaryTitleRow}>
+              <Ionicons name="receipt-outline" size={16} color={theme.accent} />
+              <Text style={[styles.summaryTitle, { color: theme.muted }]}>
+                {t("send_tokens.amount.summary_title", "TRANSACTION SUMMARY")}
+              </Text>
+            </View>
+
             <View style={styles.summaryRow}>
-              <Text style={[styles.summaryLabel, { color: theme.muted }]}>{t("send_tokens.amount.summary_label_amount", "Amount")}</Text>
+              <Text style={[styles.summaryLabel, { color: theme.muted }]}>Amount</Text>
               <Text style={[styles.summaryValue, { color: theme.text }]}>
                 {formatAmount(amountNum, tokenType)} {tokenType}
               </Text>
             </View>
+
             <View style={styles.summaryRow}>
-              <Text style={[styles.summaryLabel, { color: theme.muted }]}>{t("send_tokens.amount.summary_label_fee", "Network Fee (0.5%)")}</Text>
+              <TouchableOpacity onPress={handleShowFeeInfo} activeOpacity={0.7} style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                <Text style={[styles.summaryLabel, { color: theme.muted }]}>Network Fee (0.5%)</Text>
+                <Ionicons name="information-circle-outline" size={13} color={theme.muted} />
+              </TouchableOpacity>
               <Text style={[styles.summaryValue, { color: theme.text }]}>
                 {formatAmount(fee, tokenType)} {tokenType}
               </Text>
             </View>
-            <View style={[styles.summaryDivider, { backgroundColor: theme.border }]} />
-            <View style={styles.summaryTotalRow}>
-              <Text style={[styles.summaryTotalLabel, { color: theme.text }]}>{t("send_tokens.amount.summary_total_label", "Total Debit")}</Text>
-              <Text style={[styles.summaryTotalValue, { color: theme.accent }]}>
+
+            <View style={[styles.divider, { backgroundColor: theme.border }]} />
+
+            <View style={styles.summaryRow}>
+              <Text style={[styles.totalLabel, { color: theme.text }]}>Total Debit</Text>
+              <Text style={[styles.totalValue, { color: theme.accent }]}>
                 {formatAmount(total, tokenType)} {tokenType}
               </Text>
             </View>
           </View>
 
-          {/* INSUFFICIENT BALANCE WARNING */}
-          {hasInsufficientBalance && amountNum > 0 && (
-            <View style={[styles.warningBox, { backgroundColor: theme.warningSoft, borderColor: theme.warningBorder }]}>
-              <Ionicons name="alert-circle" size={18} color={theme.warning} style={{ marginTop: 1 }} />
-              <Text style={[styles.warningText, { color: isDark ? "#FDE68A" : "#92400E" }]}>
-                {t("send_tokens.amount.err_insufficient_funds", "Insufficient funds. You need an additional {{additional}} {{tokenType}} to complete this.", {
-                  additional: formatAmount(total - availableBalance, tokenType),
-                  tokenType
-                })}
-              </Text>
-            </View>
-          )}
-
-          {/* OPTIONAL NOTE */}
-          <Text style={[styles.sectionLabel, { color: theme.muted }]}>{t("send_tokens.amount.message_title", "Additional Message")}</Text>
+          {/* ADDITIONAL MESSAGE (OPTIONAL) */}
+          <Text style={[styles.sectionLabel, { color: theme.muted }]}>
+            {t("send_tokens.amount.note_label", "ADDITIONAL MESSAGE (OPTIONAL)")}
+          </Text>
           <View style={[styles.noteCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
-            <TextInput
-              style={[styles.noteInput, { color: theme.text }]}
-              value={note}
-              onChangeText={setNote}
-              placeholder={t("send_tokens.amount.placeholder_message", "Add a message for the recipient... (Optional)")}
-              placeholderTextColor={theme.placeholder}
-              multiline
-              numberOfLines={3}
-              maxLength={500}
-            />
-            <Text style={[styles.noteLimit, { color: theme.muted }]}>{note.length}/500</Text>
+            <View style={styles.noteInputRow}>
+              <Ionicons name="chatbubble-outline" size={18} color={theme.muted} style={{ marginTop: 2 }} />
+              <TextInput
+                style={[styles.noteInput, { color: theme.text }]}
+                placeholder={t("send_tokens.amount.note_placeholder", "Add a message for the recipient...")}
+                placeholderTextColor={theme.placeholder}
+                value={note}
+                onChangeText={setNote}
+                maxLength={500}
+                multiline
+                numberOfLines={3}
+              />
+            </View>
+            <Text style={[styles.counterText, { color: theme.muted }]}>
+              {note.length}/500
+            </Text>
           </View>
 
-          {/* SUBMIT BUTTON */}
+          {/* Info Banner */}
+          <View style={[styles.infoCard, { backgroundColor: theme.blueSoft, borderColor: theme.blueBorder }]}>
+            <View style={[styles.infoIconBox, { backgroundColor: theme.blue + "22" }]}>
+              <Ionicons name="information-circle-outline" size={18} color={theme.blue} />
+            </View>
+            <Text style={[styles.infoDesc, { color: isDark ? "#BFDBFE" : "#1E3A8A" }]}>
+              {t("send_tokens.amount.fee_notice", "Network fees go to validators who process transactions on the blockchain.")}
+            </Text>
+          </View>
+
+          {/* Primary CTA Button */}
           <TouchableOpacity
-            style={[styles.continueBtn, { backgroundColor: theme.accent }, !isValid && styles.continueBtnDisabled]}
+            style={[
+              styles.continueBtn,
+              { backgroundColor: theme.accent },
+              !isValid && styles.continueBtnDisabled,
+            ]}
             onPress={handleContinue}
             disabled={!isValid}
             activeOpacity={0.85}
           >
-            <Text style={styles.continueBtnText}>{t("send_tokens.amount.btn_review", "Review Transfer")}</Text>
+            <Text style={styles.continueBtnText}>
+              {t("send_tokens.amount.btn_review", "Review Transfer")}
+            </Text>
             <Ionicons name="arrow-forward" size={18} color="#FFF" />
           </TouchableOpacity>
 
-          <View style={{ height: 40 }} />
+          <View style={{ height: 30 }} />
         </Animated.ScrollView>
+
+        {/* Token Picker Modal */}
+        <TokenSelectModal
+          visible={tokenModalVisible}
+          onClose={() => setTokenModalVisible(false)}
+          selectedToken={tokenType}
+          onSelectToken={(token: TokenType) => setTokenType(token)}
+          title="Select Send Token"
+        />
       </View>
     </KeyboardAvoidingView>
   );
@@ -336,7 +452,8 @@ const styles = StyleSheet.create({
     top: 0, left: 0, right: 0,
     height: 200,
   },
-  recipientCard: {
+
+  sendingToCard: {
     flexDirection: "row",
     alignItems: "center",
     borderRadius: 20,
@@ -345,118 +462,95 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     gap: 12,
   },
-  recipientIconRing: {
-    width: 40, height: 40,
-    borderRadius: 20,
+  userIconCircle: {
+    width: 38, height: 38, borderRadius: 19,
     alignItems: "center", justifyContent: "center",
   },
-  recipientMeta: { flex: 1, gap: 2 },
-  recipientLabel: { fontSize: 10, fontWeight: "800", letterSpacing: 0.5 },
-  recipientEmail: { fontSize: 15, fontWeight: "700" },
+  sendingToEyebrow: { fontSize: 10, fontWeight: "800", letterSpacing: 0.8, marginBottom: 2 },
+  sendingToEmail: { fontSize: 14, fontWeight: "800" },
+  editBtn: {
+    width: 34, height: 34, borderRadius: 17, borderWidth: 1,
+    alignItems: "center", justifyContent: "center",
+  },
+
   amountCard: {
-    borderRadius: 28,
-    borderWidth: 1,
-    padding: 20,
-    marginBottom: 16,
-    overflow: "hidden",
+    borderRadius: 24, borderWidth: 1, padding: 18, marginBottom: 16,
   },
-  amountRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 16,
+  amountHeaderRow: {
+    flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12,
   },
-  amountInput: {
-    flex: 1,
-    fontSize: 44,
-    fontWeight: "900",
-    letterSpacing: -1,
+  amountEyebrow: { fontSize: 10, fontWeight: "800", letterSpacing: 0.8 },
+  tokenPill: {
+    flexDirection: "row", alignItems: "center", gap: 6,
+    paddingHorizontal: 12, paddingVertical: 6, borderRadius: 14, borderWidth: 1,
   },
-  amountSuffix: { fontSize: 22, fontWeight: "700", marginLeft: 8 },
-  amountDivider: { height: 1, marginBottom: 12 },
-  balanceRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
+  tokenPillText: { fontSize: 13, fontWeight: "800" },
+  amountInputRow: {
+    flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12,
   },
-  balanceLeft: { flexDirection: "row", alignItems: "center", gap: 5 },
-  balanceLabel: { fontSize: 13, fontWeight: "600" },
-  balanceValue: { fontSize: 13, fontWeight: "800" },
+  inputLeftCol: { flex: 1, marginRight: 10 },
+  bigInput: { fontSize: 28, fontWeight: "800", padding: 0 },
+  usdEstimateText: { fontSize: 13, fontWeight: "600", marginTop: 4 },
+  maxTagBtn: {
+    paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10, borderWidth: 1, marginTop: 4,
+  },
+  maxTagText: { fontSize: 12, fontWeight: "800" },
+  divider: { height: 1, marginVertical: 12 },
+
+  balanceContainer: { gap: 6 },
+  balanceHeaderRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  balanceLabel: { fontSize: 12, fontWeight: "600" },
+  balanceValueText: { fontSize: 12, fontWeight: "800" },
+  progressTrack: { height: 6, borderRadius: 3, overflow: "hidden", marginVertical: 4 },
+  progressFill: { height: "100%", borderRadius: 3 },
+  progressSubtext: { fontSize: 11, fontWeight: "500" },
+
+  warnCard: {
+    flexDirection: "row", gap: 10, alignItems: "center",
+    padding: 14, borderRadius: 18, borderWidth: 1, marginBottom: 16,
+  },
+  warnText: { flex: 1, fontSize: 13, lineHeight: 18, fontWeight: "600" },
+
   sectionLabel: {
-    fontSize: 11,
-    fontWeight: "800",
-    textTransform: "uppercase",
-    letterSpacing: 0.8,
-    marginBottom: 10,
-    marginTop: 4,
+    fontSize: 11, fontWeight: "800", textTransform: "uppercase", letterSpacing: 0.8,
+    marginBottom: 10, marginTop: 4,
   },
-  presetsRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-    marginBottom: 16,
-  },
+  presetsRow: { flexDirection: "row", gap: 8, marginBottom: 16 },
   presetChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 9,
-    borderRadius: 12,
-    borderWidth: 1.5,
+    flex: 1, height: 42, borderRadius: 14, borderWidth: 1.5,
+    alignItems: "center", justifyContent: "center",
   },
-  presetChipText: { fontSize: 13, fontWeight: "700" },
+  presetChipText: { fontSize: 13, fontWeight: "800" },
+
   summaryCard: {
-    borderRadius: 22,
-    borderWidth: 1,
-    padding: 16,
-    marginBottom: 16,
+    borderRadius: 22, borderWidth: 1, padding: 16, marginBottom: 16, gap: 10,
   },
-  summaryTitle: { fontSize: 14, fontWeight: "800", marginBottom: 12 },
-  summaryRow: { flexDirection: "row", justifyContent: "space-between", marginBottom: 8 },
-  summaryLabel: { fontSize: 13, fontWeight: "600" },
+  summaryTitleRow: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 4 },
+  summaryTitle: { fontSize: 10, fontWeight: "800", letterSpacing: 0.8 },
+  summaryRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  summaryLabel: { fontSize: 13, fontWeight: "500" },
   summaryValue: { fontSize: 13, fontWeight: "700" },
-  summaryDivider: { height: 1, marginVertical: 12 },
-  summaryTotalRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  summaryTotalLabel: { fontSize: 15, fontWeight: "800" },
-  summaryTotalValue: { fontSize: 18, fontWeight: "900" },
-  warningBox: {
-    flexDirection: "row",
-    padding: 14,
-    borderRadius: 16,
-    gap: 10,
-    borderWidth: 1,
-    marginBottom: 16,
-  },
-  warningText: {
-    flex: 1,
-    fontSize: 13,
-    fontWeight: "600",
-    lineHeight: 18,
-  },
+  totalLabel: { fontSize: 14, fontWeight: "800" },
+  totalValue: { fontSize: 16, fontWeight: "900" },
+
   noteCard: {
-    borderRadius: 22,
-    borderWidth: 1,
-    padding: 14,
-    marginBottom: 20,
-    position: "relative",
+    borderRadius: 20, borderWidth: 1, padding: 14, marginBottom: 16,
   },
-  noteInput: {
-    fontSize: 14,
-    fontWeight: "500",
-    textAlignVertical: "top",
-    minHeight: 80,
-    paddingBottom: 16,
-  },
-  noteLimit: {
-    position: "absolute",
-    bottom: 10, right: 12,
-    fontSize: 11,
-    fontWeight: "600",
-  },
-  continueBtn: {
-    flexDirection: "row",
+  noteInputRow: { flexDirection: "row", alignItems: "flex-start", gap: 10 },
+  noteInput: { flex: 1, fontSize: 13, fontWeight: "500", minHeight: 60, textAlignVertical: "top" },
+  counterText: { fontSize: 11, fontWeight: "600", textAlign: "right", marginTop: 4 },
+
+  infoCard: {
+    flexDirection: "row", gap: 12, padding: 14, borderRadius: 18, borderWidth: 1, marginBottom: 20,
     alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    height: 58,
-    borderRadius: 20,
+  },
+  infoIconBox: {
+    width: 36, height: 36, borderRadius: 12, alignItems: "center", justifyContent: "center", flexShrink: 0,
+  },
+  infoDesc: { flex: 1, fontSize: 12, lineHeight: 17, fontWeight: "500" },
+
+  continueBtn: {
+    flexDirection: "row", height: 56, borderRadius: 18, alignItems: "center", justifyContent: "center", gap: 8,
   },
   continueBtnDisabled: { opacity: 0.4 },
   continueBtnText: { color: "#FFF", fontSize: 16, fontWeight: "800" },

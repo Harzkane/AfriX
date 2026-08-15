@@ -1975,7 +1975,9 @@
       "denied_desc": "Please enable camera access in your device settings to scan QR codes.",
       "btn_back": "Go Back",
       "scan_instruction": "Scan AfriToken Receive QR Code",
-      "btn_cancel": "Cancel"
+      "btn_cancel": "Cancel",
+      "request_paid_title": "Request Already Paid",
+      "request_paid_desc": "This payment request ({{reqId}}) has already been paid and fulfilled by a previous transfer."
     },
     "amount": {
       "header_title": "Enter Amount",

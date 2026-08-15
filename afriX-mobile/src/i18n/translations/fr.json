@@ -1976,7 +1976,9 @@
       "denied_desc": "Veuillez autoriser l'accès à la caméra dans les paramètres de votre appareil pour scanner les codes QR.",
       "btn_back": "Retour",
       "scan_instruction": "Scanner le code QR de réception AfriToken",
-      "btn_cancel": "Annuler"
+      "btn_cancel": "Annuler",
+      "request_paid_title": "Demande déjà payée",
+      "request_paid_desc": "Cette demande de paiement ({{reqId}}) a déjà été payée et exécutée lors d'un transfert précédent."
     },
     "amount": {
       "header_title": "Entrer le montant",

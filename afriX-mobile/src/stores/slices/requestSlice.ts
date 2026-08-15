@@ -2,6 +2,7 @@
 import { create } from "zustand";
 import apiClient from "@/services/apiClient";
 import { WEB_URL } from "@/constants/api";
+import { useAuthStore } from "./authSlice";
 
 export type RequestMode = "p2p" | "merchant";
 export type TokenType = "NT" | "CT" | "USDT";
@@ -27,6 +28,7 @@ export interface CreatedRequest {
   amount: number;
   recipientScope: RecipientScope;
   recipientEmail?: string;
+  creatorEmail?: string;
   note?: string;
   expirationDays: ExpirationDays;
   privacy: PrivacyOption;
@@ -109,6 +111,8 @@ export const useRequestStore = create<RequestState>((set, get) => ({
         expiresDate.setFullYear(expiresDate.getFullYear() + 1);
       }
 
+      const userEmail = useAuthStore.getState().user?.email || "";
+
       const created: CreatedRequest = {
         id: data?.data?.transaction_id || `req_${Date.now()}`,
         requestId: reqId,
@@ -116,6 +120,7 @@ export const useRequestStore = create<RequestState>((set, get) => ({
         amount: parseFloat(draftRequest.amount) || 0,
         recipientScope: draftRequest.recipientScope,
         recipientEmail: draftRequest.recipientEmail,
+        creatorEmail: userEmail,
         note: draftRequest.note,
         expirationDays: draftRequest.expirationDays,
         privacy: draftRequest.privacy,
@@ -135,6 +140,7 @@ export const useRequestStore = create<RequestState>((set, get) => ({
       const reqId = `RQST-${randomSuffix}`;
       const expiresDate = new Date();
       expiresDate.setDate(expiresDate.getDate() + (draftRequest.expirationDays === "never" ? 365 : parseInt(draftRequest.expirationDays, 10)));
+      const userEmail = useAuthStore.getState().user?.email || "";
 
       const created: CreatedRequest = {
         id: `req_${Date.now()}`,
@@ -143,6 +149,7 @@ export const useRequestStore = create<RequestState>((set, get) => ({
         amount: parseFloat(draftRequest.amount) || 0,
         recipientScope: draftRequest.recipientScope,
         recipientEmail: draftRequest.recipientEmail,
+        creatorEmail: userEmail,
         note: draftRequest.note,
         expirationDays: draftRequest.expirationDays,
         privacy: draftRequest.privacy,

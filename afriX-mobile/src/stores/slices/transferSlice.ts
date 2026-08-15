@@ -6,6 +6,7 @@ export interface TransferState {
     // Transfer data
     recipientEmail: string | null;
     recipientName: string | null;
+    requestId: string | null;
     tokenType: "NT" | "CT" | "USDT";
     amount: string;
     note: string;
@@ -17,6 +18,7 @@ export interface TransferState {
 
     // Actions
     setRecipient: (email: string, name?: string) => void;
+    setRequestId: (id: string | null) => void;
     setTokenType: (type: "NT" | "CT" | "USDT") => void;
     setAmount: (amount: string) => void;
     setNote: (note: string) => void;
@@ -29,6 +31,7 @@ export const createTransferSlice: StateCreator<TransferState> = (set, get) => ({
     // Initial state
     recipientEmail: null,
     recipientName: null,
+    requestId: null,
     tokenType: "NT",
     amount: "",
     note: "",
@@ -39,6 +42,10 @@ export const createTransferSlice: StateCreator<TransferState> = (set, get) => ({
     // Actions
     setRecipient: (email, name) => {
         set({ recipientEmail: email, recipientName: name, error: null });
+    },
+
+    setRequestId: (id) => {
+        set({ requestId: id });
     },
 
     setTokenType: (type) => {
@@ -68,7 +75,7 @@ export const createTransferSlice: StateCreator<TransferState> = (set, get) => ({
     },
 
     executeTransfer: async () => {
-        const { recipientEmail, amount, tokenType, note } = get();
+        const { recipientEmail, amount, tokenType, note, requestId } = get();
 
         if (!recipientEmail || !amount || parseFloat(amount) <= 0) {
             set({ error: "Please fill in all required fields" });
@@ -83,6 +90,8 @@ export const createTransferSlice: StateCreator<TransferState> = (set, get) => ({
                 amount: parseFloat(amount),
                 token_type: tokenType,
                 description: note || undefined,
+                reference: requestId || undefined,
+                request_id: requestId || undefined,
             });
 
             if (response.data.success) {
@@ -108,6 +117,7 @@ export const createTransferSlice: StateCreator<TransferState> = (set, get) => ({
         set({
             recipientEmail: null,
             recipientName: null,
+            requestId: null,
             tokenType: "NT",
             amount: "",
             note: "",

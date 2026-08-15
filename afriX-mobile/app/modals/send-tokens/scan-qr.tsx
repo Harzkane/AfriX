@@ -50,43 +50,16 @@ export default function ScanQRScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       const trimmed = data.trim();
 
-      // Case 1: Payment Request URL (e.g. https://afri-x.vercel.app/pay/RQST-8F3A7K?amount=10000&token=NT&note=Rent)
-      if (trimmed.includes("RQST-") || trimmed.includes("/pay/")) {
-        const match = trimmed.match(/RQST-[A-Z0-9]+/i);
-        const reqId = match ? match[0].toUpperCase() : trimmed;
-        
-        let parsedAmount = "";
-        let parsedToken = "NT";
-        let parsedNote = "";
-        let parsedEmail = "";
+      const cleanString = (val?: string | null) => {
+        if (!val) return "";
+        return val.replace(/[\\"'\}\s]/g, "").trim();
+      };
 
-        if (trimmed.includes("?")) {
-          const queryString = trimmed.split("?")[1];
-          const urlParams = new URLSearchParams(queryString);
-          if (urlParams.get("amount")) parsedAmount = urlParams.get("amount") || "";
-          if (urlParams.get("token")) parsedToken = urlParams.get("token") || "NT";
-          if (urlParams.get("note")) parsedNote = urlParams.get("note") || "";
-          if (urlParams.get("email")) parsedEmail = urlParams.get("email") || "";
-        }
-
-        setRecipient(parsedEmail || reqId);
-        if (parsedToken && ["NT", "CT", "USDT"].includes(parsedToken)) {
-          setTokenType(parsedToken as "NT" | "CT" | "USDT");
-        }
-        if (parsedAmount) {
-          setAmount(parsedAmount);
-        }
-        if (parsedNote) {
-          setNote(parsedNote);
-        }
-        router.replace("/modals/send-tokens/amount");
-        return;
-      }
-
-      // Case 2: Standard JSON payload (Receive QR / Payment Request JSON)
+      // Case 1: Standard JSON payload (Receive QR / Payment Request JSON) - CHECK JSON FIRST
       if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
         const qrData = JSON.parse(trimmed);
-        const email = qrData.email || qrData.address || qrData.recipient;
+        const rawEmail = qrData.email || qrData.address || qrData.recipient;
+        const email = cleanString(rawEmail);
         const token = qrData.token || qrData.tokenType || "NT";
         const amt = qrData.amount ? qrData.amount.toString() : "";
         const noteText = qrData.note || qrData.description || "";
@@ -107,9 +80,42 @@ export default function ScanQRScreen() {
         }
       }
 
+      // Case 2: Payment Request URL (e.g. https://afri-x.vercel.app/pay/RQST-8F3A7K?amount=10000&token=NT&note=Rent)
+      if (trimmed.includes("RQST-") || trimmed.includes("/pay/")) {
+        const match = trimmed.match(/RQST-[A-Z0-9]+/i);
+        const reqId = match ? match[0].toUpperCase() : trimmed;
+        
+        let parsedAmount = "";
+        let parsedToken = "NT";
+        let parsedNote = "";
+        let parsedEmail = "";
+
+        if (trimmed.includes("?")) {
+          const queryString = trimmed.split("?")[1];
+          const urlParams = new URLSearchParams(queryString);
+          if (urlParams.get("amount")) parsedAmount = urlParams.get("amount") || "";
+          if (urlParams.get("token")) parsedToken = urlParams.get("token") || "NT";
+          if (urlParams.get("note")) parsedNote = urlParams.get("note") || "";
+          if (urlParams.get("email")) parsedEmail = cleanString(urlParams.get("email"));
+        }
+
+        setRecipient(parsedEmail || reqId);
+        if (parsedToken && ["NT", "CT", "USDT"].includes(parsedToken)) {
+          setTokenType(parsedToken as "NT" | "CT" | "USDT");
+        }
+        if (parsedAmount) {
+          setAmount(parsedAmount);
+        }
+        if (parsedNote) {
+          setNote(parsedNote);
+        }
+        router.replace("/modals/send-tokens/amount");
+        return;
+      }
+
       // Case 3: Plain email address or wallet address
       if (trimmed.includes("@") || trimmed.startsWith("0x") || trimmed.length > 5) {
-        setRecipient(trimmed);
+        setRecipient(cleanString(trimmed));
         router.replace("/modals/send-tokens/amount");
         return;
       }

@@ -5,6 +5,7 @@ const { Merchant } = require("../models");
 const { Wallet } = require("../models");
 const { User } = require("../models");
 const { sequelize } = require("../models");
+const { Op } = require("sequelize");
 const {
   TRANSACTION_TYPES,
   TRANSACTION_STATUS,
@@ -41,6 +42,7 @@ const paymentController = {
       } = req.body;
       const user_id = req.user.id;
       const tokenType = token_type || currency;
+      const requestLookup = transaction_id || reference || null;
 
       // ── Security: require password re-confirmation before executing payment ──
       if (!password) {
@@ -69,19 +71,33 @@ const paymentController = {
 
       let existingPaymentRequest = null;
 
-      if (transaction_id || reference) {
-        const pendingWhere = {
-          type: TRANSACTION_TYPES.COLLECTION,
-          status: TRANSACTION_STATUS.PENDING,
-        };
+      if (requestLookup) {
+        const normalizedReference = typeof requestLookup === "string"
+          ? requestLookup.replace(/^RQST-/i, "")
+          : requestLookup;
 
-        if (transaction_id) {
-          pendingWhere.id = transaction_id;
-        } else {
-          pendingWhere.reference = reference;
+        existingPaymentRequest = await Transaction.findOne({
+          where: {
+            type: TRANSACTION_TYPES.COLLECTION,
+            [Op.or]: [
+              { id: requestLookup },
+              { id: normalizedReference },
+              { reference: requestLookup },
+              { reference: normalizedReference },
+            ],
+          },
+        });
+
+        if (!existingPaymentRequest) {
+          throw new ApiError("Payment request not found", 404);
         }
 
-        existingPaymentRequest = await Transaction.findOne({ where: pendingWhere });
+        if (existingPaymentRequest.status !== TRANSACTION_STATUS.PENDING) {
+          throw new ApiError(
+            "This payment request has already been paid and fulfilled.",
+            409
+          );
+        }
       }
 
       // Find the merchant

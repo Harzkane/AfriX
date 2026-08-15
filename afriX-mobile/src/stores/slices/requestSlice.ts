@@ -136,9 +136,7 @@ export const useRequestStore = create<RequestState>((set, get) => ({
     } catch (err: any) {
       console.warn("⚠️ API payment-request notice (using client simulation fallback):", err?.message);
 
-      // Fallback for offline or dev simulation
-      const randomSuffix = Math.random().toString(36).substring(2, 8).toUpperCase();
-      const reqId = `RQST-${randomSuffix}`;
+      // Fallback for offline or dev simulation (use same reqId)
       const expiresDate = new Date();
       expiresDate.setDate(expiresDate.getDate() + (draftRequest.expirationDays === "never" ? 365 : parseInt(draftRequest.expirationDays, 10)));
       const userEmail = useAuthStore.getState().user?.email || "";

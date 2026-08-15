@@ -38,6 +38,7 @@ export default function SendAmountScreen() {
     fee,
     calculateFee,
     recipientEmail,
+    requestId,
   } = useTransferStore();
 
   const { getWalletByType, exchangeRates } = useWalletStore();
@@ -186,6 +187,23 @@ export default function SendAmountScreen() {
             style={styles.glow}
             pointerEvents="none"
           />
+
+          {/* PAYMENT REQUEST ATTACHED Banner (if fulfilling a Payment Request) */}
+          {!!requestId && (
+            <View style={[styles.sendingToCard, { backgroundColor: theme.amberSoft, borderColor: theme.amberBorder, marginBottom: 12 }]}>
+              <View style={[styles.userIconCircle, { backgroundColor: isDark ? "rgba(245,158,11,0.2)" : "#FEF3C7" }]}>
+                <Ionicons name="receipt-outline" size={18} color="#D97706" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.sendingToEyebrow, { color: "#D97706", fontWeight: "700" }]}>
+                  {t("send_tokens.amount.req_attached_eyebrow", "PAYMENT REQUEST ATTACHED")}
+                </Text>
+                <Text style={[styles.sendingToEmail, { color: theme.text, fontWeight: "700" }]} numberOfLines={1}>
+                  {requestId}
+                </Text>
+              </View>
+            </View>
+          )}
 
           {/* SENDING TO Banner Card */}
           <View style={[styles.sendingToCard, { backgroundColor: theme.card, borderColor: theme.border }]}>

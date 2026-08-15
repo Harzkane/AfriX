@@ -1,5 +1,4 @@
-// app/modals/send-tokens/confirm.tsx
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   View,
   StyleSheet,
@@ -21,6 +20,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { formatAmount } from "@/utils/format";
 import * as Haptics from "expo-haptics";
 import { useTranslation } from "react-i18next";
+import apiClient from "@/services/apiClient";
 
 export default function ConfirmTransferScreen() {
   const router = useRouter();
@@ -36,6 +36,7 @@ export default function ConfirmTransferScreen() {
     loading,
     error,
     executeTransfer,
+    requestId,
   } = useTransferStore();
 
   const { fetchWallets } = useWalletStore();
@@ -70,6 +71,25 @@ export default function ConfirmTransferScreen() {
   const subtitleOpacity = scrollY.interpolate({ inputRange: [0, 50], outputRange: [1, 0], extrapolate: "clamp" });
   const subtitleMaxHeight = scrollY.interpolate({ inputRange: [0, 50], outputRange: [80, 0], extrapolate: "clamp" });
   const subtitleMargin = scrollY.interpolate({ inputRange: [0, 50], outputRange: [4, 0], extrapolate: "clamp" });
+
+  useEffect(() => {
+    if (!requestId) return;
+    const checkRequestStatus = async () => {
+      try {
+        const res = await apiClient.get(`/merchants/payment-request/${requestId}`);
+        if (res.data?.data?.status === "completed") {
+          Alert.alert(
+            t("send_tokens.scan_qr.request_paid_title", "Request Already Paid"),
+            t("send_tokens.scan_qr.request_paid_desc", "This payment request ({{reqId}}) has already been paid and fulfilled by a previous transfer.", { reqId: requestId }),
+            [{ text: t("common.ok", "OK"), onPress: () => router.back() }]
+          );
+        }
+      } catch (e) {
+        // Continue if offline or record not found
+      }
+    };
+    checkRequestStatus();
+  }, [requestId]);
 
   const amountNum = parseFloat(amount) || 0;
   const total = amountNum + fee;
@@ -235,6 +255,21 @@ export default function ConfirmTransferScreen() {
 
         {/* Itemized Details Card */}
         <View style={[styles.detailsCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+          {/* Payment Request Reference (if fulfilling a Payment Request) */}
+          {!!requestId && (
+            <View style={styles.detailRow}>
+              <View style={[styles.detailIconBox, { backgroundColor: isDark ? "rgba(245,158,11,0.2)" : "#FEF3C7" }]}>
+                <Ionicons name="receipt-outline" size={16} color="#D97706" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.detailLabel, { color: "#D97706", fontWeight: "700" }]}>PAYMENT REQUEST REF</Text>
+                <Text style={[styles.detailValueText, { color: theme.text, fontWeight: "700" }]} numberOfLines={1}>
+                  {requestId}
+                </Text>
+              </View>
+            </View>
+          )}
+
           {/* Recipient Email */}
           <View style={styles.detailRow}>
             <View style={[styles.detailIconBox, { backgroundColor: theme.accentSoft }]}>

@@ -236,34 +236,21 @@ const merchantController = {
   createPaymentRequest: async (req, res, next) => {
     try {
       const userId = req.user.id;
+      const user = req.user;
       const { amount, currency, token_type, description, customer_email, reference, return_url } =
         req.body;
-      const tokenType = token_type || currency || null;
+      const tokenType = token_type || currency || "NT";
 
       if (!amount || amount <= 0) {
         throw new ValidationError("Valid amount is required");
       }
 
-      const merchant = await Merchant.findOne({ where: { user_id: userId } });
+      let merchant = await Merchant.findOne({ where: { user_id: userId } });
+      const paymentTokenType = tokenType;
+      const paymentReference = reference || `RQST-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
 
-      if (!merchant) {
-        return res.status(404).json({
-          success: false,
-          error: {
-            message: "Merchant profile not found",
-          },
-        });
-      }
-
-      const paymentTokenType = tokenType || merchant.default_token_type;
-
-      const paymentReference = reference || `MER-${Date.now()}`;
-
-      // Reuse an existing pending request for the same merchant/reference
-      // instead of crashing on the unique transaction reference constraint.
       let transaction = await Transaction.findOne({
         where: {
-          merchant_id: merchant.id,
           reference: paymentReference,
           type: TRANSACTION_TYPES.COLLECTION,
         },
@@ -278,32 +265,28 @@ const merchantController = {
 
         transaction.amount = amount;
         transaction.token_type = paymentTokenType;
-        transaction.description =
-          description || `Payment to ${merchant.display_name}`;
+        transaction.description = description || `Payment request for ${user.email}`;
         transaction.metadata = {
           ...(transaction.metadata || {}),
           customer_email,
           return_url: return_url || null,
-          merchant_name: merchant.display_name,
-          business_name: merchant.business_name,
         };
         await transaction.save();
       } else {
         transaction = await Transaction.create({
           from_user_id: null, // Will be filled when customer pays
           to_user_id: userId,
-          merchant_id: merchant.id,
+          merchant_id: merchant ? merchant.id : null,
           amount,
           token_type: paymentTokenType,
           type: TRANSACTION_TYPES.COLLECTION,
           status: TRANSACTION_STATUS.PENDING,
-          description: description || `Payment to ${merchant.display_name}`,
+          description: description || `Payment request for ${user.email}`,
           reference: paymentReference,
           metadata: {
             customer_email,
             return_url: return_url || null,
-            merchant_name: merchant.display_name,
-            business_name: merchant.business_name,
+            to_email: user.email,
           },
         });
       }
@@ -311,41 +294,21 @@ const merchantController = {
       // Generate payment QR code
       const paymentData = {
         transaction_id: transaction.id,
-        merchant_id: merchant.id,
+        reference: paymentReference,
         amount,
         currency: paymentTokenType,
         token_type: paymentTokenType,
       };
 
       const qrCode = await generateQR(JSON.stringify(paymentData));
-
       const webBaseUrl = (process.env.AFRIX_WEB_URL || "https://afritoken.com").replace(/\/$/, "");
-
-      // Fire a payment.pending webhook so the merchant's backend knows a request was created.
-      // This is non-blocking — the response is already sent before this resolves.
-      setImmediate(() =>
-        emitMerchantWebhook(merchant.id, {
-          event: "payment.pending",
-          eventId: `afrix-payment-${transaction.id}`,
-          data: {
-            transaction_id: transaction.id,
-            reference: transaction.reference,
-            amount,
-            token_type: paymentTokenType,
-            status: "pending",
-            description: transaction.description,
-            customer_email: customer_email || null,
-            return_url: return_url || null,
-            created_at: transaction.created_at,
-          },
-        })
-      );
 
       res.status(201).json({
         success: true,
         data: {
           transaction_id: transaction.id,
-          payment_url: `${webBaseUrl}/pay/${transaction.id}`,
+          reference: paymentReference,
+          payment_url: `${webBaseUrl}/pay/${paymentReference}`,
           qr_code: qrCode,
           amount,
           currency: paymentTokenType,

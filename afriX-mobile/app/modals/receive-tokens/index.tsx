@@ -137,18 +137,20 @@ export default function ReceiveTokensScreen() {
 
           (async () => {
             try {
-              const fileUri = `${FileSystem.cacheDirectory}AfriX-${tokenType}-QR.png`;
+              const fileUri = `${FileSystem.cacheDirectory}AfriX-Receive-${tokenType}-QR.png`;
               await FileSystem.writeAsStringAsync(fileUri, data, {
                 encoding: FileSystem.EncodingType.Base64,
               });
 
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
+              const caption = `🛡️ AfriX Receive ${tokenType} QR Code\n📧 Account Email: ${userEmail}${walletAddress ? `\n• Wallet Address: ${walletAddress}` : ""}\n⚡ Scan with AfriX App or Camera to transfer.`;
+
               await Share.share(
                 Platform.OS === "ios"
-                  ? { url: fileUri }
-                  : { message: `AfriExchange ${tokenType} QR Code`, url: fileUri },
-                { dialogTitle: `Save ${tokenType} QR Code Image` }
+                  ? { url: fileUri, message: caption }
+                  : { message: caption, url: fileUri },
+                { dialogTitle: `Save ${tokenType} Receive QR Code` }
               );
             } catch (fileErr) {
               console.warn("QR file write/share notice:", fileErr);

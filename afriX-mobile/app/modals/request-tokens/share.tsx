@@ -97,19 +97,34 @@ export default function ShareRequestScreen() {
           encoding: FileSystem.EncodingType.Base64,
         });
 
-        const { status } = await MediaLibrary.requestPermissionsAsync();
-        if (status === "granted") {
-          await MediaLibrary.saveToLibraryAsync(filename);
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-          Alert.alert(
-            t("request_tokens.share.qr_downloaded_title", "QR Code Saved!"),
-            t("request_tokens.share.qr_downloaded_desc", "QR Code saved to photo library")
-          );
-        } else {
-          if (await Sharing.isAvailableAsync()) {
-            await Sharing.shareAsync(filename);
-          } else {
-            Alert.alert("QR Code Saved", `Image saved to: ${filename}`);
+        let saved = false;
+        try {
+          const MediaLibrary = require("expo-media-library");
+          if (MediaLibrary && typeof MediaLibrary.requestPermissionsAsync === "function") {
+            const { status } = await MediaLibrary.requestPermissionsAsync();
+            if (status === "granted") {
+              await MediaLibrary.saveToLibraryAsync(filename);
+              saved = true;
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              Alert.alert(
+                t("request_tokens.share.qr_downloaded_title", "QR Code Saved!"),
+                t("request_tokens.share.qr_downloaded_desc", "QR Code saved to photo library")
+              );
+            }
+          }
+        } catch (e) {
+          console.log("MediaLibrary native module not linked or unavailable in current client:", e);
+        }
+
+        if (!saved) {
+          try {
+            if (await Sharing.isAvailableAsync()) {
+              await Sharing.shareAsync(filename);
+            } else {
+              Alert.alert("QR Code Saved", `Image saved to: ${filename}`);
+            }
+          } catch (e) {
+            Alert.alert("Notice", "QR Code ready to share or save.");
           }
         }
       } catch (err: any) {

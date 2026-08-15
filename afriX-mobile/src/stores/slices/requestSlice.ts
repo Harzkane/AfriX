@@ -83,11 +83,18 @@ export const useRequestStore = create<RequestState>((set, get) => ({
       const { data } = await apiClient.post("/merchants/payment-request", {
         amount: parseFloat(draftRequest.amount),
         token_type: draftRequest.tokenType,
+        customer_email: draftRequest.recipientEmail || undefined,
+        description: draftRequest.note || "Token request",
         recipient_email: draftRequest.recipientEmail || undefined,
-        description: draftRequest.note,
         expiration_days: draftRequest.expirationDays,
         privacy: draftRequest.privacy,
         mode: draftRequest.mode,
+        metadata: {
+          recipient_email: draftRequest.recipientEmail || undefined,
+          expiration_days: draftRequest.expirationDays,
+          privacy: draftRequest.privacy,
+          mode: draftRequest.mode,
+        },
       });
 
       const randomSuffix = Math.random().toString(36).substring(2, 8).toUpperCase();

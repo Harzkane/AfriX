@@ -54,8 +54,9 @@ const walletController = {
    */
   async transfer(req, res, next) {
     try {
-      const { to_email, to_address, recipient, amount, token_type, description } = req.body;
+      const { to_email, to_address, recipient, amount, token_type, description, reference, request_id, requestId } = req.body;
       const targetRecipient = recipient || to_email || to_address;
+      const reqRef = reference || request_id || requestId;
 
       if (!targetRecipient || !amount || !token_type)
         throw new ApiError(
@@ -68,7 +69,12 @@ const walletController = {
         toRecipient: targetRecipient,
         amount: parseFloat(amount),
         token_type,
-        metadata: { description },
+        metadata: {
+          description,
+          reference: reqRef,
+          request_id: reqRef,
+          requestId: reqRef,
+        },
       });
 
       res.status(201).json({

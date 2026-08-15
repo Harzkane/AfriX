@@ -189,13 +189,17 @@ const walletService = {
       const { Op } = require("sequelize");
       const reqMatch = searchRef.match(/RQST-[A-Z0-9]+/i);
       const reqId = reqMatch ? reqMatch[0] : searchRef;
+      const cleanId = reqId.replace(/^RQST-/i, "");
+
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(cleanId);
+      const orConditions = [{ reference: reqId }, { reference: cleanId }];
+      if (isUuid) {
+        orConditions.push({ id: cleanId });
+      }
       
       matchedRequestTransaction = await Transaction.findOne({
         where: {
-          [Op.or]: [
-            { reference: reqId },
-            { id: reqId.replace(/^RQST-/i, "") },
-          ],
+          [Op.or]: orConditions,
         },
       });
 

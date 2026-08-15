@@ -333,13 +333,15 @@ const merchantController = {
       const cleanId = id.replace(/^RQST-/i, "");
       const { Op } = require("sequelize");
 
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(cleanId);
+      const orConditions = [{ reference: id }, { reference: cleanId }];
+      if (isUuid) {
+        orConditions.push({ id: cleanId });
+      }
+
       const transaction = await Transaction.findOne({
         where: {
-          [Op.or]: [
-            { id: cleanId },
-            { reference: id },
-            { reference: cleanId },
-          ],
+          [Op.or]: orConditions,
         },
         include: [
           { model: User, as: "toUser", attributes: ["id", "email", "full_name"] },

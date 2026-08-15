@@ -1,5 +1,4 @@
-// app/modals/request-tokens/share.tsx
-import React from "react";
+import React, { useRef } from "react";
 import {
   View,
   StyleSheet,
@@ -17,14 +16,19 @@ import { LinearGradient } from "expo-linear-gradient";
 import QRCode from "react-native-qrcode-svg";
 import * as Clipboard from "expo-clipboard";
 import * as Haptics from "expo-haptics";
+import * as FileSystem from "expo-file-system/legacy";
+import * as MediaLibrary from "expo-media-library";
+import * as Sharing from "expo-sharing";
 import { useTranslation } from "react-i18next";
 import { useRequestStore } from "@/stores";
+import { WEB_URL } from "@/constants/api";
 
 export default function ShareRequestScreen() {
   const router = useRouter();
   const { t } = useTranslation();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
+  const qrSvgRef = useRef<any>(null);
 
   const { createdRequest, draftRequest, resetDraft } = useRequestStore();
 
@@ -47,7 +51,7 @@ export default function ShareRequestScreen() {
   };
 
   const requestId = createdRequest?.requestId || "RQST-8F3A7K";
-  const shareUrl = createdRequest?.shareUrl || `https://afrix.app/pay/${requestId}`;
+  const shareUrl = createdRequest?.shareUrl || `${WEB_URL}/pay/${requestId}`;
   const amount = createdRequest?.amount || parseFloat(draftRequest.amount) || 10000;
   const tokenType = createdRequest?.tokenType || draftRequest.tokenType || "NT";
   const note = createdRequest?.note || draftRequest.note || "Rent payment for August";
@@ -81,11 +85,38 @@ export default function ShareRequestScreen() {
   };
 
   const handleDownloadQr = () => {
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    Alert.alert(
-      t("request_tokens.share.qr_downloaded_title", "QR Code Saved!"),
-      t("request_tokens.share.qr_downloaded_desc", "QR Code saved to photo library")
-    );
+    if (!qrSvgRef.current) {
+      Alert.alert("Notice", "QR Code is still rendering, please try again in a moment.");
+      return;
+    }
+
+    qrSvgRef.current.toDataURL(async (data: string) => {
+      try {
+        const filename = `${FileSystem.documentDirectory}AfriX-Request-QR-${Date.now()}.png`;
+        await FileSystem.writeAsStringAsync(filename, data, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+
+        const { status } = await MediaLibrary.requestPermissionsAsync();
+        if (status === "granted") {
+          await MediaLibrary.saveToLibraryAsync(filename);
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          Alert.alert(
+            t("request_tokens.share.qr_downloaded_title", "QR Code Saved!"),
+            t("request_tokens.share.qr_downloaded_desc", "QR Code saved to photo library")
+          );
+        } else {
+          if (await Sharing.isAvailableAsync()) {
+            await Sharing.shareAsync(filename);
+          } else {
+            Alert.alert("QR Code Saved", `Image saved to: ${filename}`);
+          }
+        }
+      } catch (err: any) {
+        console.error("QR save error:", err);
+        Alert.alert("Notice", "QR Code ready to share or save.");
+      }
+    });
   };
 
   const handleDone = () => {
@@ -318,7 +349,7 @@ export default function ShareRequestScreen() {
 
           <View style={styles.qrRow}>
             <View style={styles.qrBox}>
-              <QRCode value={shareUrl} size={110} backgroundColor="#FFFFFF" />
+              <QRCode getRef={(c) => (qrSvgRef.current = c)} value={shareUrl} size={110} backgroundColor="#FFFFFF" />
             </View>
 
             <View style={{ flex: 1, gap: 4 }}>

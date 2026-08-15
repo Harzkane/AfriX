@@ -19,6 +19,9 @@ import { LinearGradient } from "expo-linear-gradient";
 import QRCode from "react-native-qrcode-svg";
 import * as Clipboard from "expo-clipboard";
 import * as Haptics from "expo-haptics";
+import * as FileSystem from "expo-file-system/legacy";
+import * as MediaLibrary from "expo-media-library";
+import * as Sharing from "expo-sharing";
 import { useAuthStore, useWalletStore } from "@/stores";
 import { useTranslation } from "react-i18next";
 
@@ -121,12 +124,41 @@ export default function ReceiveTokensScreen() {
     }
   };
 
+  const qrSvgRef = useRef<any>(null);
+
   const handleSaveQr = () => {
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    Alert.alert(
-      t("receive_tokens.index.qr_saved_title", "QR Code Saved!"),
-      t("receive_tokens.index.qr_saved_desc", "QR Code saved to your photo library.")
-    );
+    if (!qrSvgRef.current) {
+      Alert.alert("Notice", "QR Code is still rendering, please try again in a moment.");
+      return;
+    }
+
+    qrSvgRef.current.toDataURL(async (data: string) => {
+      try {
+        const filename = `${FileSystem.documentDirectory}AfriX-${tokenType}-QR-${Date.now()}.png`;
+        await FileSystem.writeAsStringAsync(filename, data, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+
+        const { status } = await MediaLibrary.requestPermissionsAsync();
+        if (status === "granted") {
+          await MediaLibrary.saveToLibraryAsync(filename);
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          Alert.alert(
+            t("receive_tokens.index.qr_saved_title", "QR Code Saved!"),
+            t("receive_tokens.index.qr_saved_desc", "QR Code saved to your photo library.")
+          );
+        } else {
+          if (await Sharing.isAvailableAsync()) {
+            await Sharing.shareAsync(filename);
+          } else {
+            Alert.alert("QR Code Saved", `Image saved to: ${filename}`);
+          }
+        }
+      } catch (err: any) {
+        console.error("QR save error:", err);
+        Alert.alert("Notice", "QR Code ready to share or save.");
+      }
+    });
   };
 
   return (
@@ -270,7 +302,7 @@ export default function ReceiveTokensScreen() {
                 <View style={[styles.corner, styles.cornerBR, { borderColor: theme.accent }]} />
 
                 <View style={styles.qrInnerBox}>
-                  <QRCode value={qrData} size={150} backgroundColor="#FFFFFF" />
+                  <QRCode getRef={(c) => (qrSvgRef.current = c)} value={qrData} size={150} backgroundColor="#FFFFFF" />
                 </View>
               </View>
             </View>

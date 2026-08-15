@@ -125,54 +125,77 @@ export default function ReceiveTokensScreen() {
   const qrSvgRef = useRef<any>(null);
 
   const handleSaveQr = () => {
-    if (!qrSvgRef.current) {
-      Alert.alert("Notice", "QR Code is still rendering, please try again in a moment.");
-      return;
-    }
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
-    qrSvgRef.current.toDataURL(async (data: string) => {
-      try {
-        const filename = `${FileSystem.documentDirectory}AfriX-${tokenType}-QR-${Date.now()}.png`;
-        await FileSystem.writeAsStringAsync(filename, data, {
-          encoding: FileSystem.EncodingType.Base64,
+      if (qrSvgRef.current && typeof qrSvgRef.current.toDataURL === "function") {
+        qrSvgRef.current.toDataURL((data: string) => {
+          if (!data) {
+            handleCopyAddress();
+            return;
+          }
+
+          (async () => {
+            try {
+              const filename = `${FileSystem.documentDirectory}AfriX-${tokenType}-QR-${Date.now()}.png`;
+              await FileSystem.writeAsStringAsync(filename, data, {
+                encoding: FileSystem.EncodingType.Base64,
+              });
+
+              let saved = false;
+              try {
+                const MediaLibrary = require("expo-media-library");
+                if (MediaLibrary && typeof MediaLibrary.requestPermissionsAsync === "function") {
+                  const { status } = await MediaLibrary.requestPermissionsAsync();
+                  if (status === "granted") {
+                    await MediaLibrary.saveToLibraryAsync(filename);
+                    saved = true;
+                    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                    Alert.alert(
+                      t("receive_tokens.index.qr_saved_title", "QR Code Saved!"),
+                      t("receive_tokens.index.qr_saved_desc", "QR Code saved to your photo library.")
+                    );
+                  }
+                }
+              } catch (e) {
+                // MediaLibrary unlinked in current build
+              }
+
+              if (!saved) {
+                try {
+                  const Sharing = require("expo-sharing");
+                  if (Sharing && typeof Sharing.isAvailableAsync === "function" && (await Sharing.isAvailableAsync())) {
+                    await Sharing.shareAsync(filename);
+                    saved = true;
+                  }
+                } catch (e) {
+                  // Sharing unlinked in current build
+                }
+              }
+
+              if (!saved) {
+                if (walletAddress) {
+                  await Clipboard.setStringAsync(walletAddress);
+                }
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                Alert.alert(
+                  t("receive_tokens.index.copied_title", "Copied!"),
+                  t("receive_tokens.index.copied_desc", "Wallet address copied to clipboard")
+                );
+              }
+            } catch (err) {
+              console.warn("QR saving fallback:", err);
+              handleCopyAddress();
+            }
+          })();
         });
-
-        let saved = false;
-        try {
-          const MediaLibrary = require("expo-media-library");
-          if (MediaLibrary && typeof MediaLibrary.requestPermissionsAsync === "function") {
-            const { status } = await MediaLibrary.requestPermissionsAsync();
-            if (status === "granted") {
-              await MediaLibrary.saveToLibraryAsync(filename);
-              saved = true;
-              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-              Alert.alert(
-                t("receive_tokens.index.qr_saved_title", "QR Code Saved!"),
-                t("receive_tokens.index.qr_saved_desc", "QR Code saved to your photo library.")
-              );
-            }
-          }
-        } catch (e) {
-          console.log("MediaLibrary native module not linked or unavailable in current client:", e);
-        }
-
-        if (!saved) {
-          try {
-            const Sharing = require("expo-sharing");
-            if (Sharing && typeof Sharing.isAvailableAsync === "function" && (await Sharing.isAvailableAsync())) {
-              await Sharing.shareAsync(filename);
-            } else {
-              Alert.alert("QR Code Image Created", `Image saved at: ${filename}`);
-            }
-          } catch (e) {
-            Alert.alert("Notice", "QR Code ready to share or save.");
-          }
-        }
-      } catch (err: any) {
-        console.error("QR save error:", err);
-        Alert.alert("Notice", "QR Code ready to share or save.");
+      } else {
+        handleCopyAddress();
       }
-    });
+    } catch (err) {
+      console.warn("handleSaveQr error:", err);
+      handleCopyAddress();
+    }
   };
 
   return (

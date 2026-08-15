@@ -83,56 +83,76 @@ export default function ShareRequestScreen() {
   };
 
   const handleDownloadQr = () => {
-    if (!qrSvgRef.current) {
-      Alert.alert("Notice", "QR Code is still rendering, please try again in a moment.");
-      return;
-    }
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
-    qrSvgRef.current.toDataURL(async (data: string) => {
-      try {
-        const filename = `${FileSystem.documentDirectory}AfriX-Request-QR-${Date.now()}.png`;
-        await FileSystem.writeAsStringAsync(filename, data, {
-          encoding: FileSystem.EncodingType.Base64,
-        });
-
-        let saved = false;
-        try {
-          const MediaLibrary = require("expo-media-library");
-          if (MediaLibrary && typeof MediaLibrary.requestPermissionsAsync === "function") {
-            const { status } = await MediaLibrary.requestPermissionsAsync();
-            if (status === "granted") {
-              await MediaLibrary.saveToLibraryAsync(filename);
-              saved = true;
-              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-              Alert.alert(
-                t("request_tokens.share.qr_downloaded_title", "QR Code Saved!"),
-                t("request_tokens.share.qr_downloaded_desc", "QR Code saved to photo library")
-              );
-            }
+      if (qrSvgRef.current && typeof qrSvgRef.current.toDataURL === "function") {
+        qrSvgRef.current.toDataURL((data: string) => {
+          if (!data) {
+            handleCopyLink();
+            return;
           }
-        } catch (e) {
-          console.log("MediaLibrary native module not linked or unavailable in current client:", e);
-        }
 
-        if (!saved) {
-          try {
-            const Sharing = require("expo-sharing");
-            if (Sharing && typeof Sharing.isAvailableAsync === "function" && (await Sharing.isAvailableAsync())) {
-              await Sharing.shareAsync(filename);
-            } else {
+          (async () => {
+            try {
+              const filename = `${FileSystem.documentDirectory}AfriX-Request-QR-${Date.now()}.png`;
+              await FileSystem.writeAsStringAsync(filename, data, {
+                encoding: FileSystem.EncodingType.Base64,
+              });
+
+              let saved = false;
+              try {
+                const MediaLibrary = require("expo-media-library");
+                if (MediaLibrary && typeof MediaLibrary.requestPermissionsAsync === "function") {
+                  const { status } = await MediaLibrary.requestPermissionsAsync();
+                  if (status === "granted") {
+                    await MediaLibrary.saveToLibraryAsync(filename);
+                    saved = true;
+                    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                    Alert.alert(
+                      t("request_tokens.share.qr_downloaded_title", "QR Code Saved!"),
+                      t("request_tokens.share.qr_downloaded_desc", "QR Code saved to photo library")
+                    );
+                  }
+                }
+              } catch (e) {
+                // MediaLibrary unlinked in current build
+              }
+
+              if (!saved) {
+                try {
+                  const Sharing = require("expo-sharing");
+                  if (Sharing && typeof Sharing.isAvailableAsync === "function" && (await Sharing.isAvailableAsync())) {
+                    await Sharing.shareAsync(filename);
+                    saved = true;
+                  }
+                } catch (e) {
+                  // Sharing unlinked in current build
+                }
+              }
+
+              if (!saved) {
+                await Clipboard.setStringAsync(shareUrl);
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                Alert.alert(
+                  t("request_tokens.share.link_copied_title", "Link Copied!"),
+                  t("request_tokens.share.link_copied_desc", "Payment link copied to clipboard")
+                );
+              }
+            } catch (err) {
+              console.warn("QR saving fallback:", err);
               await Clipboard.setStringAsync(shareUrl);
               Alert.alert("Link Copied!", "Payment link copied to clipboard.");
             }
-          } catch (e) {
-            await Clipboard.setStringAsync(shareUrl);
-            Alert.alert("Link Copied!", "Payment link copied to clipboard.");
-          }
-        }
-      } catch (err: any) {
-        console.error("QR save error:", err);
-        Alert.alert("Notice", "QR Code ready to share or save.");
+          })();
+        });
+      } else {
+        handleCopyLink();
       }
-    });
+    } catch (err) {
+      console.warn("handleDownloadQr error:", err);
+      handleCopyLink();
+    }
   };
 
   const handleDone = () => {

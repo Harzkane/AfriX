@@ -19,7 +19,7 @@ import * as Clipboard from "expo-clipboard";
 import * as Haptics from "expo-haptics";
 import * as FileSystem from "expo-file-system/legacy";
 import { useTranslation } from "react-i18next";
-import { useRequestStore } from "@/stores";
+import { useRequestStore, useAuthStore } from "@/stores";
 import { WEB_URL } from "@/constants/api";
 
 export default function ShareRequestScreen() {
@@ -49,12 +49,10 @@ export default function ShareRequestScreen() {
     blueBorder: isDark ? "rgba(59,130,246,0.25)" : "#DBEAFE",
   };
 
-  const requestId = createdRequest?.requestId || "RQST-8F3A7K";
-  const amount = createdRequest?.amount || parseFloat(draftRequest.amount) || 10000;
-  const tokenType = createdRequest?.tokenType || draftRequest.tokenType || "NT";
-  const note = createdRequest?.note || draftRequest.note || "Rent payment for August";
+  const { user } = useAuthStore();
+  const creatorEmail = createdRequest?.creatorEmail || user?.email || "";
 
-  const fullPaymentUrl = `${WEB_URL}/pay/${requestId}?amount=${amount}&token=${tokenType}&note=${encodeURIComponent(note)}`;
+  const fullPaymentUrl = `${WEB_URL}/pay/${requestId}?amount=${amount}&token=${tokenType}&note=${encodeURIComponent(note)}${creatorEmail ? `&email=${encodeURIComponent(creatorEmail)}` : ""}`;
   const shareUrl = createdRequest?.shareUrl || fullPaymentUrl;
 
   const qrPayload = JSON.stringify({
@@ -63,6 +61,7 @@ export default function ShareRequestScreen() {
     amount: amount.toString(),
     token: tokenType,
     note,
+    email: creatorEmail,
     url: fullPaymentUrl,
   });
 

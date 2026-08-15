@@ -181,6 +181,26 @@ const walletService = {
       }
     }
 
+    if (!recipient && recipientIdentifier.toUpperCase().includes("RQST-")) {
+      const { Op } = require("sequelize");
+      const reqMatch = recipientIdentifier.match(/RQST-[A-Z0-9]+/i);
+      const reqId = reqMatch ? reqMatch[0] : recipientIdentifier;
+      
+      const transaction = await Transaction.findOne({
+        where: {
+          [Op.or]: [
+            { reference: reqId },
+            { id: reqId.replace(/^RQST-/i, "") },
+          ],
+        },
+      });
+
+      if (transaction && (transaction.to_user_id || transaction.user_id)) {
+        const targetUserId = transaction.to_user_id || transaction.user_id;
+        recipient = await User.findByPk(targetUserId);
+      }
+    }
+
     if (!recipient) throw new ApiError("Recipient not found. Check the email or wallet address.", 404);
     if (recipient.id === fromUserId)
       throw new ApiError("Cannot send to self", 400);

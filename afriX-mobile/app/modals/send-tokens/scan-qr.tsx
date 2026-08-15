@@ -58,6 +58,7 @@ export default function ScanQRScreen() {
         let parsedAmount = "";
         let parsedToken = "NT";
         let parsedNote = "";
+        let parsedEmail = "";
 
         if (trimmed.includes("?")) {
           const queryString = trimmed.split("?")[1];
@@ -65,9 +66,10 @@ export default function ScanQRScreen() {
           if (urlParams.get("amount")) parsedAmount = urlParams.get("amount") || "";
           if (urlParams.get("token")) parsedToken = urlParams.get("token") || "NT";
           if (urlParams.get("note")) parsedNote = urlParams.get("note") || "";
+          if (urlParams.get("email")) parsedEmail = urlParams.get("email") || "";
         }
 
-        setRecipient(reqId);
+        setRecipient(parsedEmail || reqId);
         if (parsedToken && ["NT", "CT", "USDT"].includes(parsedToken)) {
           setTokenType(parsedToken as "NT" | "CT" | "USDT");
         }

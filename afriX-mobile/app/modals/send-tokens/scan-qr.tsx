@@ -1,9 +1,10 @@
-// app/modals/send-tokens/scan-qr.tsx
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { View, StyleSheet, TouchableOpacity, Alert, useColorScheme, Text } from "react-native";
 import { useRouter } from "expo-router";
+import { useFocusEffect } from "@react-navigation/native";
 import { CameraView, Camera } from "expo-camera";
 import { Ionicons } from "@expo/vector-icons";
+import * as Haptics from "expo-haptics";
 import { useTransferStore } from "@/stores";
 import { useTranslation } from "react-i18next";
 
@@ -12,7 +13,7 @@ export default function ScanQRScreen() {
   const { t } = useTranslation();
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const [scanned, setScanned] = useState(false);
-  const { setRecipient, setTokenType } = useTransferStore();
+  const { setRecipient, setTokenType, setAmount, setNote } = useTransferStore();
 
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
@@ -34,43 +35,51 @@ export default function ScanQRScreen() {
     })();
   }, []);
 
+  // Reset scanned state whenever screen regains focus
+  useFocusEffect(
+    useCallback(() => {
+      setScanned(false);
+    }, [])
+  );
+
   const handleBarCodeScanned = ({ data }: { data: string }) => {
     if (scanned) return;
     setScanned(true);
 
     try {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       const trimmed = data.trim();
 
-      // Case 1: Payment Request URL (e.g. https://afri-x.vercel.app/pay/RQST-8F3A7K or afrix://pay/RQST-8F3A7K or raw RQST-8F3A7K)
+      // Case 1: Payment Request URL (e.g. https://afri-x.vercel.app/pay/RQST-8F3A7K or raw RQST-8F3A7K)
       if (trimmed.includes("RQST-") || trimmed.includes("/pay/")) {
         const match = trimmed.match(/RQST-[A-Z0-9]+/i);
         const reqId = match ? match[0].toUpperCase() : trimmed;
         
         setRecipient(reqId);
         setTokenType("NT");
-        
-        Alert.alert(
-          t("send_tokens.scan_qr.request_scanned_title", "Payment Request Found"),
-          t("send_tokens.scan_qr.request_scanned_desc", "Scanned request {{reqId}}. Proceed to review payment.", { reqId }),
-          [
-            {
-              text: t("common.continue", "Continue"),
-              onPress: () => router.replace("/modals/send-tokens/amount"),
-            },
-          ]
-        );
+        router.replace("/modals/send-tokens/amount");
         return;
       }
 
-      // Case 2: Standard JSON payload
+      // Case 2: Standard JSON payload (Receive QR / Payment Request JSON)
       if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
         const qrData = JSON.parse(trimmed);
         const email = qrData.email || qrData.address || qrData.recipient;
         const token = qrData.token || qrData.tokenType || "NT";
+        const amt = qrData.amount ? qrData.amount.toString() : "";
+        const noteText = qrData.note || qrData.description || "";
 
         if (email) {
           setRecipient(email);
-          if (token) setTokenType(token);
+          if (token && ["NT", "CT", "USDT"].includes(token)) {
+            setTokenType(token as "NT" | "CT" | "USDT");
+          }
+          if (amt) {
+            setAmount(amt);
+          }
+          if (noteText) {
+            setNote(noteText);
+          }
           router.replace("/modals/send-tokens/amount");
           return;
         }

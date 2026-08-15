@@ -96,18 +96,20 @@ export default function ShareRequestScreen() {
 
           (async () => {
             try {
-              const fileUri = `${FileSystem.cacheDirectory}AfriX-Request-QR-${requestId}.png`;
+              const fileUri = `${FileSystem.cacheDirectory}AfriX-Payment-Request-${requestId}.png`;
               await FileSystem.writeAsStringAsync(fileUri, data, {
                 encoding: FileSystem.EncodingType.Base64,
               });
 
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
+              const caption = `🛡️ AfriX Payment Request (${requestId})\n💰 Amount: ${amount.toLocaleString()} ${tokenType}\n📝 Note: "${note}"\n🌐 Pay online: ${shareUrl}`;
+
               await Share.share(
                 Platform.OS === "ios"
-                  ? { url: fileUri }
-                  : { message: `AfriExchange Payment Request (${requestId}): ${shareUrl}`, url: fileUri },
-                { dialogTitle: t("request_tokens.share.qr_code_title", "QR CODE") }
+                  ? { url: fileUri, message: caption }
+                  : { message: caption, url: fileUri },
+                { dialogTitle: `AfriX Payment Request ${requestId}` }
               );
             } catch (fileErr) {
               console.warn("QR file write/share notice:", fileErr);

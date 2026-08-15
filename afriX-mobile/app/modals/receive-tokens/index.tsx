@@ -243,16 +243,14 @@ export default function ReceiveTokensScreen() {
                     <Ionicons name="checkmark" size={10} color="#FFF" />
                   </View>
                 )}
-                <View style={styles.tokenIconBadge}>
-                  <Text style={[styles.tokenIconText, { color: isSelected ? theme.accent : theme.text }]}>
-                    {token === "NT" ? "🇳🇬" : token === "CT" ? "🌍" : "💵"}
-                  </Text>
-                </View>
+                <Text style={[styles.tokenCardSub, { color: isSelected ? theme.accent : theme.muted }]}>
+                  {t(`receive_tokens.index.token_subtitle_${token.toLowerCase()}`, details.subtitle)}
+                </Text>
                 <Text style={[styles.tokenCardLabel, { color: isSelected ? theme.accent : theme.text }]}>
                   {token}
                 </Text>
                 <Text style={[styles.tokenCardName, { color: isSelected ? theme.accent + "CC" : theme.muted }]}>
-                  {details.label}
+                  {t(`receive_tokens.index.token_label_${token.toLowerCase()}`, details.label)}
                 </Text>
               </TouchableOpacity>
             );
@@ -514,8 +512,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  tokenIconBadge: { marginBottom: 4 },
-  tokenIconText: { fontSize: 20 },
+  tokenCardSub: { fontSize: 9, fontWeight: "800", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 4 },
   tokenCardLabel: { fontSize: 18, fontWeight: "900", letterSpacing: -0.5, marginBottom: 2 },
   tokenCardName: { fontSize: 10, fontWeight: "600", textAlign: "center" },
 

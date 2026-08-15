@@ -80,6 +80,7 @@ export default function ReceiveTokensScreen() {
     type: "afritoken_receive",
     email: userEmail,
     token: tokenType,
+    address: walletAddress,
     version: "1.0",
   });
 

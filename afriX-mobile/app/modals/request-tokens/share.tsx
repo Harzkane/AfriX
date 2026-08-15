@@ -50,10 +50,21 @@ export default function ShareRequestScreen() {
   };
 
   const requestId = createdRequest?.requestId || "RQST-8F3A7K";
-  const shareUrl = createdRequest?.shareUrl || `${WEB_URL}/pay/${requestId}`;
   const amount = createdRequest?.amount || parseFloat(draftRequest.amount) || 10000;
   const tokenType = createdRequest?.tokenType || draftRequest.tokenType || "NT";
   const note = createdRequest?.note || draftRequest.note || "Rent payment for August";
+
+  const fullPaymentUrl = `${WEB_URL}/pay/${requestId}?amount=${amount}&token=${tokenType}&note=${encodeURIComponent(note)}`;
+  const shareUrl = createdRequest?.shareUrl || fullPaymentUrl;
+
+  const qrPayload = JSON.stringify({
+    type: "afrix_payment_request",
+    requestId,
+    amount: amount.toString(),
+    token: tokenType,
+    note,
+    url: fullPaymentUrl,
+  });
 
   const handleCopyLink = async () => {
     await Clipboard.setStringAsync(shareUrl);
@@ -356,7 +367,7 @@ export default function ShareRequestScreen() {
 
           <View style={styles.qrRow}>
             <View style={styles.qrBox}>
-              <QRCode getRef={(c) => (qrSvgRef.current = c)} value={shareUrl} size={110} backgroundColor="#FFFFFF" />
+              <QRCode getRef={(c) => (qrSvgRef.current = c)} value={qrPayload} size={110} backgroundColor="#FFFFFF" />
             </View>
 
             <View style={{ flex: 1, gap: 4 }}>

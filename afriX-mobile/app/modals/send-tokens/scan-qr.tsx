@@ -50,13 +50,33 @@ export default function ScanQRScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       const trimmed = data.trim();
 
-      // Case 1: Payment Request URL (e.g. https://afri-x.vercel.app/pay/RQST-8F3A7K or raw RQST-8F3A7K)
+      // Case 1: Payment Request URL (e.g. https://afri-x.vercel.app/pay/RQST-8F3A7K?amount=10000&token=NT&note=Rent)
       if (trimmed.includes("RQST-") || trimmed.includes("/pay/")) {
         const match = trimmed.match(/RQST-[A-Z0-9]+/i);
         const reqId = match ? match[0].toUpperCase() : trimmed;
         
+        let parsedAmount = "";
+        let parsedToken = "NT";
+        let parsedNote = "";
+
+        if (trimmed.includes("?")) {
+          const queryString = trimmed.split("?")[1];
+          const urlParams = new URLSearchParams(queryString);
+          if (urlParams.get("amount")) parsedAmount = urlParams.get("amount") || "";
+          if (urlParams.get("token")) parsedToken = urlParams.get("token") || "NT";
+          if (urlParams.get("note")) parsedNote = urlParams.get("note") || "";
+        }
+
         setRecipient(reqId);
-        setTokenType("NT");
+        if (parsedToken && ["NT", "CT", "USDT"].includes(parsedToken)) {
+          setTokenType(parsedToken as "NT" | "CT" | "USDT");
+        }
+        if (parsedAmount) {
+          setAmount(parsedAmount);
+        }
+        if (parsedNote) {
+          setNote(parsedNote);
+        }
         router.replace("/modals/send-tokens/amount");
         return;
       }

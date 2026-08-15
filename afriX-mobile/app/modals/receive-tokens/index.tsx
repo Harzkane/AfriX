@@ -124,74 +124,17 @@ export default function ReceiveTokensScreen() {
 
   const qrSvgRef = useRef<any>(null);
 
-  const handleSaveQr = () => {
+  const handleSaveQr = async () => {
     try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-
-      if (qrSvgRef.current && typeof qrSvgRef.current.toDataURL === "function") {
-        qrSvgRef.current.toDataURL((data: string) => {
-          if (!data) {
-            handleCopyAddress();
-            return;
-          }
-
-          (async () => {
-            try {
-              const filename = `${FileSystem.documentDirectory}AfriX-${tokenType}-QR-${Date.now()}.png`;
-              await FileSystem.writeAsStringAsync(filename, data, {
-                encoding: FileSystem.EncodingType.Base64,
-              });
-
-              let saved = false;
-              try {
-                const MediaLibrary = require("expo-media-library");
-                if (MediaLibrary && typeof MediaLibrary.requestPermissionsAsync === "function") {
-                  const { status } = await MediaLibrary.requestPermissionsAsync();
-                  if (status === "granted") {
-                    await MediaLibrary.saveToLibraryAsync(filename);
-                    saved = true;
-                    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                    Alert.alert(
-                      t("receive_tokens.index.qr_saved_title", "QR Code Saved!"),
-                      t("receive_tokens.index.qr_saved_desc", "QR Code saved to your photo library.")
-                    );
-                  }
-                }
-              } catch (e) {
-                // MediaLibrary unlinked in current build
-              }
-
-              if (!saved) {
-                try {
-                  const Sharing = require("expo-sharing");
-                  if (Sharing && typeof Sharing.isAvailableAsync === "function" && (await Sharing.isAvailableAsync())) {
-                    await Sharing.shareAsync(filename);
-                    saved = true;
-                  }
-                } catch (e) {
-                  // Sharing unlinked in current build
-                }
-              }
-
-              if (!saved) {
-                if (walletAddress) {
-                  await Clipboard.setStringAsync(walletAddress);
-                }
-                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                Alert.alert(
-                  t("receive_tokens.index.copied_title", "Copied!"),
-                  t("receive_tokens.index.copied_desc", "Wallet address copied to clipboard")
-                );
-              }
-            } catch (err) {
-              console.warn("QR saving fallback:", err);
-              handleCopyAddress();
-            }
-          })();
-        });
-      } else {
-        handleCopyAddress();
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      if (walletAddress) {
+        await Clipboard.setStringAsync(walletAddress);
       }
+      Alert.alert(
+        t("receive_tokens.index.copied_title", "Copied!"),
+        t("receive_tokens.index.copied_desc", "Wallet address copied to clipboard & ready to share.")
+      );
+      handleShare();
     } catch (err) {
       console.warn("handleSaveQr error:", err);
       handleCopyAddress();

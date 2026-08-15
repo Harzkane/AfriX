@@ -39,34 +39,55 @@ export default function ScanQRScreen() {
     setScanned(true);
 
     try {
-      const qrData = JSON.parse(data);
+      const trimmed = data.trim();
 
-      if (qrData.type !== "afritoken_receive") {
+      // Case 1: Payment Request URL (e.g. https://afri-x.vercel.app/pay/RQST-8F3A7K or afrix://pay/RQST-8F3A7K or raw RQST-8F3A7K)
+      if (trimmed.includes("RQST-") || trimmed.includes("/pay/")) {
+        const match = trimmed.match(/RQST-[A-Z0-9]+/i);
+        const reqId = match ? match[0].toUpperCase() : trimmed;
+        
+        setRecipient(reqId);
+        setTokenType("NT");
+        
         Alert.alert(
-          t("send_tokens.scan_qr.err_invalid_qr_title", "Invalid QR Code"),
-          t("send_tokens.scan_qr.err_invalid_qr", "This QR code is not from AfriToken. Please scan a valid AfriToken receive QR code."),
-          [{ text: t("common.ok", "OK"), onPress: () => setScanned(false) }]
+          t("send_tokens.scan_qr.request_scanned_title", "Payment Request Found"),
+          t("send_tokens.scan_qr.request_scanned_desc", "Scanned request {{reqId}}. Proceed to review payment.", { reqId }),
+          [
+            {
+              text: t("common.continue", "Continue"),
+              onPress: () => router.replace("/modals/send-tokens/amount"),
+            },
+          ]
         );
         return;
       }
 
-      const { email, token } = qrData;
+      // Case 2: Standard JSON payload
+      if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
+        const qrData = JSON.parse(trimmed);
+        const email = qrData.email || qrData.address || qrData.recipient;
+        const token = qrData.token || qrData.tokenType || "NT";
 
-      if (!email) {
-        Alert.alert(
-          t("send_tokens.scan_qr.err_invalid_qr_title", "Invalid QR Code"),
-          t("send_tokens.scan_qr.err_missing_email", "QR code does not contain recipient email."),
-          [{ text: t("common.ok", "OK"), onPress: () => setScanned(false) }]
-        );
+        if (email) {
+          setRecipient(email);
+          if (token) setTokenType(token);
+          router.replace("/modals/send-tokens/amount");
+          return;
+        }
+      }
+
+      // Case 3: Plain email address or wallet address
+      if (trimmed.includes("@") || trimmed.startsWith("0x") || trimmed.length > 5) {
+        setRecipient(trimmed);
+        router.replace("/modals/send-tokens/amount");
         return;
       }
 
-      setRecipient(email);
-      if (token) {
-        setTokenType(token);
-      }
-
-      router.replace("/modals/send-tokens/amount");
+      Alert.alert(
+        t("send_tokens.scan_qr.err_invalid_qr_title", "Invalid QR Code"),
+        t("send_tokens.scan_qr.err_invalid_qr", "Could not recognize this QR code. Please scan a valid AfriX receive QR code."),
+        [{ text: t("common.ok", "OK"), onPress: () => setScanned(false) }]
+      );
     } catch (error) {
       console.error("QR scan error:", error);
       Alert.alert(

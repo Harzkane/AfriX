@@ -50,6 +50,10 @@ export default function ShareRequestScreen() {
   };
 
   const { user } = useAuthStore();
+  const requestId = createdRequest?.requestId || "RQST-8F3A7K";
+  const amount = createdRequest?.amount || parseFloat(draftRequest.amount) || 10000;
+  const tokenType = createdRequest?.tokenType || draftRequest.tokenType || "NT";
+  const note = createdRequest?.note || draftRequest.note || "Rent payment for August";
   const creatorEmail = createdRequest?.creatorEmail || user?.email || "";
 
   const fullPaymentUrl = `${WEB_URL}/pay/${requestId}?amount=${amount}&token=${tokenType}&note=${encodeURIComponent(note)}${creatorEmail ? `&email=${encodeURIComponent(creatorEmail)}` : ""}`;

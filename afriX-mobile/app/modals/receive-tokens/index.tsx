@@ -124,17 +124,41 @@ export default function ReceiveTokensScreen() {
 
   const qrSvgRef = useRef<any>(null);
 
-  const handleSaveQr = async () => {
+  const handleSaveQr = () => {
     try {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      if (walletAddress) {
-        await Clipboard.setStringAsync(walletAddress);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+      if (qrSvgRef.current && typeof qrSvgRef.current.toDataURL === "function") {
+        qrSvgRef.current.toDataURL((data: string) => {
+          if (!data) {
+            handleCopyAddress();
+            return;
+          }
+
+          (async () => {
+            try {
+              const fileUri = `${FileSystem.cacheDirectory}AfriX-${tokenType}-QR.png`;
+              await FileSystem.writeAsStringAsync(fileUri, data, {
+                encoding: FileSystem.EncodingType.Base64,
+              });
+
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+              await Share.share(
+                Platform.OS === "ios"
+                  ? { url: fileUri }
+                  : { message: `AfriExchange ${tokenType} QR Code`, url: fileUri },
+                { dialogTitle: `Save ${tokenType} QR Code Image` }
+              );
+            } catch (fileErr) {
+              console.warn("QR file write/share notice:", fileErr);
+              handleCopyAddress();
+            }
+          })();
+        });
+      } else {
+        handleCopyAddress();
       }
-      Alert.alert(
-        t("receive_tokens.index.copied_title", "Copied!"),
-        t("receive_tokens.index.copied_desc", "Wallet address copied to clipboard & ready to share.")
-      );
-      handleShare();
     } catch (err) {
       console.warn("handleSaveQr error:", err);
       handleCopyAddress();

@@ -7,6 +7,7 @@ import {
   Text,
   Share,
   Alert,
+  Platform,
   useColorScheme,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -82,15 +83,41 @@ export default function ShareRequestScreen() {
     }
   };
 
-  const handleDownloadQr = async () => {
+  const handleDownloadQr = () => {
     try {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      await Clipboard.setStringAsync(shareUrl);
-      Alert.alert(
-        t("request_tokens.share.link_copied_title", "Link Copied!"),
-        t("request_tokens.share.link_copied_desc", "Payment link copied to clipboard & ready to share.")
-      );
-      handleNativeShare();
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+      if (qrSvgRef.current && typeof qrSvgRef.current.toDataURL === "function") {
+        qrSvgRef.current.toDataURL((data: string) => {
+          if (!data) {
+            handleCopyLink();
+            return;
+          }
+
+          (async () => {
+            try {
+              const fileUri = `${FileSystem.cacheDirectory}AfriX-Request-QR-${requestId}.png`;
+              await FileSystem.writeAsStringAsync(fileUri, data, {
+                encoding: FileSystem.EncodingType.Base64,
+              });
+
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+              await Share.share(
+                Platform.OS === "ios"
+                  ? { url: fileUri }
+                  : { message: `AfriExchange Payment Request (${requestId}): ${shareUrl}`, url: fileUri },
+                { dialogTitle: t("request_tokens.share.qr_code_title", "QR CODE") }
+              );
+            } catch (fileErr) {
+              console.warn("QR file write/share notice:", fileErr);
+              handleCopyLink();
+            }
+          })();
+        });
+      } else {
+        handleCopyLink();
+      }
     } catch (err) {
       console.warn("handleDownloadQr error:", err);
       handleCopyLink();

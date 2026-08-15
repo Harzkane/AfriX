@@ -80,8 +80,12 @@ export const useRequestStore = create<RequestState>((set, get) => ({
   createTokenRequest: async () => {
     const { draftRequest } = get();
     set({ loading: true, error: null });
+
+    const randomSuffix = Math.random().toString(36).substring(2, 8).toUpperCase();
+    const reqId = `RQST-${randomSuffix}`;
+
     try {
-      // API call to create payment request
+      // API call to create payment request with fixed reference
       const { data } = await apiClient.post("/merchants/payment-request", {
         amount: parseFloat(draftRequest.amount),
         token_type: draftRequest.tokenType,
@@ -91,18 +95,15 @@ export const useRequestStore = create<RequestState>((set, get) => ({
         expiration_days: draftRequest.expirationDays,
         privacy: draftRequest.privacy,
         mode: draftRequest.mode,
+        reference: reqId,
         metadata: {
           recipient_email: draftRequest.recipientEmail || undefined,
           expiration_days: draftRequest.expirationDays,
           privacy: draftRequest.privacy,
           mode: draftRequest.mode,
+          request_id: reqId,
         },
       });
-
-      const randomSuffix = Math.random().toString(36).substring(2, 8).toUpperCase();
-      const reqId = data?.data?.transaction_id
-        ? `RQST-${data.data.transaction_id.substring(0, 6).toUpperCase()}`
-        : `RQST-${randomSuffix}`;
 
       const expiresDate = new Date();
       if (draftRequest.expirationDays !== "never") {

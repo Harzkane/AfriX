@@ -69,7 +69,7 @@ export default function SwapTokensScreen() {
   const availableBalance = fromWallet ? parseFloat(fromWallet.available_balance) : 0;
   const destinationBalance = toWallet ? parseFloat(toWallet.available_balance) : 0;
 
-  useEffect(() => { fetchExchangeRate(); }, []);
+  useEffect(() => { fetchExchangeRate(); }, [fromToken, toToken]);
 
   useEffect(() => {
     const num = parseFloat(amount) || 0;

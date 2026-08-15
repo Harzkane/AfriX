@@ -280,11 +280,9 @@ const walletService = {
         if (feeWallet) feeWalletId = feeWallet.id;
       }
 
-      const paymentRef = metadata.reference || metadata.request_id || metadata.requestId || generateTransactionReference();
-
       const tx = await Transaction.create(
         {
-          reference: paymentRef,
+          reference: generateTransactionReference(),
           type: TRANSACTION_TYPES.TRANSFER,
           status: TRANSACTION_STATUS.COMPLETED,
           amount: transferAmount,

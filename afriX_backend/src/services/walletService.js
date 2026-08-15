@@ -181,12 +181,13 @@ const walletService = {
       }
     }
 
+    let matchedRequestTransaction = null;
     if (!recipient && recipientIdentifier.toUpperCase().includes("RQST-")) {
       const { Op } = require("sequelize");
       const reqMatch = recipientIdentifier.match(/RQST-[A-Z0-9]+/i);
       const reqId = reqMatch ? reqMatch[0] : recipientIdentifier;
       
-      const transaction = await Transaction.findOne({
+      matchedRequestTransaction = await Transaction.findOne({
         where: {
           [Op.or]: [
             { reference: reqId },
@@ -195,9 +196,14 @@ const walletService = {
         },
       });
 
-      if (transaction && (transaction.to_user_id || transaction.user_id)) {
-        const targetUserId = transaction.to_user_id || transaction.user_id;
-        recipient = await User.findByPk(targetUserId);
+      if (matchedRequestTransaction) {
+        if (matchedRequestTransaction.status === TRANSACTION_STATUS.COMPLETED) {
+          throw new ApiError("This payment request has already been paid and fulfilled.", 400);
+        }
+        const targetUserId = matchedRequestTransaction.to_user_id || matchedRequestTransaction.user_id;
+        if (targetUserId) {
+          recipient = await User.findByPk(targetUserId);
+        }
       }
     }
 
@@ -283,6 +289,12 @@ const walletService = {
         },
         { transaction: t }
       );
+
+      if (matchedRequestTransaction) {
+        matchedRequestTransaction.status = TRANSACTION_STATUS.COMPLETED;
+        matchedRequestTransaction.from_user_id = fromUserId;
+        await matchedRequestTransaction.save({ transaction: t });
+      }
 
       return {
         success: true,

@@ -6,6 +6,10 @@ const API_URL =
   Constants.expoConfig?.extra?.apiUrl ||
   "https://afrix-iqvq.onrender.com/api/v1";
 
+const WEB_URL =
+  (typeof process !== "undefined" && process.env?.EXPO_PUBLIC_WEB_URL) ||
+  "https://afri-x.vercel.app";
+
 export const API_ENDPOINTS = {
   AUTH: {
     REGISTER: "/auth/register",
@@ -63,4 +67,4 @@ export const API_ENDPOINTS = {
   },
 };
 
-export { API_URL };
+export { API_URL, WEB_URL };

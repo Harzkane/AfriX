@@ -1,6 +1,7 @@
 // src/stores/slices/requestSlice.ts
 import { create } from "zustand";
 import apiClient from "@/services/apiClient";
+import { WEB_URL } from "@/constants/api";
 
 export type RequestMode = "p2p" | "merchant";
 export type TokenType = "NT" | "CT" | "USDT";
@@ -112,7 +113,7 @@ export const useRequestStore = create<RequestState>((set, get) => ({
         expirationDays: draftRequest.expirationDays,
         privacy: draftRequest.privacy,
         status: "pending",
-        shareUrl: `https://afrix.app/pay/${reqId}`,
+        shareUrl: `${WEB_URL}/pay/${reqId}`,
         createdAt: new Date().toISOString(),
         expiresAt: expiresDate.toISOString(),
       };
@@ -139,7 +140,7 @@ export const useRequestStore = create<RequestState>((set, get) => ({
         expirationDays: draftRequest.expirationDays,
         privacy: draftRequest.privacy,
         status: "pending",
-        shareUrl: `https://afrix.app/pay/${reqId}`,
+        shareUrl: `${WEB_URL}/pay/${reqId}`,
         createdAt: new Date().toISOString(),
         expiresAt: expiresDate.toISOString(),
       };

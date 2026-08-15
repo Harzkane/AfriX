@@ -47,6 +47,7 @@
     },
     "extra": {
       "apiUrl": "https://afrix-iqvq.onrender.com/api/v1",
+      "webUrl": "https://afri-x.vercel.app",
       "router": {},
       "eas": {
         "projectId": "15e39350-ebf9-47bf-84f1-7baafaa9da6a"

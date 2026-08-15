@@ -7,6 +7,7 @@ import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { useTransferStore } from "@/stores";
 import { useTranslation } from "react-i18next";
+import apiClient from "@/services/apiClient";
 
 export default function ScanQRScreen() {
   const router = useRouter();
@@ -42,7 +43,7 @@ export default function ScanQRScreen() {
     }, [])
   );
 
-  const handleBarCodeScanned = ({ data }: { data: string }) => {
+  const handleBarCodeScanned = async ({ data }: { data: string }) => {
     if (scanned) return;
     setScanned(true);
 
@@ -55,6 +56,23 @@ export default function ScanQRScreen() {
         return val.replace(/[\\"'\}\s]/g, "").trim();
       };
 
+      const checkStatusAndNavigate = async (reqId: string, onProceed: () => void) => {
+        try {
+          const res = await apiClient.get(`/merchants/payment-request/${reqId}`);
+          if (res.data?.data?.status === "completed") {
+            Alert.alert(
+              t("send_tokens.scan_qr.request_paid_title", "Request Already Paid"),
+              t("send_tokens.scan_qr.request_paid_desc", "This payment request ({{reqId}}) has already been paid and fulfilled by a previous transfer.", { reqId }),
+              [{ text: t("common.ok", "OK"), onPress: () => setScanned(false) }]
+            );
+            return;
+          }
+        } catch (e) {
+          // If offline or request record not found, proceed smoothly
+        }
+        onProceed();
+      };
+
       // Case 1: Standard JSON payload (Receive QR / Payment Request JSON) - CHECK JSON FIRST
       if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
         const qrData = JSON.parse(trimmed);
@@ -63,19 +81,23 @@ export default function ScanQRScreen() {
         const token = qrData.token || qrData.tokenType || "NT";
         const amt = qrData.amount ? qrData.amount.toString() : "";
         const noteText = qrData.note || qrData.description || "";
+        const reqId = qrData.requestId || "";
+
+        const proceed = () => {
+          if (email) setRecipient(email);
+          if (token && ["NT", "CT", "USDT"].includes(token)) setTokenType(token as "NT" | "CT" | "USDT");
+          if (amt) setAmount(amt);
+          if (noteText) setNote(noteText);
+          router.replace("/modals/send-tokens/amount");
+        };
+
+        if (reqId) {
+          await checkStatusAndNavigate(reqId, proceed);
+          return;
+        }
 
         if (email) {
-          setRecipient(email);
-          if (token && ["NT", "CT", "USDT"].includes(token)) {
-            setTokenType(token as "NT" | "CT" | "USDT");
-          }
-          if (amt) {
-            setAmount(amt);
-          }
-          if (noteText) {
-            setNote(noteText);
-          }
-          router.replace("/modals/send-tokens/amount");
+          proceed();
           return;
         }
       }
@@ -99,17 +121,15 @@ export default function ScanQRScreen() {
           if (urlParams.get("email")) parsedEmail = cleanString(urlParams.get("email"));
         }
 
-        setRecipient(parsedEmail || reqId);
-        if (parsedToken && ["NT", "CT", "USDT"].includes(parsedToken)) {
-          setTokenType(parsedToken as "NT" | "CT" | "USDT");
-        }
-        if (parsedAmount) {
-          setAmount(parsedAmount);
-        }
-        if (parsedNote) {
-          setNote(parsedNote);
-        }
-        router.replace("/modals/send-tokens/amount");
+        const proceed = () => {
+          setRecipient(parsedEmail || reqId);
+          if (parsedToken && ["NT", "CT", "USDT"].includes(parsedToken)) setTokenType(parsedToken as "NT" | "CT" | "USDT");
+          if (parsedAmount) setAmount(parsedAmount);
+          if (parsedNote) setNote(parsedNote);
+          router.replace("/modals/send-tokens/amount");
+        };
+
+        await checkStatusAndNavigate(reqId, proceed);
         return;
       }
 

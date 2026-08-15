@@ -87,6 +87,9 @@ router.post(
   merchantController.createPaymentRequest
 );
 
+// Get payment request status by ID/Reference — read: 60 req / min
+router.get("/payment-request/:id", readLimiter, merchantController.getPaymentRequestById);
+
 // Get merchant transactions — read: 60 req / min
 router.get("/transactions", readLimiter, authenticateMerchantAccess, merchantController.getTransactions);
 router.get("/transactions/:id", readLimiter, authenticateMerchantAccess, merchantController.getTransactionById);

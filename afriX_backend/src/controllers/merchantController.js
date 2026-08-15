@@ -361,6 +361,55 @@ const merchantController = {
   },
 
   /**
+   * Get payment request status by ID or reference
+   * GET /api/merchants/payment-request/:id
+   */
+  getPaymentRequestById: async (req, res, next) => {
+    try {
+      const { id } = req.params;
+      const cleanId = id.replace(/^RQST-/i, "");
+      const { Op } = require("sequelize");
+
+      const transaction = await Transaction.findOne({
+        where: {
+          [Op.or]: [
+            { id: cleanId },
+            { reference: id },
+            { reference: cleanId },
+          ],
+        },
+        include: [
+          { model: User, as: "toUser", attributes: ["id", "email", "full_name"] },
+        ],
+      });
+
+      if (!transaction) {
+        return res.status(404).json({
+          success: false,
+          error: { message: "Payment request not found" },
+        });
+      }
+
+      return res.json({
+        success: true,
+        data: {
+          id: transaction.id,
+          reference: transaction.reference,
+          status: transaction.status,
+          amount: transaction.amount,
+          token_type: transaction.token_type,
+          description: transaction.description,
+          to_user: transaction.toUser ? { email: transaction.toUser.email, name: transaction.toUser.full_name } : null,
+          created_at: transaction.created_at,
+          paid_at: transaction.status === "completed" ? transaction.updated_at : null,
+        },
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  /**
    * Get merchant transactions
    * GET /api/merchants/transactions
    */

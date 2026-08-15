@@ -14,7 +14,7 @@ export default function ScanQRScreen() {
   const { t } = useTranslation();
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const [scanned, setScanned] = useState(false);
-  const { setRecipient, setTokenType, setAmount, setNote } = useTransferStore();
+  const { setRecipient, setTokenType, setAmount, setNote, setRequestId } = useTransferStore();
 
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
@@ -88,6 +88,7 @@ export default function ScanQRScreen() {
           if (token && ["NT", "CT", "USDT"].includes(token)) setTokenType(token as "NT" | "CT" | "USDT");
           if (amt) setAmount(amt);
           if (noteText) setNote(noteText);
+          if (reqId) setRequestId(reqId);
           router.replace("/modals/send-tokens/amount");
         };
 
@@ -126,6 +127,7 @@ export default function ScanQRScreen() {
           if (parsedToken && ["NT", "CT", "USDT"].includes(parsedToken)) setTokenType(parsedToken as "NT" | "CT" | "USDT");
           if (parsedAmount) setAmount(parsedAmount);
           if (parsedNote) setNote(parsedNote);
+          if (reqId) setRequestId(reqId);
           router.replace("/modals/send-tokens/amount");
         };
 

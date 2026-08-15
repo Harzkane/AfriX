@@ -20,8 +20,6 @@ import QRCode from "react-native-qrcode-svg";
 import * as Clipboard from "expo-clipboard";
 import * as Haptics from "expo-haptics";
 import * as FileSystem from "expo-file-system/legacy";
-import * as MediaLibrary from "expo-media-library";
-import * as Sharing from "expo-sharing";
 import { useAuthStore, useWalletStore } from "@/stores";
 import { useTranslation } from "react-i18next";
 
@@ -160,10 +158,11 @@ export default function ReceiveTokensScreen() {
 
         if (!saved) {
           try {
-            if (await Sharing.isAvailableAsync()) {
+            const Sharing = require("expo-sharing");
+            if (Sharing && typeof Sharing.isAvailableAsync === "function" && (await Sharing.isAvailableAsync())) {
               await Sharing.shareAsync(filename);
             } else {
-              Alert.alert("QR Code Saved", `Image saved to: ${filename}`);
+              Alert.alert("QR Code Image Created", `Image saved at: ${filename}`);
             }
           } catch (e) {
             Alert.alert("Notice", "QR Code ready to share or save.");

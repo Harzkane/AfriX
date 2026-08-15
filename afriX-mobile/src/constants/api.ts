@@ -8,6 +8,7 @@ const API_URL =
 
 const WEB_URL =
   (typeof process !== "undefined" && process.env?.EXPO_PUBLIC_WEB_URL) ||
+  Constants.expoConfig?.extra?.webUrl ||
   "https://afri-x.vercel.app";
 
 export const API_ENDPOINTS = {

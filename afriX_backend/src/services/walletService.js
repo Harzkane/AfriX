@@ -182,12 +182,13 @@ const walletService = {
     }
 
     let matchedRequestTransaction = null;
-    const targetRef = metadata.reference || metadata.request_id || metadata.requestId || recipientIdentifier;
+    const reqIdFromMeta = metadata.reference || metadata.request_id || metadata.requestId;
+    const searchRef = reqIdFromMeta || (recipientIdentifier.toUpperCase().includes("RQST-") ? recipientIdentifier : null);
 
-    if (targetRef && (targetRef.toUpperCase().includes("RQST-") || targetRef.length > 5)) {
+    if (searchRef) {
       const { Op } = require("sequelize");
-      const reqMatch = targetRef.match(/RQST-[A-Z0-9]+/i);
-      const reqId = reqMatch ? reqMatch[0] : targetRef;
+      const reqMatch = searchRef.match(/RQST-[A-Z0-9]+/i);
+      const reqId = reqMatch ? reqMatch[0] : searchRef;
       
       matchedRequestTransaction = await Transaction.findOne({
         where: {

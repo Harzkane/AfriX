@@ -10,6 +10,7 @@ const { upload } = require("../middleware/upload");
 router.get("/user", authenticate, requestController.getUserRequests);
 router.post("/payment-request", authenticate, requestController.createPaymentRequest);
 router.get("/payment-request/:id", requestController.getPaymentRequestById);
+router.post("/payment-request/:id/cancel", authenticate, requestController.cancelPaymentRequest);
 
 // === LIST REQUESTS (for agents) ===
 router.get("/", authenticate, requestController.getAgentRequests);

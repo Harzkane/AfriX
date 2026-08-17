@@ -10,7 +10,7 @@ export { useSwapStore } from "./slices/swapSlice";
 export { useNotificationStore } from "./slices/notificationSlice";
 export { useSettingsStore } from "./slices/settingsSlice";
 export { useRequestStore } from "./slices/requestSlice";
-export type { RequestMode, TokenType, RecipientScope, ExpirationDays, PrivacyOption, DraftRequest, CreatedRequest } from "./slices/requestSlice";
+export type { RequestMode, TokenType, RecipientScope, ExpirationDays, PrivacyOption, DraftRequest, CreatedRequest, UserRequestItem } from "./slices/requestSlice";
 
 export type { User } from "./types/auth.types";
 export type { Wallet } from "./types/wallet.types";

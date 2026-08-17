@@ -21,6 +21,7 @@ import { useTranslation } from "react-i18next";
 import { useRequestStore, UserRequestItem } from "@/stores";
 import { WEB_URL } from "@/constants/api";
 import { useAuthStore } from "@/stores";
+import { formatAmount } from "@/utils/format";
 
 type FilterStatus = "all" | "pending" | "completed" | "cancelled";
 
@@ -245,8 +246,10 @@ export default function MyRequestsScreen() {
             const isCancellingThis = cancellingId === item.reference;
 
             return (
-              <View
+              <TouchableOpacity
                 key={item.id || item.reference}
+                onPress={() => router.push(`/modals/request-tokens/detail?reference=${item.reference}` as any)}
+                activeOpacity={0.85}
                 style={[styles.itemCard, { backgroundColor: theme.card, borderColor: theme.border }]}
               >
                 {/* Top Row: Ref + Status */}
@@ -269,7 +272,7 @@ export default function MyRequestsScreen() {
                 {/* Amount & Token */}
                 <View style={styles.amountRow}>
                   <Text style={[styles.amountValue, { color: theme.text }]}>
-                    {item.amount?.toLocaleString()} <Text style={{ color: theme.accent }}>{item.token_type}</Text>
+                    {formatAmount(item.amount, item.token_type)} <Text style={{ color: theme.accent }}>{item.token_type}</Text>
                   </Text>
                   <Text style={[styles.dateText, { color: theme.muted }]}>
                     {new Date(item.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
@@ -329,7 +332,7 @@ export default function MyRequestsScreen() {
                     </TouchableOpacity>
                   )}
                 </View>
-              </View>
+              </TouchableOpacity>
             );
           })
         )}

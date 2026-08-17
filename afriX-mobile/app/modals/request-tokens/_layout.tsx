@@ -8,6 +8,7 @@ export default function RequestTokensLayout() {
       <Stack.Screen name="review" />
       <Stack.Screen name="share" />
       <Stack.Screen name="my-requests" />
+      <Stack.Screen name="detail" />
     </Stack>
   );
 }

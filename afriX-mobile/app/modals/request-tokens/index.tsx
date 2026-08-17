@@ -104,6 +104,14 @@ export default function CreateRequestScreen() {
     return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) + " • 10:20 AM";
   };
 
+  const { userRequests, fetchUserRequests } = useRequestStore();
+
+  useEffect(() => {
+    fetchUserRequests().catch(() => {});
+  }, [fetchUserRequests]);
+
+  const pendingCount = userRequests.filter((r) => r.status.toLowerCase() === "pending").length;
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
       {/* Top Header Row */}
@@ -125,13 +133,18 @@ export default function CreateRequestScreen() {
           </Text>
         </View>
 
-        {/* History Button & Graphic */}
+        {/* History Button with Counter Badge */}
         <TouchableOpacity
           onPress={() => router.push("/modals/request-tokens/my-requests" as any)}
-          style={[styles.backButton, { backgroundColor: theme.card, borderColor: theme.border }]}
+          style={[styles.backButton, { backgroundColor: theme.card, borderColor: theme.border, position: "relative" }]}
           activeOpacity={0.85}
         >
           <Ionicons name="time-outline" size={20} color={theme.text} />
+          {pendingCount > 0 && (
+            <View style={styles.badgeContainer}>
+              <Text style={styles.badgeText}>{pendingCount > 99 ? "99+" : pendingCount}</Text>
+            </View>
+          )}
         </TouchableOpacity>
       </View>
 
@@ -830,4 +843,23 @@ const styles = StyleSheet.create({
 
   trustRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6 },
   trustText: { fontSize: 11, fontWeight: "600" },
+  badgeContainer: {
+    position: "absolute",
+    top: -4,
+    right: -4,
+    backgroundColor: "#00B14F",
+    borderRadius: 10,
+    minWidth: 18,
+    height: 18,
+    paddingHorizontal: 4,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1.5,
+    borderColor: "#FFF",
+  },
+  badgeText: {
+    color: "#FFFFFF",
+    fontSize: 9,
+    fontWeight: "900",
+  },
 });

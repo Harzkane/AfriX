@@ -59,15 +59,8 @@ export default function ShareRequestScreen() {
   const fullPaymentUrl = `${WEB_URL}/pay/${requestId}?amount=${amount}&token=${tokenType}&note=${encodeURIComponent(note)}${creatorEmail ? `&email=${encodeURIComponent(creatorEmail)}` : ""}`;
   const shareUrl = createdRequest?.shareUrl || fullPaymentUrl;
 
-  const qrPayload = JSON.stringify({
-    type: "afrix_payment_request",
-    requestId,
-    amount: amount.toString(),
-    token: tokenType,
-    note,
-    email: creatorEmail,
-    url: fullPaymentUrl,
-  });
+  // Encode the payment URL in the QR so scans always verify against the server request.
+  const qrValue = shareUrl;
 
   const handleCopyLink = async () => {
     await Clipboard.setStringAsync(shareUrl);
@@ -370,7 +363,7 @@ export default function ShareRequestScreen() {
 
           <View style={styles.qrRow}>
             <View style={styles.qrBox}>
-              <QRCode getRef={(c) => (qrSvgRef.current = c)} value={qrPayload} size={110} backgroundColor="#FFFFFF" />
+              <QRCode getRef={(c) => (qrSvgRef.current = c)} value={qrValue} size={110} backgroundColor="#FFFFFF" />
             </View>
 
             <View style={{ flex: 1, gap: 4 }}>

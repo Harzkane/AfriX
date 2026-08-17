@@ -1,147 +1,124 @@
-❯ npm run seed:path-a-pilot-merchant
-
-> afrix_backend@1.0.0 seed:path-a-pilot-merchant
-> node src/scripts/create_path_a_pilot_merchant.js
-
-[dotenv@17.2.3] injecting env (118) from .env -- tip: 📡 add observability to secrets: https://dotenvx.com/ops
-[dotenv@17.2.3] injecting env (0) from .env -- tip: 🔄 add secrets lifecycle management: https://dotenvx.com/ops
-Connecting to AfriExchange database...
-Database connected
-Failed to create Path A pilot merchant: Error
-    at Query.run (/Users/harz/Documents/backUps/izmir/AfriExchange/afriX_backend/node_modules/sequelize/lib/dialects/postgres/query.js:50:25)
-    at /Users/harz/Documents/backUps/izmir/AfriExchange/afriX_backend/node_modules/sequelize/lib/sequelize.js:315:28
-    at async PostgresQueryInterface.insert (/Users/harz/Documents/backUps/izmir/AfriExchange/afriX_backend/node_modules/sequelize/lib/dialects/abstract/query-interface.js:308:21)
-    at async model.save (/Users/harz/Documents/backUps/izmir/AfriExchange/afriX_backend/node_modules/sequelize/lib/model.js:2490:35)
-    at async users.create (/Users/harz/Documents/backUps/izmir/AfriExchange/afriX_backend/node_modules/sequelize/lib/model.js:1362:12)
-    at async ensurePathAPilotMerchant (/Users/harz/Documents/backUps/izmir/AfriExchange/afriX_backend/src/scripts/create_path_a_pilot_merchant.js:41:14) {
-  name: 'SequelizeUniqueConstraintError',
-  errors: [
-    ValidationErrorItem {
-      message: 'phone_number must be unique',
-      type: 'unique violation',
-      path: 'phone_number',
-      value: '+221000000001',
-      origin: 'DB',
-      instance: [users],
-      validatorKey: 'not_unique',
-      validatorName: null,
-      validatorArgs: []
-    }
-  ],
-  parent: error: duplicate key value violates unique constraint "users_phone_number"
-      at Parser.parseErrorMessage (/Users/harz/Documents/backUps/izmir/AfriExchange/afriX_backend/node_modules/pg-protocol/dist/parser.js:285:98)
-      at Parser.handlePacket (/Users/harz/Documents/backUps/izmir/AfriExchange/afriX_backend/node_modules/pg-protocol/dist/parser.js:122:29)
-      at Parser.parse (/Users/harz/Documents/backUps/izmir/AfriExchange/afriX_backend/node_modules/pg-protocol/dist/parser.js:35:38)
-      at Socket.<anonymous> (/Users/harz/Documents/backUps/izmir/AfriExchange/afriX_backend/node_modules/pg-protocol/dist/index.js:11:42)
-      at Socket.emit (node:events:519:28)
-      at addChunk (node:internal/streams/readable:561:12)
-      at readableAddChunkPushByteMode (node:internal/streams/readable:512:3)
-      at Readable.push (node:internal/streams/readable:392:5)
-      at TCP.onStreamRead (node:internal/stream_base_commons:189:23) {
-    length: 218,
-    severity: 'ERROR',
-    code: '23505',
-    detail: 'Key (phone_number)=(+221000000001) already exists.',
-    hint: undefined,
-    position: undefined,
-    internalPosition: undefined,
-    internalQuery: undefined,
-    where: undefined,
-    schema: 'public',
-    table: 'users',
-    column: undefined,
-    dataType: undefined,
-    constraint: 'users_phone_number',
-    file: 'nbtinsert.c',
-    line: '670',
-    routine: '_bt_check_unique',
-    sql: 'INSERT INTO "users" ("id","email","password_hash","full_name","phone_number","country_code","role","email_verified","phone_verified","identity_verified","verification_level","education_what_are_tokens","education_how_agents_work","education_understanding_value","education_safety_security","language","theme","push_notifications_enabled","email_notifications_enabled","sms_notifications_enabled","two_factor_enabled","login_attempts","is_active","is_suspended","created_at","updated_at") VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26) RETURNING "id","email","password_hash","full_name","phone_number","country_code","role","email_verified","email_verification_token","email_verification_expires","phone_verified","identity_verified","verification_level","password_reset_token","password_reset_expires","education_what_are_tokens","education_how_agents_work","education_understanding_value","education_safety_security","language","theme","push_notifications_enabled","email_notifications_enabled","sms_notifications_enabled","two_factor_enabled","two_factor_secret","last_login_at","last_login_ip","login_attempts","locked_until","is_active","is_suspended","suspension_reason","suspended_until","referral_code","referred_by","last_unlocked_at","last_unlocked_by_id","last_reset_attempts_at","last_reset_attempts_by_id","created_at","updated_at";',
-    parameters: [
-      '188aa30a-78b5-4e22-9afa-2c5cfbf6ac29',
-      'path-a-pilot@afriexchange.local',
-      '$2b$12$bIXdvvy6hVqny6pr0IlsOunvKHtODarsMrThS5Dnc15bFm5YHWE1K',
-      'Path A Pilot Merchant',
-      '+221000000001',
-      'SN',
-      'merchant',
-      true,
-      true,
-      true,
-      3,
-      false,
-      false,
-      false,
-      false,
-      'en',
-      'nigeria',
-      true,
-      true,
-      false,
-      false,
-      0,
-      true,
-      false,
-      '2026-05-08 15:45:45.837 +01:00',
-      '2026-05-08 15:45:45.838 +01:00'
-    ]
-  },
-  original: error: duplicate key value violates unique constraint "users_phone_number"
-      at Parser.parseErrorMessage (/Users/harz/Documents/backUps/izmir/AfriExchange/afriX_backend/node_modules/pg-protocol/dist/parser.js:285:98)
-      at Parser.handlePacket (/Users/harz/Documents/backUps/izmir/AfriExchange/afriX_backend/node_modules/pg-protocol/dist/parser.js:122:29)
-      at Parser.parse (/Users/harz/Documents/backUps/izmir/AfriExchange/afriX_backend/node_modules/pg-protocol/dist/parser.js:35:38)
-      at Socket.<anonymous> (/Users/harz/Documents/backUps/izmir/AfriExchange/afriX_backend/node_modules/pg-protocol/dist/index.js:11:42)
-      at Socket.emit (node:events:519:28)
-      at addChunk (node:internal/streams/readable:561:12)
-      at readableAddChunkPushByteMode (node:internal/streams/readable:512:3)
-      at Readable.push (node:internal/streams/readable:392:5)
-      at TCP.onStreamRead (node:internal/stream_base_commons:189:23) {
-    length: 218,
-    severity: 'ERROR',
-    code: '23505',
-    detail: 'Key (phone_number)=(+221000000001) already exists.',
-    hint: undefined,
-    position: undefined,
-    internalPosition: undefined,
-    internalQuery: undefined,
-    where: undefined,
-    schema: 'public',
-    table: 'users',
-    column: undefined,
-    dataType: undefined,
-    constraint: 'users_phone_number',
-    file: 'nbtinsert.c',
-    line: '670',
-    routine: '_bt_check_unique',
-    sql: 'INSERT INTO "users" ("id","email","password_hash","full_name","phone_number","country_code","role","email_verified","phone_verified","identity_verified","verification_level","education_what_are_tokens","education_how_agents_work","education_understanding_value","education_safety_security","language","theme","push_notifications_enabled","email_notifications_enabled","sms_notifications_enabled","two_factor_enabled","login_attempts","is_active","is_suspended","created_at","updated_at") VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26) RETURNING "id","email","password_hash","full_name","phone_number","country_code","role","email_verified","email_verification_token","email_verification_expires","phone_verified","identity_verified","verification_level","password_reset_token","password_reset_expires","education_what_are_tokens","education_how_agents_work","education_understanding_value","education_safety_security","language","theme","push_notifications_enabled","email_notifications_enabled","sms_notifications_enabled","two_factor_enabled","two_factor_secret","last_login_at","last_login_ip","login_attempts","locked_until","is_active","is_suspended","suspension_reason","suspended_until","referral_code","referred_by","last_unlocked_at","last_unlocked_by_id","last_reset_attempts_at","last_reset_attempts_by_id","created_at","updated_at";',
-    parameters: [
-      '188aa30a-78b5-4e22-9afa-2c5cfbf6ac29',
-      'path-a-pilot@afriexchange.local',
-      '$2b$12$bIXdvvy6hVqny6pr0IlsOunvKHtODarsMrThS5Dnc15bFm5YHWE1K',
-      'Path A Pilot Merchant',
-      '+221000000001',
-      'SN',
-      'merchant',
-      true,
-      true,
-      true,
-      3,
-      false,
-      false,
-      false,
-      false,
-      'en',
-      'nigeria',
-      true,
-      true,
-      false,
-      false,
-      0,
-      true,
-      false,
-      '2026-05-08 15:45:45.837 +01:00',
-      '2026-05-08 15:45:45.838 +01:00'
-    ]
-  },
-  fields: { phone_number: '+221000000001' },
-  sql: 'INSERT INTO "users" ("id","email","password_hash","full_name","phone_number","country_code","role","email_verified","phone_verified","identity_verified","verification_level","education_what_are_tokens","education_how_agents_work","education_understanding_value","education_safety_security","language","theme","push_notifications_enabled","email_notifications_enabled","sms_notifications_enabled","two_factor_enabled","login_attempts","is_active","is_suspended","created_at","updated_at") VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26) RETURNING "id","email","password_hash","full_name","phone_number","country_code","role","email_verified","email_verification_token","email_verification_expires","phone_verified","identity_verified","verification_level","password_reset_token","password_reset_expires","education_what_are_tokens","education_how_agents_work","education_understanding_value","education_safety_security","language","theme","push_notifications_enabled","email_notifications_enabled","sms_notifications_enabled","two_factor_enabled","two_factor_secret","last_login_at","last_login_ip","login_attempts","locked_until","is_active","is_suspended","suspension_reason","suspended_until","referral_code","referred_by","last_unlocked_at","last_unlocked_by_id","last_reset_attempts_at","last_reset_attempts_by_id","created_at","updated_at";'
-}
+`UIScene` life cycle is now required when building with the latest SDKs. Apps that don't adopt will fail to launch.
+_setUpFeatureFlags called with release level 2
+🟢 Registering module 'ExpoModulesCoreJSLogger'
+🟢 Registering module 'ExpoFetchModule'
+🟢 Registering module 'ExpoApplication'
+🟢 Registering module 'ExpoAsset'
+🟢 Registering module 'ExpoCamera'
+🟢 Registering module 'ExpoClipboard'
+🟢 Registering module 'ExponentConstants'
+🟢 Registering module 'FileSystem'
+🟢 Registering module 'ExponentFileSystem'
+🟢 Registering module 'ExpoFontLoader'
+🟢 Registering module 'ExpoFontUtils'
+🟢 Registering module 'ExpoHaptics'
+🟢 Registering module 'ExpoImage'
+🟢 Registering module 'ExponentImagePicker'
+🟢 Registering module 'ExpoKeepAwake'
+🟢 Registering module 'ExpoLinearGradient'
+🟢 Registering module 'ExpoLinking'
+🟢 Registering module 'ExpoLocalAuthentication'
+🟢 Registering module 'ExpoBackgroundNotificationTasksModule'
+🟢 Registering module 'ExpoBadgeModule'
+🟢 Registering module 'ExpoNotificationCategoriesModule'
+🟢 Registering module 'ExpoNotificationsEmitter'
+🟢 Registering module 'ExpoNotificationsHandlerModule'
+🟢 Registering module 'ExpoNotificationPermissionsModule'
+🟢 Registering module 'ExpoNotificationPresenter'
+🟢 Registering module 'ExpoPushTokenManager'
+🟢 Registering module 'ExpoNotificationScheduler'
+🟢 Registering module 'NotificationsServerRegistrationModule'
+🟢 Registering module 'ExpoHead'
+🟢 Registering module 'ExpoRouterNativeLinkPreview'
+🟢 Registering module 'ExpoSecureStore'
+🟢 Registering module 'ExpoSplashScreen'
+🟢 Registering module 'SymbolModule'
+🟢 Registering module 'ExpoSystemUI'
+🟢 Registering module 'ExpoWebBrowser'
+🟢 Creating JS object for module 'ExponentConstants'
+🟢 Creating JS object for module 'ExpoRouterNativeLinkPreview'
+Unbalanced calls start/end for tag 20
+Unbalanced calls start/end for tag 19
+🟢 Creating JS object for module 'ExpoSplashScreen'
+Running "main"
+🟢 Creating JS object for module 'ExpoSecureStore'
+🟢 Creating JS object for module 'ExpoApplication'
+🟢 Creating JS object for module 'NotificationsServerRegistrationModule'
+🟢 Creating JS object for module 'ExpoPushTokenManager'
+🟢 Creating JS object for module 'ExpoBadgeModule'
+🟢 Creating JS object for module 'ExpoNotificationsEmitter'
+🟢 Creating JS object for module 'ExpoNotificationsHandlerModule'
+🟢 Creating JS object for module 'ExpoLinking'
+🟢 Creating JS object for module 'ExpoLocalAuthentication'
+📡 GET /auth/me (with auth)
+nw_connection_copy_protocol_metadata_internal_block_invoke [C3] Client called nw_connection_copy_protocol_metadata_internal on unconnected nw_connection
+nw_connection_copy_protocol_metadata_internal_block_invoke [C3] Client called nw_connection_copy_protocol_metadata_internal on unconnected nw_connection
+nw_connection_copy_protocol_metadata_internal_block_invoke [C3] Client called nw_connection_copy_protocol_metadata_internal on unconnected nw_connection
+nw_connection_copy_connected_local_endpoint_block_invoke [C3] Client called nw_connection_copy_connected_local_endpoint on unconnected nw_connection
+nw_connection_copy_connected_remote_endpoint_block_invoke [C3] Client called nw_connection_copy_connected_remote_endpoint on unconnected nw_connection
+🟢 Posting 'appBecomesActive' event to registered modules
+✅ /auth/me - 200
+'✅ User authenticated:', 'agent1_ng@gmail.com'
+🟢 Creating JS object for module 'ExpoLinearGradient'
+🟢 Creating JS object for module 'ExpoFontLoader'
+🟢 Creating JS object for module 'ExpoAsset'
+CoreUI: CUIThemeStore: No theme registered with id=0
+CoreUI: CUIThemeStore: No theme registered with id=0
+📡 GET /transactions?limit=1 (with auth)
+'📊 Fetching wallets for user:', 'agent1_ng@gmail.com'
+📡 Fetching wallets...
+📡 Fetching wallets...
+🟢 Creating JS object for module 'ExpoNotificationPermissionsModule'
+cannot add handler to 0 from 0 - dropping
+📡 GET /wallets (with auth)
+📡 GET /transactions (with auth)
+📡 GET /agents/profile (with auth)
+📡 GET /requests/user (with auth)
+📡 GET /requests/user (with auth)
+📡 GET /wallets/rates (with auth)
+📡 GET /portfolio/history (with auth)
+📡 GET /notifications (with auth)
+📡 GET /wallets (with auth)
+📡 GET /transactions (with auth)
+📡 GET /agents/profile (with auth)
+📡 GET /requests/user (with auth)
+📡 GET /requests/user (with auth)
+📡 GET /wallets/rates (with auth)
+📡 GET /portfolio/history (with auth)
+📡 GET /notifications (with auth)
+non-launching port is incompatible with service identifier "com.apple.PointerUI.pointeruid.default-service"
+'Failed to get device push token:', 'no valid “aps-environment” entitlement string found for application'
+'Push registration was not completed:', 'aps_entitlement_missing'
+✅ /transactions?limit=1 - 200
+✅ /wallets/rates - 200
+📡 GET /wallets/rates (with auth)
+✅ /wallets/rates - 200
+✅ /wallets - 200
+'✅ Wallets fetched:', 3
+📡 GET /wallets/rates (with auth)
+✅ /transactions - 200
+✅ /portfolio/history - 200
+✅ /wallets - 200
+'✅ Wallets fetched:', 3
+✅ /transactions - 200
+✅ /wallets/rates - 200
+✅ /portfolio/history - 200
+✅ /requests/user - 200
+✅ /requests/user - 200
+✅ /notifications - 200
+✅ /requests/user - 200
+✅ /wallets/rates - 200
+✅ /requests/user - 200
+✅ /notifications - 200
+✅ /agents/profile - 200
+✅ /agents/profile - 200
+WARNING: Logging before InitGoogleLogging() is written to STDERR
+I0817 22:48:12.256275 1847947264 UIManagerBinding.cpp:135] instanceHandle is null, event of type topMomentumScrollEnd will be dropped
+🟢 Creating JS object for module 'ExpoHaptics'
+cannot add handler to 0 from 0 - dropping
+cannot add handler to 0 from 0 - dropping
+📡 POST /requests/payment-request (with auth)
+'❌ /requests/payment-request - 404', 'Endpoint not found'
+'❌ Payment request creation failed:', 'Endpoint not found'
+📡 GET /transactions?limit=1 (with auth)
+✅ /transactions?limit=1 - 200

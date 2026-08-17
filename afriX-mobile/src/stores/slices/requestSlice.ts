@@ -24,6 +24,8 @@ export interface DraftRequest {
 export interface CreatedRequest {
   id: string;
   requestId: string;
+  origin: "server" | "local";
+  verified: boolean;
   tokenType: TokenType;
   amount: number;
   recipientScope: RecipientScope;
@@ -85,13 +87,11 @@ export const useRequestStore = create<RequestState>((set, get) => ({
     const reqId = `RQST-${randomSuffix}`;
 
     try {
-      // API call to create payment request with fixed reference
-      const { data } = await apiClient.post("/merchants/payment-request", {
+      const response = await apiClient.post("/requests/payment-request", {
         amount: parseFloat(draftRequest.amount),
         token_type: draftRequest.tokenType,
         customer_email: draftRequest.recipientEmail || undefined,
         description: draftRequest.note || "Token request",
-        recipient_email: draftRequest.recipientEmail || undefined,
         expiration_days: draftRequest.expirationDays,
         privacy: draftRequest.privacy,
         mode: draftRequest.mode,
@@ -105,6 +105,12 @@ export const useRequestStore = create<RequestState>((set, get) => ({
         },
       });
 
+      const payload = response.data?.data;
+      if (!payload?.reference) {
+        throw new Error("Server did not return a payment request reference");
+      }
+
+      const serverRef = payload.reference as string;
       const expiresDate = new Date();
       if (draftRequest.expirationDays !== "never") {
         expiresDate.setDate(expiresDate.getDate() + parseInt(draftRequest.expirationDays, 10));
@@ -113,12 +119,19 @@ export const useRequestStore = create<RequestState>((set, get) => ({
       }
 
       const userEmail = useAuthStore.getState().user?.email || "";
+      const note = draftRequest.note || "Token request";
+      const amount = parseFloat(draftRequest.amount) || 0;
+      const shareUrl =
+        payload.payment_url ||
+        `${WEB_URL}/pay/${serverRef}?amount=${amount}&token=${draftRequest.tokenType}&note=${encodeURIComponent(note)}${userEmail ? `&email=${encodeURIComponent(userEmail)}` : ""}`;
 
       const created: CreatedRequest = {
-        id: data?.data?.transaction_id || `req_${Date.now()}`,
-        requestId: reqId,
+        id: payload.transaction_id || `req_${Date.now()}`,
+        requestId: serverRef,
+        origin: "server",
+        verified: true,
         tokenType: draftRequest.tokenType,
-        amount: parseFloat(draftRequest.amount) || 0,
+        amount,
         recipientScope: draftRequest.recipientScope,
         recipientEmail: draftRequest.recipientEmail,
         creatorEmail: userEmail,
@@ -126,40 +139,21 @@ export const useRequestStore = create<RequestState>((set, get) => ({
         expirationDays: draftRequest.expirationDays,
         privacy: draftRequest.privacy,
         status: "pending",
-        shareUrl: `${WEB_URL}/pay/${reqId}`,
+        shareUrl,
         createdAt: new Date().toISOString(),
         expiresAt: expiresDate.toISOString(),
       };
 
-      set({ createdRequest: created, loading: false });
+      set({ createdRequest: created, loading: false, error: null });
       return created;
     } catch (err: any) {
-      console.warn("⚠️ API payment-request notice (using client simulation fallback):", err?.message);
-
-      // Fallback for offline or dev simulation (use same reqId)
-      const expiresDate = new Date();
-      expiresDate.setDate(expiresDate.getDate() + (draftRequest.expirationDays === "never" ? 365 : parseInt(draftRequest.expirationDays, 10)));
-      const userEmail = useAuthStore.getState().user?.email || "";
-
-      const created: CreatedRequest = {
-        id: `req_${Date.now()}`,
-        requestId: reqId,
-        tokenType: draftRequest.tokenType,
-        amount: parseFloat(draftRequest.amount) || 0,
-        recipientScope: draftRequest.recipientScope,
-        recipientEmail: draftRequest.recipientEmail,
-        creatorEmail: userEmail,
-        note: draftRequest.note,
-        expirationDays: draftRequest.expirationDays,
-        privacy: draftRequest.privacy,
-        status: "pending",
-        shareUrl: `${WEB_URL}/pay/${reqId}`,
-        createdAt: new Date().toISOString(),
-        expiresAt: expiresDate.toISOString(),
-      };
-
-      set({ createdRequest: created, loading: false });
-      return created;
+      const message =
+        err.response?.data?.message ||
+        err.message ||
+        "Failed to create payment request on the server";
+      console.error("❌ Payment request creation failed:", message);
+      set({ loading: false, error: message, createdRequest: null });
+      throw new Error(message);
     }
   },
 

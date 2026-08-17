@@ -1,17 +1,20 @@
 // src/controllers/requestController.js
-const { MintRequest, BurnRequest, Agent, Dispute, sequelize } = require("../models");
+const { MintRequest, BurnRequest, Agent, Dispute, Transaction, User, sequelize } = require("../models");
 const escrowService = require("../services/escrowService");
 const transactionService = require("../services/transactionService");
 const { deliver } = require("../services/notificationService");
 const { uploadToR2 } = require("../services/r2Service");
 const { ApiError } = require("../utils/errors");
 const educationService = require("../services/educationService");
+const { generateQR } = require("../utils/qrcode");
 const {
   MINT_REQUEST_STATUS,
   BURN_REQUEST_STATUS,
   DISPUTE_STATUS,
   AGENT_CONFIG,
   EXCHANGE_RATES,
+  TRANSACTION_TYPES,
+  TRANSACTION_STATUS,
 } = require("../config/constants");
 
 function tokenAmountToUsdt(amount, tokenType) {
@@ -225,6 +228,161 @@ const requestController = {
       res.json({
         success: true,
         data: allRequests,
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  async createPaymentRequest(req, res, next) {
+    try {
+      const userId = req.user.id;
+      const {
+        amount,
+        token_type,
+        description,
+        reference,
+        customer_email,
+        recipient_email,
+        expiration_days,
+        privacy,
+        mode,
+        metadata = {},
+      } = req.body;
+
+      if (!amount || parseFloat(amount) <= 0) {
+        throw new ApiError("Valid amount is required", 400);
+      }
+
+      if (!token_type) {
+        throw new ApiError("token_type is required", 400);
+      }
+
+      const paymentReference =
+        reference ||
+        `RQST-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+
+      let transaction = await Transaction.findOne({
+        where: {
+          reference: paymentReference,
+          type: TRANSACTION_TYPES.COLLECTION,
+        },
+      });
+
+      const requestMetadata = {
+        customer_email: customer_email || null,
+        recipient_email: recipient_email || null,
+        expiration_days: expiration_days || null,
+        privacy: privacy || null,
+        mode: mode || "p2p",
+        ...metadata,
+      };
+
+      if (transaction) {
+        if (transaction.status !== TRANSACTION_STATUS.PENDING) {
+          throw new ApiError(
+            "A completed or cancelled payment already exists for this reference",
+            400
+          );
+        }
+
+        transaction.amount = amount;
+        transaction.token_type = token_type;
+        transaction.description =
+          description || `Payment request for ${req.user.email}`;
+        transaction.metadata = {
+          ...(transaction.metadata || {}),
+          ...requestMetadata,
+        };
+        await transaction.save();
+      } else {
+        transaction = await Transaction.create({
+          from_user_id: null,
+          to_user_id: userId,
+          merchant_id: null,
+          amount,
+          token_type,
+          type: TRANSACTION_TYPES.COLLECTION,
+          status: TRANSACTION_STATUS.PENDING,
+          description: description || `Payment request for ${req.user.email}`,
+          reference: paymentReference,
+          metadata: requestMetadata,
+        });
+      }
+
+      const paymentData = {
+        transaction_id: transaction.id,
+        reference: paymentReference,
+        amount: String(amount),
+        currency: token_type,
+        token_type,
+      };
+
+      const qrCode = await generateQR(JSON.stringify(paymentData));
+      const webBaseUrl = (process.env.AFRIX_WEB_URL || "https://afritoken.com").replace(/\/$/, "");
+
+      res.status(201).json({
+        success: true,
+        data: {
+          transaction_id: transaction.id,
+          reference: paymentReference,
+          payment_url: `${webBaseUrl}/pay/${paymentReference}`,
+          qr_code: qrCode,
+          amount,
+          currency: token_type,
+          token_type,
+          status: transaction.status,
+        },
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  async getPaymentRequestById(req, res, next) {
+    try {
+      const { id } = req.params;
+      const cleanId = id.replace(/^RQST-/i, "");
+      const { Op } = require("sequelize");
+
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(cleanId);
+      const orConditions = [{ reference: id }, { reference: cleanId }];
+      if (isUuid) {
+        orConditions.push({ id: cleanId });
+      }
+
+      const transaction = await Transaction.findOne({
+        where: {
+          type: TRANSACTION_TYPES.COLLECTION,
+          [Op.or]: orConditions,
+        },
+        include: [
+          { model: User, as: "toUser", attributes: ["id", "email", "full_name"] },
+        ],
+      });
+
+      if (!transaction) {
+        return res.status(404).json({
+          success: false,
+          error: { message: "Payment request not found" },
+        });
+      }
+
+      return res.json({
+        success: true,
+        data: {
+          id: transaction.id,
+          reference: transaction.reference,
+          status: transaction.status,
+          amount: transaction.amount,
+          token_type: transaction.token_type,
+          description: transaction.description,
+          to_user: transaction.toUser
+            ? { email: transaction.toUser.email, name: transaction.toUser.full_name }
+            : null,
+          created_at: transaction.created_at,
+          paid_at: transaction.status === TRANSACTION_STATUS.COMPLETED ? transaction.updated_at : null,
+        },
       });
     } catch (error) {
       next(error);
@@ -901,6 +1059,18 @@ const requestController = {
     } catch (error) {
       next(error);
     }
+  },
+
+  // ===== PAYMENT REQUEST (P2P) =====
+  // Delegated to merchantController which handles non-merchant P2P payment requests
+  createPaymentRequest: (...args) => {
+    const merchantController = require("./merchantController");
+    return merchantController.createPaymentRequest(...args);
+  },
+
+  getPaymentRequestById: (...args) => {
+    const merchantController = require("./merchantController");
+    return merchantController.getPaymentRequestById(...args);
   },
 };
 

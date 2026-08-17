@@ -154,16 +154,40 @@ export default function ScanQRScreen() {
           if (urlParams.get("email")) parsedEmail = extractEmail(urlParams.get("email"));
         }
 
-        const proceed = () => {
-          setRecipient(parsedEmail || reqId);
-          if (parsedToken && ["NT", "CT", "USDT"].includes(parsedToken)) setTokenType(parsedToken as "NT" | "CT" | "USDT");
-          if (parsedAmount) setAmount(parsedAmount);
-          if (parsedNote) setNote(parsedNote);
+        const proceedWithServerData = async () => {
+          // Fetch the full request from server to get the creator's email
+          let recipientEmail = parsedEmail;
+          let finalAmount = parsedAmount;
+          let finalToken = parsedToken;
+          let finalNote = parsedNote;
+
+          try {
+            const res = await fetchPaymentRequest(reqId);
+            const serverData = res.data?.data;
+            if (serverData) {
+              // Use server-provided recipient email (the creator who requested tokens)
+              if (!recipientEmail && serverData.to_user?.email) {
+                recipientEmail = serverData.to_user.email;
+              }
+              // Fill in amount and token from server if not in URL
+              if (!finalAmount && serverData.amount) finalAmount = serverData.amount.toString();
+              if (serverData.token_type && ["NT", "CT", "USDT"].includes(serverData.token_type)) {
+                finalToken = serverData.token_type;
+              }
+            }
+          } catch (e) {
+            // Offline: proceed with what we have from the URL
+          }
+
+          setRecipient(recipientEmail || "");
+          if (finalToken && ["NT", "CT", "USDT"].includes(finalToken)) setTokenType(finalToken as "NT" | "CT" | "USDT");
+          if (finalAmount) setAmount(finalAmount);
+          if (finalNote) setNote(finalNote);
           if (reqId) setRequestId(reqId);
           router.replace("/modals/send-tokens/amount");
         };
 
-        await checkStatusAndNavigate(reqId, proceed);
+        await checkStatusAndNavigate(reqId, proceedWithServerData);
         return;
       }
 

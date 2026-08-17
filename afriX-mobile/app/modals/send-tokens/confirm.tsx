@@ -91,11 +91,7 @@ export default function ConfirmTransferScreen() {
           );
         }
       } catch (e) {
-        Alert.alert(
-          t("send_tokens.scan_qr.request_unavailable_title", "Request Unavailable"),
-          t("send_tokens.scan_qr.request_unavailable_desc", "We could not verify this payment request. Please ask the sender to share a fresh QR code or try again later."),
-          [{ text: t("common.ok", "OK"), onPress: () => router.back() }]
-        );
+        // Offline or not found — allow user to proceed, backend will enforce
       }
     };
     checkRequestStatus();

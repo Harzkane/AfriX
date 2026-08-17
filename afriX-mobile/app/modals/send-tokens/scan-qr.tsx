@@ -69,7 +69,7 @@ export default function ScanQRScreen() {
             Alert.alert(
               t("send_tokens.scan_qr.request_paid_title", "Request Already Paid"),
               t("send_tokens.scan_qr.request_paid_desc", "This payment request ({{reqId}}) has already been paid and fulfilled by a previous transfer.", { reqId }),
-              [{ text: t("send_tokens.scan_qr.btn_back", "Go Back"), onPress: () => router.replace("/modals/send-tokens") }]
+              [{ text: t("send_tokens.scan_qr.btn_back", "Go Back"), onPress: () => router.back() }]
             );
             return;
           }
@@ -77,17 +77,12 @@ export default function ScanQRScreen() {
             Alert.alert(
               t("send_tokens.scan_qr.request_unavailable_title", "Request Unavailable"),
               t("send_tokens.scan_qr.request_unavailable_desc", "This payment request is no longer available for payment.", { reqId }),
-              [{ text: t("send_tokens.scan_qr.btn_back", "Go Back"), onPress: () => router.replace("/modals/send-tokens") }]
+              [{ text: t("send_tokens.scan_qr.btn_back", "Go Back"), onPress: () => router.back() }]
             );
             return;
           }
         } catch (e) {
-          Alert.alert(
-            t("send_tokens.scan_qr.request_unavailable_title", "Request Unavailable"),
-            t("send_tokens.scan_qr.request_unavailable_desc", "We could not verify this payment request. Please ask the sender to share a fresh QR code or try again later."),
-            [{ text: t("send_tokens.scan_qr.btn_back", "Go Back"), onPress: () => router.replace("/modals/send-tokens") }]
-          );
-          return;
+          // Offline or request not yet on server — allow the transfer to proceed
         }
         onProceed();
       };

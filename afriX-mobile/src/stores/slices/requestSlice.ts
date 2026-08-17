@@ -40,15 +40,33 @@ export interface CreatedRequest {
   expiresAt: string;
 }
 
+export interface UserRequestItem {
+  id: string;
+  type: "payment_request" | "mint" | "burn";
+  reference: string;
+  amount: number;
+  token_type: TokenType;
+  status: "pending" | "completed" | "cancelled" | "expired";
+  description?: string;
+  recipient_email?: string;
+  mode?: RequestMode;
+  created_at: string;
+  expires_at?: string;
+}
+
 interface RequestState {
   draftRequest: DraftRequest;
   createdRequest: CreatedRequest | null;
+  userRequests: UserRequestItem[];
   loading: boolean;
+  fetchingHistory: boolean;
   error: string | null;
 
   setDraftRequest: (updates: Partial<DraftRequest>) => void;
   resetDraft: () => void;
   createTokenRequest: () => Promise<CreatedRequest>;
+  fetchUserRequests: () => Promise<UserRequestItem[]>;
+  cancelPaymentRequest: (reference: string) => Promise<void>;
   clearError: () => void;
 }
 
@@ -66,7 +84,9 @@ const initialDraft: DraftRequest = {
 export const useRequestStore = create<RequestState>((set, get) => ({
   draftRequest: initialDraft,
   createdRequest: null,
+  userRequests: [],
   loading: false,
+  fetchingHistory: false,
   error: null,
 
   setDraftRequest: (updates) => {
@@ -153,6 +173,38 @@ export const useRequestStore = create<RequestState>((set, get) => ({
         "Failed to create payment request on the server";
       console.error("❌ Payment request creation failed:", message);
       set({ loading: false, error: message, createdRequest: null });
+      throw new Error(message);
+    }
+  },
+
+  fetchUserRequests: async () => {
+    set({ fetchingHistory: true });
+    try {
+      const response = await apiClient.get("/requests/user");
+      const list: UserRequestItem[] = (response.data?.data || []).filter(
+        (item: any) => item.type === "payment_request"
+      );
+      set({ userRequests: list, fetchingHistory: false });
+      return list;
+    } catch (err) {
+      set({ fetchingHistory: false });
+      return get().userRequests;
+    }
+  },
+
+  cancelPaymentRequest: async (reference: string) => {
+    try {
+      await apiClient.post(`/requests/payment-request/${reference}/cancel`);
+      // Update local state immediately
+      set((state) => ({
+        userRequests: state.userRequests.map((req) =>
+          req.reference === reference || req.id === reference
+            ? { ...req, status: "cancelled" as const }
+            : req
+        ),
+      }));
+    } catch (err: any) {
+      const message = err.response?.data?.message || err.message || "Failed to cancel request";
       throw new Error(message);
     }
   },

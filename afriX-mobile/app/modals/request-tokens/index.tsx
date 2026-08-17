@@ -125,15 +125,14 @@ export default function CreateRequestScreen() {
           </Text>
         </View>
 
-        {/* Header Hand Graphic Illustration */}
-        <View style={styles.headerGraphicBox}>
-          <LinearGradient colors={["#00B14F", "#059669"]} style={styles.headerGraphicBg}>
-            <Ionicons name="hand-left" size={22} color="#FFF" />
-          </LinearGradient>
-          <View style={styles.headerBadgeUsdt}>
-            <Text style={styles.badgeUsdtText}>USDT</Text>
-          </View>
-        </View>
+        {/* History Button & Graphic */}
+        <TouchableOpacity
+          onPress={() => router.push("/modals/request-tokens/my-requests" as any)}
+          style={[styles.backButton, { backgroundColor: theme.card, borderColor: theme.border }]}
+          activeOpacity={0.85}
+        >
+          <Ionicons name="time-outline" size={20} color={theme.text} />
+        </TouchableOpacity>
       </View>
 
       {/* Stepper Navigation Bar */}

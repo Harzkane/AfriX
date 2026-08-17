@@ -15,6 +15,7 @@ const { ValidationError } = require("../utils/errors");
 const { generateQR } = require("../utils/qrcode");
 const { uploadToR2 } = require("../services/r2Service");
 const { emitMerchantWebhook, ensureWebhookSecret } = require("../services/merchantWebhookService");
+const { deliver } = require("../services/notificationService");
 /**
  * Merchant Controller
  *
@@ -289,6 +290,23 @@ const merchantController = {
             to_email: user.email,
           },
         });
+      }
+
+      // Send push notification to recipient if their email matches a registered user
+      const recipientEmailAddress = req.body.recipient_email || req.body.customer_email;
+      if (recipientEmailAddress) {
+        try {
+          const recipientUser = await User.findOne({ where: { email: recipientEmailAddress } });
+          if (recipientUser) {
+            await deliver(recipientUser.id, "PAYMENT_REQUEST_RECEIVED", {
+              title: "💰 Payment Request Received",
+              message: `${user.email} is requesting ${amount} ${paymentTokenType} from you.`,
+              data: { reference: paymentReference, amount, token_type: paymentTokenType, from_email: user.email },
+            });
+          }
+        } catch (notifErr) {
+          console.warn("[WARN] Failed to send payment request notification:", notifErr.message);
+        }
       }
 
       // Generate payment QR code

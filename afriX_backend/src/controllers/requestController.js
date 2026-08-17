@@ -220,8 +220,31 @@ const requestController = {
         };
       });
 
+      // Fetch payment requests created by this user (COLLECTION transactions they own)
+      const paymentRequests = await Transaction.findAll({
+        where: {
+          to_user_id: userId,
+          type: TRANSACTION_TYPES.COLLECTION,
+        },
+        order: [["created_at", "DESC"]],
+      });
+
+      const formattedPaymentRequests = paymentRequests.map((r) => ({
+        id: r.id,
+        type: "payment_request",
+        reference: r.reference,
+        amount: r.amount,
+        token_type: r.token_type,
+        status: r.status,
+        description: r.description,
+        recipient_email: r.metadata?.customer_email || r.metadata?.recipient_email || null,
+        mode: r.metadata?.mode || "p2p",
+        created_at: r.created_at,
+        expires_at: r.metadata?.expires_at || null,
+      }));
+
       // Combine and sort by created_at
-      const allRequests = [...formattedMintRequests, ...formattedBurnRequests].sort(
+      const allRequests = [...formattedMintRequests, ...formattedBurnRequests, ...formattedPaymentRequests].sort(
         (a, b) => new Date(b.created_at) - new Date(a.created_at)
       );
 
@@ -1071,6 +1094,44 @@ const requestController = {
   getPaymentRequestById: (...args) => {
     const merchantController = require("./merchantController");
     return merchantController.getPaymentRequestById(...args);
+  },
+
+  // Cancel a pending payment request created by the authenticated user
+  async cancelPaymentRequest(req, res, next) {
+    try {
+      const userId = req.user.id;
+      const { id } = req.params; // reference like RQST-XXXXXX or transaction UUID
+
+      // Look up by reference string first, then by UUID
+      const { Op } = require("sequelize");
+      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+      const whereClause = {
+        to_user_id: userId,
+        type: TRANSACTION_TYPES.COLLECTION,
+        status: TRANSACTION_STATUS.PENDING,
+        ...(isUUID ? { [Op.or]: [{ id }, { reference: id }] } : { reference: id }),
+      };
+
+      const transaction = await Transaction.findOne({ where: whereClause });
+
+      if (!transaction) {
+        return res.status(404).json({
+          success: false,
+          message: "Payment request not found or already completed/cancelled",
+        });
+      }
+
+      transaction.status = TRANSACTION_STATUS.CANCELLED;
+      await transaction.save();
+
+      res.json({
+        success: true,
+        message: "Payment request cancelled successfully",
+        data: { reference: transaction.reference, status: TRANSACTION_STATUS.CANCELLED },
+      });
+    } catch (error) {
+      next(error);
+    }
   },
 };
 

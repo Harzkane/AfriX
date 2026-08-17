@@ -196,22 +196,25 @@ const walletService = {
       if (isUuid) {
         orConditions.push({ id: cleanId });
       }
-      
+
       matchedRequestTransaction = await Transaction.findOne({
         where: {
           [Op.or]: orConditions,
         },
       });
 
-      if (matchedRequestTransaction) {
-        if (matchedRequestTransaction.status === TRANSACTION_STATUS.COMPLETED) {
-          throw new ApiError("This payment request has already been paid and fulfilled.", 400);
-        }
-        if (!recipient) {
-          const targetUserId = matchedRequestTransaction.to_user_id || matchedRequestTransaction.user_id;
-          if (targetUserId) {
-            recipient = await User.findByPk(targetUserId);
-          }
+      if (!matchedRequestTransaction) {
+        throw new ApiError("Payment request not found", 404);
+      }
+
+      if (matchedRequestTransaction.status !== TRANSACTION_STATUS.PENDING) {
+        throw new ApiError("This payment request has already been paid and fulfilled.", 409);
+      }
+
+      if (!recipient) {
+        const targetUserId = matchedRequestTransaction.to_user_id || matchedRequestTransaction.user_id;
+        if (targetUserId) {
+          recipient = await User.findByPk(targetUserId);
         }
       }
     }

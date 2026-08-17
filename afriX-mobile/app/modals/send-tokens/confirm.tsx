@@ -20,7 +20,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { formatAmount } from "@/utils/format";
 import * as Haptics from "expo-haptics";
 import { useTranslation } from "react-i18next";
-import apiClient from "@/services/apiClient";
+import { fetchPaymentRequest } from "@/services/paymentRequestService";
 
 export default function ConfirmTransferScreen() {
   const router = useRouter();
@@ -76,16 +76,26 @@ export default function ConfirmTransferScreen() {
     if (!requestId) return;
     const checkRequestStatus = async () => {
       try {
-        const res = await apiClient.get(`/merchants/payment-request/${requestId}`);
+        const res = await fetchPaymentRequest(requestId);
         if (res.data?.data?.status === "completed") {
           Alert.alert(
             t("send_tokens.scan_qr.request_paid_title", "Request Already Paid"),
             t("send_tokens.scan_qr.request_paid_desc", "This payment request ({{reqId}}) has already been paid and fulfilled by a previous transfer.", { reqId: requestId }),
             [{ text: t("common.ok", "OK"), onPress: () => router.back() }]
           );
+        } else if (res.data?.data?.status !== "pending") {
+          Alert.alert(
+            t("send_tokens.scan_qr.request_unavailable_title", "Request Unavailable"),
+            t("send_tokens.scan_qr.request_unavailable_desc", "This payment request is no longer available for payment.", { reqId: requestId }),
+            [{ text: t("common.ok", "OK"), onPress: () => router.back() }]
+          );
         }
       } catch (e) {
-        // Continue if offline or record not found
+        Alert.alert(
+          t("send_tokens.scan_qr.request_unavailable_title", "Request Unavailable"),
+          t("send_tokens.scan_qr.request_unavailable_desc", "We could not verify this payment request. Please ask the sender to share a fresh QR code or try again later."),
+          [{ text: t("common.ok", "OK"), onPress: () => router.back() }]
+        );
       }
     };
     checkRequestStatus();
@@ -127,6 +137,26 @@ export default function ConfirmTransferScreen() {
 
   const handleConfirm = async () => {
     try {
+      if (requestId) {
+        const res = await fetchPaymentRequest(requestId);
+        if (res.data?.data?.status === "completed") {
+          Alert.alert(
+            t("send_tokens.scan_qr.request_paid_title", "Request Already Paid"),
+            t("send_tokens.scan_qr.request_paid_desc", "This payment request ({{reqId}}) has already been paid and fulfilled by a previous transfer.", { reqId: requestId })
+          );
+          setAuthenticating(false);
+          return;
+        }
+        if (res.data?.data?.status !== "pending") {
+          Alert.alert(
+            t("send_tokens.scan_qr.request_unavailable_title", "Request Unavailable"),
+            t("send_tokens.scan_qr.request_unavailable_desc", "This payment request is no longer available for payment.", { reqId: requestId })
+          );
+          setAuthenticating(false);
+          return;
+        }
+      }
+
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       await executeTransfer();
       await fetchWallets();

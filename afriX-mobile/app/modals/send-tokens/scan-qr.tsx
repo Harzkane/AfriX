@@ -7,7 +7,7 @@ import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { useTransferStore } from "@/stores";
 import { useTranslation } from "react-i18next";
-import apiClient from "@/services/apiClient";
+import { fetchPaymentRequest } from "@/services/paymentRequestService";
 
 export default function ScanQRScreen() {
   const router = useRouter();
@@ -56,19 +56,38 @@ export default function ScanQRScreen() {
         return val.replace(/[\\"'\}\s]/g, "").trim();
       };
 
+      const extractEmail = (val?: string | null) => {
+        if (!val) return "";
+        const match = val.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
+        return match ? match[0].toLowerCase() : "";
+      };
+
       const checkStatusAndNavigate = async (reqId: string, onProceed: () => void) => {
         try {
-          const res = await apiClient.get(`/merchants/payment-request/${reqId}`);
+          const res = await fetchPaymentRequest(reqId);
           if (res.data?.data?.status === "completed") {
             Alert.alert(
               t("send_tokens.scan_qr.request_paid_title", "Request Already Paid"),
               t("send_tokens.scan_qr.request_paid_desc", "This payment request ({{reqId}}) has already been paid and fulfilled by a previous transfer.", { reqId }),
-              [{ text: t("common.ok", "OK"), onPress: () => setScanned(false) }]
+              [{ text: t("send_tokens.scan_qr.btn_back", "Go Back"), onPress: () => router.replace("/modals/send-tokens") }]
+            );
+            return;
+          }
+          if (res.data?.data?.status !== "pending") {
+            Alert.alert(
+              t("send_tokens.scan_qr.request_unavailable_title", "Request Unavailable"),
+              t("send_tokens.scan_qr.request_unavailable_desc", "This payment request is no longer available for payment.", { reqId }),
+              [{ text: t("send_tokens.scan_qr.btn_back", "Go Back"), onPress: () => router.replace("/modals/send-tokens") }]
             );
             return;
           }
         } catch (e) {
-          // If offline or request record not found, proceed smoothly
+          Alert.alert(
+            t("send_tokens.scan_qr.request_unavailable_title", "Request Unavailable"),
+            t("send_tokens.scan_qr.request_unavailable_desc", "We could not verify this payment request. Please ask the sender to share a fresh QR code or try again later."),
+            [{ text: t("send_tokens.scan_qr.btn_back", "Go Back"), onPress: () => router.replace("/modals/send-tokens") }]
+          );
+          return;
         }
         onProceed();
       };
@@ -77,11 +96,12 @@ export default function ScanQRScreen() {
       if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
         const qrData = JSON.parse(trimmed);
         const rawEmail = qrData.email || qrData.address || qrData.recipient;
-        const email = cleanString(rawEmail);
+        const email = extractEmail(rawEmail) || extractEmail(cleanString(rawEmail));
         const token = qrData.token || qrData.tokenType || "NT";
         const amt = qrData.amount ? qrData.amount.toString() : "";
         const noteText = qrData.note || qrData.description || "";
-        const reqId = qrData.requestId || "";
+        const reqId = (qrData.requestId || qrData.reference || "").toString().toUpperCase();
+        const paymentUrl = qrData.url || "";
 
         const proceed = () => {
           if (email) setRecipient(email);
@@ -92,11 +112,23 @@ export default function ScanQRScreen() {
           router.replace("/modals/send-tokens/amount");
         };
 
+        // Payment request JSON: always verify on server when we have a request id
         if (reqId) {
           await checkStatusAndNavigate(reqId, proceed);
           return;
         }
 
+        // Legacy payment JSON with embedded URL
+        if (paymentUrl && (paymentUrl.includes("RQST-") || paymentUrl.includes("/pay/"))) {
+          const match = paymentUrl.match(/RQST-[A-Z0-9]+/i);
+          const urlReqId = match ? match[0].toUpperCase() : "";
+          if (urlReqId) {
+            await checkStatusAndNavigate(urlReqId, proceed);
+            return;
+          }
+        }
+
+        // Receive QR / plain JSON with email only (no payment request)
         if (email) {
           proceed();
           return;
@@ -119,7 +151,7 @@ export default function ScanQRScreen() {
           if (urlParams.get("amount")) parsedAmount = urlParams.get("amount") || "";
           if (urlParams.get("token")) parsedToken = urlParams.get("token") || "NT";
           if (urlParams.get("note")) parsedNote = urlParams.get("note") || "";
-          if (urlParams.get("email")) parsedEmail = cleanString(urlParams.get("email"));
+          if (urlParams.get("email")) parsedEmail = extractEmail(urlParams.get("email"));
         }
 
         const proceed = () => {

@@ -65,7 +65,8 @@ export default function ScanQRScreen() {
       const checkStatusAndNavigate = async (reqId: string, onProceed: () => void) => {
         try {
           const res = await fetchPaymentRequest(reqId);
-          if (res.data?.data?.status === "completed") {
+          const status = (res.data?.data?.status || "").toLowerCase();
+          if (status === "completed" || status === "paid") {
             Alert.alert(
               t("send_tokens.scan_qr.request_paid_title", "Request Already Paid"),
               t("send_tokens.scan_qr.request_paid_desc", "This payment request ({{reqId}}) has already been paid and fulfilled by a previous transfer.", { reqId }),
@@ -73,7 +74,23 @@ export default function ScanQRScreen() {
             );
             return;
           }
-          if (res.data?.data?.status !== "pending") {
+          if (status === "cancelled") {
+            Alert.alert(
+              t("send_tokens.scan_qr.request_cancelled_title", "Request Cancelled"),
+              t("send_tokens.scan_qr.request_cancelled_desc", "This payment request ({{reqId}}) was cancelled by the creator and is no longer valid for payment.", { reqId }),
+              [{ text: t("send_tokens.scan_qr.btn_back", "Go Back"), onPress: () => router.back() }]
+            );
+            return;
+          }
+          if (status === "expired") {
+            Alert.alert(
+              t("send_tokens.scan_qr.request_expired_title", "Request Expired"),
+              t("send_tokens.scan_qr.request_expired_desc", "This payment request ({{reqId}}) has expired and is no longer valid for payment.", { reqId }),
+              [{ text: t("send_tokens.scan_qr.btn_back", "Go Back"), onPress: () => router.back() }]
+            );
+            return;
+          }
+          if (status !== "pending") {
             Alert.alert(
               t("send_tokens.scan_qr.request_unavailable_title", "Request Unavailable"),
               t("send_tokens.scan_qr.request_unavailable_desc", "This payment request is no longer available for payment.", { reqId }),

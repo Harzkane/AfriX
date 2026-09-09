@@ -102,6 +102,7 @@ export default function HostedPaymentPage() {
   const urlNote = searchParams?.get("note");
   const urlEmail = searchParams?.get("email");
   const urlTxId = searchParams?.get("txId");
+  const urlExp = searchParams?.get("exp");
 
   const effectiveId = urlTxId || transactionId;
 
@@ -145,10 +146,32 @@ export default function HostedPaymentPage() {
   const loadPayment = useCallback(async () => {
     try {
       const paymentData = await hostedPaymentApi.getPaymentDetails(effectiveId);
+      if (urlExp) {
+        if (urlExp === "never") {
+          paymentData.expires_at = null;
+        } else {
+          const days = parseInt(urlExp, 10);
+          if (!isNaN(days) && days > 0) {
+            const baseTime = paymentData.created_at ? new Date(paymentData.created_at).getTime() : Date.now();
+            paymentData.expires_at = new Date(baseTime + days * 24 * 60 * 60 * 1000).toISOString();
+          }
+        }
+      }
       setPayment(paymentData);
     } catch (apiError) {
       // Fallback: If URL parameters exist, construct client payment card so user is never stuck
       if (urlAmount || transactionId) {
+        let fallbackExpiresAt: string | null = null;
+        if (urlExp) {
+          if (urlExp === "never") {
+            fallbackExpiresAt = null;
+          } else {
+            const days = parseInt(urlExp, 10);
+            if (!isNaN(days) && days > 0) {
+              fallbackExpiresAt = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
+            }
+          }
+        }
         setPayment({
           id: effectiveId,
           reference: transactionId.startsWith("RQST-") ? transactionId : `RQST-${transactionId}`,
@@ -157,13 +180,14 @@ export default function HostedPaymentPage() {
           currency: urlToken,
           description: urlNote || "Payment request",
           status: "pending",
+          expires_at: fallbackExpiresAt,
           customer: urlEmail ? { id: "", name: urlEmail.split("@")[0], email: urlEmail } : null,
         });
       } else {
         throw apiError;
       }
     }
-  }, [effectiveId, transactionId, urlAmount, urlToken, urlNote, urlEmail]);
+  }, [effectiveId, transactionId, urlAmount, urlToken, urlNote, urlEmail, urlExp]);
 
   const loadProfile = async () => {
     const profileData = await hostedPaymentApi.getCurrentUserProfile();

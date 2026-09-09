@@ -352,23 +352,29 @@ const paymentController = {
         transaction.metadata?.expirationDays ??
         null;
 
-      let expiresAt = transaction.metadata?.expires_at || null;
-      if (!expiresAt && rawExpDays) {
-        const expStr = String(rawExpDays).toLowerCase();
+      let expiresAt = null;
+
+      if (rawExpDays !== null && rawExpDays !== undefined && String(rawExpDays).trim() !== "") {
+        const expStr = String(rawExpDays).toLowerCase().trim();
         if (expStr === "never") {
           expiresAt = null;
         } else {
           const days = parseInt(expStr, 10);
-          if (!isNaN(days) && days > 0 && transaction.created_at) {
-            expiresAt = new Date(new Date(transaction.created_at).getTime() + days * 24 * 60 * 60 * 1000).toISOString();
+          if (!isNaN(days) && days > 0) {
+            const baseTime = transaction.created_at ? new Date(transaction.created_at).getTime() : Date.now();
+            expiresAt = new Date(baseTime + days * 24 * 60 * 60 * 1000).toISOString();
           }
         }
-      } else if (!expiresAt && transaction.created_at && isPathAMerchantCheckout) {
+      } else if (transaction.metadata?.expires_at) {
+        expiresAt = transaction.metadata.expires_at;
+      } else if (isPathAMerchantCheckout) {
         // Path A Merchant checkout default window: 30 minutes
-        expiresAt = new Date(new Date(transaction.created_at).getTime() + 30 * 60 * 1000).toISOString();
-      } else if (!expiresAt && transaction.created_at && !isPathAMerchantCheckout) {
+        const baseTime = transaction.created_at ? new Date(transaction.created_at).getTime() : Date.now();
+        expiresAt = new Date(baseTime + 30 * 60 * 1000).toISOString();
+      } else {
         // P2P User Request default window: 7 days
-        expiresAt = new Date(new Date(transaction.created_at).getTime() + 7 * 24 * 60 * 60 * 1000).toISOString();
+        const baseTime = transaction.created_at ? new Date(transaction.created_at).getTime() : Date.now();
+        expiresAt = new Date(baseTime + 7 * 24 * 60 * 60 * 1000).toISOString();
       }
 
       res.status(200).json({

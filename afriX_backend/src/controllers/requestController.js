@@ -314,13 +314,13 @@ const requestController = {
       }
 
       const requestMetadata = {
+        ...metadata,
         customer_email: customer_email || null,
         recipient_email: recipient_email || null,
         expiration_days: effectiveExpirationDays,
         expires_at: calculatedExpiresAt,
         privacy: privacy || null,
         mode: mode || "p2p",
-        ...metadata,
       };
 
       if (transaction) {

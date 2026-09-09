@@ -141,9 +141,11 @@ export const useRequestStore = create<RequestState>((set, get) => ({
       const userEmail = useAuthStore.getState().user?.email || "";
       const note = draftRequest.note || "Token request";
       const amount = parseFloat(draftRequest.amount) || 0;
+      const expParam = draftRequest.expirationDays ? `&exp=${draftRequest.expirationDays}` : "";
       const shareUrl =
-        payload.payment_url ||
-        `${WEB_URL}/pay/${serverRef}?amount=${amount}&token=${draftRequest.tokenType}&note=${encodeURIComponent(note)}${userEmail ? `&email=${encodeURIComponent(userEmail)}` : ""}${payload.transaction_id ? `&txId=${payload.transaction_id}` : ""}`;
+        payload.payment_url
+          ? `${payload.payment_url}${payload.payment_url.includes("?") ? "&" : "?"}amount=${amount}&token=${draftRequest.tokenType}&note=${encodeURIComponent(note)}${userEmail ? `&email=${encodeURIComponent(userEmail)}` : ""}${payload.transaction_id ? `&txId=${payload.transaction_id}` : ""}${expParam}`
+          : `${WEB_URL}/pay/${serverRef}?amount=${amount}&token=${draftRequest.tokenType}&note=${encodeURIComponent(note)}${userEmail ? `&email=${encodeURIComponent(userEmail)}` : ""}${payload.transaction_id ? `&txId=${payload.transaction_id}` : ""}${expParam}`;
 
       const created: CreatedRequest = {
         id: payload.transaction_id || `req_${Date.now()}`,

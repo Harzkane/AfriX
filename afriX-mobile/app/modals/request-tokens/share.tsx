@@ -56,8 +56,9 @@ export default function ShareRequestScreen() {
   const note = createdRequest?.note || draftRequest.note || "Rent payment for August";
   const creatorEmail = createdRequest?.creatorEmail || user?.email || "";
 
+  const expirationDays = createdRequest?.expirationDays || draftRequest.expirationDays || "7";
   const transactionId = createdRequest?.id || "";
-  const fullPaymentUrl = `${WEB_URL}/pay/${requestId}?amount=${amount}&token=${tokenType}&note=${encodeURIComponent(note)}${creatorEmail ? `&email=${encodeURIComponent(creatorEmail)}` : ""}${transactionId ? `&txId=${transactionId}` : ""}`;
+  const fullPaymentUrl = `${WEB_URL}/pay/${requestId}?amount=${amount}&token=${tokenType}&note=${encodeURIComponent(note)}${creatorEmail ? `&email=${encodeURIComponent(creatorEmail)}` : ""}${transactionId ? `&txId=${transactionId}` : ""}&exp=${expirationDays}`;
   const shareUrl = createdRequest?.shareUrl || fullPaymentUrl;
 
   // Encode the payment URL in the QR so scans always verify against the server request.
@@ -139,7 +140,6 @@ export default function ShareRequestScreen() {
     router.replace("/(tabs)");
   };
 
-  const expirationDays = createdRequest?.expirationDays || draftRequest.expirationDays || "7";
   const createdAtDate = createdRequest?.createdAt ? new Date(createdRequest.createdAt) : new Date();
 
   const getCreatedDateFormatted = () => {

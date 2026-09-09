@@ -333,13 +333,11 @@ const paymentController = {
         throw new ApiError("Payment not found", 404);
       }
 
-      const isPendingHostedRequest =
-        transaction.status === TRANSACTION_STATUS.PENDING &&
-        !transaction.from_user_id;
+      const isHostedRequest = !transaction.from_user_id;
 
       if (
         req.user &&
-        !isPendingHostedRequest &&
+        !isHostedRequest &&
         req.user.id !== transaction.from_user_id &&
         req.user.id !== transaction.to_user_id
       ) {

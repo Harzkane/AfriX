@@ -14,18 +14,40 @@ const {
 const { generateTransactionReference } = require("../utils/helpers");
 const { ApiError } = require("../utils/errors");
 const { emitMerchantWebhook } = require("../services/merchantWebhookService");
-// const logger = require('../utils/logger');
+
+/**
+ * Helper to build Sequelize where clause for looking up collection transactions by ID or Reference safely.
+ * Checks UUID validity before adding `{ id: uuid }` condition to prevent Postgres 22P02 errors.
+ */
+const buildTransactionLookupWhere = (id, extraWhere = {}) => {
+  const cleanId = typeof id === "string" ? id.replace(/^RQST-/i, "") : id;
+  const isUuid =
+    typeof cleanId === "string" &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(cleanId);
+
+  const orConditions = [
+    { reference: id },
+    { reference: cleanId },
+    { reference: `RQST-${cleanId}` },
+  ];
+  if (isUuid) {
+    orConditions.push({ id: cleanId });
+  }
+
+  return {
+    type: TRANSACTION_TYPES.COLLECTION,
+    [Op.or]: orConditions,
+    ...extraWhere,
+  };
+};
 
 /**
  * Payment Controller
- * Handles merchant payment processing and verification
+ * Handles merchant and P2P payment processing and verification
  */
 const paymentController = {
   /**
-   * Process a payment to a merchant
-   * @param {Object} req - Express request object
-   * @param {Object} res - Express response object
-   * @param {Function} next - Express next middleware function
+   * Process a payment to a merchant or P2P recipient user
    */
   async processPayment(req, res, next) {
     try {
@@ -57,14 +79,11 @@ const paymentController = {
       if (!passwordValid) {
         throw new ApiError("Invalid authorization password", 401);
       }
-      // ─────────────────────────────────────────────────────────────────────────
 
       const validCurrencies = Object.values(TOKEN_TYPES);
       if (!validCurrencies.includes(tokenType)) {
         throw new ApiError(
-          `Invalid currency. Supported currencies are: ${validCurrencies.join(
-            ", "
-          )}`,
+          `Invalid currency. Supported currencies are: ${validCurrencies.join(", ")}`,
           400
         );
       }
@@ -72,20 +91,8 @@ const paymentController = {
       let existingPaymentRequest = null;
 
       if (requestLookup) {
-        const normalizedReference = typeof requestLookup === "string"
-          ? requestLookup.replace(/^RQST-/i, "")
-          : requestLookup;
-
         existingPaymentRequest = await Transaction.findOne({
-          where: {
-            type: TRANSACTION_TYPES.COLLECTION,
-            [Op.or]: [
-              { id: requestLookup },
-              { id: normalizedReference },
-              { reference: requestLookup },
-              { reference: normalizedReference },
-            ],
-          },
+          where: buildTransactionLookupWhere(requestLookup),
         });
 
         if (!existingPaymentRequest) {
@@ -263,9 +270,10 @@ const paymentController = {
               status: transaction.status,
               description: transaction.description,
               created_at: transaction.created_at,
-          },
-        })
-      );
+            },
+          })
+        );
+      }
 
       res.status(200).json({
         success: true,
@@ -288,31 +296,14 @@ const paymentController = {
   },
 
   /**
-   * Get payment details by ID
-   * @param {Object} req - Express request object
-   * @param {Object} res - Express response object
-   * @param {Function} next - Express next middleware function
+   * Get payment details by ID or reference
    */
   async getPaymentDetails(req, res, next) {
     try {
       const { id } = req.params;
-      const cleanId = typeof id === "string" ? id.replace(/^RQST-/i, "") : id;
-      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(cleanId);
-
-      const orConditions = [
-        { reference: id },
-        { reference: cleanId },
-        { reference: `RQST-${cleanId}` },
-      ];
-      if (isUuid) {
-        orConditions.push({ id: cleanId });
-      }
 
       const transaction = await Transaction.findOne({
-        where: {
-          type: TRANSACTION_TYPES.COLLECTION,
-          [Op.or]: orConditions,
-        },
+        where: buildTransactionLookupWhere(id),
         include: [
           {
             model: User,
@@ -340,8 +331,6 @@ const paymentController = {
         transaction.status === TRANSACTION_STATUS.PENDING &&
         !transaction.from_user_id;
 
-      // Pending hosted payment requests must stay publicly viewable so the
-      // buyer can open the payment URL before they have authenticated as payer.
       if (
         req.user &&
         !isPendingHostedRequest &&
@@ -351,7 +340,6 @@ const paymentController = {
         throw new ApiError("Unauthorized to view this payment", 403);
       }
 
-      // Derive expires_at from created_at + 30 min (matches createPaymentRequest behaviour)
       const expiresAt = transaction.created_at
         ? new Date(new Date(transaction.created_at).getTime() + 30 * 60 * 1000).toISOString()
         : null;
@@ -394,30 +382,13 @@ const paymentController = {
 
   /**
    * Verify payment status
-   * @param {Object} req - Express request object
-   * @param {Object} res - Express response object
-   * @param {Function} next - Express next middleware function
    */
   async verifyPayment(req, res, next) {
     try {
       const { id } = req.params;
-      const cleanId = typeof id === "string" ? id.replace(/^RQST-/i, "") : id;
-      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(cleanId);
-
-      const orConditions = [
-        { reference: id },
-        { reference: cleanId },
-        { reference: `RQST-${cleanId}` },
-      ];
-      if (isUuid) {
-        orConditions.push({ id: cleanId });
-      }
 
       const transaction = await Transaction.findOne({
-        where: {
-          type: TRANSACTION_TYPES.COLLECTION,
-          [Op.or]: orConditions,
-        },
+        where: buildTransactionLookupWhere(id),
       });
 
       if (!transaction) {
@@ -440,44 +411,24 @@ const paymentController = {
 
   /**
    * Cancel pending payment
-   * @param {Object} req - Express request object
-   * @param {Object} res - Express response object
-   * @param {Function} next - Express next middleware function
    */
   async cancelPayment(req, res, next) {
     try {
       const { id } = req.params;
       const user_id = req.user.id;
-      const cleanId = typeof id === "string" ? id.replace(/^RQST-/i, "") : id;
-      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(cleanId);
-
-      const orConditions = [
-        { reference: id },
-        { reference: cleanId },
-        { reference: `RQST-${cleanId}` },
-      ];
-      if (isUuid) {
-        orConditions.push({ id: cleanId });
-      }
 
       const transaction = await Transaction.findOne({
-        where: {
-          type: TRANSACTION_TYPES.COLLECTION,
-          status: TRANSACTION_STATUS.PENDING,
-          [Op.or]: orConditions,
-        },
+        where: buildTransactionLookupWhere(id, { status: TRANSACTION_STATUS.PENDING }),
       });
 
       if (!transaction) {
         throw new ApiError("Pending payment not found", 404);
       }
 
-      // Only the payer can cancel a payment
       if (transaction.from_user_id !== user_id) {
         throw new ApiError("Unauthorized to cancel this payment", 403);
       }
 
-      // Update transaction status
       await transaction.update({ status: TRANSACTION_STATUS.CANCELLED });
 
       res.status(200).json({

@@ -288,9 +288,10 @@ export default function HostedPaymentPage() {
         router.push("/");
       }, 1200);
     } catch (paymentError: unknown) {
-      const err = paymentError as { response?: { data?: { message?: string } }; message?: string };
+      const err = paymentError as { response?: { data?: { message?: string; error?: { message?: string } } }; message?: string };
       setError(
-        err?.response?.data?.message ||
+        err?.response?.data?.error?.message ||
+          err?.response?.data?.message ||
           err?.message ||
           "Unable to complete this AfriExchange payment."
       );

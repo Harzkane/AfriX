@@ -139,6 +139,30 @@ export default function ShareRequestScreen() {
     router.replace("/(tabs)");
   };
 
+  const expirationDays = createdRequest?.expirationDays || draftRequest.expirationDays || "7";
+  const createdAtDate = createdRequest?.createdAt ? new Date(createdRequest.createdAt) : new Date();
+
+  const getCreatedDateFormatted = () => {
+    const dateStr = createdAtDate.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+    const timeStr = createdAtDate.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
+    return `Created on ${dateStr} • ${timeStr}`;
+  };
+
+  const getExpirationFormatted = () => {
+    if (expirationDays === "never") return "Does not expire";
+    const days = parseInt(expirationDays, 10) || 7;
+    let expDate: Date;
+    if (createdRequest?.expiresAt) {
+      expDate = new Date(createdRequest.expiresAt);
+    } else {
+      expDate = new Date(createdAtDate.getTime() + days * 24 * 60 * 60 * 1000);
+    }
+    const label = days === 1 ? "1 day" : `${days} days`;
+    const dateStr = expDate.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+    const timeStr = expDate.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
+    return `${label} (${dateStr} • ${timeStr})`;
+  };
+
   const getFiatEquivalent = () => {
     if (tokenType === "NT") return `= ${amount.toLocaleString()} NGN`;
     if (tokenType === "CT") return `= ≈ ${amount.toLocaleString()} XOF`;
@@ -233,7 +257,7 @@ export default function ShareRequestScreen() {
               <Ionicons name="copy-outline" size={14} color={theme.accent} />
             </TouchableOpacity>
             <Text style={[styles.createdDateText, { color: theme.muted }]}>
-              Created on Aug 14, 2026 • 10:20 AM
+              {getCreatedDateFormatted()}
             </Text>
           </View>
         </View>
@@ -286,7 +310,7 @@ export default function ShareRequestScreen() {
               <Ionicons name="calendar-outline" size={14} color={theme.muted} />
               <Text style={[styles.metaLabel, { color: theme.muted }]}>Expires in</Text>
             </View>
-            <Text style={[styles.metaValue, { color: theme.text }]}>7 days (Aug 21, 2026 • 10:20 AM)</Text>
+            <Text style={[styles.metaValue, { color: theme.text }]}>{getExpirationFormatted()}</Text>
           </View>
 
           <View style={styles.metaRow}>

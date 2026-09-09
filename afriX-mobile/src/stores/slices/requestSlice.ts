@@ -143,7 +143,7 @@ export const useRequestStore = create<RequestState>((set, get) => ({
       const amount = parseFloat(draftRequest.amount) || 0;
       const shareUrl =
         payload.payment_url ||
-        `${WEB_URL}/pay/${serverRef}?amount=${amount}&token=${draftRequest.tokenType}&note=${encodeURIComponent(note)}${userEmail ? `&email=${encodeURIComponent(userEmail)}` : ""}`;
+        `${WEB_URL}/pay/${serverRef}?amount=${amount}&token=${draftRequest.tokenType}&note=${encodeURIComponent(note)}${userEmail ? `&email=${encodeURIComponent(userEmail)}` : ""}${payload.transaction_id ? `&txId=${payload.transaction_id}` : ""}`;
 
       const created: CreatedRequest = {
         id: payload.transaction_id || `req_${Date.now()}`,

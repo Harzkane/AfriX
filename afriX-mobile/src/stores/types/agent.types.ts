@@ -186,4 +186,5 @@ export interface AgentState {
     submitDeposit: (amount: number, txHash: string) => Promise<void>;
     updateProfile: (updates: AgentProfileUpdate) => Promise<any>;
     createWithdrawalRequest: (amountUsd: number) => Promise<any>;
+    claimEarnings: (targetCurrency: string) => Promise<any>;
 }

@@ -83,6 +83,9 @@ export interface Agent {
         outstanding_tokens?: number;
         outstanding_usdt?: number;
         max_withdrawable: number;
+        claimable_earnings_usdt?: number;
+        min_claim_threshold_usdt?: number;
+        can_claim_earnings?: boolean;
         utilization_percentage: string;
         liquidity_nt?: number;
         liquidity_ct?: number;

@@ -108,6 +108,17 @@ router.get(
 );
 
 /**
+ * Claim Agent Performance Earnings to Wallet
+ * POST /api/agents/claim-earnings
+ */
+router.post(
+    "/claim-earnings",
+    authenticate,
+    requireAgent,
+    agentController.claimEarnings
+);
+
+/**
  * Get Deposit History
  * GET /api/agents/deposit-history
  */

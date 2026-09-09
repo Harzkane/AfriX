@@ -260,6 +260,14 @@ const PLATFORM_FEES = {
 };
 
 // ============================================
+// FEE CALCULATION MODES
+// ============================================
+const FEE_MODES = {
+  DEDUCT: "deduct", // Fee deducted from payout (User spends exact fiat amount)
+  ADD_ON_TOP: "add_on_top", // Fee added on top (User receives exact token amount)
+};
+
+// ============================================
 // PLATFORM CONFIGURATION
 // ============================================
 const PLATFORM_CONFIG = {
@@ -280,6 +288,7 @@ const AGENT_CONFIG = {
   MAX_PENDING_EXCHANGES: 10,
   RESPONSE_TIME_LIMIT_MINUTES: 15,
   MIN_ROUTING_TX_LIMIT_USD: 10, // Minimum transaction size in USD to reset fairness queue timestamp
+  MIN_EARNINGS_CLAIM_USD: 10, // Minimum accrued earnings in USD equivalent required to claim into NT/CT wallet
 };
 
 // ============================================
@@ -667,6 +676,7 @@ module.exports = {
   VERIFICATION_LEVELS,
   TRANSACTION_LIMITS,
   PLATFORM_FEES,
+  FEE_MODES,
   PLATFORM_CONFIG,
   AGENT_CONFIG,
   ESCROW_CONFIG,

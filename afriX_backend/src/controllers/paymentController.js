@@ -100,6 +100,12 @@ const paymentController = {
         }
 
         if (existingPaymentRequest.status !== TRANSACTION_STATUS.PENDING) {
+          if (existingPaymentRequest.status === TRANSACTION_STATUS.CANCELLED) {
+            throw new ApiError(
+              "This payment request has been cancelled by the creator and is no longer valid.",
+              400
+            );
+          }
           throw new ApiError(
             "This payment request has already been paid and fulfilled.",
             409

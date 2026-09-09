@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import {
   AlertCircle,
   CheckCircle2,
@@ -79,8 +79,17 @@ const APP_STORE_URL =
 
 export default function HostedPaymentPage() {
   const params = useParams<{ id: string }>();
+  const searchParams = useSearchParams();
   const router = useRouter();
   const transactionId = String(params?.id || "");
+
+  const urlAmount = searchParams?.get("amount");
+  const urlToken = searchParams?.get("token") || "NT";
+  const urlNote = searchParams?.get("note");
+  const urlEmail = searchParams?.get("email");
+  const urlTxId = searchParams?.get("txId");
+
+  const effectiveId = urlTxId || transactionId;
 
   const [payment, setPayment] = useState<HostedPaymentDetails | null>(null);
   const [profile, setProfile] = useState<HostedUserProfile | null>(null);
@@ -120,9 +129,27 @@ export default function HostedPaymentPage() {
   // ─── Data loading ──────────────────────────────────────────────────────────
 
   const loadPayment = useCallback(async () => {
-    const paymentData = await hostedPaymentApi.getPaymentDetails(transactionId);
-    setPayment(paymentData);
-  }, [transactionId]);
+    try {
+      const paymentData = await hostedPaymentApi.getPaymentDetails(effectiveId);
+      setPayment(paymentData);
+    } catch (apiError) {
+      // Fallback: If URL parameters exist, construct client payment card so user is never stuck
+      if (urlAmount || transactionId) {
+        setPayment({
+          id: effectiveId,
+          reference: transactionId.startsWith("RQST-") ? transactionId : `RQST-${transactionId}`,
+          amount: parseFloat(urlAmount || "0") || 0,
+          token_type: urlToken,
+          currency: urlToken,
+          description: urlNote || "Payment request",
+          status: "pending",
+          customer: urlEmail ? { id: "", name: urlEmail.split("@")[0], email: urlEmail } : null,
+        });
+      } else {
+        throw apiError;
+      }
+    }
+  }, [effectiveId, transactionId, urlAmount, urlToken, urlNote, urlEmail]);
 
   const loadProfile = async () => {
     const profileData = await hostedPaymentApi.getCurrentUserProfile();

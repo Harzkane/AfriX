@@ -202,7 +202,7 @@ export default function HostedPaymentPage() {
   // ─── Countdown timer ───────────────────────────────────────────────────────
 
   useEffect(() => {
-    if (!payment?.expires_at || payment.status === "completed") return;
+    if (!payment?.expires_at || payment.status !== "pending") return;
 
     const expiresAt = new Date(payment.expires_at).getTime();
 
@@ -325,7 +325,7 @@ export default function HostedPaymentPage() {
   // ─── Countdown badge ───────────────────────────────────────────────────────
 
   const CountdownBadge = () => {
-    if (timeLeft === null || payment?.status === "completed") return null;
+    if (timeLeft === null || payment?.status !== "pending") return null;
 
     if (isExpired) {
       const ordersUrl = getOrdersUrl(returnUrl);
@@ -765,7 +765,7 @@ export default function HostedPaymentPage() {
                 )}
 
                 {/* ── Password Authorization ── */}
-                {buyerWallet && hasSufficientBalance && !isExpired && payment.status !== "completed" && (
+                {buyerWallet && hasSufficientBalance && !isExpired && payment.status === "pending" && (
                   <div className="rounded-lg border border-dashed p-4 space-y-2">
                     <div className="flex items-center gap-2 text-sm font-semibold">
                       <Shield className="h-4 w-4 text-primary" />
@@ -800,7 +800,7 @@ export default function HostedPaymentPage() {
                   disabled={
                     isPaying ||
                     isExpired ||
-                    payment.status === "completed" ||
+                    payment.status !== "pending" ||
                     !buyerWallet ||
                     !hasSufficientBalance ||
                     !paymentPassword
@@ -810,8 +810,12 @@ export default function HostedPaymentPage() {
                   {isPaying && (
                     <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
                   )}
-                  {isExpired
-                    ? "Link Expired — Go Back to PlugNG"
+                  {payment.status === "cancelled"
+                    ? "Request Cancelled"
+                    : payment.status === "completed"
+                    ? "Payment Completed"
+                    : isExpired || payment.status === "expired"
+                    ? "Payment Link Expired"
                     : `Pay ${formatAmount(payment.amount, paymentTokenType)}`}
                 </Button>
                 <Button

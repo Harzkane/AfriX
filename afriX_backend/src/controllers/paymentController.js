@@ -276,11 +276,22 @@ const paymentController = {
   async getPaymentDetails(req, res, next) {
     try {
       const { id } = req.params;
+      const cleanId = typeof id === "string" ? id.replace(/^RQST-/i, "") : id;
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(cleanId);
+
+      const orConditions = [
+        { reference: id },
+        { reference: cleanId },
+        { reference: `RQST-${cleanId}` },
+      ];
+      if (isUuid) {
+        orConditions.push({ id: cleanId });
+      }
 
       const transaction = await Transaction.findOne({
         where: {
-          id,
           type: TRANSACTION_TYPES.COLLECTION,
+          [Op.or]: orConditions,
         },
         include: [
           {
@@ -370,11 +381,22 @@ const paymentController = {
   async verifyPayment(req, res, next) {
     try {
       const { id } = req.params;
+      const cleanId = typeof id === "string" ? id.replace(/^RQST-/i, "") : id;
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(cleanId);
+
+      const orConditions = [
+        { reference: id },
+        { reference: cleanId },
+        { reference: `RQST-${cleanId}` },
+      ];
+      if (isUuid) {
+        orConditions.push({ id: cleanId });
+      }
 
       const transaction = await Transaction.findOne({
         where: {
-          id,
           type: TRANSACTION_TYPES.COLLECTION,
+          [Op.or]: orConditions,
         },
       });
 
@@ -406,12 +428,23 @@ const paymentController = {
     try {
       const { id } = req.params;
       const user_id = req.user.id;
+      const cleanId = typeof id === "string" ? id.replace(/^RQST-/i, "") : id;
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(cleanId);
+
+      const orConditions = [
+        { reference: id },
+        { reference: cleanId },
+        { reference: `RQST-${cleanId}` },
+      ];
+      if (isUuid) {
+        orConditions.push({ id: cleanId });
+      }
 
       const transaction = await Transaction.findOne({
         where: {
-          id,
           type: TRANSACTION_TYPES.COLLECTION,
           status: TRANSACTION_STATUS.PENDING,
+          [Op.or]: orConditions,
         },
       });
 

@@ -22,11 +22,10 @@ router.post(
   paymentController.processPayment
 );
 
-// Get payment details by ID (public endpoint with optional auth)
+// Get payment details by ID or reference (public endpoint with optional auth)
 router.get(
   "/:id",
   optionalAuth,
-  validateUUID("id"),
   paymentController.getPaymentDetails
 );
 
@@ -34,7 +33,6 @@ router.get(
 router.get(
   "/:id/verify",
   authenticate,
-  validateUUID("id"),
   paymentController.verifyPayment
 );
 
@@ -42,7 +40,6 @@ router.get(
 router.post(
   "/:id/cancel",
   authenticate,
-  validateUUID("id"),
   paymentController.cancelPayment
 );
 

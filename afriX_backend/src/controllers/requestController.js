@@ -292,17 +292,23 @@ const requestController = {
         },
       });
 
+      const rawExp =
+        expiration_days ??
+        req.body.expirationDays ??
+        metadata?.expiration_days ??
+        metadata?.expirationDays;
+
       const effectiveExpirationDays =
-        expiration_days !== undefined && expiration_days !== null && expiration_days !== ""
-          ? expiration_days
+        rawExp !== undefined && rawExp !== null && rawExp !== ""
+          ? String(rawExp).toLowerCase()
           : "7";
 
       let calculatedExpiresAt = null;
       if (effectiveExpirationDays === "never") {
         calculatedExpiresAt = null;
-      } else if (effectiveExpirationDays) {
+      } else {
         const days = parseInt(effectiveExpirationDays, 10);
-        if (days > 0) {
+        if (!isNaN(days) && days > 0) {
           calculatedExpiresAt = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
         }
       }

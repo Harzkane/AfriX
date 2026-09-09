@@ -292,11 +292,16 @@ const requestController = {
         },
       });
 
+      const effectiveExpirationDays =
+        expiration_days !== undefined && expiration_days !== null && expiration_days !== ""
+          ? expiration_days
+          : "7";
+
       let calculatedExpiresAt = null;
-      if (expiration_days === "never") {
+      if (effectiveExpirationDays === "never") {
         calculatedExpiresAt = null;
-      } else if (expiration_days) {
-        const days = parseInt(expiration_days, 10);
+      } else if (effectiveExpirationDays) {
+        const days = parseInt(effectiveExpirationDays, 10);
         if (days > 0) {
           calculatedExpiresAt = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
         }
@@ -305,7 +310,7 @@ const requestController = {
       const requestMetadata = {
         customer_email: customer_email || null,
         recipient_email: recipient_email || null,
-        expiration_days: expiration_days || null,
+        expiration_days: effectiveExpirationDays,
         expires_at: calculatedExpiresAt,
         privacy: privacy || null,
         mode: mode || "p2p",

@@ -344,6 +344,9 @@ const paymentController = {
         throw new ApiError("Unauthorized to view this payment", 403);
       }
 
+      const isPathAMerchantCheckout =
+        Boolean(transaction.merchant_id) || transaction.metadata?.mode === "merchant";
+
       let expiresAt = transaction.metadata?.expires_at || null;
       if (!expiresAt && transaction.metadata?.expiration_days) {
         if (transaction.metadata.expiration_days === "never") {
@@ -354,9 +357,12 @@ const paymentController = {
             expiresAt = new Date(new Date(transaction.created_at).getTime() + days * 24 * 60 * 60 * 1000).toISOString();
           }
         }
-      } else if (!expiresAt && transaction.created_at && !transaction.metadata?.expiration_days) {
+      } else if (!expiresAt && transaction.created_at && isPathAMerchantCheckout) {
         // Path A Merchant checkout default window: 30 minutes
         expiresAt = new Date(new Date(transaction.created_at).getTime() + 30 * 60 * 1000).toISOString();
+      } else if (!expiresAt && transaction.created_at && !isPathAMerchantCheckout) {
+        // P2P User Request default window: 7 days
+        expiresAt = new Date(new Date(transaction.created_at).getTime() + 7 * 24 * 60 * 60 * 1000).toISOString();
       }
 
       res.status(200).json({

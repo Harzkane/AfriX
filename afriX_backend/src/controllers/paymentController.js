@@ -347,13 +347,19 @@ const paymentController = {
       const isPathAMerchantCheckout =
         Boolean(transaction.merchant_id) || transaction.metadata?.mode === "merchant";
 
+      const rawExpDays =
+        transaction.metadata?.expiration_days ??
+        transaction.metadata?.expirationDays ??
+        null;
+
       let expiresAt = transaction.metadata?.expires_at || null;
-      if (!expiresAt && transaction.metadata?.expiration_days) {
-        if (transaction.metadata.expiration_days === "never") {
+      if (!expiresAt && rawExpDays) {
+        const expStr = String(rawExpDays).toLowerCase();
+        if (expStr === "never") {
           expiresAt = null;
         } else {
-          const days = parseInt(transaction.metadata.expiration_days, 10);
-          if (days > 0 && transaction.created_at) {
+          const days = parseInt(expStr, 10);
+          if (!isNaN(days) && days > 0 && transaction.created_at) {
             expiresAt = new Date(new Date(transaction.created_at).getTime() + days * 24 * 60 * 60 * 1000).toISOString();
           }
         }

@@ -54,6 +54,20 @@ const decodeHtmlEntities = (value?: string | null) => {
 };
 
 const formatCountdown = (totalSeconds: number) => {
+  if (totalSeconds >= 86400) {
+    const days = Math.floor(totalSeconds / 86400);
+    const remainingSecs = totalSeconds % 86400;
+    const hours = Math.floor(remainingSecs / 3600);
+    const mins = Math.floor((remainingSecs % 3600) / 60);
+    return `${days}d ${hours}h ${mins}m`;
+  }
+  if (totalSeconds >= 3600) {
+    const hours = Math.floor(totalSeconds / 3600);
+    const remainingSecs = totalSeconds % 3600;
+    const mins = Math.floor(remainingSecs / 60);
+    const secs = remainingSecs % 60;
+    return `${hours}h ${String(mins).padStart(2, "0")}m ${String(secs).padStart(2, "0")}s`;
+  }
   const mins = Math.floor(totalSeconds / 60);
   const secs = totalSeconds % 60;
   return `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;

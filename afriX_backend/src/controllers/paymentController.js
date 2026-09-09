@@ -100,28 +100,10 @@ const paymentController = {
         }
       }
 
-      // Find the merchant
-      const merchant = await Merchant.findByPk(
-        existingPaymentRequest?.merchant_id || merchant_id
-      );
-      if (!merchant) {
-        throw new ApiError("Merchant not found", 404);
-      }
-
-      if (
-        existingPaymentRequest &&
-        merchant_id &&
-        existingPaymentRequest.merchant_id !== merchant_id
-      ) {
-        throw new ApiError("Payment request does not belong to the provided merchant", 400);
-      }
-
       const effectiveAmount = existingPaymentRequest
         ? parseFloat(existingPaymentRequest.amount)
         : parseFloat(amount);
       const effectiveTokenType = existingPaymentRequest?.token_type || tokenType;
-      const effectiveDescription =
-        description || existingPaymentRequest?.description || `Payment to ${merchant.business_name}`;
 
       if (
         existingPaymentRequest &&
@@ -153,25 +135,62 @@ const paymentController = {
         throw new ApiError("Insufficient balance", 400);
       }
 
-      // Find merchant settlement wallet
-      const merchantWallet = await Wallet.findByPk(
-        merchant.settlement_wallet_id
-      );
-      if (!merchantWallet) {
-        throw new ApiError("Merchant settlement wallet not found", 500);
+      // Determine payment destination (Merchant or P2P User)
+      const targetMerchantId = existingPaymentRequest?.merchant_id || merchant_id || null;
+      let merchant = null;
+      let targetUser = null;
+      let targetWallet = null;
+      let fee = 0;
+      let netAmount = effectiveAmount;
+
+      if (targetMerchantId) {
+        merchant = await Merchant.findByPk(targetMerchantId);
+        if (!merchant) {
+          throw new ApiError("Merchant not found", 404);
+        }
+        if (
+          existingPaymentRequest &&
+          merchant_id &&
+          existingPaymentRequest.merchant_id !== merchant_id
+        ) {
+          throw new ApiError("Payment request does not belong to the provided merchant", 400);
+        }
+        targetWallet = await Wallet.findByPk(merchant.settlement_wallet_id);
+        if (!targetWallet) {
+          throw new ApiError("Merchant settlement wallet not found", 500);
+        }
+        if (targetWallet.token_type !== effectiveTokenType) {
+          throw new ApiError(
+            `Merchant settlement wallet does not accept ${effectiveTokenType}`,
+            400
+          );
+        }
+        const feePercentage = merchant.payment_fee_percent || 1.5;
+        fee = (effectiveAmount * feePercentage) / 100;
+        netAmount = effectiveAmount - fee;
+      } else if (existingPaymentRequest && existingPaymentRequest.to_user_id) {
+        targetUser = await User.findByPk(existingPaymentRequest.to_user_id);
+        if (!targetUser) {
+          throw new ApiError("Recipient user not found", 404);
+        }
+        targetWallet = await Wallet.findOne({
+          where: { user_id: targetUser.id, token_type: effectiveTokenType },
+        });
+        if (!targetWallet) {
+          targetWallet = await Wallet.create({
+            user_id: targetUser.id,
+            token_type: effectiveTokenType,
+            balance: 0,
+          });
+        }
+        fee = 0;
+        netAmount = effectiveAmount;
+      } else {
+        throw new ApiError("Invalid payment destination: neither merchant nor recipient user found", 400);
       }
 
-      if (merchantWallet.token_type !== effectiveTokenType) {
-        throw new ApiError(
-          `Merchant settlement wallet does not accept ${effectiveTokenType}`,
-          400
-        );
-      }
-
-      // Calculate fee
-      const feePercentage = merchant.payment_fee_percent || 1.5; // Default to 1.5%
-      const fee = (effectiveAmount * feePercentage) / 100;
-      const netAmount = effectiveAmount - fee;
+      const effectiveDescription =
+        description || existingPaymentRequest?.description || (merchant ? `Payment to ${merchant.business_name}` : `Payment to ${targetUser?.full_name || targetUser?.email}`);
 
       const transaction = await sequelize.transaction(async (dbTransaction) => {
         let createdTransaction;
@@ -180,9 +199,10 @@ const paymentController = {
           existingPaymentRequest.status = TRANSACTION_STATUS.COMPLETED;
           existingPaymentRequest.fee = fee.toString();
           existingPaymentRequest.from_user_id = user_id;
-          existingPaymentRequest.to_user_id = merchant.user_id;
+          existingPaymentRequest.to_user_id = merchant ? merchant.user_id : targetUser.id;
+          existingPaymentRequest.merchant_id = merchant ? merchant.id : null;
           existingPaymentRequest.from_wallet_id = userWallet.id;
-          existingPaymentRequest.to_wallet_id = merchantWallet.id;
+          existingPaymentRequest.to_wallet_id = targetWallet.id;
           existingPaymentRequest.processed_at = new Date();
           existingPaymentRequest.description = effectiveDescription;
           existingPaymentRequest.metadata = {
@@ -203,13 +223,13 @@ const paymentController = {
               amount: effectiveAmount,
               fee: fee.toString(),
               token_type: effectiveTokenType,
-              merchant_id: merchant.id,
+              merchant_id: merchant ? merchant.id : null,
               description: effectiveDescription,
               metadata: metadata || {},
               from_user_id: user_id,
-              to_user_id: merchant.user_id,
+              to_user_id: merchant ? merchant.user_id : targetUser.id,
               from_wallet_id: userWallet.id,
-              to_wallet_id: merchantWallet.id,
+              to_wallet_id: targetWallet.id,
               processed_at: new Date(),
             },
             { transaction: dbTransaction }
@@ -220,7 +240,7 @@ const paymentController = {
           by: effectiveAmount,
           transaction: dbTransaction,
         });
-        await merchantWallet.increment("balance", {
+        await targetWallet.increment("balance", {
           by: netAmount,
           transaction: dbTransaction,
         });
@@ -228,21 +248,21 @@ const paymentController = {
         return createdTransaction;
       });
 
-      // Fire the collection.completed webhook
-      setImmediate(() =>
-        emitMerchantWebhook(merchant.id, {
-          event: "collection.completed",
-          eventId: `afrix-collection-${transaction.id}`,
-          data: {
-            transaction_id: transaction.id,
-            reference: transaction.reference,
-            amount: effectiveAmount,
-            fee: fee.toString(),
-            net_amount: netAmount.toString(),
-            token_type: effectiveTokenType,
-            status: transaction.status,
-            description: transaction.description,
-            created_at: transaction.created_at,
+      if (merchant) {
+        setImmediate(() =>
+          emitMerchantWebhook(merchant.id, {
+            event: "collection.completed",
+            eventId: `afrix-collection-${transaction.id}`,
+            data: {
+              transaction_id: transaction.id,
+              reference: transaction.reference,
+              amount: effectiveAmount,
+              fee: fee.toString(),
+              net_amount: netAmount.toString(),
+              token_type: effectiveTokenType,
+              status: transaction.status,
+              description: transaction.description,
+              created_at: transaction.created_at,
           },
         })
       );

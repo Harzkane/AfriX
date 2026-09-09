@@ -340,9 +340,20 @@ const paymentController = {
         throw new ApiError("Unauthorized to view this payment", 403);
       }
 
-      const expiresAt = transaction.created_at
-        ? new Date(new Date(transaction.created_at).getTime() + 30 * 60 * 1000).toISOString()
-        : null;
+      let expiresAt = transaction.metadata?.expires_at || null;
+      if (!expiresAt && transaction.metadata?.expiration_days) {
+        if (transaction.metadata.expiration_days === "never") {
+          expiresAt = null;
+        } else {
+          const days = parseInt(transaction.metadata.expiration_days, 10);
+          if (days > 0 && transaction.created_at) {
+            expiresAt = new Date(new Date(transaction.created_at).getTime() + days * 24 * 60 * 60 * 1000).toISOString();
+          }
+        }
+      } else if (!expiresAt && transaction.created_at && !transaction.metadata?.expiration_days) {
+        // Path A Merchant checkout default window: 30 minutes
+        expiresAt = new Date(new Date(transaction.created_at).getTime() + 30 * 60 * 1000).toISOString();
+      }
 
       res.status(200).json({
         success: true,

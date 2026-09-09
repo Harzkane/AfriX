@@ -178,6 +178,9 @@ const adminAgentController = {
         financial_summary: {
           outstanding_usdt: outstandingUsdt,
           max_withdrawable: maxWithdraw,
+          claimable_earnings_usdt: totals.totalEarningsUsdt,
+          min_claim_threshold_usdt: 10,
+          can_claim_earnings: totals.totalEarningsUsdt >= 10,
           utilization_percentage: utilization,
           liquidity_nt: (parseFloat(agent.available_capacity) || 0) * (EXCHANGE_RATES.USDT_TO_NT || 0),
           liquidity_ct: (parseFloat(agent.available_capacity) || 0) * (EXCHANGE_RATES.USDT_TO_CT || 0),

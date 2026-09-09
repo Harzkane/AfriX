@@ -713,6 +713,103 @@ const agentService = {
       recent_reviews: reviews.slice(0, 5), // Last 5 reviews
     };
   },
+
+  /**
+   * =====================================================
+   * CLAIM AGENT EARNINGS TO PERSONAL WALLET
+   * =====================================================
+   * Description:
+   * - Allows agent to claim performance earnings into their personal user wallet (NT or CT).
+   * - Enforces minimum claim threshold ($10 USDT equivalent).
+   * - Converts accrued USDT earnings to target token based on current exchange rates.
+   * - Deducts claimed earnings from agent ledger and credits personal wallet.
+   */
+  async claimEarnings(agentId, targetCurrency = "NT") {
+    return sequelize.transaction(async (t) => {
+      const agent = await Agent.findByPk(agentId, { transaction: t });
+      if (!agent) throw new ApiError("Agent profile not found", 404);
+
+      const currency = (targetCurrency || "NT").toUpperCase();
+      if (!["NT", "CT", "USDT"].includes(currency)) {
+        throw new ApiError("Invalid target wallet currency. Must be NT, CT, or USDT", 400);
+      }
+
+      const totalEarningsUsdt = parseFloat(agent.total_earnings) || 0;
+      const minThreshold = AGENT_CONFIG.MIN_EARNINGS_CLAIM_USD || 10;
+
+      if (totalEarningsUsdt < minThreshold) {
+        throw new ApiError(
+          `Minimum claim threshold is $${minThreshold.toFixed(2)} USDT equivalent. Your current claimable earnings are $${totalEarningsUsdt.toFixed(2)} USDT.`,
+          400
+        );
+      }
+
+      // Convert earnings to target currency token amount
+      let rate = 1;
+      if (currency === "NT") {
+        rate = EXCHANGE_RATES.USDT_TO_NT || 1500;
+      } else if (currency === "CT") {
+        rate = EXCHANGE_RATES.USDT_TO_CT || 565;
+      }
+      const tokenAmount = parseFloat((totalEarningsUsdt * rate).toFixed(4));
+
+      // Find or create agent's personal user wallet
+      let userWallet = await Wallet.findOne({
+        where: { user_id: agent.user_id, currency },
+        transaction: t,
+      });
+
+      if (!userWallet) {
+        userWallet = await Wallet.create(
+          {
+            user_id: agent.user_id,
+            currency,
+            balance: 0,
+          },
+          { transaction: t }
+        );
+      }
+
+      // Update wallet balance and reset agent accrued earnings
+      userWallet.balance = parseFloat(userWallet.balance) + tokenAmount;
+      agent.total_earnings = 0; // Reset claimed earnings
+
+      await userWallet.save({ transaction: t });
+      await agent.save({ transaction: t });
+
+      // Create ledger transaction record
+      const tx = await Transaction.create(
+        {
+          reference: generateTransactionReference(),
+          type: TRANSACTION_TYPES.AGENT_WITHDRAWAL,
+          status: TRANSACTION_STATUS.COMPLETED,
+          amount: tokenAmount,
+          currency,
+          description: `Agent performance earnings claimed into ${currency} wallet`,
+          from_user_id: agent.user_id,
+          to_user_id: agent.user_id,
+          agent_id: agent.id,
+          to_wallet_id: userWallet.id,
+          fee: 0,
+        },
+        { transaction: t }
+      );
+
+      await deliver(agent.user_id, "EARNINGS_CLAIMED", {
+        title: "Earnings Claimed! 💰",
+        message: `Successfully claimed $${totalEarningsUsdt.toFixed(2)} USDT (${tokenAmount} ${currency}) to your ${currency} wallet.`,
+        data: { claimed_usdt: totalEarningsUsdt, token_amount: tokenAmount, currency },
+      });
+
+      return {
+        claimed_usdt: totalEarningsUsdt,
+        credited_amount: tokenAmount,
+        currency,
+        new_wallet_balance: parseFloat(userWallet.balance),
+        transaction: tx,
+      };
+    });
+  },
 };
 
 module.exports = agentService;

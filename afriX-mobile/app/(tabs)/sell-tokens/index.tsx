@@ -28,7 +28,7 @@ import { useTranslation } from "react-i18next";
 import TokenSelectModal, { TokenType, TOKEN_CONFIG } from "@/components/ui/TokenSelectModal";
 
 const TOKENS: TokenType[] = ["NT", "CT", "USDT"];
-const PRESET_AMOUNTS = [1000, 5000, 10000, 20000, 50000];
+const PRESET_AMOUNTS = [5000, 10000, 20000, 50000];
 
 export default function SellTokensScreen() {
   const router = useRouter();
@@ -37,6 +37,7 @@ export default function SellTokensScreen() {
   const scrollViewRef = useRef<ScrollView | null>(null);
   const [amount, setAmount] = useState("");
   const [selectedToken, setSelectedToken] = useState<TokenType>("NT");
+  const [feeMode, setFeeMode] = useState<"deduct" | "add_on_top">("deduct");
   const [tokenModalVisible, setTokenModalVisible] = useState(false);
   const { t } = useTranslation();
 
@@ -85,10 +86,14 @@ export default function SellTokensScreen() {
 
   const availableBalance = getAvailableBalance(selectedToken);
   const amountNum = parseFloat(amount) || 0;
-  const hasInsufficientBalance = amountNum > availableBalance;
+  const estimatedFeeRate = 0.0205; // 1.05% agent commission + 1.0% platform fee approx
+  const totalFee = parseFloat((amountNum * estimatedFeeRate).toFixed(2));
+  const netPayout = feeMode === "add_on_top" ? amountNum : Math.max(0, parseFloat((amountNum - totalFee).toFixed(2)));
+  const totalTokensRequired = feeMode === "add_on_top" ? parseFloat((amountNum + totalFee).toFixed(2)) : amountNum;
+  const hasInsufficientBalance = totalTokensRequired > availableBalance;
 
   // Balance usage percentage
-  const balancePercentage = availableBalance > 0 ? Math.min(100, Math.round((amountNum / availableBalance) * 100)) : 0;
+  const balancePercentage = availableBalance > 0 ? Math.min(100, Math.round((totalTokensRequired / availableBalance) * 100)) : 0;
 
   useEffect(() => {
     if (amount && amountNum > availableBalance) {
@@ -121,10 +126,10 @@ export default function SellTokensScreen() {
     if (preSelectedAgentId && preSelectedAgentName) {
       router.push({
         pathname: "/(tabs)/sell-tokens/bank-details",
-        params: { amount, tokenType: selectedToken, agentId: preSelectedAgentId, agentName: preSelectedAgentName },
+        params: { amount, tokenType: selectedToken, feeMode, agentId: preSelectedAgentId, agentName: preSelectedAgentName },
       });
     } else {
-      router.push({ pathname: "/(tabs)/sell-tokens/select-agent", params: { amount, tokenType: selectedToken } });
+      router.push({ pathname: "/(tabs)/sell-tokens/select-agent", params: { amount, tokenType: selectedToken, feeMode } });
     }
   };
 
@@ -275,6 +280,77 @@ export default function SellTokensScreen() {
               <View style={[styles.insufficientBadge, { backgroundColor: "rgba(239,68,68,0.10)", borderColor: "rgba(239,68,68,0.25)" }]}>
                 <Ionicons name="warning-outline" size={13} color="#EF4444" />
                 <Text style={styles.insufficientText}>{t("sell_tokens.error_exceeds_balance", "Exceeds available balance")}</Text>
+              </View>
+            )}
+          </View>
+
+          {/* Fee Mode Segment Selector */}
+          <View style={[styles.cardContainer, { backgroundColor: theme.card, borderColor: theme.border, padding: 14, marginBottom: 14 }]}>
+            <Text style={{ fontSize: 11, fontWeight: "800", color: theme.muted, letterSpacing: 0.5, marginBottom: 8 }}>
+              FEE CALCULATION MODE
+            </Text>
+            <View style={{ flexDirection: "row", gap: 8 }}>
+              <TouchableOpacity
+                style={{
+                  flex: 1,
+                  height: 38,
+                  borderRadius: 10,
+                  alignItems: "center",
+                  justifyContent: "center",
+                  borderWidth: 1,
+                  backgroundColor: feeMode === "deduct" ? theme.accentSoft : theme.cardAlt,
+                  borderColor: feeMode === "deduct" ? theme.accent : theme.border,
+                }}
+                onPress={() => setFeeMode("deduct")}
+                activeOpacity={0.8}
+              >
+                <Text style={{ fontSize: 12, fontWeight: feeMode === "deduct" ? "800" : "600", color: feeMode === "deduct" ? theme.accent : theme.text }}>
+                  Deduct from payout
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={{
+                  flex: 1,
+                  height: 38,
+                  borderRadius: 10,
+                  alignItems: "center",
+                  justifyContent: "center",
+                  borderWidth: 1,
+                  backgroundColor: feeMode === "add_on_top" ? theme.accentSoft : theme.cardAlt,
+                  borderColor: feeMode === "add_on_top" ? theme.accent : theme.border,
+                }}
+                onPress={() => setFeeMode("add_on_top")}
+                activeOpacity={0.8}
+              >
+                <Text style={{ fontSize: 12, fontWeight: feeMode === "add_on_top" ? "800" : "600", color: feeMode === "add_on_top" ? theme.accent : theme.text }}>
+                  Pay fee on top
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {amountNum > 0 && (
+              <View style={{ marginTop: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: theme.border, gap: 6 }}>
+                <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                  <Text style={{ fontSize: 12, color: theme.muted }}>
+                    {t("sell_tokens.estimated_fee_label", "Estimated Fee (~2.05%):")}
+                  </Text>
+                  <Text style={{ fontSize: 12, fontWeight: "600", color: theme.text }}>
+                    {formatAmount(totalFee, selectedToken)} {selectedToken}
+                  </Text>
+                </View>
+                <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                  <Text style={{ fontSize: 12, color: theme.muted }}>
+                    {feeMode === "add_on_top"
+                      ? t("sell_tokens.total_tokens_required", "Total Tokens Required:")
+                      : t("sell_tokens.estimated_payout_label", "Estimated Cash Payout:")}
+                  </Text>
+                  <Text style={{ fontSize: 13, fontWeight: "800", color: theme.accent }}>
+                    {feeMode === "add_on_top"
+                      ? `${formatAmount(totalTokensRequired, selectedToken)} ${selectedToken}`
+                      : `${selectedToken === "NT" ? "₦" : selectedToken === "CT" ? "XOF " : "$"}${formatAmount(netPayout, selectedToken)}`}
+                  </Text>
+                </View>
               </View>
             )}
           </View>
@@ -503,6 +579,11 @@ const styles = StyleSheet.create({
     alignSelf: "flex-start",
   },
   insufficientText: { fontSize: 12, fontWeight: "700", color: "#EF4444" },
+
+  cardContainer: {
+    borderRadius: 18,
+    borderWidth: 1,
+  },
 
   escrowCard: {
     flexDirection: "row",

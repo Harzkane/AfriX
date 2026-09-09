@@ -71,11 +71,12 @@ export default function BuyTokensScreen() {
     extrapolate: "clamp",
   });
 
-  const params = useLocalSearchParams<{ amount?: string; tokenType?: string; agentId?: string; agentName?: string }>();
+  const params = useLocalSearchParams<{ amount?: string; tokenType?: string; agentId?: string; agentName?: string; feeMode?: string }>();
   const initialTokenType = (params.tokenType === "CT" ? "CT" : "NT") as "NT" | "CT";
   const initialAmount = params.amount ? parseAmountInput(params.amount, initialTokenType) : "";
   const [tokenType, setTokenType] = useState<"NT" | "CT">(initialTokenType);
   const [amount, setAmount] = useState(initialAmount);
+  const [feeMode, setFeeMode] = useState<"deduct" | "add_on_top">((params.feeMode as any) === "add_on_top" ? "add_on_top" : "deduct");
 
   useEffect(() => {
     if (params.amount != null && params.amount !== amount) setAmount(parseAmountInput(params.amount, tokenType));
@@ -87,15 +88,21 @@ export default function BuyTokensScreen() {
   const preSelectedAgentName = params.agentName as string | undefined;
   const wallet = getWalletByType(tokenType);
 
+  const numAmount = parseFloat(amount || "0");
+  const estimatedFeeRate = 0.0205; // 1.05% agent commission + 1.0% platform fee approx
+  const totalFee = parseFloat((numAmount * estimatedFeeRate).toFixed(2));
+  const netTokensReceived = feeMode === "add_on_top" ? numAmount : Math.max(0, parseFloat((numAmount - totalFee).toFixed(2)));
+  const totalFiatToPay = feeMode === "add_on_top" ? parseFloat((numAmount + totalFee).toFixed(2)) : numAmount;
+
   const handleContinue = () => {
     if (!amount || parseFloat(amount) <= 0) {
       alert(t("buy_tokens.index.err_invalid_amount", "Please enter a valid amount"));
       return;
     }
     if (preSelectedAgentId && preSelectedAgentName) {
-      router.push({ pathname: "/modals/buy-tokens/payment-instructions", params: { tokenType, amount, agentId: preSelectedAgentId, agentName: preSelectedAgentName } });
+      router.push({ pathname: "/modals/buy-tokens/payment-instructions", params: { tokenType, amount, feeMode, agentId: preSelectedAgentId, agentName: preSelectedAgentName } });
     } else {
-      router.push({ pathname: "/modals/buy-tokens/select-agent", params: { tokenType, amount } });
+      router.push({ pathname: "/modals/buy-tokens/select-agent", params: { tokenType, amount, feeMode } });
     }
   };
 
@@ -104,7 +111,7 @@ export default function BuyTokensScreen() {
   return (
     <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }} keyboardVerticalOffset={Platform.OS === "ios" ? -8 : 12}>
       <View style={[styles.container, { backgroundColor: theme.background }]}>
-        
+
         {/* Fixed Header */}
         <Animated.View
           onLayout={handleHeaderLayout}
@@ -229,6 +236,65 @@ export default function BuyTokensScreen() {
             </View>
           </View>
 
+          {/* Fee Mode Segment Selector */}
+          <View style={[styles.summaryBlock, { backgroundColor: theme.card, borderColor: theme.border, marginBottom: 16, padding: 14 }]}>
+            <Text style={[styles.summaryLabel, { color: theme.muted, marginBottom: 8 }]}>
+              {t("buy_tokens.index.fee_mode_title", "FEE CALCULATION MODE")}
+            </Text>
+            <View style={{ flexDirection: "row", gap: 8 }}>
+              <TouchableOpacity
+                style={[
+                  styles.presetPill,
+                  { flex: 1, height: 40, backgroundColor: feeMode === "deduct" ? theme.accentSoft : theme.cardAlt, borderColor: feeMode === "deduct" ? theme.accent : theme.border },
+                ]}
+                onPress={() => setFeeMode("deduct")}
+                activeOpacity={0.8}
+              >
+                <Text style={[styles.presetPillText, { color: feeMode === "deduct" ? theme.accent : theme.text, fontSize: 12, fontWeight: feeMode === "deduct" ? "800" : "600" }]}>
+                  {t("buy_tokens.index.fee_deduct", "Deduct from payout")}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.presetPill,
+                  { flex: 1, height: 40, backgroundColor: feeMode === "add_on_top" ? theme.accentSoft : theme.cardAlt, borderColor: feeMode === "add_on_top" ? theme.accent : theme.border },
+                ]}
+                onPress={() => setFeeMode("add_on_top")}
+                activeOpacity={0.8}
+              >
+                <Text style={[styles.presetPillText, { color: feeMode === "add_on_top" ? theme.accent : theme.text, fontSize: 12, fontWeight: feeMode === "add_on_top" ? "800" : "600" }]}>
+                  {t("buy_tokens.index.fee_add_on_top", "Pay fee on top")}
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {numAmount > 0 && (
+              <View style={{ marginTop: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: theme.border, gap: 6 }}>
+                <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                  <Text style={{ fontSize: 12, color: theme.muted }}>
+                    {t("buy_tokens.index.estimated_fee", "Estimated Fee (~2.05%):")}
+                  </Text>
+                  <Text style={{ fontSize: 12, fontWeight: "600", color: theme.text }}>
+                    {isNT ? "₦" : "XOF "}{formatAmount(totalFee, tokenType)}
+                  </Text>
+                </View>
+                <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                  <Text style={{ fontSize: 12, color: theme.muted }}>
+                    {feeMode === "add_on_top"
+                      ? t("buy_tokens.index.total_pay", "Total Fiat Pay:")
+                      : t("buy_tokens.index.net_received", "Net Tokens Received:")}
+                  </Text>
+                  <Text style={{ fontSize: 13, fontWeight: "800", color: theme.accent }}>
+                    {feeMode === "add_on_top"
+                      ? `${isNT ? "₦" : "XOF "}${formatAmount(totalFiatToPay, tokenType)}`
+                      : `${formatAmount(netTokensReceived, tokenType)} ${tokenType}`}
+                  </Text>
+                </View>
+              </View>
+            )}
+          </View>
+
           {/* Quick Presets Slider */}
           <View style={styles.presetsWrapper}>
             {PRESET_AMOUNTS.map((preset) => {
@@ -257,7 +323,7 @@ export default function BuyTokensScreen() {
             <View style={styles.summaryRow}>
               <View style={styles.summaryCol}>
                 <Text style={[styles.summaryLabel, { color: theme.muted }]}>{t("buy_tokens.index.wallet_balance", "WALLET BALANCE")}</Text>
-              <Text style={[styles.summaryVal, { color: theme.text }]}>
+                <Text style={[styles.summaryVal, { color: theme.text }]}>
                   {wallet ? formatAmount(wallet.balance, tokenType) : "0.00"} {tokenType}
                 </Text>
                 {wallet && (

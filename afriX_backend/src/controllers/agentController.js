@@ -444,6 +444,29 @@ const agentController = {
   },
 
   /**
+   * Claim Agent Performance Earnings to NT/CT Wallet
+   * POST /api/agents/claim-earnings
+   * Body: { target_currency: 'NT' | 'CT' | 'USDT' }
+   */
+  async claimEarnings(req, res, next) {
+    try {
+      const { target_currency } = req.body;
+      const result = await agentService.claimEarnings(
+        req.agent.id,
+        target_currency || "NT"
+      );
+
+      res.json({
+        success: true,
+        message: `Successfully claimed $${result.claimed_usdt.toFixed(2)} USDT (${result.credited_amount} ${result.currency}) to your wallet`,
+        data: result,
+      });
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  /**
    * Get Financial Dashboard
    * GET /api/agents/dashboard
    * Returns comprehensive financial overview
@@ -469,39 +492,31 @@ const agentController = {
         include: [
           {
             model: User,
-            as: 'toUser',
-            attributes: ['full_name']
+            as: 'ToUser',
+            attributes: ['id', 'full_name', 'email']
           },
           {
             model: User,
-            as: 'fromUser',
-            attributes: ['full_name']
+            as: 'FromUser',
+            attributes: ['id', 'full_name', 'email']
           }
         ]
       });
 
       // Get deposit history
-      const depositHistory = await Transaction.findAll({
-        where: {
-          agent_id: agent.id,
-          type: TRANSACTION_TYPES.AGENT_DEPOSIT
-        },
-        limit: 5,
-        order: [['created_at', 'DESC']],
-        attributes: ['id', 'amount', 'status', 'created_at', 'metadata']
-      });
+      const depositHistory = await agentService.getDepositHistory(agent.id);
 
-      // Get performance metrics
+      // Total transaction count
       const totalTransactions = await Transaction.count({
         where: {
           agent_id: agent.id,
           type: {
             [require('sequelize').Op.in]: [TRANSACTION_TYPES.MINT, TRANSACTION_TYPES.BURN]
-          },
-          status: TRANSACTION_STATUS.COMPLETED
+          }
         }
       });
 
+      // Total reviews count
       const totalReviews = await AgentReview.count({
         where: { agent_id: agent.id }
       });
@@ -530,6 +545,8 @@ const agentController = {
             total_earnings_by_token: totals.totalEarningsByToken,
             total_earnings_by_token_usdt: totals.totalEarningsByTokenUsdt,
             total_earnings_usdt: totals.totalEarningsUsdt,
+            min_claim_threshold_usdt: 10,
+            can_claim_earnings: totals.totalEarningsUsdt >= 10,
             utilization_rate:
               agent.deposit_usd > 0
                 ? ((outstandingUsdt / agent.deposit_usd) * 100).toFixed(2) + "%"

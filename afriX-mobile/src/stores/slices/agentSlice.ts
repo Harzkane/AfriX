@@ -436,6 +436,25 @@ export const useAgentStore = create<AgentState>((set, get) => ({
     }
   },
 
+  claimEarnings: async (targetCurrency: string = "NT") => {
+    set({ loading: true, error: null });
+    try {
+      const response = await apiClient.post("/agents/claim-earnings", {
+        target_currency: targetCurrency,
+      });
+
+      // Refresh dashboard to update earnings & wallet balance
+      await get().fetchDashboard();
+
+      set({ loading: false });
+      return response.data.data;
+    } catch (err: any) {
+      const message = err.response?.data?.message || "Failed to claim performance earnings";
+      set({ error: message, loading: false });
+      throw new Error(message);
+    }
+  },
+
   fetchWithdrawalRequests: async () => {
     set({ loading: true, error: null });
     try {

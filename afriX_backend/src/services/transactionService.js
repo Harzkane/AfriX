@@ -20,6 +20,7 @@ const { ApiError } = require("../utils/errors");
 const { generateTransactionReference } = require("../utils/helpers");
 const walletService = require("./walletService");
 const platformService = require("./platformService");
+const commissionService = require("./commissionService");
 const { deliver } = require("./notificationService");
 
 /** Convert token amount to USDT using exchange rates (capacity and earnings are in USDT). */
@@ -259,6 +260,15 @@ const transactionService = {
       const amountNum = parseFloat(amount);
       const amountUsdt = tokenAmountToUsdt(amount, token_type);
       const isAdminResolved = metadata?.admin_resolved === true;
+      const feeMode = metadata?.fee_mode || "deduct";
+
+      // Calculate fee breakdown (Agent Commission + Platform Facilitation Fee)
+      const feeBreakdown = commissionService.calculateExchangeFees({
+        amount: amountNum,
+        commission_rate: agent.commission_rate ? parseFloat(agent.commission_rate) * 100 : 1.0,
+        tier: agent.tier,
+        fee_mode: feeMode,
+      });
 
       // Check agent capacity (in USDT)
       if (parseFloat(agent.available_capacity) < amountUsdt) {
@@ -271,10 +281,13 @@ const transactionService = {
           reference: generateTransactionReference(),
           type: TRANSACTION_TYPES.MINT,
           status: TRANSACTION_STATUS.PENDING,
-          amount,
+          amount: feeMode === "add_on_top" ? feeBreakdown.gross_amount : amount,
           token_type,
           description: metadata.description || "Agent mint via request flow",
-          metadata: metadata, // ✅ Store metadata including request_id
+          metadata: {
+            ...metadata,
+            fee_breakdown: feeBreakdown,
+          },
           from_user_id: agent.user_id,
           to_user_id: userId,
           agent_id: agent.id,
@@ -284,18 +297,28 @@ const transactionService = {
         { transaction: innerT }
       );
 
-      // Update balances (wallets in token; capacity in USDT)
-      userWallet.balance = parseFloat(userWallet.balance) + amountNum;
+      // Update balances (user wallet receives net_amount after fees)
+      userWallet.balance = parseFloat(userWallet.balance) + feeBreakdown.net_amount;
       agent.available_capacity -= amountUsdt;
       agent.total_minted += amountNum;
 
       // Admin-resolved credits should not generate agent commission.
       let commissionToken = 0;
       if (!isAdminResolved) {
-        const commissionRate = agent.commission_rate || 0.01;
-        commissionToken = amountNum * commissionRate;
+        commissionToken = feeBreakdown.agent_commission;
         const commissionUsdt = tokenAmountToUsdt(commissionToken, token_type);
         agent.total_earnings = (parseFloat(agent.total_earnings) || 0) + commissionUsdt;
+
+        // Collect platform facilitation fee into platform treasury wallet
+        if (feeBreakdown.platform_fee > 0) {
+          await platformService.collectFee({
+            tokenType: token_type,
+            feeAmount: feeBreakdown.platform_fee,
+            transactionType: TRANSACTION_TYPES.MINT,
+            transactionId: tx.id,
+            dbTransaction: innerT,
+          });
+        }
       }
 
       await userWallet.save({ transaction: innerT });
@@ -307,8 +330,8 @@ const transactionService = {
 
       await agent.save({ transaction: innerT });
 
-      // ✅ NEW: Record commission in transaction fee
-      tx.fee = commissionToken;
+      // ✅ Record total transaction fee (Agent Commission + Platform Fee)
+      tx.fee = feeBreakdown.total_fee;
 
       // Complete
       tx.status = TRANSACTION_STATUS.COMPLETED;

@@ -49,8 +49,56 @@ const commissionService = {
    */
   calculatePlatformFee(amount) {
     const amt = parseFloat(amount || 0);
-    const feePct = PLATFORM_FEES.AGENT_FACILITATION || 0;
+    const feePct = PLATFORM_FEES.AGENT_FACILITATION || 0.25;
     return parseFloat(((feePct / 100) * amt).toFixed(8));
+  },
+
+  /**
+   * Calculate complete exchange fee breakdown based on fee mode
+   * @param {Object} params
+   * @param {number|string} params.amount - Input amount (gross or net depending on fee_mode)
+   * @param {number|string} [params.commission_rate] - Agent commission percent (e.g., 1.0)
+   * @param {string} [params.tier] - Agent tier
+   * @param {string} [params.fee_mode] - 'deduct' (default) or 'add_on_top'
+   * @returns {Object} { gross_amount, net_amount, agent_commission, platform_fee, total_fee, fee_mode }
+   */
+  calculateExchangeFees({ amount, commission_rate = 1.0, tier, fee_mode = "deduct" }) {
+    const amt = Math.max(0, parseFloat(amount || 0));
+    const mode = fee_mode === "add_on_top" ? "add_on_top" : "deduct";
+
+    const agentCommission = this.calculateAgentCommission({
+      amount: amt,
+      commission_rate,
+      tier,
+    });
+    const platformFee = this.calculatePlatformFee(amt);
+    const totalFee = parseFloat((agentCommission + platformFee).toFixed(8));
+
+    if (mode === "add_on_top") {
+      // User wants exact net amount; fees are added on top of user payment
+      const netAmount = amt;
+      const grossAmount = parseFloat((netAmount + totalFee).toFixed(8));
+      return {
+        gross_amount: grossAmount,
+        net_amount: netAmount,
+        agent_commission: agentCommission,
+        platform_fee: platformFee,
+        total_fee: totalFee,
+        fee_mode: mode,
+      };
+    } else {
+      // Default: Fee is deducted from payout; user spends exact input amount
+      const grossAmount = amt;
+      const netAmount = Math.max(0, parseFloat((grossAmount - totalFee).toFixed(8)));
+      return {
+        gross_amount: grossAmount,
+        net_amount: netAmount,
+        agent_commission: agentCommission,
+        platform_fee: platformFee,
+        total_fee: totalFee,
+        fee_mode: mode,
+      };
+    }
   }
 };
 

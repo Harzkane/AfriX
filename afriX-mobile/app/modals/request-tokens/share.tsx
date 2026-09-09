@@ -56,7 +56,8 @@ export default function ShareRequestScreen() {
   const note = createdRequest?.note || draftRequest.note || "Rent payment for August";
   const creatorEmail = createdRequest?.creatorEmail || user?.email || "";
 
-  const fullPaymentUrl = `${WEB_URL}/pay/${requestId}?amount=${amount}&token=${tokenType}&note=${encodeURIComponent(note)}${creatorEmail ? `&email=${encodeURIComponent(creatorEmail)}` : ""}`;
+  const transactionId = createdRequest?.id || "";
+  const fullPaymentUrl = `${WEB_URL}/pay/${requestId}?amount=${amount}&token=${tokenType}&note=${encodeURIComponent(note)}${creatorEmail ? `&email=${encodeURIComponent(creatorEmail)}` : ""}${transactionId ? `&txId=${transactionId}` : ""}`;
   const shareUrl = createdRequest?.shareUrl || fullPaymentUrl;
 
   // Encode the payment URL in the QR so scans always verify against the server request.

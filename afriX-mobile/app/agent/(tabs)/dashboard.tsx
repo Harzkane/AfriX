@@ -8,6 +8,7 @@ import {
     RefreshControl,
     useColorScheme,
     Image,
+    Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -43,6 +44,7 @@ export default function AgentDashboard() {
         fetchPendingRequests,
         fetchWithdrawalRequests,
         withdrawalRequests,
+        claimEarnings,
         loading,
     } = useAgentStore();
 
@@ -179,8 +181,67 @@ export default function AgentDashboard() {
                     </View>
 
                     {/* Earnings */}
-                    <Text style={styles.heroLabel}>{t("agent.dashboard.total_earnings", "Total Earnings")}</Text>
-                    <Text style={styles.heroValue}>{formatAmount(totalEarningsUsdt, "USDT")} <Text style={styles.heroValueSuffix}>USDT</Text></Text>
+                    <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end" }}>
+                        <View style={{ flex: 1 }}>
+                            <Text style={styles.heroLabel}>{t("agent.dashboard.total_earnings", "Total Earnings")}</Text>
+                            <Text style={styles.heroValue}>{formatAmount(totalEarningsUsdt, "USDT")} <Text style={styles.heroValueSuffix}>USDT</Text></Text>
+                        </View>
+                        <TouchableOpacity
+                            style={{
+                                backgroundColor: totalEarningsUsdt >= 10 ? "#00B14F" : "rgba(255,255,255,0.2)",
+                                paddingHorizontal: 12,
+                                paddingVertical: 8,
+                                borderRadius: 16,
+                                flexDirection: "row",
+                                alignItems: "center",
+                                gap: 4,
+                            }}
+                            onPress={() => {
+                                if (totalEarningsUsdt < 10) {
+                                    Alert.alert(
+                                        t("agent.dashboard.claim_title", "Claim Earnings"),
+                                        t("agent.dashboard.claim_min_desc", "Minimum claim threshold is $10.00 USDT equivalent. Keep trading to accumulate earnings!")
+                                    );
+                                    return;
+                                }
+                                Alert.alert(
+                                    t("agent.dashboard.claim_title", "Claim Earnings"),
+                                    t("agent.dashboard.claim_select_desc", "Select the wallet where you want to receive your $${amount} USDT earnings:", { amount: totalEarningsUsdt.toFixed(2) }),
+                                    [
+                                        {
+                                            text: "Naira Token (NT Wallet)",
+                                            onPress: async () => {
+                                                try {
+                                                    const res = await claimEarnings("NT");
+                                                    Alert.alert("Success! 🎉", `Claimed $${res.claimed_usdt.toFixed(2)} USDT (${res.credited_amount} NT) into your NT Wallet.`);
+                                                } catch (e: any) {
+                                                    Alert.alert("Error", e.message || "Failed to claim earnings");
+                                                }
+                                            }
+                                        },
+                                        {
+                                            text: "CFA Token (CT Wallet)",
+                                            onPress: async () => {
+                                                try {
+                                                    const res = await claimEarnings("CT");
+                                                    Alert.alert("Success! 🎉", `Claimed $${res.claimed_usdt.toFixed(2)} USDT (${res.credited_amount} CT) into your CT Wallet.`);
+                                                } catch (e: any) {
+                                                    Alert.alert("Error", e.message || "Failed to claim earnings");
+                                                }
+                                            }
+                                        },
+                                        { text: t("common.cancel", "Cancel"), style: "cancel" }
+                                    ]
+                                );
+                            }}
+                            activeOpacity={0.8}
+                        >
+                            <Ionicons name="wallet-outline" size={14} color="#FFF" />
+                            <Text style={{ color: "#FFF", fontSize: 12, fontWeight: "700" }}>
+                                {totalEarningsUsdt >= 10 ? t("agent.dashboard.btn_claim", "Claim to Wallet") : "$10 Min Claim"}
+                            </Text>
+                        </TouchableOpacity>
+                    </View>
                     <Text style={styles.heroSubtext}>{t("agent.dashboard.earnings_desc", "Combined commission across your completed mint and burn activity.")}</Text>
 
                     {/* Stats strip */}

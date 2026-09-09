@@ -72,6 +72,14 @@ export default function ConfirmSellScreen() {
     mobileNumber,
   } = params;
 
+  const feeMode = (params.feeMode as string) || "deduct";
+  const amountNum = parseFloat((amount as string) || "0");
+  const estimatedFeeRate = 0.0205;
+  const totalFee = parseFloat((amountNum * estimatedFeeRate).toFixed(2));
+  const netPayout = feeMode === "add_on_top" ? amountNum : Math.max(0, parseFloat((amountNum - totalFee).toFixed(2)));
+  const totalTokensRequired = feeMode === "add_on_top" ? parseFloat((amountNum + totalFee).toFixed(2)) : amountNum;
+  const currencySymbol = tokenType === "NT" ? "₦" : tokenType === "CT" ? "XOF " : "$";
+
   const isBank = paymentType !== "mobile_money";
 
   const handleConfirm = async () => {
@@ -185,6 +193,34 @@ export default function ConfirmSellScreen() {
           <View style={[styles.divider, { backgroundColor: theme.border }]} />
 
           {/* Details Rows */}
+          <View style={styles.detailRow}>
+            <View style={[styles.detailIconBg, { backgroundColor: theme.accentSoft }]}>
+              <Ionicons name="receipt-outline" size={18} color={theme.accent} />
+            </View>
+            <View style={styles.detailTextContainer}>
+              <Text style={[styles.detailLabel, { color: theme.muted }]}>{t("sell_tokens.estimated_fee_label", "Estimated Fee (~2.05%)")}</Text>
+              <Text style={[styles.detailValue, { color: theme.text }]}>
+                {formatAmount(totalFee, tokenType as string)} {tokenType} ({feeMode === "add_on_top" ? "Paid on top" : "Deducted"})
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.detailRow}>
+            <View style={[styles.detailIconBg, { backgroundColor: theme.accentSoft }]}>
+              <Ionicons name="cash-outline" size={18} color={theme.accent} />
+            </View>
+            <View style={styles.detailTextContainer}>
+              <Text style={[styles.detailLabel, { color: theme.muted }]}>
+                {feeMode === "add_on_top" ? t("sell_tokens.total_tokens_required", "Total Tokens Required") : t("sell_tokens.estimated_payout_label", "Estimated Cash Payout")}
+              </Text>
+              <Text style={[styles.detailValue, { color: theme.accent, fontWeight: "900" }]}>
+                {feeMode === "add_on_top"
+                  ? `${formatAmount(totalTokensRequired, tokenType as string)} ${tokenType}`
+                  : `${currencySymbol}${formatAmount(netPayout, tokenType as string)}`}
+              </Text>
+            </View>
+          </View>
+
           <View style={styles.detailRow}>
             <View style={[styles.detailIconBg, { backgroundColor: theme.accentSoft }]}>
               <Ionicons name="person-outline" size={18} color={theme.accent} />

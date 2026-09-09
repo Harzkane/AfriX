@@ -166,22 +166,45 @@ const escrowService = {
             agent.capacity_last_used_at = new Date();
           }
 
-          // ✅ ADDED: Commission Logic
-          const commissionRate = agent.commission_rate || 0.01;
-          const commissionToken = parseFloat(escrow.amount) * commissionRate;
-          const commissionUsdt = tokenToUsdt(commissionToken, escrow.token_type);
+          // ✅ ADDED: Split Fee Logic (Agent Commission + Platform Facilitation Fee)
+          const commissionService = require("./commissionService");
+          const platformService = require("./platformService");
+          const feeMode = escrow.metadata?.fee_mode || "deduct";
+
+          const feeBreakdown = commissionService.calculateExchangeFees({
+            amount: parseFloat(escrow.amount),
+            commission_rate: agent.commission_rate ? parseFloat(agent.commission_rate) * 100 : 1.0,
+            tier: agent.tier,
+            fee_mode: feeMode,
+          });
+
+          const commissionUsdt = tokenToUsdt(feeBreakdown.agent_commission, escrow.token_type);
           agent.total_earnings = (parseFloat(agent.total_earnings) || 0) + commissionUsdt;
+
+          if (feeBreakdown.platform_fee > 0) {
+            await platformService.collectFee({
+              tokenType: escrow.token_type,
+              feeAmount: feeBreakdown.platform_fee,
+              transactionType: TRANSACTION_TYPES.BURN,
+              transactionId: tx.id,
+              dbTransaction: innerT,
+            });
+          }
 
           await agent.save({ transaction: innerT });
 
-          // ✅ NEW: Record commission in transaction fee
-          tx.fee = commissionToken;
+          // ✅ Record total transaction fee
+          tx.fee = feeBreakdown.total_fee;
         }
       }
 
       // Step 5: Update transaction and escrow records
       tx.status = TRANSACTION_STATUS.COMPLETED;
-      tx.metadata = { ...(tx.metadata || {}), finalize_evidence: evidence };
+      tx.metadata = {
+        ...(tx.metadata || {}),
+        finalize_evidence: evidence,
+        fee_breakdown: feeBreakdown,
+      };
       await tx.save({ transaction: innerT });
 
       escrow.status = "completed";

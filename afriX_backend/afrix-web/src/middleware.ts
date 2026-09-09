@@ -6,6 +6,7 @@ export function middleware(request: NextRequest) {
 
     // Allow access to login pages
     if (
+        pathname === '/' ||
         pathname === '/login' ||
         pathname === '/merchant/login' ||
         pathname === '/merchant/register' ||

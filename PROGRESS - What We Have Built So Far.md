@@ -30,7 +30,7 @@ This document describes **what is implemented** across the backend, admin web da
 | Base path | Purpose |
 |-----------|--------|
 | **/api/v1/auth** | Registration, login, email verification, resend verification, forgot/reset password, change password, logout, `GET /me`. **2FA:** setup, verify, disable, validate (TOTP). |
-| **/api/v1/agents** | Profile (get/update), dashboard, list active agents, register. **KYC:** upload, status, resubmit (multipart). Deposit (submit tx), withdraw-request, list withdraw-requests, deposit-history, deposit-address. Get by id, reviews, submit review, respond to review. |
+| **/api/v1/agents** | Profile (get/update), dashboard, list active agents, register. **KYC:** upload, status, resubmit (multipart). Deposit (submit tx), withdraw-request, list withdraw-requests, claim-earnings ($10 USDT threshold claim to NT/CT wallet), deposit-history, deposit-address. Get by id, reviews, submit review, respond to review. |
 | **/api/v1/requests** | **User:** GET /user (my mint/burn requests). **Agent:** GET / (agent’s mint/burn queue). **Mint:** POST /mint, POST /mint/:id/proof, GET /mint/:id, POST /mint/confirm, POST /mint/reject, DELETE /mint/:id. **Burn:** POST /burn, GET /burn/:id, POST /burn/reject, POST /burn/:id/fiat-proof, POST /burn/confirm. |
 | **/api/v1/wallets** | List my wallets, GET /rates (exchange rates), POST /swap, GET /:id, POST /transfer (P2P by email), POST /credit, POST /debit. |
 | **/api/v1/transactions** | POST / (create), POST /transfer (user transfer), POST /pay-merchant, GET / (list paginated), GET /pending-review, GET /:id, GET /:id/verify. |

@@ -50,11 +50,12 @@ export default function LoginPage() {
             localStorage.setItem("admin_token", token);
             localStorage.setItem("admin_user", JSON.stringify(user));
 
-            router.push("/");
-        } catch (err: any) {
-            console.error("Login Error Details:", err.response?.data || err.message);
+            router.push("/admin");
+        } catch (err: unknown) {
+            const error = err as { response?: { data?: { message?: string } }; message?: string };
+            console.error("Login Error Details:", error.response?.data || error.message);
             setError(
-                err.response?.data?.message || err.message || "Something went wrong"
+                error.response?.data?.message || error.message || "Something went wrong"
             );
         } finally {
             setIsLoading(false);

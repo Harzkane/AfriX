@@ -322,7 +322,12 @@ export default function AgentDetailPage() {
                     <CardContent className="space-y-6">
                         {/* Total Earnings (Commission) - NT/CT cards like Agent dashboard */}
                         <div className="space-y-2">
-                            <p className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Total Earnings (Commission)</p>
+                            <div className="flex items-center justify-between">
+                                <p className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Total Earnings (Commission)</p>
+                                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${currentAgent.financial_summary?.can_claim_earnings ? 'bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300' : 'bg-muted text-muted-foreground'}`}>
+                                    {currentAgent.financial_summary?.can_claim_earnings ? 'Eligible to Claim (≥ $10 USDT)' : 'Claim Threshold: $10 USDT'}
+                                </span>
+                            </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="rounded-lg border bg-green-50/50 dark:bg-green-950/20 p-4">
                                     <p className="text-xs text-muted-foreground font-medium">NT</p>

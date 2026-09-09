@@ -1,13 +1,17 @@
 # Platform Fee Collection Audit Report
 
-**Date:** February 17, 2026  
-**Status:** ❌ **CRITICAL GAPS IDENTIFIED**
+**Date:** September 9, 2026  
+**Status:** ✅ **FULLY IMPLEMENTED & AUDITED**
 
 ---
 
 ## Executive Summary
 
-The platform **calculates fees** but **does NOT collect them into platform wallets**. Fees are deducted from users but never transferred to a platform treasury. This is a critical revenue gap that needs immediate implementation.
+Platform fee collection and agent commission handling are **fully operational across all transaction flows**:
+1. **Platform Facilitation Fees:** Automatically collected into system platform treasury wallets (`platformService.collectFee`).
+2. **Split Fee Engine:** Both Agent Commission (e.g. 1.0%) and Platform Facilitation Fee (e.g. 0.25%) are calculated via `commissionService.calculateExchangeFees`.
+3. **Dual Fee Calculation Modes:** Users can select between `deduct` (deduct from payout) and `add_on_top` (pay fee extra).
+4. **Agent Earnings Claim:** Agents can claim accrued earnings into their NT/CT wallet once earnings meet the **$10 USDT minimum threshold** (`POST /api/v1/agents/claim-earnings`).
 
 ---
 

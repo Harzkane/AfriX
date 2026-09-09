@@ -602,6 +602,26 @@ export default function HostedPaymentPage() {
                 </AlertDescription>
               </Alert>
             )}
+
+            {payment.status === "cancelled" && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Request Cancelled</AlertTitle>
+                <AlertDescription>
+                  This payment request was cancelled by the creator and is no longer valid for payment.
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {payment.status === "expired" && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Request Expired</AlertTitle>
+                <AlertDescription>
+                  This payment request has expired and is no longer valid for payment.
+                </AlertDescription>
+              </Alert>
+            )}
           </CardContent>
         </Card>
 

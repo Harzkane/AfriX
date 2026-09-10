@@ -86,58 +86,58 @@ app.post("/api/webhooks/afrix", express.raw({ type: "application/json" }), (req,
   };
 
   return (
-    <section id="developers" className="py-24 relative overflow-hidden bg-slate-950">
+    <section id="developers" className="py-16 sm:py-24 relative overflow-hidden bg-slate-950">
       {/* Background ambient lighting */}
       <div className="absolute top-1/2 left-1/3 -translate-y-1/2 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl pointer-events-none" />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 items-center">
           {/* Left Column: Developer Overview */}
-          <div className="lg:col-span-5 space-y-6">
+          <div className="lg:col-span-5 space-y-5 sm:space-y-6">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-900 border border-slate-800 text-blue-400 text-xs font-mono uppercase tracking-widest">
               <Code2 size={13} />
               Developer Rails
             </div>
 
-            <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight leading-tight">
+            <h2 className="text-2xl sm:text-4xl font-extrabold text-white tracking-tight leading-tight">
               One API to unlock cross-border settlement
             </h2>
 
-            <p className="text-slate-300 text-base leading-relaxed">
+            <p className="text-slate-300 text-sm sm:text-base leading-relaxed">
               Integrate AfriX payment requests, hosted checkouts, and real-time webhook listeners into your
               application with just a few lines of code. Built with strict idempotency, cryptographic webhook
               signing, and comprehensive sandbox environments.
             </p>
 
             {/* Feature List */}
-            <div className="space-y-3 pt-2 text-sm text-slate-300 font-medium">
+            <div className="space-y-2.5 sm:space-y-3 pt-1 sm:pt-2 text-xs sm:text-sm text-slate-300 font-medium">
               <div className="flex items-center gap-2.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 flex-shrink-0" />
                 <span>RESTful JSON API with authenticated Bearer tokens</span>
               </div>
               <div className="flex items-center gap-2.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-teal-400" />
+                <span className="w-1.5 h-1.5 rounded-full bg-teal-400 flex-shrink-0" />
                 <span>HMAC-SHA256 signature verification on all webhook callbacks</span>
               </div>
               <div className="flex items-center gap-2.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
+                <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 flex-shrink-0" />
                 <span>Full Postman collection and sandbox test fixtures available</span>
               </div>
             </div>
 
             {/* Action buttons */}
-            <div className="pt-4 flex flex-wrap items-center gap-3">
+            <div className="pt-2 sm:pt-4 flex flex-col sm:flex-row sm:items-center gap-3">
               <Link
                 href="/AfriExchange_API.postman_collection.json"
                 download
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 hover:border-slate-600 text-slate-200 hover:text-white text-xs font-mono font-medium transition-colors"
+                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 hover:border-slate-600 text-slate-200 hover:text-white text-xs font-mono font-medium transition-colors"
               >
                 <Download size={14} className="text-emerald-400" />
                 <span>Download Postman Collection</span>
               </Link>
               <Link
                 href="/merchant/register"
-                className="inline-flex items-center gap-1.5 text-xs font-mono text-emerald-400 hover:text-emerald-300 underline underline-offset-4"
+                className="inline-flex items-center justify-center sm:justify-start gap-1.5 text-xs font-mono text-emerald-400 hover:text-emerald-300 underline underline-offset-4"
               >
                 <span>Generate API Keys in Merchant Portal</span>
                 <ExternalLink size={12} />
@@ -147,47 +147,50 @@ app.post("/api/webhooks/afrix", express.raw({ type: "application/json" }), (req,
 
           {/* Right Column: Code Terminal Mockup */}
           <div className="lg:col-span-7">
-            <div className="rounded-3xl bg-[#090d16] border border-slate-800 shadow-[0_20px_60px_rgba(0,0,0,0.8)] overflow-hidden">
+            <div className="rounded-2xl sm:rounded-3xl bg-[#090d16] border border-slate-800 shadow-[0_20px_60px_rgba(0,0,0,0.8)] overflow-hidden">
               {/* Terminal Window Header */}
-              <div className="px-5 py-3.5 bg-slate-900/90 border-b border-slate-800/80 flex items-center justify-between">
-                <div className="flex items-center gap-2">
+              <div className="px-3.5 sm:px-5 py-3 sm:py-3.5 bg-slate-900/90 border-b border-slate-800/80 flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 flex-shrink-0">
                   <div className="flex items-center gap-1.5">
-                    <span className="w-3 h-3 rounded-full bg-rose-500/80 inline-block" />
-                    <span className="w-3 h-3 rounded-full bg-amber-500/80 inline-block" />
-                    <span className="w-3 h-3 rounded-full bg-emerald-500/80 inline-block" />
+                    <span className="w-2.5 sm:w-3 h-2.5 sm:h-3 rounded-full bg-rose-500/80 inline-block" />
+                    <span className="w-2.5 sm:w-3 h-2.5 sm:h-3 rounded-full bg-amber-500/80 inline-block" />
+                    <span className="w-2.5 sm:w-3 h-2.5 sm:h-3 rounded-full bg-emerald-500/80 inline-block" />
                   </div>
-                  <span className="text-xs font-mono text-slate-400 ml-2 hidden sm:inline-block">
+                  <span className="text-[11px] sm:text-xs font-mono text-slate-400 ml-1 sm:ml-2 hidden md:inline-block">
                     {currentSnippet.filename}
                   </span>
                 </div>
 
                 {/* Tabs */}
                 <div className="flex items-center gap-1 bg-slate-950/80 p-1 rounded-xl border border-slate-800">
-                  {(["curl", "node", "webhook"] as CodeLang[]).map((tab) => (
-                    <button
-                      key={tab}
-                      onClick={() => setActiveTab(tab)}
-                      className={`px-3 py-1 rounded-lg text-xs font-mono font-medium transition-all ${
-                        activeTab === tab
-                          ? "bg-slate-800 text-white shadow-sm"
-                          : "text-slate-400 hover:text-slate-200"
-                      }`}
-                    >
-                      {codeSnippets[tab].title}
-                    </button>
-                  ))}
+                  {(["curl", "node", "webhook"] as CodeLang[]).map((tab) => {
+                    const shortLabel = tab === "curl" ? "cURL" : tab === "node" ? "Node.js" : "Webhook";
+                    return (
+                      <button
+                        key={tab}
+                        onClick={() => setActiveTab(tab)}
+                        className={`px-2.5 sm:px-3 py-1 rounded-lg text-[11px] sm:text-xs font-mono font-medium transition-all ${
+                          activeTab === tab
+                            ? "bg-slate-800 text-white shadow-sm"
+                            : "text-slate-400 hover:text-slate-200"
+                        }`}
+                      >
+                        {shortLabel}
+                      </button>
+                    );
+                  })}
                 </div>
 
                 {/* Copy button */}
                 <button
                   onClick={handleCopy}
-                  className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors flex items-center gap-1.5 text-xs font-mono"
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors flex items-center gap-1.5 text-xs font-mono flex-shrink-0"
                   title="Copy code"
                 >
                   {copied ? (
                     <>
                       <Check size={14} className="text-emerald-400" />
-                      <span className="text-emerald-400 text-[11px]">Copied</span>
+                      <span className="text-emerald-400 text-[11px] hidden sm:inline">Copied</span>
                     </>
                   ) : (
                     <Copy size={14} />
@@ -196,14 +199,14 @@ app.post("/api/webhooks/afrix", express.raw({ type: "application/json" }), (req,
               </div>
 
               {/* Code block */}
-              <div className="p-6 font-mono text-xs leading-relaxed overflow-x-auto text-slate-300 scrollbar-thin scrollbar-thumb-slate-800">
+              <div className="p-4 sm:p-6 font-mono text-xs leading-relaxed overflow-x-auto text-slate-300 scrollbar-thin scrollbar-thumb-slate-800">
                 <pre className="text-slate-300">
                   <code>{currentSnippet.code}</code>
                 </pre>
               </div>
 
               {/* Status footer bar */}
-              <div className="px-5 py-2.5 bg-slate-950/90 border-t border-slate-800/80 flex items-center justify-between text-[11px] font-mono text-slate-500">
+              <div className="px-4 sm:px-5 py-2.5 bg-slate-950/90 border-t border-slate-800/80 flex items-center justify-between text-[10px] sm:text-[11px] font-mono text-slate-500">
                 <div className="flex items-center gap-2">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                   <span>api.afrix.io (HTTP 200 OK)</span>

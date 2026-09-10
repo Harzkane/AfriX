@@ -209,14 +209,14 @@ export default function EcosystemTabs() {
         </div>
 
         {/* Tab Buttons */}
-        <div className="flex items-center justify-start sm:justify-center overflow-x-auto pb-4 gap-2 sm:gap-3 scrollbar-none">
+        <div className="-mx-4 px-4 sm:mx-0 sm:px-0 flex items-center justify-start sm:justify-center overflow-x-auto pb-4 gap-2 sm:gap-3 scrollbar-none">
           {PERSONAS.map((item) => {
             const isActive = item.id === activeTab;
             return (
               <button
                 key={item.id}
                 onClick={() => setActiveTab(item.id)}
-                className={`flex-shrink-0 px-5 py-3 rounded-2xl text-xs sm:text-sm font-semibold transition-all duration-200 flex items-center gap-2.5 border ${
+                className={`flex-shrink-0 px-4 sm:px-5 py-2.5 sm:py-3 rounded-xl sm:rounded-2xl text-xs sm:text-sm font-semibold transition-all duration-200 flex items-center gap-2 border ${
                   isActive
                     ? "bg-slate-900 text-white border-emerald-500/50 shadow-[0_0_20px_rgba(16,185,129,0.2)]"
                     : "bg-slate-950 text-slate-400 border-slate-800/80 hover:text-slate-200 hover:border-slate-700"
@@ -230,39 +230,39 @@ export default function EcosystemTabs() {
         </div>
 
         {/* Tab Content Box */}
-        <div className="mt-8 rounded-3xl bg-slate-900/40 border border-slate-800/80 p-6 sm:p-10 lg:p-12 backdrop-blur-xl relative overflow-hidden">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 items-center">
+        <div className="mt-6 sm:mt-8 rounded-2xl sm:rounded-3xl bg-slate-900/40 border border-slate-800/80 p-5 sm:p-10 lg:p-12 backdrop-blur-xl relative overflow-hidden">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
             {/* Left Content Area */}
-            <div className="lg:col-span-7 space-y-6">
+            <div className="lg:col-span-7 space-y-5 sm:space-y-6">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 text-xs font-mono font-medium">
                 {current.badge}
               </div>
 
-              <h3 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-white tracking-tight">
+              <h3 className="text-xl sm:text-3xl lg:text-4xl font-extrabold text-white tracking-tight leading-snug">
                 {current.title}
               </h3>
 
-              <p className="text-slate-300 text-base leading-relaxed">
+              <p className="text-slate-300 text-sm sm:text-base leading-relaxed">
                 {current.description}
               </p>
 
               {/* Feature Checklist */}
-              <div className="space-y-3 pt-2">
+              <div className="space-y-2.5 sm:space-y-3 pt-1 sm:pt-2">
                 {current.features.map((feat) => (
                   <div key={feat} className="flex items-start gap-3">
                     <div className="p-0.5 rounded-full bg-emerald-500/20 text-emerald-400 mt-1 flex-shrink-0">
-                      <CheckCircle2 size={16} />
+                      <CheckCircle2 size={15} />
                     </div>
-                    <span className="text-sm text-slate-300 font-medium">{feat}</span>
+                    <span className="text-xs sm:text-sm text-slate-300 font-medium">{feat}</span>
                   </div>
                 ))}
               </div>
 
               {/* Action Links */}
-              <div className="pt-4 flex flex-wrap items-center gap-4">
+              <div className="pt-2 sm:pt-4 flex flex-wrap items-center gap-3 sm:gap-4">
                 <Link
                   href={current.ctaHref}
-                  className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-gradient-to-r from-emerald-400 to-teal-400 hover:from-emerald-300 hover:to-teal-300 text-slate-950 font-bold text-sm shadow-[0_0_20px_rgba(52,211,153,0.3)] transition-all transform hover:-translate-y-0.5"
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-gradient-to-r from-emerald-400 to-teal-400 hover:from-emerald-300 hover:to-teal-300 text-slate-950 font-bold text-sm shadow-[0_0_20px_rgba(52,211,153,0.3)] transition-all transform hover:-translate-y-0.5"
                 >
                   <span>{current.ctaLabel}</span>
                   <ArrowRight size={15} className="stroke-[2.5]" />
@@ -271,7 +271,7 @@ export default function EcosystemTabs() {
                 {current.secondaryCtaLabel && (
                   <Link
                     href={current.secondaryCtaHref || "#"}
-                    className="inline-flex items-center gap-2 px-4 py-3 rounded-xl border border-slate-700 hover:border-slate-600 bg-slate-800/50 text-slate-300 hover:text-white text-sm font-medium transition-colors"
+                    className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl border border-slate-700 hover:border-slate-600 bg-slate-800/50 text-slate-300 hover:text-white text-sm font-medium transition-colors"
                   >
                     <span>{current.secondaryCtaLabel}</span>
                   </Link>
@@ -280,16 +280,16 @@ export default function EcosystemTabs() {
             </div>
 
             {/* Right Card / Technical Spec Preview */}
-            <div className="lg:col-span-5 space-y-6">
+            <div className="lg:col-span-5 space-y-5 sm:space-y-6">
               {/* Metrics row */}
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3">
                 {current.metrics.map((m) => (
                   <div
                     key={m.label}
-                    className="p-3.5 rounded-2xl bg-slate-950/80 border border-slate-800 text-center"
+                    className="p-3 sm:p-3.5 rounded-xl sm:rounded-2xl bg-slate-950/80 border border-slate-800 text-center flex sm:flex-col items-center justify-between sm:justify-center px-4 sm:px-2"
                   >
-                    <div className="text-xs text-slate-400 font-mono">{m.label}</div>
-                    <div className="text-base sm:text-lg font-bold text-emerald-400 mt-1 font-mono">
+                    <div className="text-[11px] sm:text-xs text-slate-400 font-mono">{m.label}</div>
+                    <div className="text-sm sm:text-lg font-bold text-emerald-400 sm:mt-1 font-mono">
                       {m.value}
                     </div>
                   </div>
@@ -297,7 +297,7 @@ export default function EcosystemTabs() {
               </div>
 
               {/* Technical Spec Box */}
-              <div className="rounded-2xl bg-slate-950/90 border border-slate-800/90 p-5 font-mono text-xs space-y-4 shadow-xl">
+              <div className="rounded-2xl bg-slate-950/90 border border-slate-800/90 p-4 sm:p-5 font-mono text-[11px] sm:text-xs space-y-3.5 sm:space-y-4 shadow-xl">
                 <div className="flex items-center justify-between pb-3 border-b border-slate-800">
                   <span className="text-slate-300 font-bold flex items-center gap-2">
                     <span className="w-2 h-2 rounded-full bg-emerald-400" />
@@ -308,11 +308,11 @@ export default function EcosystemTabs() {
                   </span>
                 </div>
 
-                <div className="space-y-3">
+                <div className="space-y-2.5 sm:space-y-3">
                   {Object.entries(current.highlightSnippet.details).map(([key, val]) => (
                     <div key={key} className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
                       <span className="text-slate-500">{key}:</span>
-                      <span className="text-slate-200 font-medium text-right">{val}</span>
+                      <span className="text-slate-200 font-medium sm:text-right">{val}</span>
                     </div>
                   ))}
                 </div>

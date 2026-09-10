@@ -277,9 +277,16 @@ This document describes **what is implemented** across the backend, admin web da
 
 - **Screens:** help-support/index, help-support/faq — in-app help text and FAQ (no backend).
 
-### 3.13 Request tokens (placeholder)
+### 3.13 Request tokens & payment requests
 
-- **Modal:** modals/request-tokens.tsx — “Coming soon” message; no API. Backend has no token-request (user requests from friend) flow.
+- **Modals:** `app/modals/request-tokens/`:
+  - `index.tsx`: Create token request (token NT/CT/USDT, amount, recipient scope, note, expiration: 1, 3, 7, 30 days, or never, privacy).
+  - `review.tsx`: Review request summary, fee transparency, and recipient details.
+  - `share.tsx`: Generate QR code, copy payment URL (`/pay/[reference]`), native share dialog, and expiration preview.
+  - `detail.tsx`: View request details, real-time status badge, and QR code for scanning.
+  - `my-requests.tsx`: View history of active and fulfilled requests with instant cancellation action.
+- **Backend API:** `POST /api/v1/requests/payment-request`, `GET /requests/user`, `GET /requests/payment-request/:id`, `POST /requests/payment-request/:id/cancel`.
+- **Store:** `requestSlice.ts` in Zustand managing draft state, API submission, payment URL construction, and user requests list.
 
 ### 3.14 Stores (Zustand)
 
@@ -325,13 +332,12 @@ This document describes **what is implemented** across the backend, admin web da
 | **Education modules** | ✅ | Stats, progress, reset, mark complete | ✅ (progress, quiz, submit) |
 | **Notifications (inbox + prefs)** | ✅ | — | ✅ |
 | **Admin dashboard** | ✅ | ✅ Overview, users, agents, merchants, financials, operations, disputes, withdrawals, education, security | — |
-| **Pay merchant in app** | ✅ Backend ready | — | 🔜 **Coming soon** |
+| **Token request (from contact)** | ✅ (`/requests/payment-request`) | Hosted pay ✅ (`/pay/[id]`) | ✅ (`modals/request-tokens`) |
+| **Pay merchant / request in app** | ✅ Auto-settles request on transfer | Hosted pay ✅ | ✅ (`Scan QR` via camera + validation) |
 | **Merchant (backend & admin)** | ✅ Register, payment-request, pay, dashboard, KYC | ✅ List, approve, reject | — |
 
 ### 4.2 Not implemented (or placeholder)
 
-- **Token request (user requests from friend):** **Coming soon.** Backend has no API yet; mobile has "Coming soon" modal. FAQ updated to mark as coming soon.
-- **Pay merchant in app:** **Coming soon.** Backend supports payment-request and /payments/process; in-app "pay merchant" (scan QR, payment link) is not yet in the mobile app.
 - **WebSocket:** Backend has `websocket/` (server, handlers); not verified if mobile or web use it for live updates (mobile uses polling for activity/transfers).
 
 ### 4.3 Agent deposit flow (clarification)

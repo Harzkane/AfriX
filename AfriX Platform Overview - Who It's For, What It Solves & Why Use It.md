@@ -6,9 +6,9 @@
 
 ## What Is AfriX?
 
-**AfriExchange (AfriX)** an **AfriExchange is a commerce infrastructure platform that enables users, merchants, agents, and partner marketplaces to move value across African markets through programmable settlement rails built on tokenized digital assets.** for African commerce. It lets people, independent agents, merchants, and partner platforms move value across currency zones quickly and transparently—using tokens (**NT**, **CT**, **USDT**) instead of relying only on banks and traditional remittance.
+**AfriExchange (AfriX)** is a commerce infrastructure platform that enables users, merchants, agents, and partner marketplaces to move value across African markets through programmable settlement rails built on tokenized digital assets. It lets people, independent agents, merchants, and partner platforms move value across currency zones quickly and transparently—using tokens (**NT**, **CT**, **USDT**) instead of relying only on banks and traditional remittance.
 
-- **For users (mobile app):** Buy, send, receive, swap, and sell tokens with agent-backed mint/burn and escrow protection. **Request tokens from a contact** and **scan-to-pay merchants in the mobile app** are still on the roadmap.
+- **For users (mobile app):** Buy, send, receive, swap, and sell tokens with agent-backed mint/burn and escrow protection, plus full support for **requesting tokens from contacts** and **scan-to-pay QR workflows** for peer requests and merchant payments.
 - **For agents:** Earn by facilitating token–cash exchanges (mint/burn) with capacity tied to a USDT security deposit, clear rules, and dispute handling.
 - **For merchants:** Accept token payments via **API**, **webhooks**, **hosted checkout** (`/pay/...` on the web app), and the **merchant portal** (collections, wallet, sell-through-agent, integration docs). Production references: **PlugNG Shop** (Path A, [plugng.shop](https://plugng.shop)) and **Kaalis Store** (Path B, XOF rail at [bruthol.com](https://bruthol.com)) via integration APIs.
 - **For operators:** Admin dashboard for users, agents, merchants, financials, operations, disputes, withdrawals, education, and security.
@@ -62,7 +62,7 @@ We are **not a bank**. We are a **technology platform and marketplace** that con
 ### 5. **Families and communities**
 
 - Groups that **send and receive value** frequently (support, shared expenses, gifts).
-- Users who will benefit from **request-based flows** (“request 2,000 NT from a friend”) once the mobile feature ships.
+- Users who benefit from **request-based flows** (“request 2,000 NT from a friend” with custom expiration, QR sharing, and payment URLs).
 
 ---
 
@@ -93,8 +93,8 @@ We are **not a bank**. We are a **technology platform and marketplace** that con
    - **Swap:** e.g. USDT → NT/CT or NT ↔ CT in-app (~1.5% fee).
 3. **Send value:** Send → scan QR or enter email → amount + note → confirm (0.5% fee).
 4. **Sell tokens:** Sell → agent → bank details → tokens escrowed → agent sends fiat → you confirm receipt (or dispute within the window).
-5. **Pay a merchant:** **In the mobile app — coming soon.** Today, customers can pay via **hosted checkout** on the web (`/pay/[transactionId]`) or merchants’ own sites calling the payment APIs.
-6. **Request tokens from a friend:** **Coming soon** (placeholder modal in app; no backend flow yet).
+5. **Pay a merchant or request:** Scan the recipient or merchant QR code directly with the mobile app camera (`Scan QR`), or open hosted checkout on the web (`/pay/[transactionId]`). Mobile scanner verifies request state in real-time, pre-fills details, and fulfills payment instantly from wallet.
+6. **Request tokens from a friend:** Generate request in-app → choose token (NT/CT/USDT), amount, note, recipient scope, and expiration (1, 3, 7, 30 days, or never) → share QR code or payment URL → track status in "My Requests".
 
 Optional: Verify ID for higher limits; complete **education modules**; enable **2FA** and **biometric app lock** (requires a dev build, not Expo Go).
 
@@ -138,7 +138,7 @@ Minimum deposit and tiers are **environment-configurable** (see agent handbook a
 - **24/7:** No bank hours for in-app P2P, swap, and agent availability.
 - **Transparency:** Amount, fee, and recipient shown before confirm.
 - **Safety when selling:** Escrow until you confirm fiat (or dispute).
-- **One mobile home** for buy, send, receive, swap, sell (merchant pay & friend-request coming in-app).
+- **One mobile home** for buy, send, receive, swap, sell, request tokens, and scan-to-pay (peer requests & merchants).
 - **Cross-border ready:** NT, CT, and USDT across supported markets.
 - **Control:** Optional 2FA, biometrics, notification preferences.
 
@@ -238,10 +238,10 @@ Aligned with `PROGRESS - What We Have Built So Far.md` and `afriX_backend/docs/D
 | Auth, 2FA, wallets, P2P, swap | ✅ | — | ✅ |
 | Mint / burn / escrow / disputes | ✅ | Admin ops | ✅ |
 | Agent register, KYC, deposit, withdrawals | ✅ | Admin | ✅ |
-| Merchant register, KYC, payment-request, pay (Path A) | ✅ (Live on plugng.shop) | Portal + `/pay/[id]` | — |
+| Merchant register, KYC, payment-request, pay (Path A) | ✅ (Live on plugng.shop) | Portal + `/pay/[id]` | Scan-to-pay ✅ |
 | Kaalis partner integration (Path B) | ✅ (Live on bruthol.com) | ✅ (Admin settings) | — |
-| Request tokens from friend | — | — | 🔜 Coming soon |
-| Pay merchant (scan QR / in-app) | ✅ | Hosted pay ✅ | 🔜 Coming soon |
+| Request tokens from friend | ✅ (`/requests/payment-request`) | Hosted pay ✅ (`/pay/[id]`) | ✅ (`modals/request-tokens`) |
+| Pay merchant / request (scan QR / in-app) | ✅ (Auto-settles request) | Hosted pay ✅ | ✅ (`Scan QR` + camera) |
 
 **Merchant public launch:** Both **Path A** (standard checkout via **PlugNG Shop** at [plugng.shop](https://plugng.shop)) and **Path B** (partner marketplace integration via **Kaalis Store** at [bruthol.com](https://bruthol.com)) are fully implemented, tested, and working in production.
 

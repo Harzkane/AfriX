@@ -33,46 +33,46 @@ export default function FeatureBento() {
         </div>
 
         {/* Bento Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6">
           {/* Card 1: Multi-Token Engine (Large span) */}
-          <div className="lg:col-span-2 rounded-3xl bg-gradient-to-br from-slate-900/90 via-slate-900/60 to-slate-950/90 border border-slate-800/80 p-8 relative overflow-hidden group hover:border-emerald-500/40 transition-all duration-300">
+          <div className="lg:col-span-2 rounded-2xl sm:rounded-3xl bg-gradient-to-br from-slate-900/90 via-slate-900/60 to-slate-950/90 border border-slate-800/80 p-5 sm:p-8 relative overflow-hidden group hover:border-emerald-500/40 transition-all duration-300">
             <div className="absolute top-0 right-0 w-80 h-80 bg-emerald-500/5 rounded-full blur-3xl pointer-events-none group-hover:bg-emerald-500/10 transition-colors" />
 
-            <div className="flex items-center gap-3 mb-6">
-              <div className="p-3 rounded-2xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                <Coins size={24} />
+            <div className="flex items-center gap-3 mb-5 sm:mb-6">
+              <div className="p-2.5 sm:p-3 rounded-2xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                <Coins size={22} className="sm:w-6 sm:h-6" />
               </div>
               <div>
                 <span className="text-xs font-mono text-emerald-400 font-medium uppercase tracking-wider">
                   Triple Asset Rail
                 </span>
-                <h3 className="text-xl font-bold text-white">NT, CT, & USDT Interoperability</h3>
+                <h3 className="text-lg sm:text-xl font-bold text-white">NT, CT, & USDT Interoperability</h3>
               </div>
             </div>
 
-            <p className="text-slate-300 text-sm leading-relaxed mb-6 max-w-xl">
+            <p className="text-slate-300 text-sm leading-relaxed mb-5 sm:mb-6 max-w-xl">
               Hold and swap between the Nigerian Naira digital token (NT), Francophone West African CFA
               digital token (CT), and global Tether (USDT). Programmatic liquidity bridges local economies
               directly without traditional correspondent banking friction.
             </p>
 
             {/* Visual Token Badges */}
-            <div className="grid grid-cols-3 gap-3 pt-2">
-              <div className="p-3.5 rounded-xl bg-slate-950/70 border border-slate-800 flex items-center gap-2.5">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-3 pt-2">
+              <div className="p-3 sm:p-3.5 rounded-xl bg-slate-950/70 border border-slate-800 flex items-center gap-2.5">
                 <span className="text-xl">🇳🇬</span>
                 <div>
                   <div className="text-xs font-bold text-white font-mono">NT (Naira)</div>
                   <div className="text-[10px] text-slate-400 font-mono">1 NT ≈ 1 NGN</div>
                 </div>
               </div>
-              <div className="p-3.5 rounded-xl bg-slate-950/70 border border-slate-800 flex items-center gap-2.5">
+              <div className="p-3 sm:p-3.5 rounded-xl bg-slate-950/70 border border-slate-800 flex items-center gap-2.5">
                 <span className="text-xl">🇨🇮</span>
                 <div>
                   <div className="text-xs font-bold text-white font-mono">CT (CFA)</div>
                   <div className="text-[10px] text-slate-400 font-mono">1 CT ≈ 1 XOF</div>
                 </div>
               </div>
-              <div className="p-3.5 rounded-xl bg-slate-950/70 border border-slate-800 flex items-center gap-2.5">
+              <div className="p-3 sm:p-3.5 rounded-xl bg-slate-950/70 border border-slate-800 flex items-center gap-2.5">
                 <span className="text-xl">🌐</span>
                 <div>
                   <div className="text-xs font-bold text-white font-mono">USDT</div>
@@ -83,9 +83,9 @@ export default function FeatureBento() {
           </div>
 
           {/* Card 2: Smart Escrow Safeguard */}
-          <div className="rounded-3xl bg-slate-900/60 border border-slate-800/80 p-8 relative overflow-hidden group hover:border-teal-500/40 transition-all duration-300">
-            <div className="p-3 rounded-2xl bg-teal-500/10 text-teal-400 border border-teal-500/20 w-fit mb-6">
-              <ShieldCheck size={24} />
+          <div className="rounded-2xl sm:rounded-3xl bg-slate-900/60 border border-slate-800/80 p-5 sm:p-8 relative overflow-hidden group hover:border-teal-500/40 transition-all duration-300">
+            <div className="p-2.5 sm:p-3 rounded-2xl bg-teal-500/10 text-teal-400 border border-teal-500/20 w-fit mb-5 sm:mb-6">
+              <ShieldCheck size={22} className="sm:w-6 sm:h-6" />
             </div>
 
             <span className="text-xs font-mono text-teal-400 font-medium uppercase tracking-wider block mb-1">
@@ -107,15 +107,15 @@ export default function FeatureBento() {
           </div>
 
           {/* Card 3: 24/7 Agent Mint/Burn Network */}
-          <div className="rounded-3xl bg-slate-900/60 border border-slate-800/80 p-8 relative overflow-hidden group hover:border-cyan-500/40 transition-all duration-300">
-            <div className="p-3 rounded-2xl bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 w-fit mb-6">
-              <Zap size={24} />
+          <div className="rounded-2xl sm:rounded-3xl bg-slate-900/60 border border-slate-800/80 p-5 sm:p-8 relative overflow-hidden group hover:border-cyan-500/40 transition-all duration-300">
+            <div className="p-2.5 sm:p-3 rounded-2xl bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 w-fit mb-5 sm:mb-6">
+              <Zap size={22} className="sm:w-6 sm:h-6" />
             </div>
 
             <span className="text-xs font-mono text-cyan-400 font-medium uppercase tracking-wider block mb-1">
               Localized Liquidity
             </span>
-            <h3 className="text-xl font-bold text-white mb-3">24/7 Independent Agents</h3>
+            <h3 className="text-lg sm:text-xl font-bold text-white mb-3">24/7 Independent Agents</h3>
 
             <p className="text-slate-300 text-sm leading-relaxed mb-4">
               Authorized local agents facilitate cash-in and cash-out via local bank rails and mobile money
@@ -129,20 +129,20 @@ export default function FeatureBento() {
           </div>
 
           {/* Card 4: Developer-First Commerce API (Large span) */}
-          <div className="lg:col-span-2 rounded-3xl bg-gradient-to-br from-slate-900/90 via-slate-900/60 to-slate-950/90 border border-slate-800/80 p-8 relative overflow-hidden group hover:border-blue-500/40 transition-all duration-300">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="p-3 rounded-2xl bg-blue-500/10 text-blue-400 border border-blue-500/20">
-                <Cpu size={24} />
+          <div className="lg:col-span-2 rounded-2xl sm:rounded-3xl bg-gradient-to-br from-slate-900/90 via-slate-900/60 to-slate-950/90 border border-slate-800/80 p-5 sm:p-8 relative overflow-hidden group hover:border-blue-500/40 transition-all duration-300">
+            <div className="flex items-center gap-3 mb-5 sm:mb-6">
+              <div className="p-2.5 sm:p-3 rounded-2xl bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                <Cpu size={22} className="sm:w-6 sm:h-6" />
               </div>
               <div>
                 <span className="text-xs font-mono text-blue-400 font-medium uppercase tracking-wider">
                   Two Integration Paths
                 </span>
-                <h3 className="text-xl font-bold text-white">Path A Checkout & Path B Marketplace Rails</h3>
+                <h3 className="text-lg sm:text-xl font-bold text-white">Path A Checkout & Path B Marketplace Rails</h3>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
               <div className="p-4 rounded-2xl bg-slate-950/70 border border-slate-800 space-y-2">
                 <div className="text-sm font-bold text-white flex items-center justify-between">
                   <span>Path A: Standard Merchant</span>
@@ -172,15 +172,15 @@ export default function FeatureBento() {
           </div>
 
           {/* Card 5: Institutional Security */}
-          <div className="rounded-3xl bg-slate-900/60 border border-slate-800/80 p-8 relative overflow-hidden group hover:border-purple-500/40 transition-all duration-300">
-            <div className="p-3 rounded-2xl bg-purple-500/10 text-purple-400 border border-purple-500/20 w-fit mb-6">
-              <Fingerprint size={24} />
+          <div className="rounded-2xl sm:rounded-3xl bg-slate-900/60 border border-slate-800/80 p-5 sm:p-8 relative overflow-hidden group hover:border-purple-500/40 transition-all duration-300">
+            <div className="p-2.5 sm:p-3 rounded-2xl bg-purple-500/10 text-purple-400 border border-purple-500/20 w-fit mb-5 sm:mb-6">
+              <Fingerprint size={22} className="sm:w-6 sm:h-6" />
             </div>
 
             <span className="text-xs font-mono text-purple-400 font-medium uppercase tracking-wider block mb-1">
               Account Hardening
             </span>
-            <h3 className="text-xl font-bold text-white mb-3">Biometrics & 2FA</h3>
+            <h3 className="text-lg sm:text-xl font-bold text-white mb-3">Biometrics & 2FA</h3>
 
             <p className="text-slate-300 text-sm leading-relaxed mb-4">
               Time-based OTPs, biometric lock mechanisms, tier-based KYC validation, and immutable transaction audit

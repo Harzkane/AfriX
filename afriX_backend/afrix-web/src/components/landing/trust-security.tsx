@@ -27,21 +27,21 @@ export default function TrustSecurity() {
   ];
 
   return (
-    <section className="py-24 relative overflow-hidden bg-slate-900/30 border-t border-slate-800/80">
+    <section className="py-16 sm:py-24 relative overflow-hidden bg-slate-900/30 border-t border-slate-800/80">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="rounded-3xl bg-gradient-to-b from-slate-900 via-slate-950 to-slate-950 border border-slate-800 p-8 sm:p-12 lg:p-16 relative overflow-hidden shadow-2xl">
+        <div className="rounded-2xl sm:rounded-3xl bg-gradient-to-b from-slate-900 via-slate-950 to-slate-950 border border-slate-800 p-5 sm:p-10 lg:p-16 relative overflow-hidden shadow-2xl">
           {/* Subtle glow */}
           <div className="absolute top-0 right-1/4 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
 
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 sm:gap-12 items-center">
             {/* Left intro */}
-            <div className="lg:col-span-5 space-y-6">
+            <div className="lg:col-span-5 space-y-4 sm:space-y-6">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-mono uppercase tracking-widest">
                 <ShieldCheck size={14} />
                 Trust & Security Architecture
               </div>
 
-              <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight leading-tight">
+              <h2 className="text-2xl sm:text-4xl font-extrabold text-white tracking-tight leading-tight">
                 Built to eliminate fraud and preserve certainty
               </h2>
 
@@ -51,7 +51,7 @@ export default function TrustSecurity() {
               </p>
 
               {/* Compliance Notice */}
-              <div className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800 text-xs text-slate-400 leading-relaxed flex items-start gap-3">
+              <div className="p-3.5 sm:p-4 rounded-xl sm:rounded-2xl bg-slate-950/80 border border-slate-800 text-[11px] sm:text-xs text-slate-400 leading-relaxed flex items-start gap-2.5 sm:gap-3">
                 <AlertCircle size={18} className="text-amber-400 flex-shrink-0 mt-0.5" />
                 <span>
                   <strong className="text-slate-200">Legal Architecture Note:</strong> AfriX tokens (NT, CT)
@@ -62,19 +62,19 @@ export default function TrustSecurity() {
             </div>
 
             {/* Right Pillars Grid */}
-            <div className="lg:col-span-7 grid grid-cols-1 sm:grid-cols-2 gap-5">
+            <div className="lg:col-span-7 grid grid-cols-1 sm:grid-cols-2 gap-3.5 sm:gap-5">
               {securityPillars.map((p) => {
                 const Icon = p.icon;
                 return (
                   <div
                     key={p.title}
-                    className="p-6 rounded-2xl bg-slate-950/60 border border-slate-800/80 hover:border-emerald-500/30 transition-all duration-200 space-y-3"
+                    className="p-4 sm:p-6 rounded-xl sm:rounded-2xl bg-slate-950/60 border border-slate-800/80 hover:border-emerald-500/30 transition-all duration-200 space-y-2.5 sm:space-y-3"
                   >
-                    <div className="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-400 w-fit">
-                      <Icon size={20} />
+                    <div className="p-2 sm:p-2.5 rounded-xl bg-emerald-500/10 text-emerald-400 w-fit">
+                      <Icon size={18} className="sm:w-5 sm:h-5" />
                     </div>
-                    <h3 className="text-base font-bold text-white">{p.title}</h3>
-                    <p className="text-xs text-slate-400 leading-relaxed">{p.desc}</p>
+                    <h3 className="text-sm sm:text-base font-bold text-white">{p.title}</h3>
+                    <p className="text-[11px] sm:text-xs text-slate-400 leading-relaxed">{p.desc}</p>
                   </div>
                 );
               })}

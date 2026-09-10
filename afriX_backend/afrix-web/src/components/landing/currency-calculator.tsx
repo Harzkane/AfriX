@@ -75,20 +75,20 @@ export default function CurrencyCalculator() {
   return (
     <div
       id="calculator"
-      className="relative rounded-3xl bg-gradient-to-b from-slate-900/90 via-slate-900/70 to-slate-950/90 border border-slate-800/80 p-6 sm:p-8 backdrop-blur-2xl shadow-[0_25px_80px_rgba(0,0,0,0.6)] overflow-hidden"
+      className="relative rounded-2xl sm:rounded-3xl bg-gradient-to-b from-slate-900/90 via-slate-900/70 to-slate-950/90 border border-slate-800/80 p-4 sm:p-7 md:p-8 backdrop-blur-2xl shadow-[0_25px_80px_rgba(0,0,0,0.6)] overflow-hidden"
     >
       {/* Subtle glowing orb behind the card */}
       <div className="absolute -top-24 -right-24 w-72 h-72 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute -bottom-24 -left-24 w-72 h-72 bg-teal-500/10 rounded-full blur-3xl pointer-events-none" />
 
       {/* Header of widget */}
-      <div className="flex items-center justify-between pb-6 border-b border-slate-800/80">
+      <div className="flex items-center justify-between pb-4 sm:pb-6 border-b border-slate-800/80">
         <div>
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-mono font-medium">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
             Live Exchange Simulator
           </span>
-          <h3 className="text-xl font-bold text-white mt-1.5">
+          <h3 className="text-lg sm:text-xl font-bold text-white mt-1.5">
             Instant Cross-Border Settlement
           </h3>
         </div>
@@ -101,19 +101,19 @@ export default function CurrencyCalculator() {
       </div>
 
       {/* Currency conversion area */}
-      <div className="mt-6 space-y-4">
+      <div className="mt-5 sm:mt-6 space-y-3.5 sm:space-y-4">
         {/* 'You Send' Field */}
-        <div className="rounded-2xl bg-slate-950/70 border border-slate-800 p-4 transition-all focus-within:border-emerald-500/50 focus-within:ring-1 focus-within:ring-emerald-500/30">
+        <div className="rounded-2xl bg-slate-950/70 border border-slate-800 p-3.5 sm:p-4 transition-all focus-within:border-emerald-500/50 focus-within:ring-1 focus-within:ring-emerald-500/30">
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs font-medium text-slate-400 uppercase font-mono tracking-wider">
               You Send
             </span>
-            <span className="text-xs text-slate-500 font-mono">
+            <span className="text-[11px] sm:text-xs text-slate-500 font-mono truncate ml-2">
               {TOKENS[fromToken].description}
             </span>
           </div>
 
-          <div className="flex items-center justify-between gap-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
             <input
               type="number"
               value={sendAmount}
@@ -123,7 +123,7 @@ export default function CurrencyCalculator() {
             />
 
             {/* Token Selector */}
-            <div className="flex items-center gap-1 bg-slate-800/80 border border-slate-700/80 rounded-xl p-1.5 shadow-inner">
+            <div className="flex items-center gap-1 bg-slate-800/80 border border-slate-700/80 rounded-xl p-1 shadow-inner self-start sm:self-auto flex-shrink-0">
               {(["NT", "CT", "USDT"] as TokenType[]).map((tok) => (
                 <button
                   key={tok}
@@ -132,11 +132,10 @@ export default function CurrencyCalculator() {
                     if (tok === toToken) handleSwap();
                     else setFromToken(tok);
                   }}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
-                    fromToken === tok
+                  className={`px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1 ${fromToken === tok
                       ? "bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/30"
                       : "text-slate-300 hover:text-white hover:bg-slate-700/50"
-                  }`}
+                    }`}
                 >
                   <span>{TOKENS[tok].flag}</span>
                   <span>{tok}</span>
@@ -146,19 +145,18 @@ export default function CurrencyCalculator() {
           </div>
 
           {/* Quick presets */}
-          <div className="flex items-center gap-2 mt-3 pt-3 border-t border-slate-800/60">
-            <span className="text-[11px] text-slate-500 font-mono">Presets:</span>
-            {(fromToken === "USDT" ? ["50", "100", "500", "1000"] : ["50000", "100000", "250000", "500000"]).map(
+          <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 mt-3 pt-3 border-t border-slate-800/60">
+            <span className="text-[10px] sm:text-[11px] text-slate-500 font-mono">Presets:</span>
+            {(fromToken === "USDT" ? ["50", "100", "500"] : ["50000", "100000", "250000"]).map(
               (val) => (
                 <button
                   key={val}
                   type="button"
                   onClick={() => handlePreset(val)}
-                  className={`text-[11px] font-mono px-2 py-0.5 rounded border transition-colors ${
-                    sendAmount === val
+                  className={`text-[10px] sm:text-[11px] font-mono px-2 py-0.5 rounded border transition-colors ${sendAmount === val
                       ? "border-emerald-500/40 text-emerald-400 bg-emerald-500/10"
                       : "border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700"
-                  }`}
+                    }`}
                 >
                   {Number(val).toLocaleString()} {fromToken}
                 </button>
@@ -178,34 +176,34 @@ export default function CurrencyCalculator() {
             className="relative z-10 p-2.5 rounded-full bg-slate-800 hover:bg-emerald-500 text-slate-300 hover:text-slate-950 border border-slate-700 hover:border-emerald-400 transition-all duration-200 shadow-lg hover:shadow-emerald-500/30 transform hover:rotate-180"
             title="Swap currency direction"
           >
-            <ArrowDownUp size={16} />
+            <ArrowDownUp size={15} />
           </button>
         </div>
 
         {/* 'Recipient Receives' Field */}
-        <div className="rounded-2xl bg-slate-950/70 border border-slate-800 p-4 transition-all">
+        <div className="rounded-2xl bg-slate-950/70 border border-slate-800 p-3.5 sm:p-4 transition-all">
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs font-medium text-emerald-400 uppercase font-mono tracking-wider flex items-center gap-1">
               <Sparkles size={13} />
               Recipient Receives
             </span>
-            <span className="text-xs text-slate-500 font-mono">
+            <span className="text-[11px] sm:text-xs text-slate-500 font-mono truncate ml-2">
               {TOKENS[toToken].description}
             </span>
           </div>
 
-          <div className="flex items-center justify-between gap-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
             <div className="text-2xl sm:text-3xl font-bold text-emerald-400 truncate">
               {receiveAmount > 0
                 ? receiveAmount.toLocaleString("en-US", {
-                    maximumFractionDigits: toToken === "USDT" ? 2 : 2,
-                    minimumFractionDigits: 2,
-                  })
+                  maximumFractionDigits: toToken === "USDT" ? 2 : 2,
+                  minimumFractionDigits: 2,
+                })
                 : "0.00"}
             </div>
 
             {/* To Token Selector */}
-            <div className="flex items-center gap-1 bg-slate-800/80 border border-slate-700/80 rounded-xl p-1.5 shadow-inner">
+            <div className="flex items-center gap-1 bg-slate-800/80 border border-slate-700/80 rounded-xl p-1 shadow-inner self-start sm:self-auto flex-shrink-0">
               {(["NT", "CT", "USDT"] as TokenType[]).map((tok) => (
                 <button
                   key={tok}
@@ -214,11 +212,10 @@ export default function CurrencyCalculator() {
                     if (tok === fromToken) handleSwap();
                     else setToToken(tok);
                   }}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
-                    toToken === tok
+                  className={`px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1 ${toToken === tok
                       ? "bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/30"
                       : "text-slate-300 hover:text-white hover:bg-slate-700/50"
-                  }`}
+                    }`}
                 >
                   <span>{TOKENS[tok].flag}</span>
                   <span>{tok}</span>

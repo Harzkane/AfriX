@@ -11,10 +11,10 @@ export default function LandingFooter() {
 
   return (
     <footer className="border-t border-slate-800 bg-[#030712] relative text-slate-400 text-xs">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-8 lg:gap-12 pb-12 border-b border-slate-800/80">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-8 lg:gap-12 pb-10 sm:pb-12 border-b border-slate-800/80">
           {/* Col 1: Brand & Bio */}
-          <div className="col-span-2 space-y-4">
+          <div className="sm:col-span-2 space-y-4">
             <Link href="#top" className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-xl overflow-hidden bg-slate-900 border border-emerald-500/30 flex items-center justify-center p-1">
                 <Image
@@ -46,7 +46,7 @@ export default function LandingFooter() {
           {/* Col 2: Solutions */}
           <div className="space-y-3">
             <div className="text-xs font-mono font-bold text-white uppercase tracking-wider">Solutions</div>
-            <ul className="space-y-2">
+            <ul className="grid grid-cols-2 sm:grid-cols-1 gap-x-4 gap-y-2.5">
               <li>
                 <Link href="#ecosystem" className="hover:text-emerald-400 transition-colors">
                   Consumer Wallet
@@ -67,7 +67,7 @@ export default function LandingFooter() {
                   Marketplace Rails (Path B)
                 </Link>
               </li>
-              <li>
+              <li className="col-span-2 sm:col-span-1">
                 <Link href="#calculator" className="hover:text-emerald-400 transition-colors">
                   Instant Exchange Simulator
                 </Link>
@@ -78,7 +78,7 @@ export default function LandingFooter() {
           {/* Col 3: Developers & APIs */}
           <div className="space-y-3">
             <div className="text-xs font-mono font-bold text-white uppercase tracking-wider">Developers</div>
-            <ul className="space-y-2">
+            <ul className="grid grid-cols-2 sm:grid-cols-1 gap-x-4 gap-y-2.5">
               <li>
                 <Link href="#developers" className="hover:text-emerald-400 transition-colors">
                   REST API Endpoints
@@ -105,7 +105,7 @@ export default function LandingFooter() {
           {/* Col 4: Platform & Security */}
           <div className="space-y-3">
             <div className="text-xs font-mono font-bold text-white uppercase tracking-wider">Governance</div>
-            <ul className="space-y-2">
+            <ul className="grid grid-cols-2 sm:grid-cols-1 gap-x-4 gap-y-2.5">
               <li>
                 <Link href="#comparison" className="hover:text-emerald-400 transition-colors">
                   Why AfriX

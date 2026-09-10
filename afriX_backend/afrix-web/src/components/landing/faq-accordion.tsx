@@ -54,48 +54,48 @@ export default function FAQAccordion() {
   };
 
   return (
-    <section className="py-24 relative overflow-hidden">
+    <section className="py-16 sm:py-24 relative overflow-hidden">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
-        <div className="text-center mb-16 space-y-4">
+        <div className="text-center mb-10 sm:mb-16 space-y-3 sm:space-y-4">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-900 border border-slate-800 text-emerald-400 text-xs font-mono uppercase tracking-widest">
             <HelpCircle size={13} />
             Got Questions?
           </div>
-          <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
+          <h2 className="text-2xl sm:text-4xl font-extrabold text-white tracking-tight">
             Frequently Asked Questions
           </h2>
-          <p className="text-slate-400 text-base">
+          <p className="text-slate-400 text-sm sm:text-base">
             Everything you need to know about the rails, tokens, security, and integration paths.
           </p>
         </div>
 
         {/* Accordion List */}
-        <div className="space-y-4">
+        <div className="space-y-3 sm:space-y-4">
           {FAQS.map((faq, idx) => {
             const isOpen = openIndex === idx;
             return (
               <div
                 key={faq.question}
-                className="rounded-2xl border border-slate-800 bg-slate-900/50 backdrop-blur-md overflow-hidden transition-all duration-200 hover:border-slate-700"
+                className="rounded-xl sm:rounded-2xl border border-slate-800 bg-slate-900/50 backdrop-blur-md overflow-hidden transition-all duration-200 hover:border-slate-700"
               >
                 <button
                   type="button"
                   onClick={() => toggle(idx)}
-                  className="w-full py-5 px-6 text-left flex items-center justify-between gap-4 font-semibold text-slate-200 hover:text-white transition-colors"
+                  className="w-full py-4 px-4 sm:py-5 sm:px-6 text-left flex items-center justify-between gap-3 sm:gap-4 font-semibold text-slate-200 hover:text-white transition-colors"
                 >
-                  <span className="text-base sm:text-lg">{faq.question}</span>
+                  <span className="text-sm sm:text-lg pr-2">{faq.question}</span>
                   <div
                     className={`p-1.5 rounded-full bg-slate-800 text-slate-400 transform transition-transform duration-200 flex-shrink-0 ${
                       isOpen ? "rotate-180 text-emerald-400" : ""
                     }`}
                   >
-                    <ChevronDown size={18} />
+                    <ChevronDown size={17} />
                   </div>
                 </button>
 
                 {isOpen && (
-                  <div className="px-6 pb-6 pt-1 text-sm text-slate-300 leading-relaxed border-t border-slate-800/60 font-normal">
+                  <div className="px-4 pb-4 sm:px-6 sm:pb-6 pt-1 text-xs sm:text-sm text-slate-300 leading-relaxed border-t border-slate-800/60 font-normal">
                     {faq.answer}
                   </div>
                 )}

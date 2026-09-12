@@ -48,16 +48,16 @@ const PERSONAS: PersonaConfig[] = [
     label: "Individuals & Diaspora",
     badge: "Consumer Loop",
     title: "Send, spend, and swap without cross-border borders",
-    subtitle: "Multi-Token Non-Custodial Experience",
+    subtitle: "Programmable Multi-Token Experience",
     description:
-      "Send money to family in Lagos or Abidjan in under a minute. Hold NT, CT, and USDT with full ownership, transparent 0.5% P2P transfer fees, and seamless cash-in/cash-out through local bank transfers and mobile money.",
+      "Send money to family in Lagos or Abidjan in under a minute. Hold NT, CT, and USDT with full transparency, flat 0.5% P2P transfer fees, and seamless cash-in/cash-out through local bank transfers and mobile money.",
     features: [
       "Send value instantly using email, wallet address, or QR code",
       "Request tokens with customizable expiration (1, 3, 7, 30 days, or never)",
       "Scan-to-pay via in-app camera for peer payment requests and merchant checkouts",
       "Instant token swaps between NT (Naira), CT (CFA Franc), and USDT",
       "Escrow protection on every cash-out with independent agents",
-      "Biometric security and non-custodial cryptographic keys",
+      "Biometric security and multi-factor account hardening",
     ],
     ctaLabel: "Get Started as User",
     ctaHref: "/login",
@@ -72,10 +72,10 @@ const PERSONAS: PersonaConfig[] = [
     highlightSnippet: {
       title: "Consumer Rails Overview",
       details: {
-        "Transfer Protocol": "Direct Peer-to-Peer On-Chain Settlement",
+        "Transfer Protocol": "Direct Peer-to-Peer Sub-60s Settlement",
         "Request & Scan-to-Pay": "Live in-app camera scanner + expiring payment links",
         "Cash-In / Cash-Out": "Local Bank & Mobile Money via Verified Agents",
-        "Security Layer": "Non-Custodial Multi-Currency Vault",
+        "Security Layer": "Collateral-Backed Multi-Currency Vault",
         "Fee Transparency": "Flat 0.5% Send / 1.5% Swap (Zero Hidden FX Markup)",
       },
     },

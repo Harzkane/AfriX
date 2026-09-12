@@ -12,7 +12,7 @@ export default function SignalTicker() {
     },
     {
       icon: ShieldCheck,
-      label: "Non-Custodial Escrow",
+      label: "Collateralized Escrow",
       detail: "Agent capacity secured by USDT",
       color: "text-teal-400",
     },

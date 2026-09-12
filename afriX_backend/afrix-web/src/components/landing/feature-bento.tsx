@@ -91,7 +91,7 @@ export default function FeatureBento() {
             <span className="text-xs font-mono text-teal-400 font-medium uppercase tracking-wider block mb-1">
               Zero Counterparty Risk
             </span>
-            <h3 className="text-xl font-bold text-white mb-3">Smart Lock Escrow</h3>
+            <h3 className="text-xl font-bold text-white mb-3">Automated Lock Escrow</h3>
 
             <p className="text-slate-300 text-sm leading-relaxed mb-6">
               When cashing out or trading, tokens are programmatically locked into escrow. They are released only

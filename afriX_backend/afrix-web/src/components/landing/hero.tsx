@@ -43,7 +43,7 @@ export default function LandingHero() {
                 AfriX provides programmable settlement rails for African commerce. Transfer value between{" "}
                 <strong className="text-emerald-400 font-semibold">NT (Naira)</strong>,{" "}
                 <strong className="text-teal-400 font-semibold">CT (CFA Franc)</strong>, and{" "}
-                <strong className="text-cyan-400 font-semibold">USDT</strong> through decentralized escrow,
+                <strong className="text-cyan-400 font-semibold">USDT</strong> through collateral-backed escrow,
                 verified liquidity agents, and zero bank delays.
               </p>
             </div>
@@ -84,7 +84,7 @@ export default function LandingHero() {
                 <div className="text-lg sm:text-2xl font-bold font-mono text-white">
                   100<span className="text-emerald-400">%</span>
                 </div>
-                <div className="text-[10px] sm:text-xs text-slate-400 mt-0.5">Non-Custodial Escrow</div>
+                <div className="text-[10px] sm:text-xs text-slate-400 mt-0.5">Collateralized Escrow</div>
               </div>
             </div>
           </div>
@@ -94,7 +94,7 @@ export default function LandingHero() {
             {/* Floating Badges */}
             <div className="absolute -top-4 -left-4 z-20 hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-900/90 border border-emerald-500/30 text-emerald-400 text-xs font-mono shadow-lg backdrop-blur-md">
               <Zap size={13} className="text-emerald-400" />
-              <span>Real-time on-chain mint/burn</span>
+              <span>Real-time mint / burn settlement</span>
             </div>
 
             <div className="absolute -bottom-4 -right-4 z-20 hidden sm:flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-900/95 border border-slate-700 text-slate-300 text-xs font-mono shadow-xl backdrop-blur-md">

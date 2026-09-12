@@ -43,7 +43,7 @@ export default function LandingPage() {
         {/* 6. Comparison Table (AfriX vs Traditional Banks vs Legacy Remittance) */}
         <ComparisonTable />
 
-        {/* 7. Trust, Non-Custodial Safeguards & Escrow Security */}
+        {/* 7. Trust, Collateral Safeguards & Escrow Security */}
         <TrustSecurity />
 
         {/* 8. Interactive FAQ Accordion */}

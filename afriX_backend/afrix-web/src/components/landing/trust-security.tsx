@@ -11,8 +11,8 @@ export default function TrustSecurity() {
     },
     {
       icon: ShieldCheck,
-      title: "Smart Escrow Protocol",
-      desc: "During token sell and cash-out operations, digital tokens remain securely locked in the smart contract until the user confirms fiat receipt in their local bank or mobile money account.",
+      title: "Automated Escrow Protocol",
+      desc: "During token sell and cash-out operations, digital tokens remain securely locked in platform escrow until the user confirms fiat receipt in their local bank or mobile money account.",
     },
     {
       icon: Scale,
@@ -21,8 +21,8 @@ export default function TrustSecurity() {
     },
     {
       icon: FileCheck,
-      title: "Non-Custodial Infrastructure",
-      desc: "AfriX is a technology protocol and settlement network—not a fractional reserve bank. You maintain custody and programmatic control over your digital token balances.",
+      title: "Collateral-Backed Vouchers",
+      desc: "AfriX is a settlement network and technology provider—not a fractional reserve bank. Every token in circulation is 100% backed by liquid independent agent reserves.",
     },
   ];
 

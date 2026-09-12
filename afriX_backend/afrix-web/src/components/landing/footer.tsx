@@ -32,7 +32,7 @@ export default function LandingFooter() {
 
             <p className="text-slate-400 text-xs leading-relaxed max-w-sm">
               The programmable financial rails for African commerce. Enabling users, merchants, agents,
-              and partner platforms to settle value instantly using non-custodial digital asset protocols.
+              and partner platforms to settle value instantly using collateralized digital asset rails.
             </p>
 
             <div className="pt-2 flex items-center gap-3 text-slate-400">
@@ -136,8 +136,8 @@ export default function LandingFooter() {
             <strong>Disclaimer:</strong> AfriExchange (AfriX) is a technology infrastructure platform and
             software marketplace connecting users, independent liquidity agents, and commercial merchants.
             Digital assets (NT, CT) represent cryptographic settlement units pegged to reference currency rates
-            and are not sovereign legal tender. AfriX is non-custodial and does not engage in fractional reserve
-            banking activities.
+            and are not sovereign legal tender. AfriX does not operate as a fractional reserve bank; all voucher balances
+            are collateralized by independent agent liquidity deposits.
           </p>
         </div>
 

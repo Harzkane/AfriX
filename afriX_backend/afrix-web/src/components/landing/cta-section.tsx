@@ -49,7 +49,7 @@ export default function CTASection() {
           {/* Proof checkmarks */}
           <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-10 mt-8 sm:mt-10 text-[11px] sm:text-xs font-mono text-slate-400 pt-6 sm:pt-8 border-t border-slate-800/80">
             <span className="flex items-center gap-1.5 sm:gap-2">
-              <ShieldCheck size={14} className="text-emerald-400" /> Non-Custodial Security
+              <ShieldCheck size={14} className="text-emerald-400" /> Collateralized Escrow
             </span>
             <span className="flex items-center gap-1.5 sm:gap-2">
               <Zap size={14} className="text-emerald-400" /> Sub-60s Settlement

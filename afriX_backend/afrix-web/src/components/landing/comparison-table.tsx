@@ -41,7 +41,7 @@ const COMPARISON_DATA: ComparisonRow[] = [
   },
   {
     feature: "Transaction Protection",
-    afrix: "Automated Smart Escrow + Arbitration",
+    afrix: "Automated Escrow + Dispute Arbitration",
     banks: "Irreversible wire transfers",
     remittance: "Manual receipt verification",
     isAfrixWinner: true,
@@ -54,9 +54,9 @@ const COMPARISON_DATA: ComparisonRow[] = [
     isAfrixWinner: true,
   },
   {
-    feature: "Asset Custody Standard",
-    afrix: "Non-custodial user wallets",
-    banks: "Centralized fractional accounts",
+    feature: "Asset Protection Standard",
+    afrix: "100% USDT Collateral-Backed Vouchers",
+    banks: "Fractional reserve accounts",
     remittance: "Third-party holding",
     isAfrixWinner: true,
   },

@@ -32,7 +32,7 @@ const FAQS: FAQItem[] = [
   {
     question: "Is AfriX a bank?",
     answer:
-      "No. AfriX is a commerce technology infrastructure provider and decentralized settlement network—not a fractional reserve bank. We build the non-custodial software rails, smart escrow engines, and verification protocols that connect users, merchants, and independent peer agents.",
+      "No. AfriX is a commerce technology infrastructure provider and programmable settlement network—not a fractional reserve bank. We build the secure software rails, automated escrow engines, and verification protocols that connect users, merchants, and independent peer agents.",
   },
   {
     question: "How do 'Request Tokens' and in-app Scan-to-Pay work?",

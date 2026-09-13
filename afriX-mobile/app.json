@@ -2,7 +2,7 @@
   "expo": {
     "name": "AfriX",
     "slug": "afriX",
-    "version": "1.6.0",
+    "version": "1.6.1",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "afrix",
@@ -12,7 +12,7 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.nexgentech.afrix",
       "googleServicesFile": "./GoogleService-Info-7.plist",
-      "buildNumber": "9",
+      "buildNumber": "10",
       "entitlements": {},
       "infoPlist": {
         "NSPhotoLibraryAddUsageDescription": "Allow AfriX to save QR code images to your photo gallery.",
@@ -28,7 +28,7 @@
     "android": {
       "package": "com.nexgentech.afrix",
       "googleServicesFile": "./google-services.json",
-      "versionCode": 10,
+      "versionCode": 11,
       "adaptiveIcon": {
         "backgroundColor": "#010B25",
         "foregroundImage": "./assets/images/android-icon-foreground.png",

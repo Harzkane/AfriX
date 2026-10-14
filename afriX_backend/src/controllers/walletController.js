@@ -21,7 +21,7 @@ const walletController = {
 
       res.json({
         success: true,
-        data: wallets,
+        data: wallets.map((w) => (w.toSafeObject ? w.toSafeObject() : w)),
       });
     } catch (error) {
       next(error);
@@ -42,7 +42,7 @@ const walletController = {
 
       res.json({
         success: true,
-        data: wallet,
+        data: wallet.toSafeObject ? wallet.toSafeObject() : wallet,
       });
     } catch (error) {
       next(error);

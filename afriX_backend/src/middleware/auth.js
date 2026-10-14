@@ -4,7 +4,7 @@ const { verifyToken } = require("../utils/jwt");
 const User = require("../models/User");
 const Merchant = require("../models/Merchant");
 const { HTTP_STATUS } = require("../config/constants");
-const { getCache, setCache } = require("../utils/cache");
+const { getCache, setCache, isTokenBlacklisted } = require("../utils/cache");
 
 const loadActiveUserById = async (userId) => {
   let user = await getCache(`user:${userId}`);
@@ -42,6 +42,14 @@ const authenticate = async (req, res, next) => {
     }
 
     const token = authHeader.substring(7); // Remove 'Bearer ' prefix
+
+    // Reject tokens that have been explicitly revoked (e.g. on logout)
+    if (await isTokenBlacklisted(token)) {
+      return res.status(HTTP_STATUS.UNAUTHORIZED).json({
+        success: false,
+        message: "Token has been revoked. Please log in again.",
+      });
+    }
 
     // Verify token
     const decoded = verifyToken(token);
@@ -177,6 +185,27 @@ const authenticateMerchantAccess = async (req, res, next) => {
 };
 
 /**
+ * Optionally authenticate merchant-facing routes.
+ * If credentials are provided, validates them and populates req.user / req.merchant.
+ * If no credentials are provided, continues unauthenticated without error.
+ */
+const optionalAuthenticateMerchantAccess = async (req, res, next) => {
+  const authHeader = req.headers.authorization;
+  const bearerToken =
+    authHeader && authHeader.startsWith("Bearer ")
+      ? authHeader.substring(7).trim()
+      : "";
+  const headerApiKey =
+    req.header("x-merchant-api-key")?.trim() || req.header("x-api-key")?.trim() || "";
+
+  const tokenOrKey = bearerToken || headerApiKey;
+  if (!tokenOrKey) {
+    return next();
+  }
+  return authenticateMerchantAccess(req, res, next);
+};
+
+/**
  * Check if user has specific role
  * @param {string[]} roles - Allowed roles
  */
@@ -306,6 +335,7 @@ const optionalAuth = async (req, res, next) => {
 module.exports = {
   authenticate,
   authenticateMerchantAccess,
+  optionalAuthenticateMerchantAccess,
   authorize,
   authorizeAdmin,
   requireEmailVerification,

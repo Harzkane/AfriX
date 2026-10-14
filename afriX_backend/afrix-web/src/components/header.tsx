@@ -20,11 +20,13 @@ import { MobileSidebar } from "@/components/sidebar";
 export function Header() {
     const router = useRouter();
 
-    const handleLogout = () => {
-        // Clear cookies and localStorage
+    const handleLogout = async () => {
+        try {
+            await fetch("/api/auth/session", { method: "DELETE" });
+        } catch (_) {}
+        // Clear cookie and sessionStorage (token lives in httpOnly cookie)
         Cookies.remove("admin_token");
-        localStorage.removeItem("admin_token");
-        localStorage.removeItem("admin_user");
+        sessionStorage.removeItem("admin_user");
 
         // Redirect to login
         router.push("/login");

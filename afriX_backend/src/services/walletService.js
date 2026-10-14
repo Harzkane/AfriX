@@ -12,7 +12,17 @@ const { generateTransactionReference } = require("../utils/helpers");
 const { ethers } = require("ethers");
 const crypto = require("crypto");
 const { deliver } = require("./notificationService");
+const Money = require("../utils/money");
 
+/**
+ * Encrypt a wallet private key using AES-256-GCM (authenticated encryption).
+ *
+ * Output format: `gcm:<iv_hex>:<authTag_hex>:<ciphertext_hex>`
+ *
+ * The `gcm:` prefix distinguishes new GCM ciphertexts from legacy CBC ones
+ * (format: `<iv_hex>:<ciphertext_hex>`) so both can be decrypted transparently
+ * without a migration script.
+ */
 async function encryptPrivateKey(privateKey) {
   try {
     if (!process.env.ENCRYPTION_KEY) {
@@ -24,28 +34,67 @@ async function encryptPrivateKey(privateKey) {
         "ENCRYPTION_KEY must be a 64-character hex string (32 bytes)"
       );
     }
-    const algorithm = "aes-256-cbc";
-    const iv = crypto.randomBytes(16);
-    const cipher = crypto.createCipheriv(algorithm, key, iv);
+    const iv = crypto.randomBytes(12); // 96-bit IV is recommended for GCM
+    const cipher = crypto.createCipheriv("aes-256-gcm", key, iv);
     let encrypted = cipher.update(privateKey, "utf8", "hex");
     encrypted += cipher.final("hex");
-    const result = `${iv.toString("hex")}:${encrypted}`;
+    const authTag = cipher.getAuthTag();
     // Never log the encrypted key — even encrypted values should stay out of logs.
-    return result;
+    return `gcm:${iv.toString("hex")}:${authTag.toString("hex")}:${encrypted}`;
   } catch (error) {
     console.error("Error in encryptPrivateKey:", error.message);
     throw new Error(`Failed to encrypt private key: ${error.message}`);
   }
 }
 
+/**
+ * Decrypt a wallet private key.
+ *
+ * Supports two formats:
+ *   - GCM (new):  `gcm:<iv_hex>:<authTag_hex>:<ciphertext_hex>`
+ *   - CBC (legacy): `<iv_hex>:<ciphertext_hex>`
+ */
+function decryptPrivateKey(encryptedValue) {
+  if (!process.env.ENCRYPTION_KEY) {
+    throw new Error("ENCRYPTION_KEY is not defined in .env");
+  }
+  const key = Buffer.from(process.env.ENCRYPTION_KEY, "hex");
+  if (key.length !== 32) {
+    throw new Error("ENCRYPTION_KEY must be a 64-character hex string (32 bytes)");
+  }
+
+  if (encryptedValue.startsWith("gcm:")) {
+    // AES-256-GCM format: gcm:<iv>:<authTag>:<ciphertext>
+    const parts = encryptedValue.split(":");
+    if (parts.length !== 4) throw new Error("Invalid GCM encrypted key format");
+    const [, ivHex, authTagHex, ciphertext] = parts;
+    const iv = Buffer.from(ivHex, "hex");
+    const authTag = Buffer.from(authTagHex, "hex");
+    const decipher = crypto.createDecipheriv("aes-256-gcm", key, iv);
+    decipher.setAuthTag(authTag);
+    let decrypted = decipher.update(ciphertext, "hex", "utf8");
+    decrypted += decipher.final("utf8");
+    return decrypted;
+  } else {
+    // Legacy AES-256-CBC format: <iv>:<ciphertext>
+    const [ivHex, ciphertext] = encryptedValue.split(":");
+    const iv = Buffer.from(ivHex, "hex");
+    const decipher = crypto.createDecipheriv("aes-256-cbc", key, iv);
+    let decrypted = decipher.update(ciphertext, "hex", "utf8");
+    decrypted += decipher.final("utf8");
+    return decrypted;
+  }
+}
+
 const walletService = {
-  async getOrCreateWallet(userId, token_type, t = null) {
+  async getOrCreateWallet(userId, token_type, t = null, lock = null) {
     if (process.env.NODE_ENV === "development") {
       console.log("getOrCreateWallet called with:", { userId, token_type });
     }
     let wallet = await Wallet.findOne({
       where: { user_id: userId, token_type },
       transaction: t,
+      ...(lock && t ? { lock } : {}),
     });
     if (!wallet) {
       const ethWallet = ethers.Wallet.createRandom();
@@ -77,13 +126,9 @@ const walletService = {
     return sequelize.transaction(async (t) => {
       const wallet = await this.getOrCreateWallet(userId, token_type, t);
 
-      // Parse and update balance
-      const currentBalance = parseFloat(wallet.balance) || 0;
-      const amountToAdd = parseFloat(amount);
-      const currentReceived = parseFloat(wallet.total_received) || 0;
-
-      wallet.balance = currentBalance + amountToAdd;
-      wallet.total_received = currentReceived + amountToAdd;
+      // Update balance using precision Money math
+      wallet.balance = Money.add(wallet.balance, amount);
+      wallet.total_received = Money.add(wallet.total_received || 0, amount);
       wallet.transaction_count += 1;
 
       // Save once with transaction context
@@ -121,16 +166,13 @@ const walletService = {
       if (wallet.is_frozen) throw new ApiError("Wallet is frozen", 403);
 
       const currentBalance = parseFloat(wallet.balance) || 0;
-      const amountToDebit = parseFloat(amount);
 
-      if (currentBalance < amountToDebit) {
+      if (currentBalance < parseFloat(amount)) {
         throw new ApiError("Insufficient balance", 400);
       }
 
-      const currentSent = parseFloat(wallet.total_sent) || 0;
-
-      wallet.balance = currentBalance - amountToDebit;
-      wallet.total_sent = currentSent + amountToDebit;
+      wallet.balance = Money.sub(wallet.balance, amount);
+      wallet.total_sent = Money.add(wallet.total_sent || 0, amount);
       wallet.transaction_count += 1;
 
       await wallet.save({ transaction: t });
@@ -225,13 +267,14 @@ const walletService = {
 
     const feePercent = (PLATFORM_FEES.P2P_TRANSFER || 0.5) / 100;
     const transferAmount = parseFloat(amount);
-    const fee = transferAmount * feePercent;
-    const totalDebit = transferAmount + fee;
+    const fee = Money.mul(transferAmount, feePercent);
+    const totalDebit = Money.add(transferAmount, fee);
 
     return sequelize.transaction(async (t) => {
       const senderWallet = await Wallet.findOne({
         where: { user_id: fromUserId, token_type },
         transaction: t,
+        lock: t.LOCK.UPDATE,
       });
 
       if (!senderWallet) {
@@ -251,20 +294,21 @@ const walletService = {
       const receiverWallet = await this.getOrCreateWallet(
         recipient.id,
         token_type,
-        t
+        t,
+        t.LOCK.UPDATE
       );
 
       // Update sender wallet
       const senderSent = parseFloat(senderWallet.total_sent) || 0;
-      senderWallet.balance = senderBalance - totalDebit;
-      senderWallet.total_sent = senderSent + totalDebit;
+      senderWallet.balance = Money.sub(senderBalance, totalDebit);
+      senderWallet.total_sent = Money.add(senderSent, totalDebit);
       senderWallet.transaction_count += 1;
 
       // Update receiver wallet
       const receiverBalance = parseFloat(receiverWallet.balance) || 0;
       const receiverReceived = parseFloat(receiverWallet.total_received) || 0;
-      receiverWallet.balance = receiverBalance + transferAmount;
-      receiverWallet.total_received = receiverReceived + transferAmount;
+      receiverWallet.balance = Money.add(receiverBalance, transferAmount);
+      receiverWallet.total_received = Money.add(receiverReceived, transferAmount);
       receiverWallet.transaction_count += 1;
 
       await senderWallet.save({ transaction: t });
@@ -330,14 +374,14 @@ const walletService = {
     const exchangeRate = getExchangeRate(fromToken, toToken);
     const swapAmount = parseFloat(amount);
     const swapFeePercent = (PLATFORM_FEES.TOKEN_SWAP || 1.5) / 100;
-    const swapFee = swapAmount * swapFeePercent;
-    const netSwapAmount = swapAmount - swapFee;
-    const receiveAmount = netSwapAmount * exchangeRate;
+    const swapFee = Money.mul(swapAmount, swapFeePercent);
+    const netSwapAmount = Money.sub(swapAmount, swapFee);
+    const receiveAmount = Money.mul(netSwapAmount, exchangeRate);
 
     return sequelize.transaction(async (t) => {
-      // Get or create both wallets
-      const fromWallet = await this.getOrCreateWallet(userId, fromToken, t);
-      const toWallet = await this.getOrCreateWallet(userId, toToken, t);
+      // Get or create both wallets with row locks
+      const fromWallet = await this.getOrCreateWallet(userId, fromToken, t, t.LOCK.UPDATE);
+      const toWallet = await this.getOrCreateWallet(userId, toToken, t, t.LOCK.UPDATE);
 
       // Check balance (full amount including fee)
       const fromBalance = parseFloat(fromWallet.balance) || 0;
@@ -351,8 +395,8 @@ const walletService = {
 
       // Update from wallet (debit full amount)
       const fromSent = parseFloat(fromWallet.total_sent) || 0;
-      fromWallet.balance = fromBalance - swapAmount;
-      fromWallet.total_sent = fromSent + swapAmount;
+      fromWallet.balance = Money.sub(fromBalance, swapAmount);
+      fromWallet.total_sent = Money.add(fromSent, swapAmount);
       fromWallet.transaction_count += 1;
 
       // Collect platform swap fee to platform wallet (in source token)
@@ -371,8 +415,8 @@ const walletService = {
       // Update to wallet (credit received amount after fee)
       const toBalance = parseFloat(toWallet.balance) || 0;
       const toReceived = parseFloat(toWallet.total_received) || 0;
-      toWallet.balance = toBalance + receiveAmount;
-      toWallet.total_received = toReceived + receiveAmount;
+      toWallet.balance = Money.add(toBalance, receiveAmount);
+      toWallet.total_received = Money.add(toReceived, receiveAmount);
       toWallet.transaction_count += 1;
 
       await fromWallet.save({ transaction: t });

@@ -23,6 +23,7 @@ const {
 } = require("../config/constants");
 const { generateTransactionReference } = require("../utils/helpers");
 const { ApiError } = require("../utils/errors");
+const Money = require("../utils/money");
 const disputeService = require("./disputeService");
 
 const escrowService = {
@@ -44,20 +45,22 @@ const escrowService = {
    */
   async lockForBurn(userId, agentId, tokenType, amount, metadata = {}) {
     return sequelize.transaction(async (t) => {
-      // Step 1: Validate user wallet
+      // Step 1: Validate user wallet with row lock
       const userWallet = await Wallet.findOne({
         where: { user_id: userId, token_type: tokenType },
+        transaction: t,
+        lock: t.LOCK.UPDATE,
       });
       if (!userWallet) throw new ApiError("User wallet not found", 404);
 
       const amt = parseFloat(amount);
-      if (userWallet.balance < amt) {
+      if (parseFloat(userWallet.balance) < amt) {
         throw new ApiError("Insufficient available balance", 400);
       }
 
-      // Step 2: Move tokens to pending state
-      userWallet.balance -= amt;
-      userWallet.pending_balance += amt;
+      // Step 2: Move tokens to pending state using precision Money math
+      userWallet.balance = Money.sub(userWallet.balance, amt);
+      userWallet.pending_balance = Money.add(userWallet.pending_balance, amt);
       await userWallet.save({ transaction: t });
 
       // Step 3: Create pending transaction
@@ -132,13 +135,14 @@ const escrowService = {
       const userWallet = await Wallet.findOne({
         where: { user_id: escrow.from_user_id, token_type: escrow.token_type },
         transaction: innerT,
+        lock: innerT.LOCK.UPDATE,
       });
       if (!userWallet) throw new ApiError("User wallet not found", 404);
 
-      // Step 3: Reduce pending balance (burn tokens)
+      // Step 3: Reduce pending balance (burn tokens) using precision Money math
       userWallet.pending_balance = Math.max(
         0,
-        parseFloat(userWallet.pending_balance) - parseFloat(escrow.amount)
+        Money.sub(userWallet.pending_balance, escrow.amount)
       );
       await userWallet.save({ transaction: innerT });
 
@@ -152,13 +156,16 @@ const escrowService = {
               : tokenType === "CT"
                 ? EXCHANGE_RATES.CT_TO_USDT
                 : 1;
-          return parseFloat(amt) * (rate || 0);
+          return Money.mul(amt, rate || 0);
         };
         const amountUsdt = tokenToUsdt(escrow.amount, escrow.token_type);
-        const agent = await Agent.findByPk(escrow.agent_id, { transaction: innerT });
+        const agent = await Agent.findByPk(escrow.agent_id, {
+          transaction: innerT,
+          lock: innerT.LOCK.UPDATE,
+        });
         if (agent) {
-          agent.available_capacity = (parseFloat(agent.available_capacity) || 0) + amountUsdt;
-          agent.total_burned = (parseFloat(agent.total_burned) || 0) + parseFloat(escrow.amount);
+          agent.available_capacity = Money.add(agent.available_capacity || 0, amountUsdt);
+          agent.total_burned = Money.add(agent.total_burned || 0, escrow.amount);
 
           // ✅ Anti-gaming: Only update fairness-queue timestamp for meaningful transactions
           const { AGENT_CONFIG } = require("../config/constants");
@@ -179,7 +186,7 @@ const escrowService = {
           });
 
           const commissionUsdt = tokenToUsdt(feeBreakdown.agent_commission, escrow.token_type);
-          agent.total_earnings = (parseFloat(agent.total_earnings) || 0) + commissionUsdt;
+          agent.total_earnings = Money.add(agent.total_earnings || 0, commissionUsdt);
 
           if (feeBreakdown.platform_fee > 0) {
             await platformService.collectFee({
@@ -255,22 +262,23 @@ const escrowService = {
       const userWallet = await Wallet.findOne({
         where: { user_id: escrow.from_user_id, token_type: escrow.token_type },
         transaction: innerT,
+        lock: innerT.LOCK.UPDATE,
       });
       if (!userWallet) throw new ApiError("User wallet not found", 404);
 
-      // Step 3: Move funds back from pending → balance
-      const amt = parseFloat(escrow.amount);
+      // Step 3: Move funds back from pending → balance using Money
+      const amt = escrow.amount;
       userWallet.pending_balance = Math.max(
         0,
-        parseFloat(userWallet.pending_balance) - amt
+        Money.sub(userWallet.pending_balance, amt)
       );
-      userWallet.balance = parseFloat(userWallet.balance) + amt;
-      await userWallet.save({ transaction: t });
+      userWallet.balance = Money.add(userWallet.balance, amt);
+      await userWallet.save({ transaction: innerT });
 
       // Step 4: Update transaction and escrow
       tx.status = TRANSACTION_STATUS.REFUNDED;
       tx.metadata = { ...(tx.metadata || {}), refund_admin_notes: adminNotes };
-      await tx.save({ transaction: t });
+      await tx.save({ transaction: innerT });
 
       escrow.status = "refunded";
       escrow.metadata = {

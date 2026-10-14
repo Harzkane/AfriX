@@ -114,6 +114,13 @@ router.post("/change-password", authenticate, authController.changePassword);
 router.post("/logout", authenticate, authController.logout);
 
 /**
+ * @route   POST /api/v1/auth/refresh-token
+ * @desc    Refresh access token using valid refresh token
+ * @access  Public (rate-limited)
+ */
+router.post("/refresh-token", sensitiveAuthLimiter, authController.refreshAccessToken);
+
+/**
  * @route   GET /api/v1/auth/me
  * @desc    Get current user profile
  * @access  Private

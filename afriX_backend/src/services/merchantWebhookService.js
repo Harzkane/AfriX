@@ -130,7 +130,7 @@ const emitMerchantWebhook = async (merchantId, payload) => {
         "x-afriexchange-timestamp": timestamp,
         "x-afriexchange-signature": `sha256=${signature}`,
       },
-      timeout: 8000,
+      timeout: 20000,
     });
 
     await recordMerchantWebhookHealth(merchantId, {

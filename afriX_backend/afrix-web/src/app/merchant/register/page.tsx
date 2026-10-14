@@ -137,9 +137,13 @@ export default function MerchantRegisterPage() {
       );
 
       const merchantUser = { ...user, role: "merchant" };
-      Cookies.set("merchant_token", token, { expires: 7 });
-      localStorage.setItem("merchant_token", token);
-      localStorage.setItem("merchant_user", JSON.stringify(merchantUser));
+      // Set server-side httpOnly SameSite=strict cookie (XSS immune)
+      await fetch("/api/auth/session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token, role: "merchant" }),
+      });
+      sessionStorage.setItem("merchant_user", JSON.stringify(merchantUser));
 
       router.push("/merchant");
     } catch (err: any) {

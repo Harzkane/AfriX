@@ -14,6 +14,7 @@ const {
 const { generateTransactionReference } = require("../utils/helpers");
 const { ApiError } = require("../utils/errors");
 const { emitMerchantWebhook } = require("../services/merchantWebhookService");
+const platformService = require("../services/platformService");
 
 /**
  * Helper to build Sequelize where clause for looking up collection transactions by ID or Reference safely.
@@ -206,6 +207,23 @@ const paymentController = {
         description || existingPaymentRequest?.description || (merchant ? `Payment to ${merchant.business_name}` : `Payment to ${targetUser?.full_name || targetUser?.email}`);
 
       const transaction = await sequelize.transaction(async (dbTransaction) => {
+        // Row-lock user wallet to prevent race-condition overspends
+        const lockedUserWallet = await Wallet.findByPk(userWallet.id, {
+          transaction: dbTransaction,
+          lock: dbTransaction.LOCK.UPDATE,
+        });
+        if (!lockedUserWallet || parseFloat(lockedUserWallet.balance) < effectiveAmount) {
+          throw new ApiError("Insufficient balance", 400);
+        }
+
+        const lockedTargetWallet = await Wallet.findByPk(targetWallet.id, {
+          transaction: dbTransaction,
+          lock: dbTransaction.LOCK.UPDATE,
+        });
+        if (!lockedTargetWallet) {
+          throw new ApiError("Target wallet not found", 404);
+        }
+
         let createdTransaction;
 
         if (existingPaymentRequest) {
@@ -214,8 +232,8 @@ const paymentController = {
           existingPaymentRequest.from_user_id = user_id;
           existingPaymentRequest.to_user_id = merchant ? merchant.user_id : targetUser.id;
           existingPaymentRequest.merchant_id = merchant ? merchant.id : null;
-          existingPaymentRequest.from_wallet_id = userWallet.id;
-          existingPaymentRequest.to_wallet_id = targetWallet.id;
+          existingPaymentRequest.from_wallet_id = lockedUserWallet.id;
+          existingPaymentRequest.to_wallet_id = lockedTargetWallet.id;
           existingPaymentRequest.processed_at = new Date();
           existingPaymentRequest.description = effectiveDescription;
           existingPaymentRequest.metadata = {
@@ -241,22 +259,33 @@ const paymentController = {
               metadata: metadata || {},
               from_user_id: user_id,
               to_user_id: merchant ? merchant.user_id : targetUser.id,
-              from_wallet_id: userWallet.id,
-              to_wallet_id: targetWallet.id,
+              from_wallet_id: lockedUserWallet.id,
+              to_wallet_id: lockedTargetWallet.id,
               processed_at: new Date(),
             },
             { transaction: dbTransaction }
           );
         }
 
-        await userWallet.decrement("balance", {
+        await lockedUserWallet.decrement("balance", {
           by: effectiveAmount,
           transaction: dbTransaction,
         });
-        await targetWallet.increment("balance", {
+        await lockedTargetWallet.increment("balance", {
           by: netAmount,
           transaction: dbTransaction,
         });
+
+        // Collect platform facilitation fee into platform treasury wallet
+        if (fee > 0) {
+          await platformService.collectFee({
+            tokenType: effectiveTokenType,
+            feeAmount: fee,
+            transactionType: TRANSACTION_TYPES.COLLECTION,
+            transactionId: createdTransaction.id,
+            dbTransaction,
+          });
+        }
 
         return createdTransaction;
       });
@@ -335,13 +364,18 @@ const paymentController = {
 
       const isHostedRequest = !transaction.from_user_id;
 
-      if (
-        req.user &&
-        !isHostedRequest &&
-        req.user.id !== transaction.from_user_id &&
-        req.user.id !== transaction.to_user_id
-      ) {
-        throw new ApiError("Unauthorized to view this payment", 403);
+      // Require authentication if viewing a private P2P/internal payment
+      if (!isHostedRequest) {
+        if (!req.user) {
+          throw new ApiError("Authentication required to view this payment", 401);
+        }
+        if (
+          req.user.id !== transaction.from_user_id &&
+          req.user.id !== transaction.to_user_id &&
+          req.user.role !== "admin"
+        ) {
+          throw new ApiError("Unauthorized to view this payment", 403);
+        }
       }
 
       const isPathAMerchantCheckout =
@@ -377,6 +411,13 @@ const paymentController = {
         expiresAt = new Date(baseTime + 7 * 24 * 60 * 60 * 1000).toISOString();
       }
 
+      // Only reveal customer PII to authenticated parties involved in the payment (sender, recipient, or admin)
+      const canViewCustomerPii =
+        Boolean(req.user) &&
+        (req.user.id === transaction.from_user_id ||
+          req.user.id === transaction.to_user_id ||
+          req.user.role === "admin");
+
       res.status(200).json({
         success: true,
         data: {
@@ -391,7 +432,7 @@ const paymentController = {
           status: transaction.status,
           created_at: transaction.created_at,
           expires_at: expiresAt,
-          customer: transaction.fromUser
+          customer: canViewCustomerPii && transaction.fromUser
             ? {
                 id: transaction.fromUser.id,
                 name: transaction.fromUser.full_name,

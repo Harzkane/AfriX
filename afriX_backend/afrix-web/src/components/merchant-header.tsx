@@ -23,7 +23,7 @@ export function MerchantHeader() {
 
   useEffect(() => {
     try {
-      const storedUser = localStorage.getItem("merchant_user");
+      const storedUser = sessionStorage.getItem("merchant_user") || localStorage.getItem("merchant_user");
       setMerchantUser(storedUser ? JSON.parse(storedUser) : null);
     } catch (error) {
       console.error("Failed to load merchant user from storage:", error);
@@ -40,10 +40,14 @@ export function MerchantHeader() {
         .toUpperCase()
     : "MP";
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await fetch("/api/auth/session", { method: "DELETE" });
+    } catch (_) {}
     Cookies.remove("merchant_token");
     localStorage.removeItem("merchant_token");
     localStorage.removeItem("merchant_user");
+    sessionStorage.removeItem("merchant_user");
     router.push("/merchant/login");
   };
 

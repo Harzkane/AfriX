@@ -8,12 +8,16 @@
 
 **AfriExchange (AfriX)** is a commerce infrastructure platform that enables users, merchants, agents, and partner marketplaces to move value across African markets through programmable settlement rails built on tokenized digital assets. It lets people, independent agents, merchants, and partner platforms move value across currency zones quickly and transparently—using tokens (**NT**, **CT**, **USDT**) instead of relying only on banks and traditional remittance.
 
+AfriX operates a **hybrid ledger architecture**:
+- **High-Integrity Database Ledger (Off-Chain):** Instant, zero-gas transactions for users and merchants via PostgreSQL with strict row-level concurrency locking (`FOR UPDATE`), precision decimal math (`decimal.js`), and AES-256-GCM encrypted wallet keys.
+- **Collateral & Liquidity Security (On-Chain):** Liquidity agents lock verifiable collateral (USDT) via Polygon smart contracts, providing cryptographic solvency guarantees and on-chain deposit verification.
+
 - **For users (mobile app):** Buy, send, receive, swap, and sell tokens with agent-backed mint/burn and escrow protection, plus full support for **requesting tokens from contacts** and **scan-to-pay QR workflows** for peer requests and merchant payments.
-- **For agents:** Earn by facilitating token–cash exchanges (mint/burn) with capacity tied to a USDT security deposit, clear rules, and dispute handling.
+- **For agents:** Earn by facilitating token–cash exchanges (mint/burn) with capacity tied to a verifiable USDT security deposit, clear rules, and dispute handling.
 - **For merchants:** Accept token payments via **API**, **webhooks**, **hosted checkout** (`/pay/...` on the web app), and the **merchant portal** (collections, wallet, sell-through-agent, integration docs). Production references: **PlugNG Shop** (Path A, [plugng.shop](https://plugng.shop)) and **Kaalis Store** (Path B, XOF rail at [bruthol.com](https://bruthol.com)) via integration APIs.
 - **For operators:** Admin dashboard for users, agents, merchants, financials, operations, disputes, withdrawals, education, and security.
 
-We are **not a bank**. We are a **technology platform and marketplace** that connects users with independent agents and merchants. Tokens are blockchain-based digital assets with reference rates (e.g. 1 NT ≈ 1 Naira); they are not legal tender. We provide the rails; users and agents conduct the exchanges.
+We are **not a bank**. We are a **technology platform and marketplace** that connects users with independent agents and merchants. Tokens are digital assets with reference rates (e.g. 1 NT ≈ 1 Naira); they are not legal tender. We provide the rails; users and agents conduct the exchanges.
 
 ---
 
@@ -21,14 +25,15 @@ We are **not a bank**. We are a **technology platform and marketplace** that con
 
 | Surface | Location | Who uses it | Main capabilities |
 |--------|----------|-------------|-------------------|
-| **Mobile app** | `afriX-mobile` (Expo) | End users & agents | Auth, 2FA, biometrics, wallets, P2P send/receive, swap, mint/burn, agent mode, education, notifications, disputes |
-| **Admin dashboard** | `afriX_backend/afrix-web` — `/login`, dashboard routes | Platform admins | Overview metrics, users, agents (KYC), merchants, financials, operations, disputes, withdrawals, education, security |
-| **Merchant portal** | `afriX_backend/afrix-web` — `/merchant/*` | Approved merchants | Overview, collections, wallet assets, sell-through-agent, settings, API & webhooks, integration hub, docs, sandbox, KYC |
-| **Hosted checkout** | `afriX_backend/afrix-web` — `/pay/[id]` | Customers paying a merchant | View payment request, sign in, pay from wallet (public page; no admin/merchant cookie required) |
+| **Mobile app** | `afriX-mobile` (Expo) | End users & agents | Auth, 2FA, biometrics, wallets, P2P send/receive, swap, mint/burn, agent mode, education, notifications, disputes, sanitized dev logs |
+| **Admin dashboard** | `afriX_backend/afrix-web` — `/login`, dashboard routes | Platform admins | Overview metrics, users, agents (KYC), merchants, financials, operations, disputes, withdrawals, education, security (httpOnly session) |
+| **Merchant portal** | `afriX_backend/afrix-web` — `/merchant/*` | Approved merchants | Overview, collections, wallet assets, sell-through-agent, settings, API & webhooks, integration hub, docs, sandbox, KYC (httpOnly session) |
+| **Hosted checkout** | `afriX_backend/afrix-web` — `/pay/[id]` | Customers paying a merchant | View payment request, sign in, pay from wallet (public page; tab-isolated checkout session) |
+| **Web BFF Proxy** | `afriX_backend/afrix-web` — `/api/proxy/*`, `/api/auth/session` | Web dashboard & portal | Server-managed httpOnly cookies, HMAC-SHA256 edge verification, zero client-side JWT persistence |
 | **REST API** | `afriX_backend` — `/api/v1/*` | Apps & integrations | Auth, wallets, requests (mint/burn), payments, merchants, agents, disputes, education, notifications, **integrations** (e.g. Kaalis) |
 | **Partner APIs** | `/api/v1/integrations/kaalis/*` | Marketplace partners (Path B) | Account verify/link, collections, payouts (server-to-server + signed webhooks back to partner; verified on [bruthol.com](https://bruthol.com)) |
 
-**Deployment (example):** API hosted on Render — see repo `readme.md` (`https://afrix.onrender.com/`). Mobile points at `EXPO_PUBLIC_API_URL`; web uses `NEXT_PUBLIC_API_URL`.
+**Deployment (example):** API hosted on Render — see repo `readme.md` (`https://afrix.onrender.com/`). Mobile points at `EXPO_PUBLIC_API_URL`; web uses `NEXT_PUBLIC_API_URL` / internal proxy.
 
 ---
 
@@ -195,15 +200,15 @@ Restrictions (sanctions, age, jurisdiction) follow platform terms and applicable
 
 | Layer | Technologies |
 |--------|---------------|
-| **Backend** | Node.js, Express 5, PostgreSQL (Sequelize), Redis (optional), JWT + refresh, rate limiting, Helmet |
-| **APIs & auth** | REST `/api/v1`, JWT, 2FA (TOTP), bcrypt; merchant-scoped auth for portal routes |
-| **Blockchain** | Polygon (e.g. Amoy testnet), ethers.js, smart contracts; on-chain deposit verification for agents |
+| **Backend & Ledger** | Node.js, Express, PostgreSQL (Sequelize with pessimistic `LOCK.UPDATE`), Redis (cache & JWT revocation), AES-256-GCM wallet encryption, Decimal.js (`Money.js` precision math), Helmet, Rate limiting |
+| **APIs & Auth** | REST `/api/v1`, JWT + refresh token rotation and Redis blacklist (`bl:jwt:*`), 2FA (TOTP), bcrypt; merchant-scoped auth for portal routes |
+| **Blockchain & Solvency** | Polygon (Amoy / Mainnet), ethers.js, smart contracts; on-chain USDT collateral verification for liquidity agents |
 | **Storage** | Cloudflare R2 / S3-compatible (KYC, proofs, avatars); Multer uploads with validation |
-| **Email & notifications** | Resend, Firebase Cloud Messaging, in-app notification center |
-| **Mobile** | Expo (React Native), Expo Router, Zustand, SecureStore, expo-local-authentication (biometrics in dev builds) |
-| **Web (admin + merchant + pay)** | Next.js App Router, Tailwind, shadcn-style UI, Axios clients (`lib/api.ts`, `lib/merchant-api.ts`, customer hosted-pay client) |
-| **Jobs** | node-cron (e.g. mint/burn expiry, escrow refunds, auto-dispute triggers) |
-| **Logging** | Winston; `afriX_backend/logs/` for app/database logs (`npm run logs` in backend) |
+| **Email & Notifications** | Resend, Firebase Cloud Messaging, in-app notification center |
+| **Mobile** | Expo (React Native), Expo Router, Zustand, SecureStore, expo-local-authentication (biometrics in dev builds), DEV-gated sanitized logging |
+| **Web (Admin + Merchant + Pay)** | Next.js 16 App Router, TypeScript, Tailwind, BFF Proxy (`/api/proxy`), Server-managed `httpOnly SameSite=strict` cookies, Web Crypto HMAC-SHA256 edge verification |
+| **Background Jobs** | node-cron (`expireRequests` every 5m, `autoDisputeJob` for expired escrows every 10m, `portfolioSnapshotJob` daily) |
+| **Logging & Monitoring** | Winston; `afriX_backend/logs/` for app/database logs (`npm run logs` in backend) |
 
 **Repo layout:** `afriX_backend`, `afriX-mobile`, `afriX_backend/afrix-web`, `docs/merchant-platform/`, lifecycle docs at repo root. See `readme.md` and `afriX_backend/.env.example` for local run instructions.
 
@@ -229,19 +234,20 @@ There is **no automatic treasury sweep** without the agent submitting the transa
 
 ---
 
-## Implementation status (honest snapshot)
+## Implementation status (audited & production-ready)
 
-Aligned with `PROGRESS - What We Have Built So Far.md` and `afriX_backend/docs/Docs vs Code - Gap Audit.md`:
+Aligned with platform security re-audit ([`rewier.md`](../rewier.md)), `PROGRESS - What We Have Built So Far.md`, and active codebase:
 
-| Capability | Backend | Web | Mobile |
-|------------|---------|-----|--------|
-| Auth, 2FA, wallets, P2P, swap | ✅ | — | ✅ |
-| Mint / burn / escrow / disputes | ✅ | Admin ops | ✅ |
-| Agent register, KYC, deposit, withdrawals | ✅ | Admin | ✅ |
-| Merchant register, KYC, payment-request, pay (Path A) | ✅ (Live on plugng.shop) | Portal + `/pay/[id]` | Scan-to-pay ✅ |
-| Kaalis partner integration (Path B) | ✅ (Live on bruthol.com) | ✅ (Admin settings) | — |
-| Request tokens from friend | ✅ (`/requests/payment-request`) | Hosted pay ✅ (`/pay/[id]`) | ✅ (`modals/request-tokens`) |
-| Pay merchant / request (scan QR / in-app) | ✅ (Auto-settles request) | Hosted pay ✅ | ✅ (`Scan QR` + camera) |
+| Capability | Backend | Web | Mobile | Security / Concurrency Status |
+|------------|---------|-----|--------|------------------------------|
+| Auth, 2FA, Wallets | ✅ | ✅ (`httpOnly` session) | ✅ (SecureStore) | AES-256-GCM keys, Redis blacklist, HMAC-SHA256 edge check |
+| P2P Transfers & Swaps | ✅ | — | ✅ | Pessimistic row locks (`FOR UPDATE`), Decimal.js math |
+| Mint / Burn / Escrow | ✅ | Admin ops | ✅ | Atomic escrow, capacity locks, `autoDisputeJob` cron |
+| Agent Lifecycle & Solvency | ✅ | Admin | ✅ | On-chain Polygon deposit verification, capacity tracking |
+| Merchant Checkout (Path A) | ✅ (Live on plugng.shop) | Portal + `/pay/[id]` | Scan-to-pay ✅ | Instant settlement, net/fee split, atomic refund rollback |
+| Kaalis Integration (Path B) | ✅ (Live on bruthol.com) | ✅ (Admin settings) | — | HMAC-signed webhooks, partner account linking |
+| Request Tokens from Friend | ✅ (`/requests/payment-request`) | Hosted pay ✅ (`/pay/[id]`) | ✅ (`modals/request-tokens`) | Expiration scheduler, QR generation, deep link URLs |
+| Pay Merchant / Scan QR | ✅ (Auto-settles request) | Hosted pay ✅ | ✅ (`Scan QR` + camera) | Real-time state verification, instant debit/credit |
 
 **Merchant public launch:** Both **Path A** (standard checkout via **PlugNG Shop** at [plugng.shop](https://plugng.shop)) and **Path B** (partner marketplace integration via **Kaalis Store** at [bruthol.com](https://bruthol.com)) are fully implemented, tested, and working in production.
 
@@ -265,6 +271,7 @@ AfriX is built so that **moving value across Africa is as simple, cheap, and saf
 ### Build & alignment
 
 - **[Progress – What We Have Built So Far](PROGRESS%20-%20What%20We%20Have%20Built%20So%20Far.md)** — Backend, admin web, merchant portal, mobile; route and flow inventory.
+- **[Platform Security Re-Audit](../rewier.md)** — Security scorecard, resolved findings, and verified production status.
 - **[Docs vs Code – Gap Audit](afriX_backend/docs/Docs%20vs%20Code%20-%20Gap%20Audit.md)** — Documentation vs implementation gaps.
 - **[readme.md](readme.md)** — Repo structure, run commands, doc index.
 
@@ -292,6 +299,6 @@ AfriX is built so that **moving value across Africa is as simple, cheap, and saf
 
 ---
 
-**Version:** 2.0  
-**Last updated:** May 2026  
+**Version:** 2.2  
+**Last updated:** October 2026  
 **Based on:** `afriX_backend`, `afriX-mobile`, `afriX_backend/afrix-web`, `docs/merchant-platform/`, and root lifecycle/progress docs.

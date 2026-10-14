@@ -10,7 +10,7 @@ const API_URL =
 
 const apiClient = axios.create({
   baseURL: API_URL,
-  timeout: 10000,
+  timeout: 25000,
   headers: {
     "Content-Type": "application/json",
   },
@@ -23,11 +23,10 @@ apiClient.interceptors.request.use(
 
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
-      console.log(
-        `📡 ${config.method?.toUpperCase()} ${config.url} (with auth)`
-      );
-    } else {
-      console.log(`📡 ${config.method?.toUpperCase()} ${config.url} (no auth)`);
+    }
+
+    if (__DEV__) {
+      console.log(`📡 ${config.method?.toUpperCase()} ${config.url}`);
     }
 
     return config;
@@ -38,13 +37,20 @@ apiClient.interceptors.request.use(
 // Response Interceptor — handle 401 globally
 apiClient.interceptors.response.use(
   (response) => {
-    console.log(`✅ ${response.config.url} - ${response.status}`);
+    if (__DEV__) {
+      console.log(`✅ ${response.config.url} - ${response.status}`);
+    }
     return response;
   },
   (error) => {
     if (error.response?.status === 401) {
       console.log("⚠️  Unauthorized — token invalid or expired");
-      // Optional: Clear token and redirect to login
+      SecureStore.deleteItemAsync("auth_token").catch(() => {});
+      delete apiClient.defaults.headers.Authorization;
+      try {
+        const { useAuthStore } = require("@/stores/slices/authSlice");
+        useAuthStore.getState().logout?.();
+      } catch (_) {}
     } else if (
       error.response?.status === 403 &&
       (error.config?.url?.includes("/agents/profile") ||

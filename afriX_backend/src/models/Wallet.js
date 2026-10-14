@@ -152,6 +152,14 @@ const Wallet = sequelize.define(
     },
   },
   {
+    defaultScope: {
+      attributes: { exclude: ["encrypted_private_key"] },
+    },
+    scopes: {
+      withPrivateKey: {
+        attributes: { include: ["encrypted_private_key"] },
+      },
+    },
     timestamps: true,
     createdAt: "created_at",
     updatedAt: "updated_at",
@@ -279,11 +287,21 @@ Wallet.prototype.unfreeze = async function () {
 };
 
 /**
+ * Ensure encrypted_private_key is never serialized to JSON
+ */
+Wallet.prototype.toJSON = function () {
+  const values = Object.assign({}, this.get ? this.get() : this);
+  delete values.encrypted_private_key;
+  return values;
+};
+
+/**
  * Get safe wallet object (exclude sensitive fields)
  * @returns {Object}
  */
 Wallet.prototype.toSafeObject = function () {
-  const { encrypted_private_key, ...safeWallet } = this.toJSON();
+  const values = this.toJSON ? this.toJSON() : Object.assign({}, this);
+  const { encrypted_private_key, ...safeWallet } = values;
 
   return {
     ...safeWallet,

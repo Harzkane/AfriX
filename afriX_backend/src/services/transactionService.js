@@ -22,6 +22,7 @@ const walletService = require("./walletService");
 const platformService = require("./platformService");
 const commissionService = require("./commissionService");
 const { deliver } = require("./notificationService");
+const Money = require("../utils/money");
 
 /** Convert token amount to USDT using exchange rates (capacity and earnings are in USDT). */
 function tokenAmountToUsdt(amount, tokenType) {
@@ -53,17 +54,19 @@ const transactionService = {
       const senderWallet = await Wallet.findOne({
         where: { user_id: senderId, token_type },
         transaction: t,
+        lock: t.LOCK.UPDATE,
       });
 
       if (!senderWallet) {
         throw new ApiError("Sender wallet not found", 404);
       }
 
-      // ✅ Auto-create receiver wallet if it doesn't exist
+      // Auto-create/fetch receiver wallet with row lock
       const receiverWallet = await walletService.getOrCreateWallet(
         receiverId,
         token_type,
-        t
+        t,
+        t.LOCK.UPDATE
       );
 
       const senderBalance = parseFloat(senderWallet.balance);
@@ -87,10 +90,9 @@ const transactionService = {
         { transaction: t }
       );
 
-      // Perform debit/credit
-      senderWallet.balance = senderBalance - parseFloat(amount);
-      receiverWallet.balance =
-        parseFloat(receiverWallet.balance) + parseFloat(amount);
+      // Perform debit/credit using precision Money math
+      senderWallet.balance = Money.sub(senderBalance, amount);
+      receiverWallet.balance = Money.add(receiverWallet.balance, amount);
 
       await senderWallet.save({ transaction: t });
       await receiverWallet.save({ transaction: t });
@@ -125,16 +127,17 @@ const transactionService = {
     description
   ) {
     return sequelize.transaction(async (t) => {
-      const merchant = await Merchant.findByPk(merchantId);
+      const merchant = await Merchant.findByPk(merchantId, { transaction: t });
       if (!merchant) throw new ApiError("Merchant not found", 404);
 
       const customerWallet = await Wallet.findOne({
         where: { user_id: customerId, token_type },
         transaction: t,
+        lock: t.LOCK.UPDATE,
       });
       const merchantWallet = await Wallet.findByPk(
         merchant.settlement_wallet_id,
-        { transaction: t }
+        { transaction: t, lock: t.LOCK.UPDATE }
       );
 
       if (!customerWallet || !merchantWallet) {
@@ -147,8 +150,8 @@ const transactionService = {
       }
 
       const feePercent = parseFloat(merchant.payment_fee_percent) || 2.0;
-      const fee = (parseFloat(amount) * feePercent) / 100;
-      const netAmount = parseFloat(amount) - fee;
+      const fee = Money.div(Money.mul(amount, feePercent), 100);
+      const netAmount = Money.sub(amount, fee);
 
       // Collect platform fee to platform wallet
       let feeWalletId = null;
@@ -181,9 +184,9 @@ const transactionService = {
         { transaction: t }
       );
 
-      // Perform debit/credit
-      customerWallet.balance = customerBalance - parseFloat(amount);
-      merchantWallet.balance = parseFloat(merchantWallet.balance) + netAmount;
+      // Perform debit/credit using precision Money math
+      customerWallet.balance = Money.sub(customerBalance, amount);
+      merchantWallet.balance = Money.add(merchantWallet.balance, netAmount);
 
       await customerWallet.save({ transaction: t });
       await merchantWallet.save({ transaction: t });
@@ -203,26 +206,60 @@ const transactionService = {
    */
   async refundTransaction(transactionId) {
     return sequelize.transaction(async (t) => {
-      const tx = await Transaction.findByPk(transactionId);
+      const tx = await Transaction.findByPk(transactionId, {
+        transaction: t,
+        lock: t.LOCK.UPDATE,
+      });
       if (!tx) throw new ApiError("Transaction not found", 404);
       if (tx.status !== TRANSACTION_STATUS.COMPLETED) {
         throw new ApiError("Only completed transactions can be refunded", 400);
       }
 
-      const fromWallet = await Wallet.findByPk(tx.from_wallet_id);
-      const toWallet = await Wallet.findByPk(tx.to_wallet_id);
+      const fromWallet = await Wallet.findByPk(tx.from_wallet_id, {
+        transaction: t,
+        lock: t.LOCK.UPDATE,
+      });
+      const toWallet = await Wallet.findByPk(tx.to_wallet_id, {
+        transaction: t,
+        lock: t.LOCK.UPDATE,
+      });
 
       if (!fromWallet || !toWallet) {
         throw new ApiError("Wallet not found", 404);
       }
 
-      // Reverse funds
-      toWallet.balance = parseFloat(toWallet.balance) - parseFloat(tx.amount);
-      fromWallet.balance =
-        parseFloat(fromWallet.balance) + parseFloat(tx.amount);
+      const fee = parseFloat(tx.fee) || 0;
+      const grossAmount = parseFloat(tx.amount);
+      // For collection/merchant payments, recipient was only credited net (gross - fee)
+      const recipientCreditedAmount =
+        tx.type === TRANSACTION_TYPES.COLLECTION
+          ? Math.max(0, Money.sub(grossAmount, fee))
+          : grossAmount;
+
+      const toBalance = parseFloat(toWallet.balance) || 0;
+      if (toBalance < recipientCreditedAmount) {
+        throw new ApiError("Recipient has insufficient balance for refund", 400);
+      }
+
+      // Reverse funds using precision Money math
+      toWallet.balance = Money.sub(toBalance, recipientCreditedAmount);
+      fromWallet.balance = Money.add(fromWallet.balance, grossAmount);
 
       await toWallet.save({ transaction: t });
       await fromWallet.save({ transaction: t });
+
+      // If a platform fee was collected, reverse it from platform treasury
+      if (fee > 0 && tx.type === TRANSACTION_TYPES.COLLECTION) {
+        const platformWallet = await platformService.getPlatformWallet(tx.token_type, t);
+        if (!platformWallet || parseFloat(platformWallet.balance) < fee) {
+          throw new ApiError(
+            `Platform fee cannot be reversed: insufficient platform treasury balance for ${tx.token_type}`,
+            400
+          );
+        }
+        platformWallet.balance = Money.sub(platformWallet.balance, fee);
+        await platformWallet.save({ transaction: t });
+      }
 
       tx.status = TRANSACTION_STATUS.REFUNDED;
       await tx.save({ transaction: t });
@@ -237,24 +274,28 @@ const transactionService = {
    */
   async processAgentMint(userId, agentId, amount, token_type, metadata = {}, t = null) {
     const work = async (innerT) => {
-      // Find agent and validate
-      const agent = await Agent.findByPk(agentId, { transaction: innerT });
+      // Find agent and validate with row lock
+      const agent = await Agent.findByPk(agentId, {
+        transaction: innerT,
+        lock: innerT.LOCK.UPDATE,
+      });
       if (!agent || agent.status !== "active") {
         throw new ApiError("Agent not available or inactive", 400);
       }
 
-      // ✅ Use getOrCreateWallet to ensure user wallet exists
+      // Auto-create/fetch wallets with row locks
       const userWallet = await walletService.getOrCreateWallet(
         userId,
         token_type,
-        innerT
+        innerT,
+        innerT.LOCK.UPDATE
       );
 
-      // ✅ Use getOrCreateWallet for agent too (agents are users)
       const agentWallet = await walletService.getOrCreateWallet(
         agent.user_id,
         token_type,
-        innerT
+        innerT,
+        innerT.LOCK.UPDATE
       );
 
       const amountNum = parseFloat(amount);
@@ -297,17 +338,17 @@ const transactionService = {
         { transaction: innerT }
       );
 
-      // Update balances (user wallet receives net_amount after fees)
-      userWallet.balance = parseFloat(userWallet.balance) + feeBreakdown.net_amount;
-      agent.available_capacity -= amountUsdt;
-      agent.total_minted += amountNum;
+      // Update balances using precision Money math
+      userWallet.balance = Money.add(userWallet.balance, feeBreakdown.net_amount);
+      agent.available_capacity = Money.sub(agent.available_capacity, amountUsdt);
+      agent.total_minted = Money.add(agent.total_minted, amountNum);
 
       // Admin-resolved credits should not generate agent commission.
       let commissionToken = 0;
       if (!isAdminResolved) {
         commissionToken = feeBreakdown.agent_commission;
         const commissionUsdt = tokenAmountToUsdt(commissionToken, token_type);
-        agent.total_earnings = (parseFloat(agent.total_earnings) || 0) + commissionUsdt;
+        agent.total_earnings = Money.add(agent.total_earnings || 0, commissionUsdt);
 
         // Collect platform facilitation fee into platform treasury wallet
         if (feeBreakdown.platform_fee > 0) {
@@ -349,18 +390,25 @@ const transactionService = {
    */
   async processAgentBuyback(userId, agentId, amount, token_type, metadata = {}, t = null) {
     const work = async (innerT) => {
-      const agent = await Agent.findByPk(agentId, { transaction: innerT });
+      // Lock the agent row to prevent concurrent capacity mutations
+      const agent = await Agent.findByPk(agentId, {
+        transaction: innerT,
+        lock: innerT.LOCK.UPDATE,
+      });
       if (!agent || agent.status !== "active") {
         throw new ApiError("Agent not available or inactive", 400);
       }
 
+      // Acquire row locks on both wallets before reading balances
       const userWallet = await Wallet.findOne({
         where: { user_id: userId, token_type },
         transaction: innerT,
+        lock: innerT.LOCK.UPDATE,
       });
       const agentWallet = await Wallet.findOne({
         where: { user_id: agent.user_id, token_type },
         transaction: innerT,
+        lock: innerT.LOCK.UPDATE,
       });
 
       if (!userWallet || !agentWallet) {
@@ -389,13 +437,11 @@ const transactionService = {
         { transaction: innerT }
       );
 
-      const amountNum = parseFloat(amount);
-
       // Only deduct from user wallet balance here — the burn is still PENDING (in escrow).
       // Do NOT increment agent.total_burned yet; that happens in escrowService.finalizeBurn()
       // when the burn is confirmed. Incrementing here AND in finalizeBurn causes double-counting
       // which makes outstanding_tokens go negative and breaks the withdrawal limit calculation.
-      userWallet.balance -= amountNum;
+      userWallet.balance = Money.sub(userWallet.balance, amount);
 
       await userWallet.save({ transaction: innerT });
 

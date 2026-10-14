@@ -1,6 +1,6 @@
 # AfriExchange (AfriX)
 
-AfriExchange (AfriX) is a non-custodial multi-token payment and settlement platform for African commerce — enabling merchants, users, and agents across currency zones to transact without traditional gateway dependencies.
+AfriExchange (AfriX) is a hybrid multi-token payment and settlement platform for African commerce — utilizing high-integrity custodial database ledgers for fast, fee-free user and merchant settlement, with on-chain cryptographic settlement and collateral verification for liquidity agents on Polygon.
 
 ---
 

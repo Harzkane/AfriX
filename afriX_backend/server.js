@@ -27,8 +27,16 @@ const startServer = async () => {
     console.log("🔧 Initializing database...");
     await initDatabase();
 
-    // Seed reviewer accounts automatically
-    await seedReviewersLib();
+    // Seed reviewer accounts automatically (gated: never run in production or by default)
+    if (
+      process.env.NODE_ENV !== "production" &&
+      process.env.ENABLE_REVIEWER_SEEDER === "true"
+    ) {
+      console.log("🌱 Seeding reviewer test accounts...");
+      await seedReviewersLib();
+    } else {
+      console.log("🔒 Reviewer account seeding is disabled");
+    }
 
     // Test Redis connection only if enabled
     if (REDIS_ENABLED) {

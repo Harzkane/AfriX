@@ -22,3 +22,14 @@ cron.schedule("0 0 * * *", async () => {
     console.error("runPortfolioSnapshotJob failed:", error);
   }
 });
+
+// Run every 10 minutes to process expired escrows
+const { autoDisputeJob } = require("./autoDisputeJob");
+cron.schedule("*/10 * * * *", async () => {
+  console.log("Running autoDisputeJob...");
+  try {
+    await autoDisputeJob();
+  } catch (error) {
+    console.error("autoDisputeJob failed:", error);
+  }
+});

@@ -39,10 +39,15 @@ export default function LoginPage() {
         throw new Error("Access denied: Admin privileges required");
       }
 
-      // Store token in both cookies (for middleware) and localStorage (for API client)
-      Cookies.set("admin_token", token, { expires: 7 }); // 7 days
-      localStorage.setItem("admin_token", token);
-      localStorage.setItem("admin_user", JSON.stringify(user));
+      // Store token via server-side Set-Cookie (httpOnly Secure SameSite=strict — XSS immune)
+      await fetch("/api/auth/session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token, role: "admin" }),
+      });
+
+      // Store non-sensitive user metadata in sessionStorage (cleared on tab close; token is in httpOnly cookie)
+      sessionStorage.setItem("admin_user", JSON.stringify(user));
 
       router.push("/admin");
     } catch (err: unknown) {

@@ -8,6 +8,7 @@
  */
 
 const { User, Wallet } = require("../models");
+const Money = require("../utils/money");
 const { TOKEN_TYPES, PLATFORM_CONFIG } = require("../config/constants");
 const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
@@ -120,12 +121,10 @@ async function collectFee({
   }
 
   const platformWallet = await getPlatformWallet(tokenType, dbTransaction);
-  const fee = parseFloat(feeAmount);
 
-  // Credit platform wallet
-  const currentBalance = parseFloat(platformWallet.balance) || 0;
-  platformWallet.balance = currentBalance + fee;
-  platformWallet.total_received = (parseFloat(platformWallet.total_received) || 0) + fee;
+  // Credit platform wallet using precision Money math
+  platformWallet.balance = Money.add(platformWallet.balance, feeAmount);
+  platformWallet.total_received = Money.add(platformWallet.total_received || 0, feeAmount);
   platformWallet.transaction_count += 1;
 
   await platformWallet.save({ transaction: dbTransaction });
@@ -136,7 +135,7 @@ async function collectFee({
   }
 
   console.log(
-    `💰 Fee collected: ${fee} ${tokenType} (${transactionType}) → Platform wallet`
+    `💰 Fee collected: ${feeAmount} ${tokenType} (${transactionType}) → Platform wallet`
   );
 
   return platformWallet;

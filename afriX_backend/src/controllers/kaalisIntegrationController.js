@@ -7,7 +7,9 @@ const {
   TOKEN_TYPES,
   TRANSACTION_STATUS,
   TRANSACTION_TYPES,
+  PLATFORM_FEES,
 } = require("../config/constants");
+const Money = require("../utils/money");
 const { ApiError } = require("../utils/errors");
 const { setCache, getCache, deleteCache } = require("../utils/cache");
 
@@ -57,12 +59,18 @@ const recordKaalisWebhookHealth = async ({
   httpStatus = null,
   error = "",
 }) => {
-  const merchantId = process.env.KAALIS_AFRIEXCHANGE_MERCHANT_ID;
+  let merchantId = process.env.KAALIS_AFRIEXCHANGE_MERCHANT_ID;
   if (!merchantId) {
     return;
   }
 
   try {
+    let merchant = await Merchant.findByPk(merchantId);
+    if (!merchant) {
+      merchant = await Merchant.findOne({ where: { business_name: "Kaalis Store" } });
+    }
+    const targetId = merchant ? merchant.id : merchantId;
+
     await Merchant.update(
       {
         integration_health: {
@@ -74,7 +82,7 @@ const recordKaalisWebhookHealth = async ({
           last_webhook_error: error || "",
         },
       },
-      { where: { id: merchantId } }
+      { where: { id: targetId } }
     );
   } catch (updateError) {
     console.error("Failed to update Kaalis webhook health:", updateError.message);
@@ -130,19 +138,43 @@ const findUserAndWallet = async ({
   accountEmail,
   tokenType,
 }) => {
-  const userWhere = userId ? { id: userId } : accountEmail ? { email: accountEmail } : null;
-  let user = userWhere ? await User.findOne({ where: userWhere }) : null;
+  let user = null;
+
+  if (userId) {
+    user = await User.findOne({ where: { id: userId } });
+  }
+
+  if (!user && accountEmail) {
+    user = await User.findOne({
+      where: { email: accountEmail.trim().toLowerCase() },
+    });
+  }
 
   let wallet = null;
   if (user) {
-    wallet = await Wallet.findOne({
-      where: {
-        user_id: user.id,
-        token_type: tokenType,
-        is_active: true,
-        is_frozen: false,
-      },
-    });
+    if (walletAddress) {
+      wallet = await Wallet.findOne({
+        where: {
+          user_id: user.id,
+          blockchain_address: walletAddress,
+          token_type: tokenType,
+          is_active: true,
+          is_frozen: false,
+        },
+      });
+    }
+
+    if (!wallet) {
+      wallet = await Wallet.findOne({
+        where: {
+          user_id: user.id,
+          token_type: tokenType,
+          is_active: true,
+          is_frozen: false,
+        },
+        order: [["created_at", "ASC"]],
+      });
+    }
   }
 
   if (!wallet && walletAddress) {
@@ -184,7 +216,7 @@ const resolveLinkedAccount = async ({
 
   if (normalizedUserId) {
     const userById = await User.findByPk(normalizedUserId);
-    if (!userById) {
+    if (!userById && !normalizedEmail && !normalizedWalletAddress) {
       throw new ApiError("AfriExchange user not found for the provided user ID", 404);
     }
     resolvedUser = userById;
@@ -194,18 +226,20 @@ const resolveLinkedAccount = async ({
     const userByEmail = await User.findOne({
       where: { email: normalizedEmail },
     });
-    if (!userByEmail) {
+    if (!userByEmail && !resolvedUser && !normalizedWalletAddress) {
       throw new ApiError("AfriExchange user not found for the provided account email", 404);
     }
 
-    if (resolvedUser && resolvedUser.id !== userByEmail.id) {
+    if (resolvedUser && userByEmail && resolvedUser.id !== userByEmail.id) {
       throw new ApiError(
         "Provided AfriExchange user ID and account email belong to different profiles",
         400
       );
     }
 
-    resolvedUser = userByEmail;
+    if (!resolvedUser && userByEmail) {
+      resolvedUser = userByEmail;
+    }
   }
 
   if (normalizedWalletAddress) {
@@ -589,6 +623,8 @@ const kaalisIntegrationController = {
           kaalisPayoutId,
           status: payoutTransaction.status,
           reference: payoutTransaction.reference,
+          vendorAfriExchangeUserId: vendorUser.id,
+          vendorWalletAddress: vendorWallet.blockchain_address,
         },
       });
     } catch (error) {
@@ -650,7 +686,24 @@ const kaalisIntegrationController = {
         });
       }
 
-      const merchant = await Merchant.findByPk(merchantId);
+      let merchant = await Merchant.findByPk(merchantId);
+      if (!merchant) {
+        // Fallback: lookup by business name
+        merchant = await Merchant.findOne({
+          where: { business_name: "Kaalis Store" },
+        });
+      }
+      if (!merchant) {
+        // Fallback: lookup by kaalis integration user
+        const kaalisUser = await User.findOne({
+          where: { email: "kaalis@afriexchange.local" },
+        });
+        if (kaalisUser) {
+          merchant = await Merchant.findOne({
+            where: { user_id: kaalisUser.id },
+          });
+        }
+      }
       if (!merchant) {
         const walletWithConfiguredId = await Wallet.findByPk(merchantId);
         if (walletWithConfiguredId) {
@@ -682,19 +735,71 @@ const kaalisIntegrationController = {
         throw new ApiError("Buyer AfriExchange wallet not found", 404);
       }
 
-      if (parseFloat(buyerWallet.balance) < parseFloat(amount)) {
+      // --- Fee calculation -----------------------------------------------
+      // Use merchant's configured fee percent (from DB) or fall back to
+      // the global MERCHANT_COLLECTION platform fee (2%).
+      const feePercent =
+        (parseFloat(merchant.payment_fee_percent) ||
+          PLATFORM_FEES.MERCHANT_COLLECTION) / 100;
+      const collectionAmount = parseFloat(amount);
+      const platformFee = Money.mul(collectionAmount, feePercent);
+      const merchantNetAmount = Money.sub(collectionAmount, platformFee);
+
+      if (parseFloat(buyerWallet.balance) < collectionAmount) {
         throw new ApiError("Insufficient buyer CT balance", 400);
       }
 
       const collectionTransaction = await sequelize.transaction(
         async (dbTransaction) => {
+          // 1. Debit buyer full amount
+          await buyerWallet.decrement("balance", {
+            by: collectionAmount,
+            transaction: dbTransaction,
+          });
+          await buyerWallet.increment("total_sent", {
+            by: collectionAmount,
+            transaction: dbTransaction,
+          });
+          await buyerWallet.increment("transaction_count", {
+            by: 1,
+            transaction: dbTransaction,
+          });
+
+          // 2. Credit merchant net amount (after fee)
+          await merchantWallet.increment("balance", {
+            by: merchantNetAmount,
+            transaction: dbTransaction,
+          });
+          await merchantWallet.increment("total_received", {
+            by: merchantNetAmount,
+            transaction: dbTransaction,
+          });
+          await merchantWallet.increment("transaction_count", {
+            by: 1,
+            transaction: dbTransaction,
+          });
+
+          // 3. Collect platform fee to AfriExchange fee wallet
+          let feeWalletId = null;
+          if (platformFee > 0) {
+            const platformService = require("../services/platformService");
+            const feeWallet = await platformService.collectFee({
+              tokenType,
+              feeAmount: platformFee,
+              transactionType: "kaalis_collection",
+              dbTransaction,
+            });
+            if (feeWallet) feeWalletId = feeWallet.id;
+          }
+
+          // 4. Record transaction with actual fee
           const createdTransaction = await Transaction.create(
             {
               reference,
               type: TRANSACTION_TYPES.COLLECTION,
               status: TRANSACTION_STATUS.COMPLETED,
-              amount,
-              fee: 0,
+              amount: collectionAmount,
+              fee: platformFee,
               token_type: tokenType,
               merchant_id: merchant.id,
               description: description || "Kaalis checkout collection",
@@ -704,44 +809,39 @@ const kaalisIntegrationController = {
                 idempotencyKey,
                 kaalisOrderId,
                 kaalisBuyerId,
+                platform_fee: platformFee,
+                merchant_net_amount: merchantNetAmount,
+                fee_percent: feePercent * 100,
               },
               from_user_id: buyerUser.id,
               to_user_id: merchant.user_id,
               from_wallet_id: buyerWallet.id,
               to_wallet_id: merchantWallet.id,
+              fee_wallet_id: feeWalletId,
               processed_at: new Date(),
             },
             { transaction: dbTransaction }
           );
 
-          await buyerWallet.decrement("balance", {
-            by: amount,
-            transaction: dbTransaction,
-          });
-          await buyerWallet.increment("total_sent", {
-            by: amount,
-            transaction: dbTransaction,
-          });
-          await buyerWallet.increment("transaction_count", {
-            by: 1,
-            transaction: dbTransaction,
-          });
-          await merchantWallet.increment("balance", {
-            by: amount,
-            transaction: dbTransaction,
-          });
-          await merchantWallet.increment("total_received", {
-            by: amount,
-            transaction: dbTransaction,
-          });
-          await merchantWallet.increment("transaction_count", {
-            by: 1,
-            transaction: dbTransaction,
-          });
-
           return createdTransaction;
         }
       );
+
+      emitKaalisWebhook({
+        event: "collection.completed",
+        data: {
+          reference: collectionTransaction.reference,
+          collectionId: collectionTransaction.id,
+          kaalisOrderId,
+          amount: collectionTransaction.amount,
+          fee: platformFee,
+          merchant_net_amount: merchantNetAmount,
+          tokenType: collectionTransaction.token_type,
+          status: collectionTransaction.status,
+        },
+      }).catch((err) => {
+        console.warn("Async collection webhook emit warning:", err.message);
+      });
 
       res.status(201).json({
         success: true,
@@ -751,6 +851,11 @@ const kaalisIntegrationController = {
           kaalisOrderId,
           status: collectionTransaction.status,
           reference: collectionTransaction.reference,
+          amount: collectionAmount,
+          fee: platformFee,
+          merchant_net_amount: merchantNetAmount,
+          fee_percent: feePercent * 100,
+          tokenType,
         },
       });
     } catch (error) {

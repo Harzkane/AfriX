@@ -413,21 +413,36 @@ const requestController = {
         });
       }
 
+      const isParticipant =
+        Boolean(req.user) &&
+        (req.user.id === transaction.from_user_id ||
+          req.user.id === transaction.to_user_id ||
+          req.user.role === "admin");
+
+      // Public callers (e.g. hosted checkout page) receive only minimal non-sensitive fields.
+      // Sensitive financial data is gated behind participant/admin auth.
+      const publicPayload = {
+        id: transaction.id,
+        reference: transaction.reference,
+        token_type: transaction.token_type,
+      };
+
+      const privatePayload = isParticipant
+        ? {
+            status: transaction.status,
+            amount: transaction.amount,
+            description: transaction.description,
+            to_user: transaction.toUser
+              ? { email: transaction.toUser.email, name: transaction.toUser.full_name }
+              : null,
+            created_at: transaction.created_at,
+            paid_at: transaction.status === TRANSACTION_STATUS.COMPLETED ? transaction.updated_at : null,
+          }
+        : {};
+
       return res.json({
         success: true,
-        data: {
-          id: transaction.id,
-          reference: transaction.reference,
-          status: transaction.status,
-          amount: transaction.amount,
-          token_type: transaction.token_type,
-          description: transaction.description,
-          to_user: transaction.toUser
-            ? { email: transaction.toUser.email, name: transaction.toUser.full_name }
-            : null,
-          created_at: transaction.created_at,
-          paid_at: transaction.status === TRANSACTION_STATUS.COMPLETED ? transaction.updated_at : null,
-        },
+        data: { ...publicPayload, ...privatePayload },
       });
     } catch (error) {
       next(error);
@@ -623,45 +638,49 @@ const requestController = {
         throw new ApiError("request_id is required", 400);
       }
 
-      // Find the mint request
-      const mintRequest = await MintRequest.findByPk(request_id);
-      if (!mintRequest) {
-        throw new ApiError("Mint request not found", 404);
-      }
-
-      // Validate status
-      if (mintRequest.status !== MINT_REQUEST_STATUS.PROOF_SUBMITTED) {
-        throw new ApiError(
-          "Request must be in proof_submitted status to confirm",
-          400
-        );
-      }
-
-      // Check if request has expired
-      if (new Date() > new Date(mintRequest.expires_at)) {
-        mintRequest.status = MINT_REQUEST_STATUS.EXPIRED;
-        await mintRequest.save();
-        throw new ApiError("Mint request has expired", 400);
-      }
-
-      // ✅ USE processAgentMint instead of recordMint
-      const result = await transactionService.processAgentMint(
-        mintRequest.user_id,
-        mintRequest.agent_id,
-        parseFloat(mintRequest.amount),
-        mintRequest.token_type,
-        {
-          request_id: mintRequest.id,
-          bank_reference: bank_reference || null,
-          description: `Minted ${mintRequest.amount} ${mintRequest.token_type} via mint request`,
+      // Execute status validation, minting, and status update atomically under a row lock
+      const { mintRequest, result } = await sequelize.transaction(async (t) => {
+        const reqRow = await MintRequest.findByPk(request_id, {
+          transaction: t,
+          lock: t.LOCK.UPDATE,
+        });
+        if (!reqRow) {
+          throw new ApiError("Mint request not found", 404);
         }
-      );
 
-      // Update mint request status
-      mintRequest.status = MINT_REQUEST_STATUS.CONFIRMED;
-      mintRequest.confirmed_at = new Date();
-      mintRequest.bank_reference = bank_reference || null;
-      await mintRequest.save();
+        if (reqRow.status !== MINT_REQUEST_STATUS.PROOF_SUBMITTED) {
+          throw new ApiError(
+            "Request must be in proof_submitted status to confirm",
+            400
+          );
+        }
+
+        if (new Date() > new Date(reqRow.expires_at)) {
+          reqRow.status = MINT_REQUEST_STATUS.EXPIRED;
+          await reqRow.save({ transaction: t });
+          throw new ApiError("Mint request has expired", 400);
+        }
+
+        const txResult = await transactionService.processAgentMint(
+          reqRow.user_id,
+          reqRow.agent_id,
+          parseFloat(reqRow.amount),
+          reqRow.token_type,
+          {
+            request_id: reqRow.id,
+            bank_reference: bank_reference || null,
+            description: `Minted ${reqRow.amount} ${reqRow.token_type} via mint request`,
+          },
+          t
+        );
+
+        reqRow.status = MINT_REQUEST_STATUS.CONFIRMED;
+        reqRow.confirmed_at = new Date();
+        reqRow.bank_reference = bank_reference || null;
+        await reqRow.save({ transaction: t });
+
+        return { mintRequest: reqRow, result: txResult };
+      });
 
       await deliver(mintRequest.user_id, "TOKENS_MINTED", {
         title: "Tokens Minted!",

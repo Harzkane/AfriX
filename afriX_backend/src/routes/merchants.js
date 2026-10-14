@@ -5,7 +5,7 @@ const multer = require("multer");
 const { rateLimit } = require("express-rate-limit");
 const router = express.Router();
 const merchantController = require("../controllers/merchantController");
-const { authenticate, authenticateMerchantAccess, authorizeAdmin } = require("../middleware/auth");
+const { authenticate, authenticateMerchantAccess, optionalAuthenticateMerchantAccess, authorizeAdmin } = require("../middleware/auth");
 const {
   validateMerchantRegistration,
   validateMerchantUpdate,
@@ -88,7 +88,7 @@ router.post(
 );
 
 // Get payment request status by ID/Reference — read: 60 req / min
-router.get("/payment-request/:id", readLimiter, merchantController.getPaymentRequestById);
+router.get("/payment-request/:id", readLimiter, optionalAuthenticateMerchantAccess, merchantController.getPaymentRequestById);
 
 // Get merchant transactions — read: 60 req / min
 router.get("/transactions", readLimiter, authenticateMerchantAccess, merchantController.getTransactions);

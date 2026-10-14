@@ -2,8 +2,7 @@
 
 const crypto = require("crypto");
 const User = require("../models/User");
-const Wallet = require("../models/Wallet");
-const { generateToken, generateRefreshToken } = require("../utils/jwt");
+const { generateToken, generateRefreshToken, verifyToken, verifyRefreshToken } = require("../utils/jwt");
 const { sendVerificationEmail } = require("../services/emailService");
 const {
   HTTP_STATUS,
@@ -11,7 +10,7 @@ const {
   REGEX_PATTERNS,
 } = require("../config/constants");
 // const { redis, REDIS_ENABLED } = require("../config/redis");
-const { setCache, getCache, deleteCache } = require("../utils/cache");
+const { setCache, getCache, deleteCache, blacklistToken, isTokenBlacklisted } = require("../utils/cache");
 const { sequelize } = require("../config/database");
 const walletService = require("../services/walletService");
 const { TOKEN_TYPES } = require("../config/constants");
@@ -723,11 +722,29 @@ const logout = async (req, res) => {
   try {
     const userId = req.user.id;
 
+    // Blacklist the current access token so it is rejected immediately,
+    // even if its JWT exp has not elapsed yet.
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      const token = authHeader.substring(7);
+      const decoded = verifyToken(token);
+      if (decoded && decoded.exp) {
+        await blacklistToken(token, decoded.exp);
+      }
+    }
+
+    // Blacklist refresh token so it cannot be used to generate new access tokens
+    const refreshToken = req.body?.refresh_token || req.headers["x-refresh-token"];
+    if (refreshToken) {
+      const decodedRefresh = verifyRefreshToken(refreshToken);
+      if (decodedRefresh && decodedRefresh.exp) {
+        await blacklistToken(refreshToken, decodedRefresh.exp);
+      }
+    }
+
     // Clear user cache
     await deleteCache(`user:${userId}`);
     await deleteCache(`wallets:${userId}`);
-
-    // TODO: Add token to blacklist in Redis
 
     res.status(HTTP_STATUS.OK).json({
       success: true,
@@ -1086,7 +1103,9 @@ const sendPhoneOtp = async (req, res) => {
     user.email_verification_expires = new Date(Date.now() + 10 * 60 * 1000);
     await user.save();
 
-    console.log(`📱 [PHONE OTP] Sent to ${phone_number}: Code = ${otpCode}`);
+    if (process.env.NODE_ENV === "development") {
+      console.log(`📱 [PHONE OTP] Sent to ${phone_number}: Code = ${otpCode}`);
+    }
 
     res.status(HTTP_STATUS.OK).json({
       success: true,
@@ -1156,6 +1175,60 @@ const verifyPhoneOtp = async (req, res) => {
   }
 };
 
+/**
+ * Refresh access token
+ * POST /api/v1/auth/refresh-token
+ */
+const refreshAccessToken = async (req, res) => {
+  try {
+    const refreshToken = req.body?.refresh_token || req.headers["x-refresh-token"];
+    if (!refreshToken) {
+      return res.status(HTTP_STATUS.BAD_REQUEST).json({
+        success: false,
+        message: "Refresh token is required",
+      });
+    }
+
+    if (await isTokenBlacklisted(refreshToken)) {
+      return res.status(HTTP_STATUS.UNAUTHORIZED).json({
+        success: false,
+        message: "Refresh token has been revoked",
+      });
+    }
+
+    const decoded = verifyRefreshToken(refreshToken);
+    if (!decoded || !decoded.id) {
+      return res.status(HTTP_STATUS.UNAUTHORIZED).json({
+        success: false,
+        message: "Invalid or expired refresh token",
+      });
+    }
+
+    const user = await User.findByPk(decoded.id);
+    if (!user || !user.is_active || user.is_suspended) {
+      return res.status(HTTP_STATUS.UNAUTHORIZED).json({
+        success: false,
+        message: "User profile inactive or suspended",
+      });
+    }
+
+    const newAccessToken = generateToken(user.id);
+    return res.status(HTTP_STATUS.OK).json({
+      success: true,
+      data: {
+        access_token: newAccessToken,
+        expires_in: "24h",
+      },
+    });
+  } catch (error) {
+    console.error("Refresh token error:", error);
+    return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
+      success: false,
+      message: "Failed to refresh token",
+    });
+  }
+};
+
 module.exports = {
   registerAdmin,
   register,
@@ -1166,6 +1239,7 @@ module.exports = {
   resetPassword,
   changePassword,
   logout,
+  refreshAccessToken,
   getCurrentUser,
   setup2FA,
   verify2FA,

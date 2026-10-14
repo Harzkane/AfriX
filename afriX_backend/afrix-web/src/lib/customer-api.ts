@@ -5,17 +5,23 @@ const USER_PROFILE_KEY = "user_profile";
 
 export const getStoredUserToken = () => {
   if (typeof window === "undefined") return null;
-  return localStorage.getItem(USER_TOKEN_KEY);
+  return sessionStorage.getItem(USER_TOKEN_KEY) || localStorage.getItem(USER_TOKEN_KEY);
 };
 
 export const setStoredUserSession = (token: string, user: unknown) => {
   if (typeof window === "undefined") return;
-  localStorage.setItem(USER_TOKEN_KEY, token);
-  localStorage.setItem(USER_PROFILE_KEY, JSON.stringify(user));
+  // Use sessionStorage so checkout tokens are not persisted to disk on shared devices
+  sessionStorage.setItem(USER_TOKEN_KEY, token);
+  sessionStorage.setItem(USER_PROFILE_KEY, JSON.stringify(user));
+  // Clean up any legacy localStorage entry
+  localStorage.removeItem(USER_TOKEN_KEY);
+  localStorage.removeItem(USER_PROFILE_KEY);
 };
 
 export const clearStoredUserSession = () => {
   if (typeof window === "undefined") return;
+  sessionStorage.removeItem(USER_TOKEN_KEY);
+  sessionStorage.removeItem(USER_PROFILE_KEY);
   localStorage.removeItem(USER_TOKEN_KEY);
   localStorage.removeItem(USER_PROFILE_KEY);
 };

@@ -34,9 +34,13 @@ export default function MerchantLoginPage() {
         throw new Error("Access denied: Merchant privileges required");
       }
 
-      Cookies.set("merchant_token", token, { expires: 7 });
-      localStorage.setItem("merchant_token", token);
-      localStorage.setItem("merchant_user", JSON.stringify(user));
+      // Set server-side httpOnly SameSite=strict cookie (XSS immune)
+      await fetch("/api/auth/session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token, role: "merchant" }),
+      });
+      sessionStorage.setItem("merchant_user", JSON.stringify(user));
 
       router.push("/merchant");
     } catch (err: any) {

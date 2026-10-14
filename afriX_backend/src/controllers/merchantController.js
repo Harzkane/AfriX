@@ -13,9 +13,10 @@ const transactionService = require("../services/transactionService");
 const { sequelize } = require("../config/database");
 const { ValidationError } = require("../utils/errors");
 const { generateQR } = require("../utils/qrcode");
-const { uploadToR2 } = require("../services/r2Service");
 const { emitMerchantWebhook, ensureWebhookSecret } = require("../services/merchantWebhookService");
 const { deliver } = require("../services/notificationService");
+const platformService = require("../services/platformService");
+const Money = require("../utils/money");
 /**
  * Merchant Controller
  *
@@ -373,19 +374,37 @@ const merchantController = {
         });
       }
 
+      const isParticipant =
+        Boolean(req.user) &&
+        (req.user.id === transaction.from_user_id ||
+          req.user.id === transaction.to_user_id ||
+          req.user.role === "admin" ||
+          (req.merchant && transaction.merchant_id && req.merchant.id === transaction.merchant_id));
+
+      // Public callers (hosted checkout page) get only the minimal fields needed
+      // to render the UI. Sensitive financial fields are gated behind auth.
+      const publicPayload = {
+        id: transaction.id,
+        reference: transaction.reference,
+        token_type: transaction.token_type,
+      };
+
+      const privatePayload = isParticipant
+        ? {
+            status: transaction.status,
+            amount: transaction.amount,
+            description: transaction.description,
+            to_user: transaction.toUser
+              ? { email: transaction.toUser.email, name: transaction.toUser.full_name }
+              : null,
+            created_at: transaction.created_at,
+            paid_at: transaction.status === "completed" ? transaction.updated_at : null,
+          }
+        : {};
+
       return res.json({
         success: true,
-        data: {
-          id: transaction.id,
-          reference: transaction.reference,
-          status: transaction.status,
-          amount: transaction.amount,
-          token_type: transaction.token_type,
-          description: transaction.description,
-          to_user: transaction.toUser ? { email: transaction.toUser.email, name: transaction.toUser.full_name } : null,
-          created_at: transaction.created_at,
-          paid_at: transaction.status === "completed" ? transaction.updated_at : null,
-        },
+        data: { ...publicPayload, ...privatePayload },
       });
     } catch (error) {
       next(error);
@@ -1021,37 +1040,77 @@ const merchantController = {
         });
       }
 
-      // Check the merchant wallet still has enough balance to cover the refund
-      if (parseFloat(toWallet.balance) < parseFloat(tx.amount)) {
+      const fee = parseFloat(tx.fee) || 0;
+      const grossAmount = parseFloat(tx.amount);
+      const recipientCreditedAmount = Math.max(0, Money.sub(grossAmount, fee));
+
+      // Check the merchant wallet has enough balance to cover the net amount that was credited to it
+      if (parseFloat(toWallet.balance) < recipientCreditedAmount) {
         return res.status(422).json({
           success: false,
           error: {
             message:
               `Insufficient merchant wallet balance to process this refund. ` +
-              `Available: ${toWallet.balance} ${tx.token_type}, Required: ${tx.amount} ${tx.token_type}.`,
+              `Available: ${toWallet.balance} ${tx.token_type}, Required: ${recipientCreditedAmount} ${tx.token_type}.`,
           },
         });
       }
 
-      // Atomically reverse the token movement and mark the transaction REFUNDED
+      // Atomically reverse the token movement, reverse platform fee, and mark the transaction REFUNDED
       const refundedTx = await sequelize.transaction(async (dbTx) => {
-        // Debit from merchant wallet
-        await toWallet.decrement("balance",       { by: tx.amount, transaction: dbTx });
-        await toWallet.increment("total_sent",    { by: tx.amount, transaction: dbTx });
-        await toWallet.increment("transaction_count", { by: 1,    transaction: dbTx });
+        const lockedToWallet = await Wallet.findByPk(toWallet.id, {
+          transaction: dbTx,
+          lock: dbTx.LOCK.UPDATE,
+        });
+        const lockedFromWallet = await Wallet.findByPk(fromWallet.id, {
+          transaction: dbTx,
+          lock: dbTx.LOCK.UPDATE,
+        });
 
-        // Credit back to buyer wallet
-        await fromWallet.increment("balance",        { by: tx.amount, transaction: dbTx });
-        await fromWallet.increment("total_received", { by: tx.amount, transaction: dbTx });
-        await fromWallet.increment("transaction_count", { by: 1,     transaction: dbTx });
+        if (!lockedToWallet || !lockedFromWallet) {
+          throw new ValidationError("Wallet records could not be locked for refund");
+        }
+
+        if (parseFloat(lockedToWallet.balance) < recipientCreditedAmount) {
+          throw new ValidationError(
+            `Insufficient merchant wallet balance. Available: ${lockedToWallet.balance}, Required: ${recipientCreditedAmount}`
+          );
+        }
+
+        // Debit NET amount that merchant received
+        lockedToWallet.balance = Money.sub(lockedToWallet.balance, recipientCreditedAmount);
+        lockedToWallet.total_sent = Money.add(lockedToWallet.total_sent, recipientCreditedAmount);
+        lockedToWallet.transaction_count += 1;
+        await lockedToWallet.save({ transaction: dbTx });
+
+        // Credit full GROSS amount back to buyer
+        lockedFromWallet.balance = Money.add(lockedFromWallet.balance, grossAmount);
+        lockedFromWallet.total_received = Money.add(lockedFromWallet.total_received, grossAmount);
+        lockedFromWallet.transaction_count += 1;
+        await lockedFromWallet.save({ transaction: dbTx });
+
+        // Reverse platform fee from platform treasury wallet if fee was collected
+        if (fee > 0) {
+          const platformWallet = await platformService.getPlatformWallet(tx.token_type, dbTx);
+          if (!platformWallet || parseFloat(platformWallet.balance) < fee) {
+            throw new ValidationError(
+              `Platform fee cannot be reversed: insufficient platform treasury balance for ${tx.token_type}`
+            );
+          }
+          platformWallet.balance = Money.sub(platformWallet.balance, fee);
+          await platformWallet.save({ transaction: dbTx });
+        }
 
         tx.status = TRANSACTION_STATUS.REFUNDED;
         tx.metadata = {
           ...(tx.metadata || {}),
-          refund_reason:    String(reason).trim(),
-          refunded_by:      userId,
+          refund_reason: String(reason).trim(),
+          refunded_by: userId,
           refunded_by_role: "merchant",
-          refunded_at:      new Date().toISOString(),
+          refunded_at: new Date().toISOString(),
+          refund_gross_amount: grossAmount,
+          refund_net_debited: recipientCreditedAmount,
+          refund_fee_reversed: fee,
         };
         await tx.save({ transaction: dbTx });
 

@@ -17,6 +17,7 @@ import {
   Clock,
   AlertCircle,
   ExternalLink,
+  TrendingUp,
 } from "lucide-react";
 
 import merchantApi from "@/lib/merchant-api";
@@ -182,8 +183,15 @@ export default function MerchantPayoutsPage() {
     const totalVolume = completed.reduce((sum, tx) => sum + Number(tx.amount || 0), 0);
     const avgVolume = completed.length > 0 ? totalVolume / completed.length : 0;
 
+    const totalPlatformFees = completed.reduce((sum, tx) => {
+      const explicitFee = Number(tx.metadata?.platformFee);
+      if (!isNaN(explicitFee) && explicitFee > 0) return sum + explicitFee;
+      return sum + (Number(tx.amount || 0) / 0.92) * 0.08;
+    }, 0);
+
     return {
       totalVolume,
+      totalPlatformFees,
       completedCount: completed.length,
       pendingCount: pending.length,
       avgVolume,
@@ -250,7 +258,22 @@ export default function MerchantPayoutsPage() {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+        <Card className="border-purple-100 bg-purple-50/20">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-purple-900 dark:text-purple-300">Platform Fees (8%)</CardTitle>
+            <TrendingUp className="h-4 w-4 text-purple-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-purple-700 dark:text-purple-300">
+              {formatAmount(stats.totalPlatformFees)} CT
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Accumulated 8% fee retained by platform
+            </p>
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Paid to Vendors</CardTitle>

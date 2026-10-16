@@ -10,6 +10,7 @@ import {
   ShieldCheck,
   Store,
   Wallet,
+  TrendingUp,
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -44,6 +45,7 @@ type MerchantSummary = {
   total_volume: number;
   total_payouts?: number;
   total_payout_volume?: number;
+  total_platform_fees?: number;
   pending_payments: number;
 };
 
@@ -284,7 +286,7 @@ export default function MerchantOverviewPage() {
         </div>
       </section>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium">Successful Collections</CardTitle>
@@ -332,6 +334,25 @@ export default function MerchantOverviewPage() {
                 </p>
               </div>
               <Send className="h-4 w-4 text-emerald-500" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-purple-100 bg-purple-50/20">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-purple-900 dark:text-purple-300">Platform Fees (8%)</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-start justify-between">
+              <div>
+                <div className="text-2xl font-semibold text-purple-700 dark:text-purple-300">
+                  {formatAmount(summary?.total_platform_fees)}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Accumulated 8% fee
+                </p>
+              </div>
+              <TrendingUp className="h-4 w-4 text-purple-600" />
             </div>
           </CardContent>
         </Card>

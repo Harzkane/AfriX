@@ -240,6 +240,12 @@ const merchantService = {
     );
     const totalPayoutCount = completedPayouts.length;
 
+    const totalPlatformFees = completedPayouts.reduce((sum, tx) => {
+      const explicitFee = parseFloat(tx.metadata?.platformFee);
+      if (!isNaN(explicitFee) && explicitFee > 0) return sum + explicitFee;
+      return sum + (parseFloat(tx.amount) / 0.92) * 0.08;
+    }, 0);
+
     const pendingPayments = transactions.filter(
       (tx) => tx.status === TRANSACTION_STATUS.PENDING
     ).length;
@@ -249,6 +255,7 @@ const merchantService = {
       total_volume: totalVolume,
       total_payouts: totalPayoutCount,
       total_payout_volume: totalPayoutVolume,
+      total_platform_fees: totalPlatformFees,
       pending_payments: pendingPayments,
     };
   },

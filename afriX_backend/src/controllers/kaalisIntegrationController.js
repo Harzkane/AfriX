@@ -430,6 +430,7 @@ const kaalisIntegrationController = {
           requestId,
           expiresInSeconds: Math.floor(LINK_VERIFICATION_TTL_MS / 1000),
           maskedEmail: maskEmail(user.email),
+          ...(process.env.NODE_ENV !== "production" ? { code } : {}),
         },
       });
     } catch (error) {
@@ -557,6 +558,21 @@ const kaalisIntegrationController = {
         throw new ApiError("Vendor AfriExchange wallet not found", 404);
       }
 
+      let merchant = null;
+      const configuredMerchantId = process.env.KAALIS_AFRIEXCHANGE_MERCHANT_ID;
+      if (configuredMerchantId) {
+        merchant = await Merchant.findByPk(configuredMerchantId);
+      }
+      if (!merchant) {
+        merchant = await Merchant.findOne({ where: { business_name: "Kaalis Store" } });
+      }
+      if (!merchant) {
+        const kaalisUser = await User.findOne({ where: { email: "kaalis@afriexchange.local" } });
+        if (kaalisUser) {
+          merchant = await Merchant.findOne({ where: { user_id: kaalisUser.id } });
+        }
+      }
+
       const payoutTransaction = await sequelize.transaction(async (dbTransaction) => {
         const createdTransaction = await Transaction.create(
           {
@@ -567,18 +583,23 @@ const kaalisIntegrationController = {
             fee: 0,
             token_type: tokenType,
             description: description || "Kaalis vendor settlement",
+            merchant_id: merchant ? merchant.id : null,
+            from_user_id: merchant ? merchant.user_id : null,
+            from_wallet_id: merchant ? merchant.settlement_wallet_id : null,
+            to_user_id: vendorUser.id,
+            to_wallet_id: vendorWallet.id,
             metadata: {
               ...metadata,
               source: "kaalis",
+              payout_type: "vendor_settlement",
               idempotencyKey,
               kaalisPayoutId,
               kaalisVendorId,
+              vendor_email: vendorUser.email,
+              vendor_name: vendorUser.full_name,
+              vendor_wallet_address: vendorWallet.blockchain_address,
               country,
             },
-            from_user_id: null,
-            to_user_id: vendorUser.id,
-            from_wallet_id: null,
-            to_wallet_id: vendorWallet.id,
             processed_at: new Date(),
           },
           { transaction: dbTransaction }

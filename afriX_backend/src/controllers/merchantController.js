@@ -418,7 +418,8 @@ const merchantController = {
   getTransactions: async (req, res, next) => {
     try {
       const userId = req.user.id;
-      const { status, page = 1, limit = 20 } = req.query;
+      const { status, type, search, page = 1, limit = 20 } = req.query;
+      const { Op } = require("sequelize");
 
       const merchant = await Merchant.findOne({ where: { user_id: userId } });
 
@@ -435,16 +436,63 @@ const merchantController = {
       const query = {
         where: {
           merchant_id: merchant.id,
-          type: TRANSACTION_TYPES.COLLECTION, // ← Changed from 'transaction_type'
         },
         order: [["created_at", "DESC"]],
         limit: parseInt(limit),
         offset: (parseInt(page) - 1) * parseInt(limit),
+        include: [
+          {
+            model: User,
+            as: "fromUser",
+            attributes: ["id", "full_name", "email", "phone_number"],
+            required: false,
+          },
+          {
+            model: User,
+            as: "toUser",
+            attributes: ["id", "full_name", "email", "phone_number"],
+            required: false,
+          },
+          {
+            model: Wallet,
+            as: "toWallet",
+            attributes: ["id", "blockchain_address", "token_type"],
+            required: false,
+          },
+        ],
       };
 
+      // Type filter:
+      // "payout" or "credit" -> vendor settlements
+      // "all" -> both collections and payouts
+      // default -> collection
+      if (type === "payout" || type === "credit") {
+        query.where.type = TRANSACTION_TYPES.CREDIT;
+      } else if (type === "all") {
+        query.where.type = {
+          [Op.in]: [TRANSACTION_TYPES.COLLECTION, TRANSACTION_TYPES.CREDIT],
+        };
+      } else {
+        query.where.type = TRANSACTION_TYPES.COLLECTION;
+      }
+
       // Add status filter if provided
-      if (status) {
+      if (status && status !== "all") {
         query.where.status = status;
+      }
+
+      // Add search filter if provided
+      if (search && search.trim()) {
+        const term = `%${search.trim().toLowerCase()}%`;
+        query.where[Op.and] = [
+          ...(query.where[Op.and] || []),
+          {
+            [Op.or]: [
+              { reference: { [Op.iLike]: term } },
+              { description: { [Op.iLike]: term } },
+            ],
+          },
+        ];
       }
 
       // Get transactions
@@ -491,7 +539,6 @@ const merchantController = {
         where: {
           id,
           merchant_id: merchant.id,
-          type: TRANSACTION_TYPES.COLLECTION,
         },
         include: [
           {

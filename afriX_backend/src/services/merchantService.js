@@ -220,11 +220,25 @@ const merchantService = {
       (tx) => tx.status === TRANSACTION_STATUS.COMPLETED
     );
 
-    const totalVolume = completed.reduce(
+    const completedCollections = completed.filter(
+      (tx) => tx.type === TRANSACTION_TYPES.COLLECTION
+    );
+
+    const completedPayouts = completed.filter(
+      (tx) => tx.type === TRANSACTION_TYPES.CREDIT
+    );
+
+    const totalVolume = completedCollections.reduce(
       (sum, tx) => sum + parseFloat(tx.amount),
       0
     );
-    const totalCount = completed.length;
+    const totalCount = completedCollections.length;
+
+    const totalPayoutVolume = completedPayouts.reduce(
+      (sum, tx) => sum + parseFloat(tx.amount),
+      0
+    );
+    const totalPayoutCount = completedPayouts.length;
 
     const pendingPayments = transactions.filter(
       (tx) => tx.status === TRANSACTION_STATUS.PENDING
@@ -233,6 +247,8 @@ const merchantService = {
     return {
       total_collections: totalCount,
       total_volume: totalVolume,
+      total_payouts: totalPayoutCount,
+      total_payout_volume: totalPayoutVolume,
       pending_payments: pendingPayments,
     };
   },

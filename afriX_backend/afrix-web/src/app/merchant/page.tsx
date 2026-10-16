@@ -6,6 +6,7 @@ import {
   ArrowRight,
   CreditCard,
   Receipt,
+  Send,
   ShieldCheck,
   Store,
   Wallet,
@@ -41,6 +42,8 @@ type MerchantProfile = {
 type MerchantSummary = {
   total_collections: number;
   total_volume: number;
+  total_payouts?: number;
+  total_payout_volume?: number;
   pending_payments: number;
 };
 
@@ -269,13 +272,19 @@ export default function MerchantOverviewPage() {
               </Link>
             </Button>
             <Button asChild variant="outline">
+              <Link href="/merchant/payouts">
+                <Send className="mr-2 h-4 w-4" />
+                Vendor Payouts
+              </Link>
+            </Button>
+            <Button asChild variant="outline">
               <Link href="/merchant/wallet-assets">Wallet Assets</Link>
             </Button>
           </div>
         </div>
       </section>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium">Successful Collections</CardTitle>
@@ -284,7 +293,7 @@ export default function MerchantOverviewPage() {
             <div className="flex items-start justify-between">
               <div>
                 <div className="text-2xl font-semibold">{summary?.total_collections ?? 0}</div>
-                <p className="text-xs text-muted-foreground">Completed merchant payment receipts</p>
+                <p className="text-xs text-muted-foreground">Completed payment receipts</p>
               </div>
               <Receipt className="h-4 w-4 text-muted-foreground" />
             </div>
@@ -293,7 +302,7 @@ export default function MerchantOverviewPage() {
 
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Total Volume</CardTitle>
+            <CardTitle className="text-sm font-medium">Collected Volume</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-start justify-between">
@@ -310,13 +319,32 @@ export default function MerchantOverviewPage() {
 
         <Card>
           <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Vendor Settlements</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-start justify-between">
+              <div>
+                <div className="text-2xl font-semibold text-emerald-600">
+                  {formatAmount(summary?.total_payout_volume)}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {summary?.total_payouts ?? 0} vendor payout{summary?.total_payouts === 1 ? "" : "s"}
+                </p>
+              </div>
+              <Send className="h-4 w-4 text-emerald-500" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium">Pending Payments</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-start justify-between">
               <div>
                 <div className="text-2xl font-semibold">{summary?.pending_payments ?? 0}</div>
-                <p className="text-xs text-muted-foreground">Awaiting completion or follow-up</p>
+                <p className="text-xs text-muted-foreground">Awaiting completion</p>
               </div>
               <ShieldCheck className="h-4 w-4 text-muted-foreground" />
             </div>

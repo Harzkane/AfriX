@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
   CreditCard,
+  Send,
   Wallet,
   ArrowRightLeft,
   Settings,
@@ -32,6 +33,12 @@ const routes = [
     icon: CreditCard,
     href: "/merchant/collections",
     matches: ["/merchant/collections"],
+  },
+  {
+    label: "Vendor Payouts",
+    icon: Send,
+    href: "/merchant/payouts",
+    matches: ["/merchant/payouts"],
   },
   {
     label: "Wallet Assets",

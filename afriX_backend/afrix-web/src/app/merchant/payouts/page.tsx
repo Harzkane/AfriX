@@ -474,6 +474,65 @@ export default function MerchantPayoutsPage() {
                 </div>
               </div>
 
+              {/* Payout Breakdown */}
+              <div className="rounded-xl border bg-muted/20 p-4 space-y-2">
+                <h4 className="font-semibold text-xs uppercase tracking-wider text-muted-foreground mb-3">
+                  Payout Breakdown
+                </h4>
+                {(() => {
+                  const vendorAmt = Number(selectedPayout.amount || 0);
+                  const orderTotal = selectedPayout.metadata?.order_total
+                    ? Number(selectedPayout.metadata.order_total)
+                    : vendorAmt / 0.92;
+                  const platformFee = selectedPayout.metadata?.platform_fee
+                    ? Number(selectedPayout.metadata.platform_fee)
+                    : orderTotal * 0.08;
+                  const currency = selectedPayout.metadata?.currency || selectedPayout.token_type || "CT";
+                  const pct = ((vendorAmt / orderTotal) * 100).toFixed(1);
+                  const fmt = (n: number) =>
+                    n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                  return (
+                    <>
+                      <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-background">
+                        <span className="text-xs text-muted-foreground">Order Total</span>
+                        <span className="text-xs font-semibold">{fmt(orderTotal)} {currency}</span>
+                      </div>
+                      <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-red-50 dark:bg-red-950/30">
+                        <div className="flex items-center gap-2">
+                          <span className="inline-flex h-2 w-2 rounded-full bg-red-400" />
+                          <span className="text-xs font-medium text-red-700 dark:text-red-400">
+                            Platform Fee (8%)
+                            {!selectedPayout.metadata?.platform_fee && (
+                              <span className="ml-1 text-[10px] opacity-60">(est.)</span>
+                            )}
+                          </span>
+                        </div>
+                        <span className="text-xs font-semibold text-red-700 dark:text-red-400">
+                          − {fmt(platformFee)} {currency}
+                        </span>
+                      </div>
+                      <div className="border-t pt-2">
+                        <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-emerald-50 dark:bg-emerald-950/30">
+                          <div className="flex items-center gap-2">
+                            <span className="inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+                            <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-400">
+                              Vendor Payout (92%)
+                            </span>
+                          </div>
+                          <span className="text-sm font-bold text-emerald-700 dark:text-emerald-400">
+                            {fmt(vendorAmt)} {currency}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="overflow-hidden rounded-full bg-muted h-1.5 mt-1">
+                        <div className="h-1.5 rounded-full bg-emerald-500" style={{ width: `${pct}%` }} />
+                      </div>
+                      <p className="text-right text-[10px] text-muted-foreground">{pct}% of order goes to vendor</p>
+                    </>
+                  );
+                })()}
+              </div>
+
               <div className="space-y-3">
                 <h4 className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">
                   Vendor Recipient Information

@@ -1,7 +1,9 @@
 const express = require("express");
 const router = express.Router();
 const kaalisIntegrationController = require("../controllers/kaalisIntegrationController");
+const renthubIntegrationController = require("../controllers/renthubIntegrationController");
 
+// ── Kaalis routes ──────────────────────────────────────────────────────────────
 router.use(
   "/kaalis",
   kaalisIntegrationController.authenticateKaalis
@@ -19,5 +21,15 @@ router.post(
 router.post("/kaalis/payouts", kaalisIntegrationController.createPayout);
 router.get("/kaalis/payouts/:id", kaalisIntegrationController.getPayout);
 router.post("/kaalis/collections", kaalisIntegrationController.createCollection);
+
+// ── RentHub routes ─────────────────────────────────────────────────────────────
+router.use(
+  "/renthub",
+  renthubIntegrationController.authenticateRentHub
+);
+
+router.post("/renthub/collections", renthubIntegrationController.createCollection);
+router.post("/renthub/payouts", renthubIntegrationController.createPayout);
+router.get("/renthub/payouts/:id", renthubIntegrationController.getPayout);
 
 module.exports = router;

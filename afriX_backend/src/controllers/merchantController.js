@@ -199,7 +199,7 @@ const merchantController = {
         default_token_type &&
         default_token_type !== merchant.default_token_type
       ) {
-        const wallet = await Wallet.findOne({
+        let wallet = await Wallet.findOne({
           where: {
             user_id: userId,
             token_type: default_token_type,
@@ -207,9 +207,8 @@ const merchantController = {
         });
 
         if (!wallet) {
-          throw new ValidationError(
-            "User does not have a wallet for the selected currency"
-          );
+          const walletService = require("../services/walletService");
+          wallet = await walletService.getOrCreateWallet(userId, default_token_type);
         }
 
         merchant.default_token_type = default_token_type;

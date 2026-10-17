@@ -98,7 +98,26 @@ function statusTone(status?: string) {
   }
 }
 
+const EXCHANGE_RATES: Record<string, number> = {
+  NT_TO_CT: 0.37,
+  CT_TO_NT: 2.7,
+  NT_TO_USDT: 0.00067,
+  CT_TO_USDT: 0.00177,
+  USDT_TO_NT: 1500,
+  USDT_TO_CT: 565,
+};
+
+function convertToken(amount: number, from: string, to: string): number {
+  if (!amount || !from || !to || from.toUpperCase() === to.toUpperCase()) return amount;
+  const key = `${from.toUpperCase()}_TO_${to.toUpperCase()}`;
+  if (EXCHANGE_RATES[key]) return amount * EXCHANGE_RATES[key];
+  const invKey = `${to.toUpperCase()}_TO_${from.toUpperCase()}`;
+  if (EXCHANGE_RATES[invKey]) return amount / EXCHANGE_RATES[invKey];
+  return amount;
+}
+
 export default function MerchantOverviewPage() {
+  const [selectedToken, setSelectedToken] = useState<string>("NT");
   const [profile, setProfile] = useState<MerchantProfile | null>(null);
   const [summary, setSummary] = useState<MerchantSummary | null>(null);
   const [wallets, setWallets] = useState<MerchantWallet[]>([]);
@@ -112,13 +131,19 @@ export default function MerchantOverviewPage() {
           merchantApi.get("/merchants/profile"),
           merchantApi.get("/merchants/dashboard"),
           merchantApi.get("/users/me"),
-          merchantApi.get("/merchants/transactions?limit=5"),
+          merchantApi.get("/merchants/transactions?limit=20"),
         ]);
 
-        setProfile(profileRes.data.data);
+        const prof = profileRes.data.data;
+        setProfile(prof);
         setSummary(summaryRes.data);
         setWallets(userRes.data.data?.wallets || []);
         setRecentCollections(transactionsRes.data.data?.transactions || []);
+
+        // Default to merchant's profile default token or NT
+        if (prof?.default_token_type) {
+          setSelectedToken(prof.default_token_type);
+        }
       } catch (error) {
         console.error("Failed to load merchant overview:", error);
       }
@@ -139,23 +164,11 @@ export default function MerchantOverviewPage() {
     );
   }, [profile?.business_name, recentCollections]);
 
-  const activeToken = useMemo(() => {
-    if (summary?.primary_token) return summary.primary_token;
-    if (profile?.default_token_type && profile.default_token_type !== "CT") {
-      return profile.default_token_type;
-    }
-    if (
-      isRentHub ||
-      wallets.some((w) => w.token_type === "NT") ||
-      recentCollections.some((c) => c.token_type === "NT")
-    ) {
-      return "NT";
-    }
-    return profile?.default_token_type || "NT";
-  }, [summary?.primary_token, profile?.default_token_type, isRentHub, wallets, recentCollections]);
+  const activeToken = selectedToken;
 
   const handleSwitchDefaultToken = async (newTokenType: string) => {
-    if (updatingToken || profile?.default_token_type === newTokenType) return;
+    setSelectedToken(newTokenType);
+    if (updatingToken) return;
     setUpdatingToken(true);
     try {
       await merchantApi.put("/merchants/profile", { default_token_type: newTokenType });
@@ -174,17 +187,57 @@ export default function MerchantOverviewPage() {
     [profile?.settlement_wallet_id, wallets]
   );
 
+  const convertedMetrics = useMemo(() => {
+    const colByToken = summary?.collections_by_token || {};
+    const payByToken = summary?.payouts_by_token || {};
+
+    let totalCol = 0;
+    let hasCol = false;
+    Object.entries(colByToken).forEach(([tok, amt]) => {
+      hasCol = true;
+      totalCol += convertToken(Number(amt || 0), tok, activeToken);
+    });
+
+    if (!hasCol && summary?.total_volume) {
+      const orig = isRentHub ? "NT" : (summary?.primary_token || "CT");
+      totalCol = convertToken(Number(summary.total_volume), orig, activeToken);
+    }
+
+    let totalPay = 0;
+    let hasPay = false;
+    Object.entries(payByToken).forEach(([tok, amt]) => {
+      hasPay = true;
+      totalPay += convertToken(Number(amt || 0), tok, activeToken);
+    });
+
+    if (!hasPay && summary?.total_payout_volume) {
+      const orig = isRentHub ? "NT" : (summary?.primary_token || "CT");
+      totalPay = convertToken(Number(summary.total_payout_volume), orig, activeToken);
+    }
+
+    const feeRate = isRentHub ? 0.02 : 0.08;
+    const baseRatio = isRentHub ? 0.98 : 0.92;
+    const totalFee = (totalPay / baseRatio) * feeRate;
+
+    let totalWallet = 0;
+    wallets.forEach((w) => {
+      totalWallet += convertToken(Number(w.balance || 0), w.token_type, activeToken);
+    });
+
+    return {
+      collectedVolume: totalCol,
+      payoutVolume: totalPay,
+      feeVolume: totalFee,
+      walletBalance: totalWallet,
+    };
+  }, [summary, activeToken, wallets, isRentHub]);
+
   const walletTotals = useMemo(() => {
     return wallets.reduce<Record<string, number>>((acc, wallet) => {
       acc[wallet.token_type] = Number(wallet.balance || 0);
       return acc;
     }, {});
   }, [wallets]);
-
-  const totalWalletBalance = useMemo(
-    () => Object.values(walletTotals).reduce((sum, value) => sum + value, 0),
-    [walletTotals]
-  );
 
   const onboardingIncomplete = useMemo(() => {
     if (!profile) return false;
@@ -299,39 +352,39 @@ export default function MerchantOverviewPage() {
                 </span>
               </div>
               <div>
-                <span className="block text-xs uppercase tracking-wide">Default Token</span>
-                <div className="flex items-center gap-1.5 mt-0.5">
-                  <span className="font-semibold text-foreground text-sm">
-                    {profile?.default_token_type || activeToken}
-                  </span>
-                  <div className="flex items-center bg-muted rounded-md p-0.5 border border-border text-[11px]">
+                <span className="block text-xs uppercase tracking-wide">Display &amp; Settlement Currency</span>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <div className="flex items-center bg-muted rounded-lg p-0.5 border border-border shadow-inner">
                     <button
                       type="button"
                       disabled={updatingToken}
                       onClick={() => handleSwitchDefaultToken("NT")}
-                      className={`px-1.5 py-0.5 rounded font-bold transition-colors ${
-                        (profile?.default_token_type || activeToken) === "NT"
-                          ? "bg-primary text-primary-foreground shadow-sm"
+                      className={`px-2.5 py-1 rounded-md text-xs font-bold transition-all ${
+                        activeToken === "NT"
+                          ? "bg-emerald-600 text-white shadow-sm"
                           : "text-muted-foreground hover:text-foreground"
                       }`}
-                      title="Switch default token to NT (Naira Token)"
+                      title="View metrics in Naira Tokens (NT)"
                     >
-                      NT
+                      NT (Naira)
                     </button>
                     <button
                       type="button"
                       disabled={updatingToken}
                       onClick={() => handleSwitchDefaultToken("CT")}
-                      className={`px-1.5 py-0.5 rounded font-bold transition-colors ${
-                        profile?.default_token_type === "CT"
-                          ? "bg-primary text-primary-foreground shadow-sm"
+                      className={`px-2.5 py-1 rounded-md text-xs font-bold transition-all ${
+                        activeToken === "CT"
+                          ? "bg-amber-600 text-white shadow-sm"
                           : "text-muted-foreground hover:text-foreground"
                       }`}
-                      title="Switch default token to CT (CFA Token)"
+                      title="View metrics in CFA Tokens (CT)"
                     >
-                      CT
+                      CT (CFA)
                     </button>
                   </div>
+                  <span className="text-[11px] text-muted-foreground">
+                    {activeToken === "NT" ? "1 NT ≈ 0.37 CT" : "1 CT ≈ 2.7 NT"}
+                  </span>
                 </div>
               </div>
               <div>
@@ -387,10 +440,14 @@ export default function MerchantOverviewPage() {
             <div className="flex items-start justify-between">
               <div>
                 <div className="text-2xl font-semibold flex items-baseline gap-1.5">
-                  <span>{formatAmount(summary?.total_volume)}</span>
+                  <span>{formatAmount(convertedMetrics.collectedVolume)}</span>
                   <span className="text-sm font-bold text-muted-foreground">{activeToken}</span>
                 </div>
-                <p className="text-xs text-muted-foreground">Settled collection volume</p>
+                <p className="text-xs text-muted-foreground">
+                  {activeToken === "CT" && isRentHub
+                    ? "Converted from NT at 1 NT ≈ 0.37 CT"
+                    : "Settled collection volume"}
+                </p>
               </div>
               <CreditCard className="h-4 w-4 text-muted-foreground" />
             </div>
@@ -407,12 +464,13 @@ export default function MerchantOverviewPage() {
             <div className="flex items-start justify-between">
               <div>
                 <div className="text-2xl font-semibold text-emerald-600 flex items-baseline gap-1.5">
-                  <span>{formatAmount(summary?.total_payout_volume)}</span>
+                  <span>{formatAmount(convertedMetrics.payoutVolume)}</span>
                   <span className="text-sm font-bold text-emerald-600">{activeToken}</span>
                 </div>
                 <p className="text-xs text-muted-foreground">
                   {summary?.total_payouts ?? 0} {isRentHub ? "landlord escrow release" : "vendor payout"}
                   {summary?.total_payouts === 1 ? "" : "s"}
+                  {activeToken === "CT" && isRentHub ? " (converted from NT)" : ""}
                 </p>
               </div>
               <Send className="h-4 w-4 text-emerald-500" />
@@ -430,7 +488,7 @@ export default function MerchantOverviewPage() {
             <div className="flex items-start justify-between">
               <div>
                 <div className="text-2xl font-semibold text-purple-700 dark:text-purple-300 flex items-baseline gap-1.5">
-                  <span>{formatAmount(summary?.total_platform_fees)}</span>
+                  <span>{formatAmount(convertedMetrics.feeVolume)}</span>
                   <span className="text-sm font-bold">{activeToken}</span>
                 </div>
                 <p className="text-xs text-muted-foreground">
@@ -465,11 +523,11 @@ export default function MerchantOverviewPage() {
             <div className="flex items-start justify-between">
               <div>
                 <div className="text-2xl font-semibold flex items-baseline gap-1.5">
-                  <span>{formatAmount(totalWalletBalance)}</span>
+                  <span>{formatAmount(convertedMetrics.walletBalance)}</span>
                   <span className="text-sm font-bold text-muted-foreground">{activeToken}</span>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Across {wallets.length || 0} token wallet{wallets.length === 1 ? "" : "s"}
+                  Converted total across {wallets.length || 0} token wallet{wallets.length === 1 ? "" : "s"}
                 </p>
               </div>
               <Wallet className="h-4 w-4 text-muted-foreground" />
@@ -506,6 +564,11 @@ export default function MerchantOverviewPage() {
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="font-medium">{formatAmount(transaction.amount)}</span>
                         <Badge variant="outline">{transaction.token_type}</Badge>
+                        {transaction.token_type !== activeToken && (
+                          <span className="text-xs font-mono text-muted-foreground">
+                            ≈ {formatAmount(convertToken(Number(transaction.amount), transaction.token_type, activeToken))} {activeToken}
+                          </span>
+                        )}
                         <Badge variant={statusTone(transaction.status)}>{transaction.status}</Badge>
                       </div>
                       <p className="truncate font-mono text-xs text-muted-foreground">

@@ -212,6 +212,10 @@ const merchantService = {
    * @returns {Object} Dashboard summary data
    */
   getDashboardSummary: async (merchantId) => {
+    const { Merchant } = require("../models");
+    const { EXCHANGE_RATES } = require("../config/constants");
+    const merchant = await Merchant.findByPk(merchantId);
+
     const transactions = await Transaction.findAll({
       where: { merchant_id: merchantId },
     });
@@ -277,9 +281,10 @@ const merchantService = {
     });
 
     const primaryToken =
+      merchant?.default_token_type ||
+      (transactions.some((tx) => tx.token_type === "NT") ? "NT" : null) ||
       completedCollections[0]?.token_type ||
       completedPayouts[0]?.token_type ||
-      transactions[0]?.token_type ||
       "NT";
 
     return {
@@ -292,6 +297,15 @@ const merchantService = {
       collections_by_token: collectionsByToken,
       payouts_by_token: payoutsByToken,
       primary_token: primaryToken,
+      default_token_type: merchant?.default_token_type || primaryToken,
+      exchange_rates: {
+        NT_TO_CT: EXCHANGE_RATES.NT_TO_CT || 0.37,
+        CT_TO_NT: EXCHANGE_RATES.CT_TO_NT || 2.7,
+        NT_TO_USDT: EXCHANGE_RATES.NT_TO_USDT || 0.00067,
+        CT_TO_USDT: EXCHANGE_RATES.CT_TO_USDT || 0.00177,
+        USDT_TO_NT: EXCHANGE_RATES.USDT_TO_NT || 1500,
+        USDT_TO_CT: EXCHANGE_RATES.USDT_TO_CT || 565,
+      },
     };
   },
 };

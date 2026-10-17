@@ -203,6 +203,24 @@ const renthubIntegrationController = {
         });
       }
 
+      // Compute token amount if passing fiat NGN and token is non-NT
+      const { EXCHANGE_RATES } = require("../config/constants");
+      let tokenAmount = parseFloat(amount);
+      const originalNgn = parseFloat(req.body.amountInNgn || (currency === "NGN" ? amount : 0));
+      let conversionRate = 1.0;
+
+      if (req.body.amountInToken) {
+        tokenAmount = parseFloat(req.body.amountInToken);
+      } else if (currency === "NGN" && tokenType !== TOKEN_TYPES.NT) {
+        if (tokenType === TOKEN_TYPES.USDT) {
+          conversionRate = EXCHANGE_RATES.NT_TO_USDT || 0.00067;
+          tokenAmount = parseFloat((originalNgn * conversionRate).toFixed(2));
+        } else if (tokenType === TOKEN_TYPES.CT) {
+          conversionRate = EXCHANGE_RATES.NT_TO_CT || 0.37;
+          tokenAmount = parseFloat((originalNgn * conversionRate).toFixed(2));
+        }
+      }
+
       // Resolve tenant's AfriExchange wallet
       const { user: buyerUser, wallet: buyerWallet } = await resolveBuyer({
         userId: buyerAfriExchangeUserId,
@@ -211,7 +229,7 @@ const renthubIntegrationController = {
         tokenType,
       });
 
-      if (parseFloat(buyerWallet.balance) < parseFloat(amount)) {
+      if (parseFloat(buyerWallet.balance) < tokenAmount) {
         // Fetch all active wallets for this user to give an informative breakdown
         const allWallets = await Wallet.findAll({
           where: { user_id: buyerUser.id, is_active: true },
@@ -222,12 +240,13 @@ const renthubIntegrationController = {
           .join(", ");
 
         const err = new ApiError(
-          `Insufficient ${tokenType} wallet balance. Required: ${parseFloat(amount).toLocaleString()} ${tokenType}, Available: ${parseFloat(buyerWallet.balance || 0).toLocaleString()} ${tokenType}. (Your balances — ${walletList || "none"})`,
+          `Insufficient ${tokenType} wallet balance. Required: ${tokenAmount.toLocaleString()} ${tokenType} (≈ ₦${originalNgn.toLocaleString()}), Available: ${parseFloat(buyerWallet.balance || 0).toLocaleString()} ${tokenType}. (Your balances — ${walletList || "none"})`,
           400,
           {
             code: "INSUFFICIENT_BALANCE",
             tokenType,
-            requiredAmount: parseFloat(amount),
+            requiredAmount: tokenAmount,
+            originalNgn,
             availableBalance: parseFloat(buyerWallet.balance || 0),
             wallets: allWallets.map((w) => ({
               tokenType: w.token_type,
@@ -261,18 +280,18 @@ const renthubIntegrationController = {
 
       const collectionTx = await sequelize.transaction(async (dbTx) => {
         // Debit tenant wallet
-        await buyerWallet.decrement("balance", { by: parseFloat(amount), transaction: dbTx });
+        await buyerWallet.decrement("balance", { by: tokenAmount, transaction: dbTx });
 
         // Credit RentHub escrow settlement wallet
-        await merchantWallet.increment("balance", { by: parseFloat(amount), transaction: dbTx });
-        await merchantWallet.increment("total_received", { by: parseFloat(amount), transaction: dbTx });
+        await merchantWallet.increment("balance", { by: tokenAmount, transaction: dbTx });
+        await merchantWallet.increment("total_received", { by: tokenAmount, transaction: dbTx });
 
         return await Transaction.create(
           {
             reference,
             type: TRANSACTION_TYPES.DEBIT,
             status: TRANSACTION_STATUS.COMPLETED,
-            amount: parseFloat(amount),
+            amount: tokenAmount,
             fee: 0,
             token_type: tokenType,
             description: description || `RentHub Escrow Collection — tx:${rentHubTransactionId}`,
@@ -289,6 +308,8 @@ const renthubIntegrationController = {
               rentHubTransactionId,
               tenantId,
               currency,
+              original_amount_ngn: originalNgn,
+              exchange_rate_used: conversionRate,
               tenant_email: buyerUser.email,
               tenant_name: buyerUser.full_name,
             },
@@ -494,6 +515,43 @@ const renthubIntegrationController = {
     } catch (error) {
       next(error);
     }
+  },
+
+  /**
+   * GET /integrations/renthub/rates
+   * Returns current exchange rates for NGN to NT, CT, and USDT.
+   */
+  getRates(req, res) {
+    const { EXCHANGE_RATES } = require("../config/constants");
+    return res.json({
+      success: true,
+      data: {
+        baseCurrency: "NGN",
+        rates: {
+          NT: {
+            token: "NT",
+            name: "Naira Token",
+            ngnPerToken: 1.0,
+            tokensPerNgn: 1.0,
+            desc: "1 NT = ₦1.00 (1:1 NGN)",
+          },
+          CT: {
+            token: "CT",
+            name: "CFA Token",
+            ngnPerToken: EXCHANGE_RATES.CT_TO_NT || 2.7,
+            tokensPerNgn: EXCHANGE_RATES.NT_TO_CT || 0.37,
+            desc: "1 CT ≈ ₦2.70 NGN (0.37 CT per ₦1)",
+          },
+          USDT: {
+            token: "USDT",
+            name: "Tether USD",
+            ngnPerToken: EXCHANGE_RATES.USDT_TO_NT || 1500,
+            tokensPerNgn: EXCHANGE_RATES.NT_TO_USDT || 0.00067,
+            desc: "1 USDT ≈ ₦1,500 NGN ($1.00 USD)",
+          },
+        },
+      },
+    });
   },
 };
 

@@ -69,6 +69,13 @@ type VendorPayoutTransaction = {
     idempotencyKey?: string;
     kaalisPayoutId?: string;
     kaalisVendorId?: string;
+    rentHubTransactionId?: string;
+    landlordId?: string;
+    landlord_name?: string;
+    landlord_email?: string;
+    gross_amount?: number;
+    platform_fee?: number;
+    platformFee?: number;
     vendor_email?: string;
     vendor_name?: string;
     vendor_wallet_address?: string;
@@ -123,6 +130,7 @@ function statusTone(status?: string) {
 
 export default function MerchantPayoutsPage() {
   const [payouts, setPayouts] = useState<VendorPayoutTransaction[]>([]);
+  const [merchant, setMerchant] = useState<{ id?: string; business_name?: string } | null>(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -132,8 +140,14 @@ export default function MerchantPayoutsPage() {
   const loadPayouts = async () => {
     setLoading(true);
     try {
-      const response = await merchantApi.get("/merchants/transactions?type=payout&limit=100");
-      setPayouts(response.data.data?.transactions || []);
+      const [txRes, profileRes] = await Promise.all([
+        merchantApi.get("/merchants/transactions?type=payout&limit=100"),
+        merchantApi.get("/merchants/profile").catch(() => null),
+      ]);
+      setPayouts(txRes.data?.data?.transactions || []);
+      if (profileRes?.data?.data) {
+        setMerchant(profileRes.data.data);
+      }
     } catch (error) {
       console.error("Failed to load vendor payouts:", error);
     } finally {
@@ -145,24 +159,68 @@ export default function MerchantPayoutsPage() {
     loadPayouts();
   }, []);
 
+  const isRentHub = useMemo(() => {
+    return (
+      merchant?.business_name?.toLowerCase().includes("renthub") ||
+      payouts.some((p) => p.metadata?.source === "renthub")
+    );
+  }, [merchant, payouts]);
+
+  const isKaalis = useMemo(() => {
+    return (
+      merchant?.business_name?.toLowerCase().includes("kaalis") ||
+      payouts.some((p) => p.metadata?.source === "kaalis")
+    );
+  }, [merchant, payouts]);
+
+  const partnerPlatform = isRentHub
+    ? "RentHub Escrow"
+    : isKaalis
+    ? "Kaalis Store"
+    : (merchant?.business_name || "Partner Platform");
+
+  const externalIdLabel = isRentHub
+    ? "RentHub Escrow ID"
+    : isKaalis
+    ? "Kaalis Payout ID"
+    : "External Payout ID";
+
+  const beneficiaryLabel = isRentHub ? "Landlord" : "Vendor";
+
   const tokenOptions = useMemo(() => {
     return Array.from(new Set(payouts.map((tx) => tx.token_type).filter(Boolean)));
   }, [payouts]);
 
   const filteredPayouts = useMemo(() => {
     return payouts.filter((tx) => {
-      const vendorName = tx.metadata?.vendor_name || tx.toUser?.full_name || "";
-      const vendorEmail = tx.metadata?.vendor_email || tx.toUser?.email || "";
-      const kaalisPayoutId = tx.metadata?.kaalisPayoutId || "";
-      const walletAddress = tx.metadata?.vendor_wallet_address || tx.toWallet?.blockchain_address || "";
+      const beneficiaryName =
+        tx.metadata?.landlord_name ||
+        tx.metadata?.vendor_name ||
+        tx.toUser?.full_name ||
+        "";
+      const beneficiaryEmail =
+        tx.metadata?.landlord_email ||
+        tx.metadata?.vendor_email ||
+        tx.toUser?.email ||
+        "";
+      const externalId =
+        (tx.metadata?.rentHubTransactionId as string) ||
+        (tx.metadata?.kaalisPayoutId as string) ||
+        (tx.metadata?.payoutId as string) ||
+        (tx.metadata?.orderId as string) ||
+        "";
+      const walletAddress =
+        tx.metadata?.vendor_wallet_address ||
+        tx.toWallet?.blockchain_address ||
+        "";
 
       const searchMatch =
         !search ||
         tx.reference?.toLowerCase().includes(search.toLowerCase()) ||
         tx.description?.toLowerCase().includes(search.toLowerCase()) ||
-        vendorName.toLowerCase().includes(search.toLowerCase()) ||
-        vendorEmail.toLowerCase().includes(search.toLowerCase()) ||
-        kaalisPayoutId.toLowerCase().includes(search.toLowerCase()) ||
+        beneficiaryName.toLowerCase().includes(search.toLowerCase()) ||
+        beneficiaryEmail.toLowerCase().includes(search.toLowerCase()) ||
+        externalId.toLowerCase().includes(search.toLowerCase()) ||
         walletAddress.toLowerCase().includes(search.toLowerCase());
 
       const statusMatch = statusFilter === "all" || tx.status.toLowerCase() === statusFilter.toLowerCase();
@@ -186,20 +244,16 @@ export default function MerchantPayoutsPage() {
     const totalPlatformFees = completed.reduce((sum, tx) => {
       const explicitFee = Number(tx.metadata?.platformFee || tx.metadata?.platform_fee);
       if (!isNaN(explicitFee) && explicitFee > 0) return sum + explicitFee;
-      const isRentHub = tx.metadata?.source === "renthub";
-      return sum + (Number(tx.amount || 0) / (isRentHub ? 0.98 : 0.92)) * (isRentHub ? 0.02 : 0.08);
+      const isRentHubTx = tx.metadata?.source === "renthub" || isRentHub;
+      return sum + (Number(tx.amount || 0) / (isRentHubTx ? 0.98 : 0.92)) * (isRentHubTx ? 0.02 : 0.08);
     }, 0);
 
     const primaryToken =
       tokenFilter !== "all"
         ? tokenFilter
-        : (filteredPayouts[0]?.token_type || payouts[0]?.token_type || "NT");
+        : (filteredPayouts[0]?.token_type || payouts[0]?.token_type || (isRentHub ? "NT" : "CT"));
 
-    const partnerPlatform = payouts.some((p) => p.metadata?.source === "renthub")
-      ? "RentHub"
-      : "Kaalis Store";
-
-    const feeRateLabel = partnerPlatform === "RentHub" ? "2%" : "8%";
+    const feeRateLabel = isRentHub ? "2%" : "8%";
 
     return {
       totalVolume,
@@ -211,32 +265,55 @@ export default function MerchantPayoutsPage() {
       partnerPlatform,
       feeRateLabel,
     };
-  }, [filteredPayouts, tokenFilter, payouts]);
+  }, [filteredPayouts, tokenFilter, payouts, isRentHub, partnerPlatform]);
 
   const handleExportCSV = () => {
     if (!filteredPayouts.length) return;
     const headers = [
       "Reference",
       "Date",
-      "Vendor Name",
-      "Vendor Email",
-      "Kaalis Payout ID",
+      `${beneficiaryLabel} Name`,
+      `${beneficiaryLabel} Email`,
+      externalIdLabel,
       "Wallet Address",
       "Amount",
       "Token",
       "Status",
     ];
-    const rows = filteredPayouts.map((tx) => [
-      tx.reference,
-      tx.created_at,
-      `"${tx.metadata?.vendor_name || tx.toUser?.full_name || ""}"`,
-      tx.metadata?.vendor_email || tx.toUser?.email || "",
-      tx.metadata?.kaalisPayoutId || "",
-      tx.metadata?.vendor_wallet_address || tx.toWallet?.blockchain_address || "",
-      tx.amount,
-      tx.token_type,
-      tx.status,
-    ]);
+    const rows = filteredPayouts.map((tx) => {
+      const beneficiaryName =
+        tx.metadata?.landlord_name ||
+        tx.metadata?.vendor_name ||
+        tx.toUser?.full_name ||
+        (isRentHub ? "Property Landlord" : "Marketplace Vendor");
+      const beneficiaryEmail =
+        tx.metadata?.landlord_email ||
+        tx.metadata?.vendor_email ||
+        tx.toUser?.email ||
+        "";
+      const externalId =
+        (tx.metadata?.rentHubTransactionId as string) ||
+        (tx.metadata?.kaalisPayoutId as string) ||
+        (tx.metadata?.payoutId as string) ||
+        (tx.metadata?.orderId as string) ||
+        "";
+      const walletAddress =
+        tx.metadata?.vendor_wallet_address ||
+        tx.toWallet?.blockchain_address ||
+        "";
+
+      return [
+        tx.reference,
+        tx.created_at,
+        `"${beneficiaryName}"`,
+        beneficiaryEmail,
+        externalId,
+        walletAddress,
+        tx.amount,
+        tx.token_type,
+        tx.status,
+      ];
+    });
 
     const csvContent =
       "data:text/csv;charset=utf-8," +
@@ -244,7 +321,7 @@ export default function MerchantPayoutsPage() {
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `vendor_payouts_${format(new Date(), "yyyy-MM-dd")}.csv`);
+    link.setAttribute("download", `${isRentHub ? "landlord" : "vendor"}_payouts_${format(new Date(), "yyyy-MM-dd")}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -293,7 +370,7 @@ export default function MerchantPayoutsPage() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Paid to Vendors</CardTitle>
+            <CardTitle className="text-sm font-medium">Total Paid to {beneficiaryLabel}s</CardTitle>
             <Send className="h-4 w-4 text-emerald-500" />
           </CardHeader>
           <CardContent>
@@ -301,7 +378,7 @@ export default function MerchantPayoutsPage() {
               {formatAmount(stats.totalVolume)} {stats.primaryToken}
             </div>
             <p className="text-xs text-muted-foreground">
-              Across {stats.completedCount} completed vendor settlements
+              Across {stats.completedCount} completed {beneficiaryLabel.toLowerCase()} settlements
             </p>
           </CardContent>
         </Card>
@@ -314,7 +391,7 @@ export default function MerchantPayoutsPage() {
           <CardContent>
             <div className="text-2xl font-bold">{stats.completedCount}</div>
             <p className="text-xs text-muted-foreground">
-              Successfully credited to vendor wallets
+              Successfully credited to {beneficiaryLabel.toLowerCase()} wallets
             </p>
           </CardContent>
         </Card>
@@ -328,13 +405,13 @@ export default function MerchantPayoutsPage() {
             <div className="text-2xl font-bold">
               {formatAmount(stats.avgVolume)} {stats.primaryToken}
             </div>
-            <p className="text-xs text-muted-foreground">Per vendor settlement transaction</p>
+            <p className="text-xs text-muted-foreground">Per {beneficiaryLabel.toLowerCase()} settlement transaction</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Partner Marketplace</CardTitle>
+            <CardTitle className="text-sm font-medium">Partner Integration</CardTitle>
             <Store className="h-4 w-4 text-blue-500" />
           </CardHeader>
           <CardContent>
@@ -347,9 +424,9 @@ export default function MerchantPayoutsPage() {
       {/* Filters & Search */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base font-medium">Filter Vendor Settlements</CardTitle>
+          <CardTitle className="text-base font-medium">Filter {beneficiaryLabel} Settlements</CardTitle>
           <CardDescription>
-            Search by reference, vendor name, email, Kaalis payout ID, or wallet address.
+            Search by reference, {beneficiaryLabel.toLowerCase()} name, email, {externalIdLabel.toLowerCase()}, or wallet address.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -357,7 +434,7 @@ export default function MerchantPayoutsPage() {
             <div className="relative">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search vendor name, email, ID..."
+                placeholder={`Search ${beneficiaryLabel.toLowerCase()} name, email, ID...`}
                 className="pl-8"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
@@ -401,8 +478,8 @@ export default function MerchantPayoutsPage() {
               <TableRow>
                 <TableHead>Date &amp; Time</TableHead>
                 <TableHead>Reference</TableHead>
-                <TableHead>Vendor</TableHead>
-                <TableHead>Kaalis Payout ID</TableHead>
+                <TableHead>{beneficiaryLabel}</TableHead>
+                <TableHead>{externalIdLabel}</TableHead>
                 <TableHead>Wallet Address</TableHead>
                 <TableHead className="text-right">Amount</TableHead>
                 <TableHead>Status</TableHead>
@@ -414,22 +491,35 @@ export default function MerchantPayoutsPage() {
                 <TableRow>
                   <TableCell colSpan={8} className="h-28 text-center text-muted-foreground">
                     <RefreshCw className="inline-block mr-2 h-4 w-4 animate-spin" />
-                    Loading vendor settlements...
+                    Loading {beneficiaryLabel.toLowerCase()} settlements...
                   </TableCell>
                 </TableRow>
               ) : filteredPayouts.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={8} className="h-28 text-center text-muted-foreground">
-                    No vendor payout records found.
+                    No {beneficiaryLabel.toLowerCase()} payout records found.
                   </TableCell>
                 </TableRow>
               ) : (
                 filteredPayouts.map((tx) => {
-                  const vendorName = tx.metadata?.vendor_name || tx.toUser?.full_name || "Marketplace Vendor";
-                  const vendorEmail = tx.metadata?.vendor_email || tx.toUser?.email || "—";
+                  const beneficiaryName =
+                    tx.metadata?.landlord_name ||
+                    tx.metadata?.vendor_name ||
+                    tx.toUser?.full_name ||
+                    (isRentHub ? "Property Landlord" : "Marketplace Vendor");
+                  const beneficiaryEmail =
+                    tx.metadata?.landlord_email ||
+                    tx.metadata?.vendor_email ||
+                    tx.toUser?.email ||
+                    "—";
                   const walletAddress =
                     tx.metadata?.vendor_wallet_address || tx.toWallet?.blockchain_address || "—";
-                  const kaalisPayoutId = tx.metadata?.kaalisPayoutId || "—";
+                  const externalPayoutId =
+                    (tx.metadata?.rentHubTransactionId as string) ||
+                    (tx.metadata?.kaalisPayoutId as string) ||
+                    (tx.metadata?.payoutId as string) ||
+                    (tx.metadata?.orderId as string) ||
+                    "—";
 
                   return (
                     <TableRow key={tx.id} className="cursor-pointer hover:bg-muted/50" onClick={() => setSelectedPayout(tx)}>
@@ -440,11 +530,11 @@ export default function MerchantPayoutsPage() {
                         {tx.reference}
                       </TableCell>
                       <TableCell>
-                        <div className="font-medium text-sm">{vendorName}</div>
-                        <div className="text-xs text-muted-foreground">{vendorEmail}</div>
+                        <div className="font-medium text-sm">{beneficiaryName}</div>
+                        <div className="text-xs text-muted-foreground">{beneficiaryEmail}</div>
                       </TableCell>
                       <TableCell className="font-mono text-xs text-muted-foreground">
-                        {kaalisPayoutId.length > 16 ? `${kaalisPayoutId.slice(0, 16)}...` : kaalisPayoutId}
+                        {externalPayoutId.length > 16 ? `${externalPayoutId.slice(0, 16)}...` : externalPayoutId}
                       </TableCell>
                       <TableCell className="font-mono text-xs text-muted-foreground">
                         {walletAddress !== "—" ? `${walletAddress.slice(0, 8)}...${walletAddress.slice(-6)}` : "—"}
@@ -513,7 +603,7 @@ export default function MerchantPayoutsPage() {
                 <div>
                   <span className="text-xs text-muted-foreground block">Source Platform</span>
                   <span className="text-xs font-medium capitalize">
-                    {selectedPayout.metadata?.source || "Kaalis Store"}
+                    {selectedPayout.metadata?.source || (isRentHub ? "RentHub" : "Kaalis Store")}
                   </span>
                 </div>
               </div>
@@ -524,29 +614,33 @@ export default function MerchantPayoutsPage() {
                   Payout Breakdown
                 </h4>
                 {(() => {
+                  const isRentHubTx = selectedPayout.metadata?.source === "renthub" || isRentHub;
                   const vendorAmt = Number(selectedPayout.amount || 0);
-                  const orderTotal = selectedPayout.metadata?.order_total
+                  const orderTotal = selectedPayout.metadata?.gross_amount
+                    ? Number(selectedPayout.metadata.gross_amount)
+                    : selectedPayout.metadata?.order_total
                     ? Number(selectedPayout.metadata.order_total)
-                    : vendorAmt / 0.92;
-                  const platformFee = selectedPayout.metadata?.platform_fee
-                    ? Number(selectedPayout.metadata.platform_fee)
-                    : orderTotal * 0.08;
-                  const currency = selectedPayout.metadata?.currency || selectedPayout.token_type || "CT";
+                    : vendorAmt / (isRentHubTx ? 0.98 : 0.92);
+                  const platformFee = selectedPayout.metadata?.platform_fee || selectedPayout.metadata?.platformFee
+                    ? Number(selectedPayout.metadata.platform_fee || selectedPayout.metadata.platformFee)
+                    : orderTotal * (isRentHubTx ? 0.02 : 0.08);
+                  const feeRate = isRentHubTx ? "2%" : "8%";
+                  const currency = selectedPayout.metadata?.currency || selectedPayout.token_type || (isRentHubTx ? "NT" : "CT");
                   const pct = ((vendorAmt / orderTotal) * 100).toFixed(1);
                   const fmt = (n: number) =>
                     n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
                   return (
                     <>
                       <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-background">
-                        <span className="text-xs text-muted-foreground">Order Total</span>
+                        <span className="text-xs text-muted-foreground">Gross Amount</span>
                         <span className="text-xs font-semibold">{fmt(orderTotal)} {currency}</span>
                       </div>
                       <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-red-50 dark:bg-red-950/30">
                         <div className="flex items-center gap-2">
                           <span className="inline-flex h-2 w-2 rounded-full bg-red-400" />
                           <span className="text-xs font-medium text-red-700 dark:text-red-400">
-                            Platform Fee (8%)
-                            {!selectedPayout.metadata?.platform_fee && (
+                            Platform Fee ({feeRate})
+                            {!selectedPayout.metadata?.platform_fee && !selectedPayout.metadata?.platformFee && (
                               <span className="ml-1 text-[10px] opacity-60">(est.)</span>
                             )}
                           </span>
@@ -560,7 +654,7 @@ export default function MerchantPayoutsPage() {
                           <div className="flex items-center gap-2">
                             <span className="inline-flex h-2 w-2 rounded-full bg-emerald-500" />
                             <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-400">
-                              Vendor Payout (92%)
+                              {isRentHubTx ? "Landlord Net Payout" : "Vendor Payout"} ({pct}%)
                             </span>
                           </div>
                           <span className="text-sm font-bold text-emerald-700 dark:text-emerald-400">
@@ -571,7 +665,9 @@ export default function MerchantPayoutsPage() {
                       <div className="overflow-hidden rounded-full bg-muted h-1.5 mt-1">
                         <div className="h-1.5 rounded-full bg-emerald-500" style={{ width: `${pct}%` }} />
                       </div>
-                      <p className="text-right text-[10px] text-muted-foreground">{pct}% of order goes to vendor</p>
+                      <p className="text-right text-[10px] text-muted-foreground">
+                        {pct}% of funds disbursed to {isRentHubTx ? "landlord" : "vendor"}
+                      </p>
                     </>
                   );
                 })()}
@@ -579,19 +675,25 @@ export default function MerchantPayoutsPage() {
 
               <div className="space-y-3">
                 <h4 className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">
-                  Vendor Recipient Information
+                  {isRentHub ? "Landlord Recipient Information" : "Vendor Recipient Information"}
                 </h4>
                 <div className="grid grid-cols-2 gap-2 text-xs">
                   <div>
-                    <span className="text-muted-foreground block">Vendor Name:</span>
+                    <span className="text-muted-foreground block">{isRentHub ? "Landlord Name:" : "Vendor Name:"}</span>
                     <span className="font-medium">
-                      {selectedPayout.metadata?.vendor_name || selectedPayout.toUser?.full_name || "—"}
+                      {selectedPayout.metadata?.landlord_name ||
+                        selectedPayout.metadata?.vendor_name ||
+                        selectedPayout.toUser?.full_name ||
+                        "—"}
                     </span>
                   </div>
                   <div>
-                    <span className="text-muted-foreground block">Vendor Email:</span>
+                    <span className="text-muted-foreground block">{isRentHub ? "Landlord Email:" : "Vendor Email:"}</span>
                     <span className="font-medium">
-                      {selectedPayout.metadata?.vendor_email || selectedPayout.toUser?.email || "—"}
+                      {selectedPayout.metadata?.landlord_email ||
+                        selectedPayout.metadata?.vendor_email ||
+                        selectedPayout.toUser?.email ||
+                        "—"}
                     </span>
                   </div>
                   <div className="col-span-2">
@@ -611,16 +713,30 @@ export default function MerchantPayoutsPage() {
                 </h4>
                 <div className="grid grid-cols-2 gap-2 text-xs">
                   <div>
-                    <span className="text-muted-foreground block">Kaalis Payout ID:</span>
-                    <span className="font-mono">{selectedPayout.metadata?.kaalisPayoutId || "—"}</span>
+                    <span className="text-muted-foreground block">{externalIdLabel}:</span>
+                    <span className="font-mono">
+                      {(selectedPayout.metadata?.rentHubTransactionId as string) ||
+                        (selectedPayout.metadata?.kaalisPayoutId as string) ||
+                        "—"}
+                    </span>
                   </div>
                   <div>
-                    <span className="text-muted-foreground block">Kaalis Vendor ID:</span>
-                    <span className="font-mono">{selectedPayout.metadata?.kaalisVendorId || "—"}</span>
+                    <span className="text-muted-foreground block">
+                      {isRentHub ? "Landlord ID:" : "Vendor ID:"}
+                    </span>
+                    <span className="font-mono">
+                      {(selectedPayout.metadata?.landlordId as string) ||
+                        (selectedPayout.metadata?.kaalisVendorId as string) ||
+                        selectedPayout.toUser?.id ||
+                        "—"}
+                    </span>
                   </div>
                   <div>
                     <span className="text-muted-foreground block">Country / Market:</span>
-                    <span className="font-medium">{selectedPayout.metadata?.country || "XOF Zone (SN)"}</span>
+                    <span className="font-medium">
+                      {(selectedPayout.metadata?.country as string) ||
+                        (isRentHub ? "Nigeria (NGN)" : "XOF Zone (SN)")}
+                    </span>
                   </div>
                   <div>
                     <span className="text-muted-foreground block">AfriExchange Internal ID:</span>

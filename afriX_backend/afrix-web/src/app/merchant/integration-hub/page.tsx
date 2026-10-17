@@ -287,7 +287,9 @@ export default function MerchantIntegrationHubPage() {
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-semibold">{profile.default_token_type || "N/A"}</p>
-            <p className="mt-1 text-sm text-muted-foreground">CT is the current live Kaalis path.</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {profile.default_token_type ? `${profile.default_token_type} is the active settlement rail.` : "Active settlement rail."}
+            </p>
           </CardContent>
         </Card>
 
@@ -345,7 +347,7 @@ export default function MerchantIntegrationHubPage() {
             </CardHeader>
             <CardContent className="space-y-3 text-sm">
               <div className="rounded-lg border p-4">
-                <p className="font-medium">Last Kaalis webhook attempt</p>
+                <p className="font-medium">Last webhook attempt</p>
                 <p className="mt-2 text-muted-foreground">
                   {profile.integration_health?.last_webhook_attempt_at
                     ? format(new Date(profile.integration_health.last_webhook_attempt_at), "MMM d, yyyy • h:mm a")

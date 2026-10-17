@@ -4,10 +4,12 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { format } from "date-fns";
 import {
+  ArrowRightLeft,
   CreditCard,
   Download,
   Filter,
   Search,
+  ShieldCheck,
   SlidersHorizontal,
 } from "lucide-react";
 
@@ -130,6 +132,12 @@ export default function MerchantCollectionsPage() {
     });
   }, [search, statusFilter, tokenFilter, transactions]);
 
+  const isEscrowTx = (tx: MerchantTransaction) =>
+    tx.metadata?.collection_type === "rent_escrow" ||
+    tx.metadata?.platform === "renthub" ||
+    tx.metadata?.source === "renthub" ||
+    tx.description?.toLowerCase().includes("escrow");
+
   const stats = useMemo(() => {
     const completed = filteredTransactions.filter((tx) =>
       ["completed", "success", "successful"].includes((tx.status || "").toLowerCase())
@@ -137,10 +145,12 @@ export default function MerchantCollectionsPage() {
     const pending = filteredTransactions.filter((tx) =>
       ["pending", "processing"].includes((tx.status || "").toLowerCase())
     );
+    const escrow = filteredTransactions.filter(isEscrowTx);
 
     return {
       completedCount: completed.length,
       pendingCount: pending.length,
+      escrowCount: escrow.length,
       filteredVolume: completed.reduce((sum, tx) => sum + Number(tx.amount || 0), 0),
       totalCount: filteredTransactions.length,
     };
@@ -218,7 +228,7 @@ export default function MerchantCollectionsPage() {
           </div>
 
           <div className="flex w-full flex-col gap-3 lg:max-w-4xl">
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
               <Card>
                 <CardContent className="p-4">
                   <p className="text-xs uppercase tracking-wide text-muted-foreground">Completed</p>
@@ -229,6 +239,15 @@ export default function MerchantCollectionsPage() {
                 <CardContent className="p-4">
                   <p className="text-xs uppercase tracking-wide text-muted-foreground">Pending</p>
                   <p className="mt-2 text-2xl font-semibold">{stats.pendingCount}</p>
+                </CardContent>
+              </Card>
+              <Card className="border-emerald-500/30 bg-emerald-50/30 dark:bg-emerald-950/20">
+                <CardContent className="p-4">
+                  <p className="flex items-center gap-1 text-xs uppercase tracking-wide text-emerald-700 dark:text-emerald-400">
+                    <ShieldCheck className="h-3 w-3" />
+                    Escrow
+                  </p>
+                  <p className="mt-2 text-2xl font-semibold text-emerald-700 dark:text-emerald-400">{stats.escrowCount}</p>
                 </CardContent>
               </Card>
               <Card>
@@ -325,7 +344,14 @@ export default function MerchantCollectionsPage() {
                       {formatAmount(transaction.amount)} {transaction.token_type}
                     </p>
                   </div>
-                  <Badge variant={statusTone(transaction.status)}>{transaction.status}</Badge>
+                  <div className="flex flex-col items-end gap-1">
+                    <Badge variant={statusTone(transaction.status)}>{transaction.status}</Badge>
+                    {isEscrowTx(transaction) && (
+                      <Badge className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 text-[10px] font-bold">
+                        🛡️ Escrow
+                      </Badge>
+                    )}
+                  </div>
                 </div>
                 <p className="text-sm text-muted-foreground">
                   {transaction.description || "Merchant collection transaction"}
@@ -387,7 +413,16 @@ export default function MerchantCollectionsPage() {
                     <TableCell className="font-medium">{formatAmount(tx.amount)}</TableCell>
                     <TableCell>{tx.token_type}</TableCell>
                     <TableCell>
-                      <Badge variant={statusTone(tx.status)}>{tx.status}</Badge>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <Badge variant={statusTone(tx.status)}>{tx.status}</Badge>
+                        {(tx.metadata?.collection_type === "rent_escrow" ||
+                          tx.metadata?.platform === "renthub" ||
+                          tx.description?.toLowerCase().includes("escrow")) && (
+                          <Badge className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 text-[10px] font-bold">
+                            🛡️ Escrow
+                          </Badge>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell className="max-w-[220px] truncate text-muted-foreground">
                       {tx.description || "Merchant collection transaction"}
@@ -511,8 +546,21 @@ export default function MerchantCollectionsPage() {
               </Card>
               </div>
 
-              <div className="flex justify-end">
-                <Button variant="outline" asChild>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                {isEscrowTx(selectedTransaction) && (
+                  <div className="flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-50/50 dark:bg-emerald-950/20 px-3 py-2">
+                    <ShieldCheck className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                    <div className="text-xs">
+                      <p className="font-semibold text-emerald-700 dark:text-emerald-300">🛡️ Escrow-held token</p>
+                      <p className="text-muted-foreground">Once released, cash out via
+                        <Link href="/merchant/sell-through-agent" className="ml-1 font-medium text-emerald-600 dark:text-emerald-400 hover:underline inline-flex items-center gap-1">
+                          <ArrowRightLeft className="h-3 w-3" />Sell Through Agent
+                        </Link>
+                      </p>
+                    </div>
+                  </div>
+                )}
+                <Button variant="outline" asChild className="ml-auto">
                   <Link href={`/merchant/collections/${selectedTransaction.id}`}>
                     Open full collection page
                   </Link>

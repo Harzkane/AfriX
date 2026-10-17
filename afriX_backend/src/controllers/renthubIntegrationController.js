@@ -604,15 +604,21 @@ const renthubIntegrationController = {
         throw new ApiError("Amount must be greater than 0", 400);
       }
 
-      // Resolve RentHub merchant
+      // Resolve RentHub merchant — required to set as payment destination
       let merchant = await resolveRentHubMerchant();
       if (!merchant) {
         merchant = await Merchant.findOne({ where: { business_name: "RentHub" } });
       }
-      if (merchant && merchant.user_id) {
-        const walletService = require("../services/walletService");
-        await walletService.getOrCreateWallet(merchant.user_id, tokenType);
+      if (!merchant) {
+        throw new ApiError(
+          "RentHub merchant account is not configured in AfriExchange. Please contact AfriExchange support.",
+          503
+        );
       }
+
+      // Ensure merchant has a settlement wallet for this token type
+      const walletService = require("../services/walletService");
+      await walletService.getOrCreateWallet(merchant.user_id, tokenType);
 
       // Build consistent reference
       const cleanTxId = String(rentHubTransactionId).replace(/[^a-zA-Z0-9]/g, "").slice(0, 8).toUpperCase();
@@ -631,17 +637,19 @@ const renthubIntegrationController = {
       if (!transaction) {
         transaction = await Transaction.create({
           from_user_id: null,
-          to_user_id: merchant ? merchant.user_id : null,
-          merchant_id: merchant ? merchant.id : null,
+          to_user_id: merchant.user_id,
+          merchant_id: merchant.id,
           amount: tokenAmount,
           token_type: tokenType,
           type: TRANSACTION_TYPES.COLLECTION,
           status: TRANSACTION_STATUS.PENDING,
-          description: description || `RentHub Escrow Payment (${tokenAmount} ${tokenType})`,
+          description: description || `RentHub Escrow Payment — ${tokenAmount} ${tokenType}`,
           reference: paymentReference,
           metadata: {
             mode: "merchant",
             platform: "renthub",
+            source: "renthub",
+            collection_type: "rent_escrow",
             customer_email: customerEmail || null,
             return_url: returnUrl || null,
             rentHubTransactionId,

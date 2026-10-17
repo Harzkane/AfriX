@@ -170,10 +170,20 @@ const paymentController = {
           throw new ApiError("Payment request does not belong to the provided merchant", 400);
         }
         targetWallet = await Wallet.findByPk(merchant.settlement_wallet_id);
-        if (!targetWallet) {
-          throw new ApiError("Merchant settlement wallet not found", 500);
+        if (!targetWallet || targetWallet.token_type !== effectiveTokenType) {
+          targetWallet = await Wallet.findOne({
+            where: { user_id: merchant.user_id, token_type: effectiveTokenType, is_active: true },
+          });
+          if (!targetWallet && merchant.user_id) {
+            targetWallet = await Wallet.create({
+              user_id: merchant.user_id,
+              token_type: effectiveTokenType,
+              balance: 0,
+              is_active: true,
+            });
+          }
         }
-        if (targetWallet.token_type !== effectiveTokenType) {
+        if (!targetWallet) {
           throw new ApiError(
             `Merchant settlement wallet does not accept ${effectiveTokenType}`,
             400

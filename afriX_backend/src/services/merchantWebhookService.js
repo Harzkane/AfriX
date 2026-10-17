@@ -102,7 +102,9 @@ const emitMerchantWebhook = async (merchantId, payload) => {
     return;
   }
 
-  const webhookUrl = merchant.webhook_url?.trim();
+  const webhookUrl =
+    merchant.webhook_url?.trim() ||
+    (merchant.business_name === "RentHub" ? process.env.AFRIEXCHANGE_WEBHOOK_CALLBACK_URL : null);
   if (!webhookUrl) {
     // Merchant has not configured a webhook URL — silently skip.
     return;

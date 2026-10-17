@@ -29,6 +29,8 @@ router.use(
 );
 
 router.post("/renthub/collections", renthubIntegrationController.createCollection);
+router.post("/renthub/checkout-session", renthubIntegrationController.createCheckoutSession);
+router.get("/renthub/verify/:reference", renthubIntegrationController.verifyPayment);
 router.post("/renthub/payouts", renthubIntegrationController.createPayout);
 router.get("/renthub/payouts/:id", renthubIntegrationController.getPayout);
 router.get("/renthub/rates", renthubIntegrationController.getRates);

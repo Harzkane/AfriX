@@ -553,6 +553,174 @@ const renthubIntegrationController = {
       },
     });
   },
+
+  /**
+   * POST /integrations/renthub/checkout-session
+   * Initiates a secure hosted checkout session for a tenant on AfriExchange (/pay/[id]).
+   * Tenant authorizes payment directly on AfriExchange using their account password.
+   */
+  async createCheckoutSession(req, res, next) {
+    try {
+      const {
+        rentHubTransactionId,
+        amount,
+        amountInNgn,
+        amountInToken,
+        currency = "NGN",
+        tokenType = TOKEN_TYPES.NT,
+        description,
+        customerEmail,
+        returnUrl,
+        metadata = {},
+      } = req.body;
+
+      if (!rentHubTransactionId || (!amount && !amountInToken)) {
+        throw new ApiError("rentHubTransactionId and amount are required", 400);
+      }
+
+      if (!Object.values(TOKEN_TYPES).includes(tokenType)) {
+        throw new ApiError(`Invalid tokenType '${tokenType}'. Supported: ${Object.values(TOKEN_TYPES).join(", ")}`, 400);
+      }
+
+      // Compute token amount
+      const { EXCHANGE_RATES } = require("../config/constants");
+      const originalNgn = parseFloat(amountInNgn || (currency === "NGN" ? amount : 0));
+      let tokenAmount = parseFloat(amount);
+      let conversionRate = 1.0;
+
+      if (amountInToken) {
+        tokenAmount = parseFloat(amountInToken);
+      } else if (currency === "NGN" && tokenType !== TOKEN_TYPES.NT) {
+        if (tokenType === TOKEN_TYPES.USDT) {
+          conversionRate = EXCHANGE_RATES.NT_TO_USDT || 0.00067;
+          tokenAmount = parseFloat((originalNgn * conversionRate).toFixed(2));
+        } else if (tokenType === TOKEN_TYPES.CT) {
+          conversionRate = EXCHANGE_RATES.NT_TO_CT || 0.37;
+          tokenAmount = parseFloat((originalNgn * conversionRate).toFixed(2));
+        }
+      }
+
+      if (tokenAmount <= 0) {
+        throw new ApiError("Amount must be greater than 0", 400);
+      }
+
+      // Resolve RentHub merchant
+      let merchant = await resolveRentHubMerchant();
+      if (!merchant) {
+        merchant = await Merchant.findOne({ where: { business_name: "RentHub" } });
+      }
+
+      // Build consistent reference
+      const cleanTxId = String(rentHubTransactionId).replace(/[^a-zA-Z0-9]/g, "").slice(0, 8).toUpperCase();
+      const paymentReference = `RQST-RH-${cleanTxId}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+
+      // Check for existing pending transaction for this rentHubTransactionId
+      const existing = await Transaction.findOne({
+        where: {
+          type: TRANSACTION_TYPES.COLLECTION,
+          status: TRANSACTION_STATUS.PENDING,
+          "metadata.rentHubTransactionId": rentHubTransactionId,
+        },
+      });
+
+      let transaction = existing;
+      if (!transaction) {
+        transaction = await Transaction.create({
+          from_user_id: null,
+          to_user_id: merchant ? merchant.user_id : null,
+          merchant_id: merchant ? merchant.id : null,
+          amount: tokenAmount,
+          token_type: tokenType,
+          type: TRANSACTION_TYPES.COLLECTION,
+          status: TRANSACTION_STATUS.PENDING,
+          description: description || `RentHub Escrow Payment (${tokenAmount} ${tokenType})`,
+          reference: paymentReference,
+          metadata: {
+            mode: "merchant",
+            platform: "renthub",
+            customer_email: customerEmail || null,
+            return_url: returnUrl || null,
+            rentHubTransactionId,
+            original_amount_ngn: originalNgn,
+            conversion_rate: conversionRate,
+            ...metadata,
+          },
+        });
+      }
+
+      const activeRef = transaction.reference;
+      const webBaseUrl = (process.env.AFRIX_WEB_URL || "https://afri-x.vercel.app").replace(/\/$/, "");
+      const paymentUrl = `${webBaseUrl}/pay/${activeRef}?amount=${tokenAmount}&token=${tokenType}&note=${encodeURIComponent(description || "RentHub Escrow Payment")}${customerEmail ? `&email=${encodeURIComponent(customerEmail)}` : ""}&txId=${transaction.id}`;
+
+      return res.status(201).json({
+        success: true,
+        data: {
+          provider: "afriexchange",
+          paymentUrl,
+          payment_url: paymentUrl,
+          reference: activeRef,
+          transactionId: transaction.id,
+          amount: tokenAmount,
+          tokenType,
+          originalNgn,
+          returnUrl: returnUrl || null,
+          expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+        },
+        message: "Hosted payment checkout session initialized successfully",
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  /**
+   * GET /integrations/renthub/verify/:reference
+   * Verifies payment status of an AfriExchange reference.
+   */
+  async verifyPayment(req, res, next) {
+    try {
+      const { reference } = req.params;
+      if (!reference) {
+        throw new ApiError("reference parameter is required", 400);
+      }
+
+      const cleanRef = reference.replace(/^RQST-/i, "");
+      const orConditions = [{ reference }, { reference: cleanRef }, { reference: `RQST-${cleanRef}` }];
+      if (isUuid(cleanRef)) {
+        orConditions.push({ id: cleanRef });
+      }
+
+      const transaction = await Transaction.findOne({
+        where: {
+          [Op.or]: orConditions,
+        },
+      });
+
+      if (!transaction) {
+        return res.status(404).json({
+          success: false,
+          message: "Transaction reference not found",
+        });
+      }
+
+      const isCompleted = transaction.status === TRANSACTION_STATUS.COMPLETED;
+
+      return res.json({
+        success: true,
+        data: {
+          reference: transaction.reference,
+          status: transaction.status,
+          verified: isCompleted,
+          amount: transaction.amount,
+          tokenType: transaction.token_type,
+          rentHubTransactionId: transaction.metadata?.rentHubTransactionId || null,
+          processedAt: transaction.processed_at || transaction.updated_at,
+        },
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
 };
 
 module.exports = renthubIntegrationController;

@@ -609,6 +609,10 @@ const renthubIntegrationController = {
       if (!merchant) {
         merchant = await Merchant.findOne({ where: { business_name: "RentHub" } });
       }
+      if (merchant && merchant.user_id) {
+        const walletService = require("../services/walletService");
+        await walletService.getOrCreateWallet(merchant.user_id, tokenType);
+      }
 
       // Build consistent reference
       const cleanTxId = String(rentHubTransactionId).replace(/[^a-zA-Z0-9]/g, "").slice(0, 8).toUpperCase();

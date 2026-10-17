@@ -15,6 +15,7 @@ const { generateTransactionReference } = require("../utils/helpers");
 const { ApiError } = require("../utils/errors");
 const { emitMerchantWebhook } = require("../services/merchantWebhookService");
 const platformService = require("../services/platformService");
+const walletService = require("../services/walletService");
 
 /**
  * Helper to build Sequelize where clause for looking up collection transactions by ID or Reference safely.
@@ -171,16 +172,8 @@ const paymentController = {
         }
         targetWallet = await Wallet.findByPk(merchant.settlement_wallet_id);
         if (!targetWallet || targetWallet.token_type !== effectiveTokenType) {
-          targetWallet = await Wallet.findOne({
-            where: { user_id: merchant.user_id, token_type: effectiveTokenType, is_active: true },
-          });
-          if (!targetWallet && merchant.user_id) {
-            targetWallet = await Wallet.create({
-              user_id: merchant.user_id,
-              token_type: effectiveTokenType,
-              balance: 0,
-              is_active: true,
-            });
+          if (merchant.user_id) {
+            targetWallet = await walletService.getOrCreateWallet(merchant.user_id, effectiveTokenType);
           }
         }
         if (!targetWallet) {
@@ -197,16 +190,7 @@ const paymentController = {
         if (!targetUser) {
           throw new ApiError("Recipient user not found", 404);
         }
-        targetWallet = await Wallet.findOne({
-          where: { user_id: targetUser.id, token_type: effectiveTokenType },
-        });
-        if (!targetWallet) {
-          targetWallet = await Wallet.create({
-            user_id: targetUser.id,
-            token_type: effectiveTokenType,
-            balance: 0,
-          });
-        }
+        targetWallet = await walletService.getOrCreateWallet(targetUser.id, effectiveTokenType);
         fee = 0;
         netAmount = effectiveAmount;
       } else {

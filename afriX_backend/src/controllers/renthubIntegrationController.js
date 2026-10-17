@@ -26,29 +26,50 @@ const buildReference = (idempotencyKey) => {
   return `RENTHUB-${hash.slice(0, 24)}`;
 };
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const isUuid = (val) => typeof val === "string" && UUID_REGEX.test(val.trim());
+
 /**
- * Resolve a buyer (tenant) by one of: userId, walletAddress, accountEmail.
+ * Resolve a buyer (tenant or landlord) by one of: userId (UUID), walletAddress, accountEmail.
  */
 const resolveBuyer = async ({ userId, walletAddress, accountEmail, tokenType }) => {
   let user = null;
 
-  if (userId) {
-    user = await User.findByPk(userId);
+  const cleanUserId = typeof userId === "string" ? userId.trim() : null;
+  const cleanEmail = typeof accountEmail === "string" ? accountEmail.trim().toLowerCase() : null;
+  const cleanWallet = typeof walletAddress === "string" ? walletAddress.trim() : null;
+
+  // 1. If a valid AfriExchange UUID is provided, search by primary key
+  if (cleanUserId && isUuid(cleanUserId)) {
+    user = await User.findByPk(cleanUserId);
   }
-  if (!user && accountEmail) {
-    user = await User.findOne({ where: { email: accountEmail } });
+
+  // 2. Search by account email
+  if (!user && cleanEmail) {
+    user = await User.findOne({ where: { email: cleanEmail } });
   }
+
+  // 3. Search by blockchain wallet address
+  if (!user && cleanWallet) {
+    const walletMatch = await Wallet.findOne({
+      where: { blockchain_address: cleanWallet, token_type: tokenType },
+    });
+    if (walletMatch) {
+      user = await User.findByPk(walletMatch.user_id);
+    }
+  }
+
   if (!user) {
     throw new ApiError(
-      "Tenant AfriExchange account not found. Provide buyerAfriExchangeUserId or buyerAccountEmail.",
+      `Tenant AfriExchange account not found. Please ensure the email '${cleanEmail || "none provided"}' is registered on AfriExchange.`,
       404
     );
   }
 
   let wallet;
-  if (walletAddress) {
+  if (cleanWallet) {
     wallet = await Wallet.findOne({
-      where: { user_id: user.id, blockchain_address: walletAddress, token_type: tokenType },
+      where: { user_id: user.id, blockchain_address: cleanWallet, token_type: tokenType },
     });
   } else {
     wallet = await Wallet.findOne({
@@ -57,7 +78,7 @@ const resolveBuyer = async ({ userId, walletAddress, accountEmail, tokenType }) 
   }
 
   if (!wallet) {
-    throw new ApiError("Tenant AfriExchange wallet not found", 404);
+    throw new ApiError(`Tenant AfriExchange ${tokenType} wallet not found or inactive`, 404);
   }
 
   return { user, wallet };
@@ -70,8 +91,8 @@ const resolveRentHubMerchant = async () => {
   const merchantId = process.env.RENTHUB_AFRIEXCHANGE_MERCHANT_ID;
   let merchant = null;
 
-  if (merchantId) {
-    merchant = await Merchant.findByPk(merchantId);
+  if (merchantId && isUuid(merchantId)) {
+    merchant = await Merchant.findByPk(merchantId.trim());
   }
   if (!merchant) {
     merchant = await Merchant.findOne({ where: { business_name: "RentHub" } });
@@ -184,7 +205,7 @@ const renthubIntegrationController = {
 
       // Resolve tenant's AfriExchange wallet
       const { user: buyerUser, wallet: buyerWallet } = await resolveBuyer({
-        userId: buyerAfriExchangeUserId || tenantId,
+        userId: buyerAfriExchangeUserId,
         walletAddress: buyerWalletAddress,
         accountEmail: buyerAccountEmail,
         tokenType,
@@ -313,7 +334,7 @@ const renthubIntegrationController = {
 
       // Resolve landlord AfriExchange wallet
       const { user: landlordUser, wallet: landlordWallet } = await resolveBuyer({
-        userId: landlordAfriExchangeUserId || landlordId,
+        userId: landlordAfriExchangeUserId,
         walletAddress: landlordWalletAddress,
         accountEmail: landlordAccountEmail,
         tokenType,

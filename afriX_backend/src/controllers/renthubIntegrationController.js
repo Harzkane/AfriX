@@ -18,12 +18,58 @@ const {
   TRANSACTION_TYPES,
 } = require("../config/constants");
 const { ApiError } = require("../utils/errors");
+const { sendAccountLinkVerificationCode } = require("../services/emailService");
+const { setCache, getCache, deleteCache } = require("../utils/cache");
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const buildReference = (idempotencyKey) => {
   const hash = crypto.createHash("sha256").update(idempotencyKey).digest("hex");
   return `RENTHUB-${hash.slice(0, 24)}`;
+};
+
+const linkVerificationSessions = new Map();
+const LINK_VERIFICATION_TTL_MS = 10 * 60 * 1000;
+const LINK_VERIFICATION_CACHE_PREFIX = "renthub:link-verification:";
+const SHOULD_LOG_LINK_CODES =
+  process.env.NODE_ENV !== "production" ||
+  process.env.LOG_ACCOUNT_LINK_VERIFICATION_CODES === "true";
+
+const buildLinkVerificationCacheKey = (requestId) =>
+  `${LINK_VERIFICATION_CACHE_PREFIX}${requestId}`;
+
+const saveLinkVerificationSession = async (requestId, session) => {
+  linkVerificationSessions.set(requestId, session);
+  await setCache(
+    buildLinkVerificationCacheKey(requestId),
+    session,
+    Math.ceil(LINK_VERIFICATION_TTL_MS / 1000)
+  );
+};
+
+const getLinkVerificationSession = async (requestId) => {
+  const cachedSession = await getCache(buildLinkVerificationCacheKey(requestId));
+  if (cachedSession) {
+    linkVerificationSessions.set(requestId, cachedSession);
+    return cachedSession;
+  }
+  return linkVerificationSessions.get(requestId) || null;
+};
+
+const deleteLinkVerificationSession = async (requestId) => {
+  linkVerificationSessions.delete(requestId);
+  await deleteCache(buildLinkVerificationCacheKey(requestId));
+};
+
+const generateVerificationCode = () =>
+  Math.floor(100000 + Math.random() * 900000).toString();
+
+const maskEmail = (email = "") => {
+  const [local, domain] = email.split("@");
+  if (!local || !domain) return email;
+  const start = local.slice(0, 2);
+  const end = local.length > 2 ? local.slice(-1) : "";
+  return `${start}${"*".repeat(Math.max(local.length - 3, 1))}${end}@${domain}`;
 };
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -153,6 +199,164 @@ const validateMerchantApiKey = async (req, res, next, providedKey) => {
 
 const renthubIntegrationController = {
   authenticateRentHub,
+
+  async verifyAccount(req, res, next) {
+    try {
+      const {
+        afriExchangeUserId,
+        walletAddress,
+        accountEmail,
+        tokenType = TOKEN_TYPES.NT,
+      } = req.body;
+
+      if (!Object.values(TOKEN_TYPES).includes(tokenType)) {
+        throw new ApiError("Invalid tokenType", 400);
+      }
+
+      const { user, wallet } = await resolveBuyer({
+        userId: afriExchangeUserId,
+        walletAddress,
+        accountEmail,
+        tokenType,
+      });
+
+      return res.status(200).json({
+        success: true,
+        data: {
+          verified: true,
+          tokenType,
+          user: {
+            id: user.id,
+            email: user.email,
+          },
+          wallet: {
+            id: wallet.id,
+            blockchain_address: wallet.blockchain_address,
+            token_type: wallet.token_type,
+          },
+        },
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  async requestLinkVerification(req, res, next) {
+    try {
+      const {
+        afriExchangeUserId,
+        walletAddress,
+        accountEmail,
+        tokenType = TOKEN_TYPES.NT,
+      } = req.body;
+
+      if (!Object.values(TOKEN_TYPES).includes(tokenType)) {
+        throw new ApiError("Invalid tokenType", 400);
+      }
+
+      const { user, wallet } = await resolveBuyer({
+        userId: afriExchangeUserId,
+        walletAddress,
+        accountEmail,
+        tokenType,
+      });
+
+      const requestId = crypto.randomUUID();
+      const code = generateVerificationCode();
+      const expiresAt = Date.now() + LINK_VERIFICATION_TTL_MS;
+
+      await saveLinkVerificationSession(requestId, {
+        requestId,
+        code,
+        tokenType,
+        userId: user.id,
+        email: user.email,
+        walletId: wallet.id,
+        walletAddress: wallet.blockchain_address,
+        expiresAt,
+        attempts: 0,
+      });
+
+      if (SHOULD_LOG_LINK_CODES) {
+        console.info(
+          `[AfriExchange RentHub link verification] requestId=${requestId} email=${user.email} code=${code}`
+        );
+      }
+
+      await sendAccountLinkVerificationCode(user.email, user.full_name, code);
+
+      return res.status(200).json({
+        success: true,
+        data: {
+          requestId,
+          expiresInSeconds: Math.floor(LINK_VERIFICATION_TTL_MS / 1000),
+          maskedEmail: maskEmail(user.email),
+          ...(process.env.NODE_ENV !== "production" ? { code } : {}),
+        },
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  async confirmLinkVerification(req, res, next) {
+    try {
+      const { requestId, code } = req.body;
+
+      if (!requestId || !code) {
+        throw new ApiError("requestId and code are required", 400);
+      }
+
+      const session = await getLinkVerificationSession(requestId);
+      if (!session) {
+        throw new ApiError("Link verification request not found or expired", 404);
+      }
+
+      if (session.expiresAt < Date.now()) {
+        await deleteLinkVerificationSession(requestId);
+        throw new ApiError("Link verification code has expired", 410);
+      }
+
+      session.attempts += 1;
+      if (session.attempts > 5) {
+        await deleteLinkVerificationSession(requestId);
+        throw new ApiError("Too many invalid verification attempts", 429);
+      }
+
+      if (String(code).trim() !== session.code) {
+        await saveLinkVerificationSession(requestId, session);
+        throw new ApiError("Invalid verification code", 400);
+      }
+
+      await deleteLinkVerificationSession(requestId);
+
+      const user = await User.findByPk(session.userId);
+      const wallet = await Wallet.findByPk(session.walletId);
+
+      if (!user || !wallet) {
+        throw new ApiError("Resolved AfriExchange account is no longer available", 404);
+      }
+
+      return res.status(200).json({
+        success: true,
+        data: {
+          verified: true,
+          tokenType: session.tokenType,
+          user: {
+            id: user.id,
+            email: user.email,
+          },
+          wallet: {
+            id: wallet.id,
+            blockchain_address: wallet.blockchain_address,
+            token_type: wallet.token_type,
+          },
+        },
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
 
   /**
    * POST /integrations/renthub/collections

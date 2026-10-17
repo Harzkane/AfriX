@@ -28,6 +28,15 @@ router.use(
   renthubIntegrationController.authenticateRentHub
 );
 
+router.post("/renthub/verify-account", renthubIntegrationController.verifyAccount);
+router.post(
+  "/renthub/link-verification/request",
+  renthubIntegrationController.requestLinkVerification
+);
+router.post(
+  "/renthub/link-verification/confirm",
+  renthubIntegrationController.confirmLinkVerification
+);
 router.post("/renthub/collections", renthubIntegrationController.createCollection);
 router.post("/renthub/checkout-session", renthubIntegrationController.createCheckoutSession);
 router.get("/renthub/verify/:reference", renthubIntegrationController.verifyPayment);

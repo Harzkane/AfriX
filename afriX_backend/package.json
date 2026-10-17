@@ -24,6 +24,7 @@
     "seed:kaalis-merchant": "node src/scripts/create_kaalis_merchant.js",
     "reset:kaalis-merchant-password": "node src/scripts/reset_kaalis_merchant_password.js",
     "seed:renthub-merchant": "node src/scripts/create_renthub_merchant.js",
+    "credit:renthub": "node src/scripts/credit_renthub_merchant.js",
     "migrate:wallet-keys": "node scripts/migrate-wallet-keys-to-gcm.js",
     "migrate:wallet-keys:dry-run": "node scripts/migrate-wallet-keys-to-gcm.js --dry-run"
   },

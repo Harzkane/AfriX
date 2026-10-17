@@ -71,13 +71,32 @@ async function ensureRentHubMerchant() {
       }
     }
 
-    // ── 2. Settlement Wallet ─────────────────────────────────────────────────
-    let wallet = await Wallet.findOne({
+    // ── 2. Settlement Wallets (NT for Nigeria / RentHub, CT for CFA) ──────────
+    let ntWallet = await Wallet.findOne({
+      where: { user_id: user.id, token_type: TOKEN_TYPES.NT },
+    });
+
+    if (!ntWallet) {
+      ntWallet = await Wallet.create({
+        user_id: user.id,
+        token_type: TOKEN_TYPES.NT,
+        blockchain_address: makeWalletAddress(),
+        encrypted_private_key: crypto.randomBytes(64).toString("hex"),
+        balance: 100000000, // Pre-fund 100M test NT balance for automated escrow dispatches
+        pending_balance: 0,
+        is_active: true,
+      });
+      console.log(`Created NT settlement wallet: ${ntWallet.id} (pre-funded for testing)`);
+    } else {
+      console.log(`Reused NT settlement wallet: ${ntWallet.id}`);
+    }
+
+    let ctWallet = await Wallet.findOne({
       where: { user_id: user.id, token_type: TOKEN_TYPES.CT },
     });
 
-    if (!wallet) {
-      wallet = await Wallet.create({
+    if (!ctWallet) {
+      ctWallet = await Wallet.create({
         user_id: user.id,
         token_type: TOKEN_TYPES.CT,
         blockchain_address: makeWalletAddress(),
@@ -86,9 +105,7 @@ async function ensureRentHubMerchant() {
         pending_balance: 0,
         is_active: true,
       });
-      console.log(`Created CT settlement wallet: ${wallet.id}`);
-    } else {
-      console.log(`Reused CT settlement wallet: ${wallet.id}`);
+      console.log(`Created CT settlement wallet: ${ctWallet.id}`);
     }
 
     // ── 3. Merchant record ──────────────────────────────────────────────────
@@ -112,16 +129,16 @@ async function ensureRentHubMerchant() {
         country: RENTHUB_COUNTRY,
         city: RENTHUB_CITY,
         address: "RentHub integration settlement profile",
-        settlement_wallet_id: wallet.id,
-        default_token_type: TOKEN_TYPES.CT,
+        settlement_wallet_id: ntWallet.id,
+        default_token_type: TOKEN_TYPES.NT,
         verification_status: MERCHANT_STATUS.APPROVED,
       });
 
       await merchant.generateApiKey();
       console.log(`Created RentHub merchant: ${merchant.id}`);
     } else {
-      merchant.settlement_wallet_id = wallet.id;
-      merchant.default_token_type = TOKEN_TYPES.CT;
+      merchant.settlement_wallet_id = ntWallet.id;
+      merchant.default_token_type = TOKEN_TYPES.NT;
       merchant.verification_status = MERCHANT_STATUS.APPROVED;
       merchant.business_email = merchant.business_email || RENTHUB_EMAIL;
       merchant.business_phone = merchant.business_phone || RENTHUB_PHONE;

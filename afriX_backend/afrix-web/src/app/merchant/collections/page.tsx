@@ -138,6 +138,28 @@ export default function MerchantCollectionsPage() {
     tx.metadata?.source === "renthub" ||
     tx.description?.toLowerCase().includes("escrow");
 
+  const isEscrowReleased = (tx: MerchantTransaction) => {
+    if (
+      tx.metadata?.escrow_released === true ||
+      Boolean(tx.metadata?.escrow_released_at) ||
+      tx.metadata?.payout_status === "completed" ||
+      tx.metadata?.released === true
+    ) {
+      return true;
+    }
+    const rentHubTxId = tx.metadata?.rentHubTransactionId;
+    if (rentHubTxId) {
+      const hasCompletedPayout = transactions.some(
+        (other) =>
+          other.metadata?.rentHubTransactionId === rentHubTxId &&
+          other.metadata?.payout_type === "landlord_escrow_release" &&
+          ["completed", "success", "successful"].includes((other.status || "").toLowerCase())
+      );
+      if (hasCompletedPayout) return true;
+    }
+    return false;
+  };
+
   const stats = useMemo(() => {
     const completed = filteredTransactions.filter((tx) =>
       ["completed", "success", "successful"].includes((tx.status || "").toLowerCase())
@@ -347,9 +369,15 @@ export default function MerchantCollectionsPage() {
                   <div className="flex flex-col items-end gap-1">
                     <Badge variant={statusTone(transaction.status)}>{transaction.status}</Badge>
                     {isEscrowTx(transaction) && (
-                      <Badge className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 text-[10px] font-bold">
-                        🛡️ Escrow
-                      </Badge>
+                      isEscrowReleased(transaction) ? (
+                        <Badge className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 text-[10px] font-bold">
+                          ✓ Escrow Released
+                        </Badge>
+                      ) : (
+                        <Badge className="bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 text-[10px] font-bold">
+                          🛡️ In Escrow
+                        </Badge>
+                      )
                     )}
                   </div>
                 </div>
@@ -415,12 +443,16 @@ export default function MerchantCollectionsPage() {
                     <TableCell>
                       <div className="flex items-center gap-1.5 flex-wrap">
                         <Badge variant={statusTone(tx.status)}>{tx.status}</Badge>
-                        {(tx.metadata?.collection_type === "rent_escrow" ||
-                          tx.metadata?.platform === "renthub" ||
-                          tx.description?.toLowerCase().includes("escrow")) && (
-                          <Badge className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 text-[10px] font-bold">
-                            🛡️ Escrow
-                          </Badge>
+                        {isEscrowTx(tx) && (
+                          isEscrowReleased(tx) ? (
+                            <Badge className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 text-[10px] font-bold">
+                              ✓ Escrow Released
+                            </Badge>
+                          ) : (
+                            <Badge className="bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 text-[10px] font-bold">
+                              🛡️ In Escrow
+                            </Badge>
+                          )
                         )}
                       </div>
                     </TableCell>

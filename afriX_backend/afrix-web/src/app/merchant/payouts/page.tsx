@@ -184,10 +184,22 @@ export default function MerchantPayoutsPage() {
     const avgVolume = completed.length > 0 ? totalVolume / completed.length : 0;
 
     const totalPlatformFees = completed.reduce((sum, tx) => {
-      const explicitFee = Number(tx.metadata?.platformFee);
+      const explicitFee = Number(tx.metadata?.platformFee || tx.metadata?.platform_fee);
       if (!isNaN(explicitFee) && explicitFee > 0) return sum + explicitFee;
-      return sum + (Number(tx.amount || 0) / 0.92) * 0.08;
+      const isRentHub = tx.metadata?.source === "renthub";
+      return sum + (Number(tx.amount || 0) / (isRentHub ? 0.98 : 0.92)) * (isRentHub ? 0.02 : 0.08);
     }, 0);
+
+    const primaryToken =
+      tokenFilter !== "all"
+        ? tokenFilter
+        : (filteredPayouts[0]?.token_type || payouts[0]?.token_type || "NT");
+
+    const partnerPlatform = payouts.some((p) => p.metadata?.source === "renthub")
+      ? "RentHub"
+      : "Kaalis Store";
+
+    const feeRateLabel = partnerPlatform === "RentHub" ? "2%" : "8%";
 
     return {
       totalVolume,
@@ -195,8 +207,11 @@ export default function MerchantPayoutsPage() {
       completedCount: completed.length,
       pendingCount: pending.length,
       avgVolume,
+      primaryToken,
+      partnerPlatform,
+      feeRateLabel,
     };
-  }, [filteredPayouts]);
+  }, [filteredPayouts, tokenFilter, payouts]);
 
   const handleExportCSV = () => {
     if (!filteredPayouts.length) return;
@@ -261,15 +276,17 @@ export default function MerchantPayoutsPage() {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <Card className="border-purple-100 bg-purple-50/20">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-purple-900 dark:text-purple-300">Platform Fees (8%)</CardTitle>
+            <CardTitle className="text-sm font-medium text-purple-900 dark:text-purple-300">
+              Platform Fees ({stats.feeRateLabel})
+            </CardTitle>
             <TrendingUp className="h-4 w-4 text-purple-600" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-purple-700 dark:text-purple-300">
-              {formatAmount(stats.totalPlatformFees)} CT
+              {formatAmount(stats.totalPlatformFees)} {stats.primaryToken}
             </div>
             <p className="text-xs text-muted-foreground">
-              Accumulated 8% fee retained by platform
+              Accumulated {stats.feeRateLabel} fee retained by platform
             </p>
           </CardContent>
         </Card>
@@ -280,7 +297,9 @@ export default function MerchantPayoutsPage() {
             <Send className="h-4 w-4 text-emerald-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatAmount(stats.totalVolume)} CT</div>
+            <div className="text-2xl font-bold">
+              {formatAmount(stats.totalVolume)} {stats.primaryToken}
+            </div>
             <p className="text-xs text-muted-foreground">
               Across {stats.completedCount} completed vendor settlements
             </p>
@@ -306,7 +325,9 @@ export default function MerchantPayoutsPage() {
             <Wallet className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatAmount(stats.avgVolume)} CT</div>
+            <div className="text-2xl font-bold">
+              {formatAmount(stats.avgVolume)} {stats.primaryToken}
+            </div>
             <p className="text-xs text-muted-foreground">Per vendor settlement transaction</p>
           </CardContent>
         </Card>
@@ -317,8 +338,8 @@ export default function MerchantPayoutsPage() {
             <Store className="h-4 w-4 text-blue-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">Kaalis Store</div>
-            <p className="text-xs text-emerald-600 font-medium">Path B Integration Active</p>
+            <div className="text-2xl font-bold">{stats.partnerPlatform}</div>
+            <p className="text-xs text-emerald-600 font-medium">Integration Active</p>
           </CardContent>
         </Card>
       </div>

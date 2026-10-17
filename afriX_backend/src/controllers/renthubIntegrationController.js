@@ -623,7 +623,7 @@ const renthubIntegrationController = {
         await landlordWallet.increment("balance", { by: parseFloat(amount), transaction: dbTx });
         await landlordWallet.increment("total_received", { by: parseFloat(amount), transaction: dbTx });
 
-        return await Transaction.create(
+        const createdPayout = await Transaction.create(
           {
             reference,
             type: TRANSACTION_TYPES.CREDIT,
@@ -654,6 +654,42 @@ const renthubIntegrationController = {
           },
           { transaction: dbTx }
         );
+
+        // Update original collection transaction metadata to mark escrow released
+        try {
+          const collectionTx = await Transaction.findOne({
+            where: {
+              merchant_id: merchant.id,
+              [Op.or]: [
+                { reference: `RENTHUB-COLLECTION-${rentHubTransactionId}` },
+                sequelize.where(
+                  sequelize.cast(sequelize.col("metadata"), "text"),
+                  { [Op.like]: `%"rentHubTransactionId":"${rentHubTransactionId}"%` }
+                ),
+              ],
+            },
+            transaction: dbTx,
+          });
+
+          if (collectionTx) {
+            const currentMeta = collectionTx.metadata || {};
+            await collectionTx.update(
+              {
+                metadata: {
+                  ...currentMeta,
+                  escrow_released: true,
+                  escrow_released_at: new Date(),
+                  payout_tx_id: createdPayout.id,
+                },
+              },
+              { transaction: dbTx }
+            );
+          }
+        } catch (colErr) {
+          console.warn("Could not flag collectionTx as escrow_released:", colErr.message);
+        }
+
+        return createdPayout;
       });
 
       return res.status(201).json({

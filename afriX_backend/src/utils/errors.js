@@ -9,10 +9,11 @@ class ValidationError extends Error {
 }
 
 class ApiError extends Error {
-  constructor(message, status = 500) {
+  constructor(message, status = 500, details = null) {
     super(message);
     this.name = "ApiError";
     this.status = status;
+    if (details) this.details = details;
   }
 }
 

@@ -30,6 +30,7 @@ const { sanitizeInput } = require("./middleware/validation");
 
 // Initialize Express app
 const app = express();
+app.set("trust proxy", 1); // Trust Render / reverse-proxy X-Forwarded-* headers
 
 // ============================================
 // SECURITY MIDDLEWARE
@@ -203,6 +204,7 @@ app.use((err, req, res, next) => {
     message: isClientError || process.env.NODE_ENV === "development"
       ? err.message || "An error occurred"
       : "Internal server error",
+    ...(err.details && { details: err.details }),
     ...(process.env.NODE_ENV === "development" && { stack: err.stack }),
   });
 });

@@ -169,7 +169,7 @@ const renthubIntegrationController = {
         buyerAccountEmail,
         amount,
         currency = "NGN",
-        tokenType = TOKEN_TYPES.CT,
+        tokenType = TOKEN_TYPES.NT,
         description,
         metadata = {},
       } = req.body;
@@ -179,7 +179,7 @@ const renthubIntegrationController = {
       }
 
       if (!Object.values(TOKEN_TYPES).includes(tokenType)) {
-        throw new ApiError("Invalid tokenType", 400);
+        throw new ApiError(`Invalid tokenType '${tokenType}'. Supported: ${Object.values(TOKEN_TYPES).join(", ")}`, 400);
       }
 
       if (parseFloat(amount) <= 0) {
@@ -211,19 +211,52 @@ const renthubIntegrationController = {
         tokenType,
       });
 
-      if (buyerWallet.balance < parseFloat(amount)) {
-        throw new ApiError("Insufficient AfriExchange wallet balance", 400);
+      if (parseFloat(buyerWallet.balance) < parseFloat(amount)) {
+        // Fetch all active wallets for this user to give an informative breakdown
+        const allWallets = await Wallet.findAll({
+          where: { user_id: buyerUser.id, is_active: true },
+        });
+
+        const walletList = allWallets
+          .map((w) => `${w.token_type}: ${parseFloat(w.balance || 0).toLocaleString()}`)
+          .join(", ");
+
+        const err = new ApiError(
+          `Insufficient ${tokenType} wallet balance. Required: ${parseFloat(amount).toLocaleString()} ${tokenType}, Available: ${parseFloat(buyerWallet.balance || 0).toLocaleString()} ${tokenType}. (Your balances — ${walletList || "none"})`,
+          400,
+          {
+            code: "INSUFFICIENT_BALANCE",
+            tokenType,
+            requiredAmount: parseFloat(amount),
+            availableBalance: parseFloat(buyerWallet.balance || 0),
+            wallets: allWallets.map((w) => ({
+              tokenType: w.token_type,
+              balance: parseFloat(w.balance || 0),
+            })),
+          }
+        );
+        throw err;
       }
 
-      // Resolve RentHub merchant settlement wallet
+      // Resolve RentHub merchant settlement wallet for the target token
       const merchant = await resolveRentHubMerchant();
       if (!merchant) {
         throw new ApiError("RentHub merchant is not configured in AfriExchange. Run: npm run seed:renthub-merchant", 503);
       }
 
-      const merchantWallet = await Wallet.findByPk(merchant.settlement_wallet_id);
+      let merchantWallet = await Wallet.findOne({
+        where: { user_id: merchant.user_id, token_type: tokenType, is_active: true },
+      });
       if (!merchantWallet) {
-        throw new ApiError("RentHub settlement wallet not found", 503);
+        merchantWallet = await Wallet.create({
+          user_id: merchant.user_id,
+          token_type: tokenType,
+          blockchain_address: `0x${crypto.randomBytes(20).toString("hex")}`,
+          encrypted_private_key: crypto.randomBytes(64).toString("hex"),
+          balance: 0,
+          pending_balance: 0,
+          is_active: true,
+        });
       }
 
       const collectionTx = await sequelize.transaction(async (dbTx) => {
@@ -302,7 +335,7 @@ const renthubIntegrationController = {
         grossAmount,
         platformFee,
         currency = "NGN",
-        tokenType = TOKEN_TYPES.CT,
+        tokenType = TOKEN_TYPES.NT,
         description,
         metadata = {},
       } = req.body;
@@ -340,15 +373,17 @@ const renthubIntegrationController = {
         tokenType,
       });
 
-      // Debit from RentHub merchant settlement wallet
+      // Debit from RentHub merchant settlement wallet matching the payout token
       const merchant = await resolveRentHubMerchant();
       if (!merchant) {
         throw new ApiError("RentHub merchant is not configured in AfriExchange", 503);
       }
 
-      const merchantWallet = await Wallet.findByPk(merchant.settlement_wallet_id);
+      let merchantWallet = await Wallet.findOne({
+        where: { user_id: merchant.user_id, token_type: tokenType, is_active: true },
+      });
       if (!merchantWallet) {
-        throw new ApiError("RentHub settlement wallet not found", 503);
+        throw new ApiError(`RentHub settlement wallet for ${tokenType} not found`, 503);
       }
 
       if (merchantWallet.balance < parseFloat(amount)) {

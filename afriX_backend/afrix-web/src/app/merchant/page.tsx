@@ -47,6 +47,9 @@ type MerchantSummary = {
   total_payout_volume?: number;
   total_platform_fees?: number;
   pending_payments: number;
+  collections_by_token?: Record<string, number>;
+  payouts_by_token?: Record<string, number>;
+  primary_token?: string;
 };
 
 type MerchantWallet = {
@@ -63,6 +66,7 @@ type MerchantTransaction = {
   token_type: string;
   status: string;
   description?: string | null;
+  metadata?: Record<string, any> | null;
   created_at: string;
 };
 
@@ -99,6 +103,7 @@ export default function MerchantOverviewPage() {
   const [summary, setSummary] = useState<MerchantSummary | null>(null);
   const [wallets, setWallets] = useState<MerchantWallet[]>([]);
   const [recentCollections, setRecentCollections] = useState<MerchantTransaction[]>([]);
+  const [updatingToken, setUpdatingToken] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -121,6 +126,48 @@ export default function MerchantOverviewPage() {
 
     load();
   }, []);
+
+  const isRentHub = useMemo(() => {
+    return (
+      profile?.business_name?.toLowerCase().includes("renthub") ||
+      recentCollections.some(
+        (c) =>
+          (c.metadata as any)?.source === "renthub" ||
+          (c.metadata as any)?.platform === "renthub" ||
+          c.description?.toLowerCase().includes("renthub")
+      )
+    );
+  }, [profile?.business_name, recentCollections]);
+
+  const activeToken = useMemo(() => {
+    if (summary?.primary_token) return summary.primary_token;
+    if (profile?.default_token_type && profile.default_token_type !== "CT") {
+      return profile.default_token_type;
+    }
+    if (
+      isRentHub ||
+      wallets.some((w) => w.token_type === "NT") ||
+      recentCollections.some((c) => c.token_type === "NT")
+    ) {
+      return "NT";
+    }
+    return profile?.default_token_type || "NT";
+  }, [summary?.primary_token, profile?.default_token_type, isRentHub, wallets, recentCollections]);
+
+  const handleSwitchDefaultToken = async (newTokenType: string) => {
+    if (updatingToken || profile?.default_token_type === newTokenType) return;
+    setUpdatingToken(true);
+    try {
+      await merchantApi.put("/merchants/profile", { default_token_type: newTokenType });
+      setProfile((prev) => (prev ? { ...prev, default_token_type: newTokenType } : null));
+      const summaryRes = await merchantApi.get("/merchants/dashboard");
+      setSummary(summaryRes.data);
+    } catch (err) {
+      console.error("Failed to switch default token:", err);
+    } finally {
+      setUpdatingToken(false);
+    }
+  };
 
   const settlementWallet = useMemo(
     () => wallets.find((wallet) => wallet.id === profile?.settlement_wallet_id) || null,
@@ -253,9 +300,39 @@ export default function MerchantOverviewPage() {
               </div>
               <div>
                 <span className="block text-xs uppercase tracking-wide">Default Token</span>
-                <span className="font-medium text-foreground">
-                  {profile?.default_token_type || "N/A"}
-                </span>
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  <span className="font-semibold text-foreground text-sm">
+                    {profile?.default_token_type || activeToken}
+                  </span>
+                  <div className="flex items-center bg-muted rounded-md p-0.5 border border-border text-[11px]">
+                    <button
+                      type="button"
+                      disabled={updatingToken}
+                      onClick={() => handleSwitchDefaultToken("NT")}
+                      className={`px-1.5 py-0.5 rounded font-bold transition-colors ${
+                        (profile?.default_token_type || activeToken) === "NT"
+                          ? "bg-primary text-primary-foreground shadow-sm"
+                          : "text-muted-foreground hover:text-foreground"
+                      }`}
+                      title="Switch default token to NT (Naira Token)"
+                    >
+                      NT
+                    </button>
+                    <button
+                      type="button"
+                      disabled={updatingToken}
+                      onClick={() => handleSwitchDefaultToken("CT")}
+                      className={`px-1.5 py-0.5 rounded font-bold transition-colors ${
+                        profile?.default_token_type === "CT"
+                          ? "bg-primary text-primary-foreground shadow-sm"
+                          : "text-muted-foreground hover:text-foreground"
+                      }`}
+                      title="Switch default token to CT (CFA Token)"
+                    >
+                      CT
+                    </button>
+                  </div>
+                </div>
               </div>
               <div>
                 <span className="block text-xs uppercase tracking-wide">Settlement Wallet</span>
@@ -276,7 +353,7 @@ export default function MerchantOverviewPage() {
             <Button asChild variant="outline">
               <Link href="/merchant/payouts">
                 <Send className="mr-2 h-4 w-4" />
-                Vendor Payouts
+                {isRentHub ? "Landlord Payouts" : "Vendor Payouts"}
               </Link>
             </Button>
             <Button asChild variant="outline">
@@ -309,8 +386,9 @@ export default function MerchantOverviewPage() {
           <CardContent>
             <div className="flex items-start justify-between">
               <div>
-                <div className="text-2xl font-semibold">
-                  {formatAmount(summary?.total_volume)}
+                <div className="text-2xl font-semibold flex items-baseline gap-1.5">
+                  <span>{formatAmount(summary?.total_volume)}</span>
+                  <span className="text-sm font-bold text-muted-foreground">{activeToken}</span>
                 </div>
                 <p className="text-xs text-muted-foreground">Settled collection volume</p>
               </div>
@@ -321,16 +399,20 @@ export default function MerchantOverviewPage() {
 
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Vendor Settlements</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              {isRentHub ? "Landlord Settlements" : "Vendor Settlements"}
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-start justify-between">
               <div>
-                <div className="text-2xl font-semibold text-emerald-600">
-                  {formatAmount(summary?.total_payout_volume)}
+                <div className="text-2xl font-semibold text-emerald-600 flex items-baseline gap-1.5">
+                  <span>{formatAmount(summary?.total_payout_volume)}</span>
+                  <span className="text-sm font-bold text-emerald-600">{activeToken}</span>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  {summary?.total_payouts ?? 0} vendor payout{summary?.total_payouts === 1 ? "" : "s"}
+                  {summary?.total_payouts ?? 0} {isRentHub ? "landlord escrow release" : "vendor payout"}
+                  {summary?.total_payouts === 1 ? "" : "s"}
                 </p>
               </div>
               <Send className="h-4 w-4 text-emerald-500" />
@@ -340,16 +422,19 @@ export default function MerchantOverviewPage() {
 
         <Card className="border-purple-100 bg-purple-50/20">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-purple-900 dark:text-purple-300">Platform Fees (8%)</CardTitle>
+            <CardTitle className="text-sm font-medium text-purple-900 dark:text-purple-300">
+              {isRentHub ? "RentHub Escrow Fee (2%)" : "Platform Fees (8%)"}
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-start justify-between">
               <div>
-                <div className="text-2xl font-semibold text-purple-700 dark:text-purple-300">
-                  {formatAmount(summary?.total_platform_fees)}
+                <div className="text-2xl font-semibold text-purple-700 dark:text-purple-300 flex items-baseline gap-1.5">
+                  <span>{formatAmount(summary?.total_platform_fees)}</span>
+                  <span className="text-sm font-bold">{activeToken}</span>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Accumulated 8% fee
+                  {isRentHub ? "Secured 2% guarantee fee" : "Accumulated 8% fee"}
                 </p>
               </div>
               <TrendingUp className="h-4 w-4 text-purple-600" />
@@ -379,7 +464,10 @@ export default function MerchantOverviewPage() {
           <CardContent>
             <div className="flex items-start justify-between">
               <div>
-                <div className="text-2xl font-semibold">{formatAmount(totalWalletBalance)}</div>
+                <div className="text-2xl font-semibold flex items-baseline gap-1.5">
+                  <span>{formatAmount(totalWalletBalance)}</span>
+                  <span className="text-sm font-bold text-muted-foreground">{activeToken}</span>
+                </div>
                 <p className="text-xs text-muted-foreground">
                   Across {wallets.length || 0} token wallet{wallets.length === 1 ? "" : "s"}
                 </p>

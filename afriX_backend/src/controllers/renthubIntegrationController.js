@@ -493,7 +493,7 @@ const renthubIntegrationController = {
         return await Transaction.create(
           {
             reference,
-            type: TRANSACTION_TYPES.DEBIT,
+            type: TRANSACTION_TYPES.COLLECTION,
             status: TRANSACTION_STATUS.COMPLETED,
             amount: tokenAmount,
             fee: 0,

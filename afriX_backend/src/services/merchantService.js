@@ -216,39 +216,71 @@ const merchantService = {
       where: { merchant_id: merchantId },
     });
 
-    const completed = transactions.filter(
-      (tx) => tx.status === TRANSACTION_STATUS.COMPLETED
-    );
+    const isCompleted = (tx) =>
+      ["completed", "success", "successful", "paid"].includes(
+        (tx.status || "").toLowerCase()
+      );
 
-    const completedCollections = completed.filter(
-      (tx) => tx.type === TRANSACTION_TYPES.COLLECTION
-    );
+    const isPending = (tx) =>
+      ["pending", "processing"].includes((tx.status || "").toLowerCase());
 
-    const completedPayouts = completed.filter(
-      (tx) => tx.type === TRANSACTION_TYPES.CREDIT
-    );
+    const isCollection = (tx) =>
+      tx.type === TRANSACTION_TYPES.COLLECTION ||
+      tx.metadata?.collection_type === "rent_escrow" ||
+      (tx.metadata?.source === "renthub" && tx.type !== TRANSACTION_TYPES.CREDIT);
+
+    const isPayout = (tx) =>
+      tx.type === TRANSACTION_TYPES.CREDIT ||
+      tx.metadata?.payout_type === "landlord_escrow_release";
+
+    const completed = transactions.filter(isCompleted);
+    const completedCollections = completed.filter(isCollection);
+    const completedPayouts = completed.filter(isPayout);
 
     const totalVolume = completedCollections.reduce(
-      (sum, tx) => sum + parseFloat(tx.amount),
+      (sum, tx) => sum + parseFloat(tx.amount || 0),
       0
     );
     const totalCount = completedCollections.length;
 
     const totalPayoutVolume = completedPayouts.reduce(
-      (sum, tx) => sum + parseFloat(tx.amount),
+      (sum, tx) => sum + parseFloat(tx.amount || 0),
       0
     );
     const totalPayoutCount = completedPayouts.length;
 
     const totalPlatformFees = completedPayouts.reduce((sum, tx) => {
-      const explicitFee = parseFloat(tx.metadata?.platformFee);
+      const explicitFee = parseFloat(
+        tx.metadata?.platformFee || tx.metadata?.platform_fee
+      );
       if (!isNaN(explicitFee) && explicitFee > 0) return sum + explicitFee;
-      return sum + (parseFloat(tx.amount) / 0.92) * 0.08;
+      const isRentHub = tx.metadata?.source === "renthub";
+      const feeRate = isRentHub ? 0.02 : 0.08;
+      const baseRatio = isRentHub ? 0.98 : 0.92;
+      return sum + (parseFloat(tx.amount || 0) / baseRatio) * feeRate;
     }, 0);
 
-    const pendingPayments = transactions.filter(
-      (tx) => tx.status === TRANSACTION_STATUS.PENDING
-    ).length;
+    const pendingPayments = transactions.filter(isPending).length;
+
+    const collectionsByToken = {};
+    completedCollections.forEach((tx) => {
+      const token = tx.token_type || "NT";
+      collectionsByToken[token] =
+        (collectionsByToken[token] || 0) + parseFloat(tx.amount || 0);
+    });
+
+    const payoutsByToken = {};
+    completedPayouts.forEach((tx) => {
+      const token = tx.token_type || "NT";
+      payoutsByToken[token] =
+        (payoutsByToken[token] || 0) + parseFloat(tx.amount || 0);
+    });
+
+    const primaryToken =
+      completedCollections[0]?.token_type ||
+      completedPayouts[0]?.token_type ||
+      transactions[0]?.token_type ||
+      "NT";
 
     return {
       total_collections: totalCount,
@@ -257,6 +289,9 @@ const merchantService = {
       total_payout_volume: totalPayoutVolume,
       total_platform_fees: totalPlatformFees,
       pending_payments: pendingPayments,
+      collections_by_token: collectionsByToken,
+      payouts_by_token: payoutsByToken,
+      primary_token: primaryToken,
     };
   },
 };

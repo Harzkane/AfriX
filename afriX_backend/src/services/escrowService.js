@@ -147,6 +147,9 @@ const escrowService = {
       await userWallet.save({ transaction: innerT });
 
       // Step 4: Increase agent’s capacity (optional)
+      // feeBreakdown is hoisted here so it is always in scope for the metadata write
+      // in Step 5, even when there is no agent on this burn request.
+      let feeBreakdown = null;
       if (escrow.agent_id) {
         const { EXCHANGE_RATES } = require("../config/constants");
         const tokenToUsdt = (amt, tokenType) => {
@@ -178,7 +181,7 @@ const escrowService = {
           const platformService = require("./platformService");
           const feeMode = escrow.metadata?.fee_mode || "deduct";
 
-          const feeBreakdown = commissionService.calculateExchangeFees({
+          feeBreakdown = commissionService.calculateExchangeFees({
             amount: parseFloat(escrow.amount),
             commission_rate: agent.commission_rate ? parseFloat(agent.commission_rate) * 100 : 1.0,
             tier: agent.tier,

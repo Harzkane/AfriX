@@ -9,7 +9,7 @@ const { upload } = require("../middleware/upload");
 // === LIST REQUESTS (for users) ===
 router.get("/user", authenticate, requestController.getUserRequests);
 router.post("/payment-request", authenticate, requestController.createPaymentRequest);
-router.get("/payment-request/:id", requestController.getPaymentRequestById);
+router.get("/payment-request/:id", authenticate, requestController.getPaymentRequestById);
 router.post("/payment-request/:id/cancel", authenticate, requestController.cancelPaymentRequest);
 
 // === LIST REQUESTS (for agents) ===

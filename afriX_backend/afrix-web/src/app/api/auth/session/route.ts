@@ -2,11 +2,44 @@ import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(request: NextRequest) {
   try {
-    const { token, role } = await request.json();
+    const body = await request.json();
+    let { token, role, email, password } = body;
+    let user = null;
+
+    // Direct credentials login via server-to-server proxy so JWT never enters browser JS memory
+    if (email && password) {
+      const backendUrl =
+        process.env.INTERNAL_API_URL ||
+        process.env.NEXT_PUBLIC_API_URL ||
+        "http://localhost:5001/api/v1";
+
+      const loginRes = await fetch(`${backendUrl.replace(/\/$/, "")}/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await loginRes.json();
+      if (!loginRes.ok || !data.success) {
+        return NextResponse.json(
+          { success: false, message: data.message || "Invalid credentials" },
+          { status: loginRes.status || 401 }
+        );
+      }
+
+      user = data.data?.user;
+      token = data.data?.tokens?.access_token;
+      if (role === "admin" && user?.role !== "admin" && user?.role !== "super_admin") {
+        return NextResponse.json(
+          { success: false, message: "Access denied: Admin privileges required" },
+          { status: 403 }
+        );
+      }
+    }
 
     if (!token) {
       return NextResponse.json(
-        { success: false, message: "Token is required" },
+        { success: false, message: "Token or credentials required" },
         { status: 400 }
       );
     }
@@ -21,6 +54,7 @@ export async function POST(request: NextRequest) {
     const response = NextResponse.json({
       success: true,
       message: "Session cookie set successfully",
+      data: { user },
     });
 
     response.cookies.set({

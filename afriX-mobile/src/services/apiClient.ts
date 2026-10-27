@@ -44,7 +44,9 @@ apiClient.interceptors.response.use(
   },
   (error) => {
     if (error.response?.status === 401) {
-      console.log("⚠️  Unauthorized — token invalid or expired");
+      if (__DEV__) {
+        console.log("⚠️  Unauthorized — token invalid or expired");
+      }
       SecureStore.deleteItemAsync("auth_token").catch(() => {});
       delete apiClient.defaults.headers.Authorization;
       try {
@@ -57,7 +59,9 @@ apiClient.interceptors.response.use(
         error.config?.url?.includes("/agents/kyc/status"))
     ) {
       // Suppress 403 errors for agent status checks (expected for non-agents)
-      console.log("ℹ️  User is not an agent yet (403 expected)");
+      if (__DEV__) {
+        console.log("ℹ️  User is not an agent yet (403 expected)");
+      }
     } else if (
       error.response?.status === 400 &&
       error.response?.data?.message?.includes("cannot create") &&

@@ -26,21 +26,21 @@ export default function MerchantLoginPage() {
     setError("");
 
     try {
-      const response = await merchantApi.post("/auth/login", { email, password });
-      const { tokens, user } = response.data.data;
-      const token = tokens.access_token;
-
-      if (user.role !== "merchant") {
-        throw new Error("Access denied: Merchant privileges required");
-      }
-
-      // Set server-side httpOnly SameSite=strict cookie (XSS immune)
-      await fetch("/api/auth/session", {
+      // Authenticate via BFF session route so JWT never touches browser JS memory
+      const sessionRes = await fetch("/api/auth/session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token, role: "merchant" }),
+        body: JSON.stringify({ email, password, role: "merchant" }),
       });
-      sessionStorage.setItem("merchant_user", JSON.stringify(user));
+
+      const sessionData = await sessionRes.json();
+      if (!sessionRes.ok || !sessionData.success) {
+        throw new Error(sessionData.message || "Unable to sign in");
+      }
+
+      if (sessionData.data?.user) {
+        sessionStorage.setItem("merchant_user", JSON.stringify(sessionData.data.user));
+      }
 
       router.push("/merchant");
     } catch (err: any) {

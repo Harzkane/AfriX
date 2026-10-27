@@ -53,14 +53,13 @@ const escrowService = {
       });
       if (!userWallet) throw new ApiError("User wallet not found", 404);
 
-      const amt = parseFloat(amount);
-      if (parseFloat(userWallet.balance) < amt) {
+      if (Money.lt(userWallet.balance, amount)) {
         throw new ApiError("Insufficient available balance", 400);
       }
 
       // Step 2: Move tokens to pending state using precision Money math
-      userWallet.balance = Money.sub(userWallet.balance, amt);
-      userWallet.pending_balance = Money.add(userWallet.pending_balance, amt);
+      userWallet.balance = Money.sub(userWallet.balance, amount);
+      userWallet.pending_balance = Money.add(userWallet.pending_balance, amount);
       await userWallet.save({ transaction: t });
 
       // Step 3: Create pending transaction
@@ -69,7 +68,7 @@ const escrowService = {
           reference: generateTransactionReference(),
           type: TRANSACTION_TYPES.BURN,
           status: TRANSACTION_STATUS.PENDING,
-          amount: amt,
+          amount: Money.toDecimalString(amount, 8),
           token_type: tokenType,
           description: "Escrowed burn - awaiting agent fiat",
           from_user_id: userId,
@@ -86,7 +85,7 @@ const escrowService = {
           from_user_id: userId,
           agent_id: agentId || null,
           token_type: tokenType,
-          amount: amt,
+          amount: Money.toDecimalString(amount, 8),
           status: "locked",
           metadata,
           expires_at: new Date(
@@ -182,8 +181,8 @@ const escrowService = {
           const feeMode = escrow.metadata?.fee_mode || "deduct";
 
           feeBreakdown = commissionService.calculateExchangeFees({
-            amount: parseFloat(escrow.amount),
-            commission_rate: agent.commission_rate ? parseFloat(agent.commission_rate) * 100 : 1.0,
+            amount: Money.toDecimal(escrow.amount).toNumber(),
+            commission_rate: agent.commission_rate ? Money.mul(agent.commission_rate, 100) : 1.0,
             tier: agent.tier,
             fee_mode: feeMode,
           });

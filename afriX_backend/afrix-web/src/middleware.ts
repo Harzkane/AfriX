@@ -55,11 +55,14 @@ async function isValidJwt(token: string | undefined): Promise<boolean> {
         }
 
         const jwtSecret = process.env.JWT_SECRET || process.env.NEXT_PUBLIC_JWT_SECRET;
-        if (jwtSecret) {
-            const isSignatureValid = await verifyJwtSignature(token, jwtSecret);
-            if (!isSignatureValid) {
-                return false;
-            }
+        if (!jwtSecret) {
+            console.error("[Middleware] Security violation: JWT_SECRET is not configured; rejecting token.");
+            return false;
+        }
+
+        const isSignatureValid = await verifyJwtSignature(token, jwtSecret);
+        if (!isSignatureValid) {
+            return false;
         }
 
         return true;

@@ -26,28 +26,21 @@ export default function LoginPage() {
     setError("");
 
     try {
-      const response = await api.post("/auth/login", {
-        email,
-        password,
-      });
-
-      const { tokens, user } = response.data.data;
-      const token = tokens.access_token;
-
-      // Check if user is admin
-      if (user.role !== "admin" && user.role !== "super_admin") {
-        throw new Error("Access denied: Admin privileges required");
-      }
-
-      // Store token via server-side Set-Cookie (httpOnly Secure SameSite=strict — XSS immune)
-      await fetch("/api/auth/session", {
+      // Authenticate via BFF session route so JWT never enters browser JS memory (httpOnly cookie directly)
+      const sessionRes = await fetch("/api/auth/session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token, role: "admin" }),
+        body: JSON.stringify({ email, password, role: "admin" }),
       });
 
-      // Store non-sensitive user metadata in sessionStorage (cleared on tab close; token is in httpOnly cookie)
-      sessionStorage.setItem("admin_user", JSON.stringify(user));
+      const sessionData = await sessionRes.json();
+      if (!sessionRes.ok || !sessionData.success) {
+        throw new Error(sessionData.message || "Failed to authenticate");
+      }
+
+      if (sessionData.data?.user) {
+        sessionStorage.setItem("admin_user", JSON.stringify(sessionData.data.user));
+      }
 
       router.push("/admin");
     } catch (err: unknown) {
